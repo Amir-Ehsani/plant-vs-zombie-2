@@ -1,5 +1,7 @@
 package base;
 
+import projectile.Damage;
+
 public abstract class GameEntity {
     protected String id;
     protected int hp;

@@ -1,6 +1,7 @@
 package plant;
 
 import base.GameEntity;
+import projectile.Damage;
 
 public class Plant extends GameEntity {
     private int level;

@@ -1,6 +1,7 @@
 package zombie;
 
 import base.GameEntity;
+import projectile.Damage;
 
 public class Zombie extends GameEntity {
     private double currentSpeed;
