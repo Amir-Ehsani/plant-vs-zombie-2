@@ -1,5 +1,7 @@
 package Model;
 
+import plant.Plant;
+
 import java.util.List;
 
 public class Board {
