@@ -11,8 +11,10 @@ public class GameSession {
     private SunManager sunManager;
 
     public void initSession() {
+
     }
 
     public void updateSession() {
+
     }
 }
