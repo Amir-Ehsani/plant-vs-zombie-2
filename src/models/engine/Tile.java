@@ -1,5 +1,8 @@
 package Model;
 
+import plant.Plant;
+import zombie.Zombie;
+
 import java.util.List;
 
 public class Tile {

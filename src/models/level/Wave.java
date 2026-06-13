@@ -1,5 +1,7 @@
 package Model;
 
+import zombie.Zombie;
+
 import java.util.List;
 
 public class Wave {
