@@ -1,4 +1,4 @@
-package zombie;
+package models.core.zombie;
 
 public class ZombieType {
     private String name;

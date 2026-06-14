@@ -1,4 +1,4 @@
-package models.account;
+package  models.account;
 
 public class PlantData implements  IPurchasable{
     private String name;

@@ -1,6 +1,7 @@
-package projectile;
+package models.core.projectile;
 
-import base.GameEntity;
+
+import models.core.base.GameEntity;
 
 public class Effect {
     private String type;

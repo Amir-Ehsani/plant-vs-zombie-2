@@ -1,4 +1,4 @@
-package Model;
+package models.engine;
 
 public class Sun {
     private Position position; 

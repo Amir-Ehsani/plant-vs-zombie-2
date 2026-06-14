@@ -1,4 +1,4 @@
-package Model;
+package models.level;
 import java.util.List;
 
 public class Chapter {

@@ -1,4 +1,4 @@
-package plant;
+package models.core.plant;
 
 public class PlantUpgrade {
     private int requiredSeedPackets;

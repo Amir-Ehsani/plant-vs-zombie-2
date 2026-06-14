@@ -1,7 +1,8 @@
-package Controller;
+package controllers.core;
 
-import Model.GameSession;
-import Model.Position;
+
+import models.engine.GameSession;
+import models.engine.Position;
 
 public class GameController {
     private GameSession gameSession;
