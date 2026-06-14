@@ -1,6 +1,7 @@
-package base;
+package models.core.base;
 
-import projectile.Damage;
+
+import models.core.projectile.Damage;
 
 public abstract class GameEntity {
     protected String id;

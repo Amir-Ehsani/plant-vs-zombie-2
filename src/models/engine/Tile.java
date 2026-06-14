@@ -1,7 +1,9 @@
-package Model;
+package models.engine;
 
-import plant.Plant;
-import zombie.Zombie;
+
+
+import models.core.plant.Plant;
+import models.core.zombie.Zombie;
 
 import java.util.List;
 

@@ -1,6 +1,7 @@
-package projectile;
+package models.core.projectile;
 
-import base.GameEntity;
+
+import models.core.base.GameEntity;
 
 public class Projectile extends GameEntity {
     private double speed;

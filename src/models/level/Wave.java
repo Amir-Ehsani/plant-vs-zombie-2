@@ -1,6 +1,7 @@
-package Model;
+package models.level;
 
-import zombie.Zombie;
+
+import models.core.zombie.Zombie;
 
 import java.util.List;
 

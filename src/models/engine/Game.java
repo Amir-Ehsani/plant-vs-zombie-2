@@ -1,4 +1,4 @@
-package Model;
+package models.engine;
 
 public class Game {
     private GameSession currentSession;

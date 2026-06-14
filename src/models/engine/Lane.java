@@ -1,4 +1,6 @@
-package Model;
+package models.engine;
+
+import models.entities.LawnMower;
 
 import java.util.List;
 

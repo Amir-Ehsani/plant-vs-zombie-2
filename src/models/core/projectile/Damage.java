@@ -1,4 +1,4 @@
-package projectile;
+package models.core.projectile;
 
 public class Damage {
     private int amount;

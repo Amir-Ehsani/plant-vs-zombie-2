@@ -1,5 +1,4 @@
 package models.account;
-
 import java.util.List;
 
 public class Collection {

@@ -1,6 +1,6 @@
-package Model;
+package models.engine;
 
-import plant.Plant;
+import models.core.plant.Plant;
 
 import java.util.List;
 

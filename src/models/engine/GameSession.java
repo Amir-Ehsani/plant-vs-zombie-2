@@ -1,4 +1,8 @@
-package Model;
+package models.engine;
+
+import models.level.Chapter;
+import models.level.Level;
+import models.level.Season;
 
 public class GameSession {
     private GameState state;

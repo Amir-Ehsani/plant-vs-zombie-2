@@ -1,7 +1,8 @@
-package plant;
+package models.core.plant;
 
-import base.GameEntity;
-import projectile.Damage;
+
+import models.core.base.GameEntity;
+import models.core.projectile.Damage;
 
 public class Plant extends GameEntity {
     private int level;
@@ -22,7 +23,9 @@ public class Plant extends GameEntity {
     public void tickCooldown() {
     }
 
+
     public void takeDamage(Damage damage) {
+
     }
 
     public boolean isAlive() {

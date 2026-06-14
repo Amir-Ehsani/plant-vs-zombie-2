@@ -1,7 +1,8 @@
-package zombie;
+package models.core.zombie;
 
-import base.GameEntity;
-import projectile.Damage;
+
+import models.core.base.GameEntity;
+import models.core.projectile.Damage;
 
 public class Zombie extends GameEntity {
     private double currentSpeed;

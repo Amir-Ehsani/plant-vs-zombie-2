@@ -1,4 +1,4 @@
-package Model;
+package models.engine;
 
 public class GameState {
     private String status;

@@ -1,4 +1,4 @@
-package Model;
+package models.engine;
 
 public class Position {
     private int x;
