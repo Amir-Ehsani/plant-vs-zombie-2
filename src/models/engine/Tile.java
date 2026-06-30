@@ -62,8 +62,42 @@ public class Tile {
         return tileType == TileType.NORMAL;
     }
 
+    // state modifiers
 
+    public void setTileType(TileType tileType) {
+        if (tileType == null) {
+            throw new IllegalArgumentException("Tile type cannot be null.");
+        }
 
-    public void addZombie(Zombie z) {
+        this.tileType = tileType;
+    }
+
+    public void placePlant(Plant plant) {
+        if (plant == null) {
+            throw new IllegalArgumentException("Plant cannot be null.");
+        }
+
+        this.currentPlant = plant;
+    }
+
+    public Plant removePlant() {
+        Plant removedPlant = currentPlant;
+        currentPlant = null;
+        return removedPlant;
+    }
+
+    public void removeZombie(Zombie zombie) {
+        zombies.remove(zombie);
+    }
+
+    public void clearZombies() {
+        zombies.clear();
+    }
+
+    public void addZombie(Zombie zombie) {
+        if (zombie == null) {
+            throw new IllegalArgumentException("Zombie cannot be null.");
+        }
+        zombies.add(zombie);
     }
 }
