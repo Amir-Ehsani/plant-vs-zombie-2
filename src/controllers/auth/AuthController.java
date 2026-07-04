@@ -79,10 +79,6 @@ public class AuthController {
         return loggedInUser;
     }
 
-    public static ArrayList<User> getUsers() {
-        return USERS;
-    }
-
     private static boolean validUsername(String username) {
         return username.matches("[A-Za-z0-9-]+");
     }
