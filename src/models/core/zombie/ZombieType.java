@@ -1,29 +1,116 @@
 package models.core.zombie;
 
 public class ZombieType {
-    private String name;
-    private int baseHp;
-    private double speed;
-    private int damagePerTick;
-    private int waveCost;
+    private static final String DEFAULT_NAME = "normal zombie";
+    private static final String DEFAULT_ID = "ZombieDefault";
+    private static final int DEFAULT_BASE_HP = 190;
+    private static final double DEFAULT_SPEED = 0.185;
+    private static final int DEFAULT_DAMAGE_PER_TICK = 10;
+    private static final int DEFAULT_WAVE_COST = 100;
+
+    private final String name;
+    private final String id;
+    private final int baseHp;
+    private final double speed;
+    private final int damagePerTick;
+    private final int waveCost;
+    private final String defaultArmorName;
+
+    public ZombieType() {
+        this(
+                DEFAULT_NAME,
+                DEFAULT_BASE_HP,
+                DEFAULT_SPEED,
+                DEFAULT_DAMAGE_PER_TICK,
+                DEFAULT_WAVE_COST,
+                DEFAULT_ID,
+                null
+        );
+    }
+
+    public ZombieType(String name, int baseHp, double speed, int damagePerTick, int waveCost) {
+        this(name, baseHp, speed, damagePerTick, waveCost, createDefaultId(name), null);
+    }
+
+    public ZombieType(
+            String name,
+            int baseHp,
+            double speed,
+            int damagePerTick,
+            int waveCost,
+            String id,
+            String defaultArmorName
+    ) {
+        this.name = normalizeName(name);
+        this.baseHp = Math.max(1, baseHp);
+        this.speed = Math.max(0, speed);
+        this.damagePerTick = Math.max(0, damagePerTick);
+        this.waveCost = Math.max(0, waveCost);
+        this.id = normalizeId(id);
+        this.defaultArmorName = normalizeArmorName(defaultArmorName);
+    }
+
+    private static String createDefaultId(String name) {
+        if (name == null || name.isBlank()) {
+            return DEFAULT_ID;
+        }
+
+        return "Zombie" + name.trim().replaceAll("[^a-zA-Z0-9]", "");
+    }
+
+    private String normalizeName(String name) {
+        if (name == null || name.isBlank()) {
+            return DEFAULT_NAME;
+        }
+
+        return name.trim();
+    }
+
+    private String normalizeId(String id) {
+        if (id == null || id.isBlank()) {
+            return createDefaultId(name);
+        }
+
+        return id.trim();
+    }
+
+    private String normalizeArmorName(String armorName) {
+        if (armorName == null || armorName.isBlank() || armorName.equals("-")) {
+            return null;
+        }
+
+        return armorName.trim();
+    }
 
     public String getName() {
-        return null;
+        return name;
+    }
+
+    public String getId() {
+        return id;
     }
 
     public int getBaseHp() {
-        return 0;
+        return baseHp;
     }
 
     public double getSpeed() {
-        return 0;
+        return speed;
     }
 
     public int getDamagePerTick() {
-        return 0;
+        return damagePerTick;
     }
 
     public int getWaveCost() {
-        return 0;
+        return waveCost;
+    }
+
+    public String getDefaultArmorName() {
+        return defaultArmorName;
+    }
+
+    public boolean hasDefaultArmor() {
+        return defaultArmorName != null;
     }
 }
