@@ -3,6 +3,8 @@ package models.core.plant;
 import models.core.base.GameEntity;
 import models.core.projectile.Damage;
 
+import java.util.Locale;
+
 public class Plant extends GameEntity {
     private int level;
     private int cooldownRemaining;
@@ -662,9 +664,9 @@ public class Plant extends GameEntity {
     }
 
     private String resolveDamageType() {
-        String category = type.getCategory();
+        String category = normalizeCategory(type.getCategory());
 
-        if (category.equals("strike-through")) {
+        if (category.equals("strike through")) {
             return "piercing";
         }
 
@@ -688,34 +690,45 @@ public class Plant extends GameEntity {
     }
 
     private int resolveInitialDamage(String category) {
-        if (category == null) {
-            return 0;
-        }
+        String normalizedCategory = normalizeCategory(category);
 
-        if (category.equals("shooter")) {
+        if (normalizedCategory.equals("shooter")) {
             return 20;
         }
 
-        if (category.equals("strike-through")) {
+        if (normalizedCategory.equals("strike through")) {
             return 20;
         }
 
-        if (category.equals("homing")) {
+        if (normalizedCategory.equals("homing")) {
             return 30;
         }
 
-        if (category.equals("lobber")) {
+        if (normalizedCategory.equals("lobber")) {
             return 40;
         }
 
-        if (category.equals("melee")) {
+        if (normalizedCategory.equals("melee")) {
             return 15;
         }
 
-        if (category.equals("explosive")) {
+        if (normalizedCategory.equals("explosive")) {
             return 1800;
         }
 
         return 0;
+    }
+
+    private String normalizeCategory(String category) {
+        if (category == null) {
+            return "";
+        }
+
+        return category
+                .trim()
+                .toLowerCase(Locale.ROOT)
+                .replace("-", " ")
+                .replace("_", " ")
+                .replaceAll("\\s+", " ");
     }
 }
