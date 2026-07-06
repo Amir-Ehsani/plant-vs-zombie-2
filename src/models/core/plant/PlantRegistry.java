@@ -33,20 +33,16 @@ public class PlantRegistry {
     }
 
     public PlantType getByName(String plantName) {
-        String key = normalizeName(plantName);
-        return plantTypesByName.get(key);
+        return plantTypesByName.get(normalizeName(plantName));
     }
 
     public boolean contains(String plantName) {
-        String key = normalizeName(plantName);
-        return plantTypesByName.containsKey(key);
+        return plantTypesByName.containsKey(normalizeName(plantName));
     }
 
     public List<PlantType> getAllPlantTypes() {
         List<PlantType> plantTypes = new ArrayList<>(plantTypesByName.values());
-
         plantTypes.sort((first, second) -> first.getName().compareToIgnoreCase(second.getName()));
-
         return Collections.unmodifiableList(plantTypes);
     }
 
