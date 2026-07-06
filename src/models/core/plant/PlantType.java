@@ -1,75 +1,137 @@
 package models.core.plant;
 
 public class PlantType {
-    private static final String DEFAULT_NAME = "pea shooter";
+    private static final String DEFAULT_NAME = "Peashooter";
     private static final int DEFAULT_SUN_COST = 100;
-    private static final int DEFAULT_BASE_HP = 100;
+    private static final int DEFAULT_BASE_HP = 300;
     private static final int DEFAULT_BASE_COOLDOWN = 15;
-    private static final String DEFAULT_CATEGORY = "shooter";
+    private static final String DEFAULT_CATEGORY = "Shooter";
 
     private final String name;
+    private final String category;
+    private final String tags;
     private final int sunCost;
     private final int baseHp;
-    private final int baseCooldown;
-    private final String category;
+    private final String damage;
+    private final String baseAbility;
+    private final String plantFoodEffect;
     private final String level2Upgrade;
     private final String level3Upgrade;
     private final String level4Upgrade;
+    private final int actionInterval;
+    private final int recharge;
 
     public PlantType() {
-        this(DEFAULT_NAME, DEFAULT_SUN_COST, DEFAULT_BASE_HP, DEFAULT_BASE_COOLDOWN, DEFAULT_CATEGORY);
+        this(
+                DEFAULT_NAME,
+                DEFAULT_CATEGORY,
+                "",
+                DEFAULT_SUN_COST,
+                DEFAULT_BASE_HP,
+                "20",
+                "",
+                "",
+                "",
+                "",
+                "",
+                DEFAULT_BASE_COOLDOWN,
+                DEFAULT_BASE_COOLDOWN
+        );
     }
 
-    public PlantType(String name, int sunCost, int baseHp, int baseCooldown, String category) {
-        this(name, sunCost, baseHp, baseCooldown, category, "", "", "");
+    public PlantType(String name, int sunCost, int baseHp, int actionInterval, String category) {
+        this(
+                name,
+                category,
+                "",
+                sunCost,
+                baseHp,
+                "0",
+                "",
+                "",
+                "",
+                "",
+                "",
+                actionInterval,
+                actionInterval
+        );
     }
 
     public PlantType(
             String name,
             int sunCost,
             int baseHp,
-            int baseCooldown,
+            int actionInterval,
             String category,
             String level2Upgrade,
             String level3Upgrade,
             String level4Upgrade
     ) {
-        this.name = normalizeName(name);
+        this(
+                name,
+                category,
+                "",
+                sunCost,
+                baseHp,
+                "0",
+                "",
+                "",
+                level2Upgrade,
+                level3Upgrade,
+                level4Upgrade,
+                actionInterval,
+                actionInterval
+        );
+    }
+
+    public PlantType(
+            String name,
+            String category,
+            String tags,
+            int sunCost,
+            int baseHp,
+            String damage,
+            String baseAbility,
+            String plantFoodEffect,
+            String level2Upgrade,
+            String level3Upgrade,
+            String level4Upgrade,
+            int actionInterval,
+            int recharge
+    ) {
+        this.name = normalizeText(name, DEFAULT_NAME);
+        this.category = normalizeText(category, DEFAULT_CATEGORY);
+        this.tags = normalizeText(tags, "");
         this.sunCost = Math.max(0, sunCost);
         this.baseHp = Math.max(0, baseHp);
-        this.baseCooldown = Math.max(0, baseCooldown);
-        this.category = normalizeCategory(category);
-        this.level2Upgrade = normalizeUpgrade(level2Upgrade);
-        this.level3Upgrade = normalizeUpgrade(level3Upgrade);
-        this.level4Upgrade = normalizeUpgrade(level4Upgrade);
+        this.damage = normalizeText(damage, "0");
+        this.baseAbility = normalizeText(baseAbility, "");
+        this.plantFoodEffect = normalizeText(plantFoodEffect, "");
+        this.level2Upgrade = normalizeText(level2Upgrade, "");
+        this.level3Upgrade = normalizeText(level3Upgrade, "");
+        this.level4Upgrade = normalizeText(level4Upgrade, "");
+        this.actionInterval = Math.max(0, actionInterval);
+        this.recharge = Math.max(0, recharge);
     }
 
-    private String normalizeName(String name) {
-        if (name == null || name.isBlank()) {
-            return DEFAULT_NAME;
+    private String normalizeText(String value, String defaultValue) {
+        if (value == null || value.isBlank()) {
+            return defaultValue;
         }
 
-        return name.trim();
-    }
-
-    private String normalizeCategory(String category) {
-        if (category == null || category.isBlank()) {
-            return "normal";
-        }
-
-        return category.trim().toLowerCase();
-    }
-
-    private String normalizeUpgrade(String upgrade) {
-        if (upgrade == null || upgrade.isBlank()) {
-            return "";
-        }
-
-        return upgrade.trim();
+        return value.trim();
     }
 
     public String getName() {
         return name;
+    }
+
+    public String getCategory() {
+        return category;
+    }
+
+    public String getTags() {
+        return tags;
     }
 
     public int getSunCost() {
@@ -80,12 +142,16 @@ public class PlantType {
         return baseHp;
     }
 
-    public int getBaseCooldown() {
-        return baseCooldown;
+    public String getDamage() {
+        return damage;
     }
 
-    public String getCategory() {
-        return category;
+    public String getBaseAbility() {
+        return baseAbility;
+    }
+
+    public String getPlantFoodEffect() {
+        return plantFoodEffect;
     }
 
     public String getLevel2Upgrade() {
@@ -98,6 +164,18 @@ public class PlantType {
 
     public String getLevel4Upgrade() {
         return level4Upgrade;
+    }
+
+    public int getActionInterval() {
+        return actionInterval;
+    }
+
+    public int getBaseCooldown() {
+        return actionInterval;
+    }
+
+    public int getRecharge() {
+        return recharge;
     }
 
     public String getUpgradeForLevel(int level) {
@@ -118,5 +196,9 @@ public class PlantType {
 
     public boolean hasUpgradeForLevel(int level) {
         return !getUpgradeForLevel(level).isEmpty();
+    }
+
+    public boolean hasPlantFoodEffect() {
+        return !plantFoodEffect.isEmpty() && !plantFoodEffect.equalsIgnoreCase("ندارد") && !plantFoodEffect.contains("ندارد");
     }
 }
