@@ -6,6 +6,7 @@ public class PlantType {
     private static final int DEFAULT_BASE_HP = 300;
     private static final int DEFAULT_BASE_COOLDOWN = 15;
     private static final String DEFAULT_CATEGORY = "Shooter";
+    private static final String NO_EFFECT = "none";
 
     private final String name;
     private final String category;
@@ -30,7 +31,7 @@ public class PlantType {
                 DEFAULT_BASE_HP,
                 "20",
                 "",
-                "",
+                NO_EFFECT,
                 "",
                 "",
                 "",
@@ -48,7 +49,7 @@ public class PlantType {
                 baseHp,
                 "0",
                 "",
-                "",
+                NO_EFFECT,
                 "",
                 "",
                 "",
@@ -75,7 +76,7 @@ public class PlantType {
                 baseHp,
                 "0",
                 "",
-                "",
+                NO_EFFECT,
                 level2Upgrade,
                 level3Upgrade,
                 level4Upgrade,
@@ -106,7 +107,7 @@ public class PlantType {
         this.baseHp = Math.max(0, baseHp);
         this.damage = normalizeText(damage, "0");
         this.baseAbility = normalizeText(baseAbility, "");
-        this.plantFoodEffect = normalizeText(plantFoodEffect, "");
+        this.plantFoodEffect = normalizeText(plantFoodEffect, NO_EFFECT);
         this.level2Upgrade = normalizeText(level2Upgrade, "");
         this.level3Upgrade = normalizeText(level3Upgrade, "");
         this.level4Upgrade = normalizeText(level4Upgrade, "");
@@ -199,6 +200,6 @@ public class PlantType {
     }
 
     public boolean hasPlantFoodEffect() {
-        return !plantFoodEffect.isEmpty() && !plantFoodEffect.equalsIgnoreCase("ندارد") && !plantFoodEffect.contains("ندارد");
+        return !plantFoodEffect.isEmpty() && !plantFoodEffect.equalsIgnoreCase(NO_EFFECT);
     }
 }
