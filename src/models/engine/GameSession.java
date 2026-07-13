@@ -131,7 +131,13 @@ public class GameSession {
             return false;
         }
 
-        sunManager.collectSun(position);
+        int collectedAmount = sunManager.collectSun(position);
+
+        if (collectedAmount <= 0) {
+            return false;
+        }
+
+        totalSunAmount += collectedAmount;
         return true;
     }
 
