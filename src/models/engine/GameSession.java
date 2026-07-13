@@ -24,7 +24,7 @@ public class GameSession {
 
     public void initSession() {
         state = new GameState();
-        state.setStatus("RUNNING");
+        state.setStatus(GameState.Status.RUNNING);
 
         totalSunAmount = INITIAL_SUN_AMOUNT;
         plantFoodCount = 0;
@@ -54,7 +54,7 @@ public class GameSession {
         }
 
         if (currentLevel != null && currentLevel.checkWinCondition()) {
-            state.setStatus("WON");
+            state.setStatus(GameState.Status.WON);
             tickManager.pause();
         }
     }
@@ -151,7 +151,7 @@ public class GameSession {
     }
 
     public boolean isRunning() {
-        return state != null && "RUNNING".equals(state.getStatus());
+        return state != null && state.isRunning();
     }
 
     public GameState getState() {
