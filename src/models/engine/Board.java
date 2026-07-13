@@ -1,6 +1,5 @@
 package models.engine;
 
-import models.Result;
 import models.core.plant.Plant;
 
 import java.util.ArrayList;
@@ -36,10 +35,9 @@ public class Board {
 
     private void initializeLanes() {
         for (int y = 1; y <= height; y++) {
-                lanes.add(new Lane(y, width));
+            lanes.add(new Lane(y, width));
         }
     }
-
 
     public int getWidth() {
         return width;
@@ -74,44 +72,31 @@ public class Board {
         return lane.getTileAt(position.getX());
     }
 
+    public boolean isValidPosition(Position position) {
+        return getTileAt(position) != null;
+    }
 
+    public boolean canPlacePlant(Position position) {
+        Tile tile = getTileAt(position);
+        return tile != null && tile.isPlantable() && !tile.hasPlant();
+    }
 
-    public Result placePlant(Plant plant, Position position) {
-        if (plant == null) {
-            return new Result(false, "Plant cannot be null.");
+    public boolean placePlant(Plant plant, Position position) {
+        if (plant == null || !canPlacePlant(position)) {
+            return false;
         }
 
         Tile tile = getTileAt(position);
-
-        if (tile == null) {
-            return new Result(false, "Invalid position.");
-        }
-
-        if(!tile.isPlantable()){
-            return new Result(false, "tile is not plantable.");
-        }
-
-        if(tile.hasPlant()){
-            return new Result(false, "There is already a plant at " + position + ".");
-        }
-
         tile.placePlant(plant);
-        return new Result(true, "Plant placed at " + position + ".");
+        return true;
     }
 
-    public Result removePlant(Position position) {
+    public Plant removePlant(Position position) {
         Tile tile = getTileAt(position);
-        if (tile == null) {
-            return new Result(false, "Invalid position.");
+        if (tile == null || !tile.hasPlant()) {
+            return null;
         }
 
-        if (!tile.hasPlant()) {
-            return new Result(false, "There is no plant at " + position + ".");
-        }
-
-        tile.removePlant();
-        return new Result(true, "Plant removed from " + position + ".");
+        return tile.removePlant();
     }
-
-
 }
