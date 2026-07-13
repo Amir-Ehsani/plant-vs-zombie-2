@@ -21,7 +21,7 @@ public class Lane {
 
         this.laneId = laneId;
         this.tiles = new ArrayList<>();
-        this.lawnMower = new LawnMower();
+        this.lawnMower = new LawnMower(laneId);
 
         initializeTiles(width);
 

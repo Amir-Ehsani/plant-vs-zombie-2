@@ -8,6 +8,7 @@ public class TickManager {
 
     public TickManager() {
         this.currentTick = 0;
+        this.speedMultiplier = 1;
         this.running = false;
         this.paused = false;
     }
