@@ -103,6 +103,16 @@ public class Wave {
         return initialTotalHealth;
     }
 
+    public int getTotalWaveCost() {
+        int totalCost = 0;
+        for (Zombie zombie : zombiesList) {
+            if (zombie != null && zombie.getType() != null) {
+                totalCost += zombie.getType().getWaveCost();
+            }
+        }
+        return totalCost;
+    }
+
     public List<Zombie> getZombiesList() {
         return Collections.unmodifiableList(zombiesList);
     }
