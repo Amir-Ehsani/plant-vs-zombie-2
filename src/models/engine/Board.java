@@ -1,6 +1,7 @@
 package models.engine;
 
 import models.core.plant.Plant;
+import models.core.zombie.Zombie;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -13,6 +14,10 @@ public class Board {
     private final int width;
     private final int height;
     private final List<Lane> lanes;
+    private BoardTickResult lastTickResult;
+    private int totalZombiesKilled;
+    private int totalPlantsDestroyed;
+    private boolean brainEaten;
 
     public Board() {
         this(DEFAULT_WIDTH, DEFAULT_HEIGHT);
@@ -29,6 +34,10 @@ public class Board {
         this.width = width;
         this.height = height;
         this.lanes = new ArrayList<>();
+        this.lastTickResult = BoardTickResult.empty();
+        this.totalZombiesKilled = 0;
+        this.totalPlantsDestroyed = 0;
+        this.brainEaten = false;
 
         initializeLanes();
     }
@@ -37,6 +46,34 @@ public class Board {
         for (int y = 1; y <= height; y++) {
             lanes.add(new Lane(y, width));
         }
+    }
+
+    public BoardTickResult updateTicks() {
+        int zombiesKilled = 0;
+        int plantsDestroyed = 0;
+        int mowersTriggered = 0;
+        boolean brainWasEaten = false;
+
+        for (Lane lane : lanes) {
+            LaneTickResult result = lane.updateLaneTicks();
+            zombiesKilled += result.getZombiesKilled();
+            plantsDestroyed += result.getPlantsDestroyed();
+            if (result.isLawnMowerTriggered()) {
+                mowersTriggered++;
+            }
+            brainWasEaten = brainWasEaten || result.isBrainEaten();
+        }
+
+        totalZombiesKilled += zombiesKilled;
+        totalPlantsDestroyed += plantsDestroyed;
+        brainEaten = brainEaten || brainWasEaten;
+        lastTickResult = new BoardTickResult(
+                zombiesKilled,
+                plantsDestroyed,
+                mowersTriggered,
+                brainWasEaten
+        );
+        return lastTickResult;
     }
 
     public int getWidth() {
@@ -55,7 +92,6 @@ public class Board {
         if (y <= 0 || y > height) {
             return null;
         }
-
         return lanes.get(y - 1);
     }
 
@@ -68,7 +104,6 @@ public class Board {
         if (lane == null) {
             return null;
         }
-
         return lane.getTileAt(position.getX());
     }
 
@@ -96,7 +131,72 @@ public class Board {
         if (tile == null || !tile.hasPlant()) {
             return null;
         }
-
         return tile.removePlant();
+    }
+
+    public List<Zombie> getAllZombies() {
+        List<Zombie> zombies = new ArrayList<>();
+        for (Lane lane : lanes) {
+            for (Zombie zombie : lane.getAllZombies()) {
+                if (!zombies.contains(zombie)) {
+                    zombies.add(zombie);
+                }
+            }
+        }
+        return Collections.unmodifiableList(zombies);
+    }
+
+    public List<Plant> getAllPlants() {
+        List<Plant> plants = new ArrayList<>();
+        for (Lane lane : lanes) {
+            for (Tile tile : lane.getTiles()) {
+                Plant plant = tile.getCurrentPlant();
+                if (plant != null && plant.isAlive()) {
+                    plants.add(plant);
+                }
+            }
+        }
+        return Collections.unmodifiableList(plants);
+    }
+
+    public int getActiveZombieCount() {
+        return getAllZombies().size();
+    }
+
+    public int getPlantCount() {
+        return getAllPlants().size();
+    }
+
+    public int getTotalZombiesKilled() {
+        return totalZombiesKilled;
+    }
+
+    public int getTotalPlantsDestroyed() {
+        return totalPlantsDestroyed;
+    }
+
+    public boolean hasBrainBeenEaten() {
+        return brainEaten;
+    }
+
+    public int destroyAllZombies() {
+        int destroyed = 0;
+        for (Lane lane : lanes) {
+            for (Tile tile : lane.getTiles()) {
+                for (Zombie zombie : new ArrayList<>(tile.getZombies())) {
+                    if (zombie != null && zombie.isAlive()) {
+                        zombie.kill();
+                        destroyed++;
+                    }
+                }
+                tile.clearZombies();
+            }
+        }
+        totalZombiesKilled += destroyed;
+        return destroyed;
+    }
+
+    public BoardTickResult getLastTickResult() {
+        return lastTickResult;
     }
 }
