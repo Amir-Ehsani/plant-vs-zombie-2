@@ -28,13 +28,32 @@ public class EmailValidator {
         String username = email.substring(0, atIndex);
         String domain = email.substring(atIndex + 1);
 
-        if (username.isEmpty()) {
-            fail("Email username cannot be empty.");
+        validateUsernamePart(username);
+
+        if (!wasSuccessful()) {
             return;
         }
 
-        if (domain.isEmpty()) {
-            fail("Email domain cannot be empty.");
+        validateDomainPart(domain);
+
+        if (!wasSuccessful()) {
+            return;
+        }
+
+        success("Email is valid.");
+    }
+
+    public String getLastMessage() {
+        return lastMessage;
+    }
+
+    public boolean wasSuccessful() {
+        return lastMessage != null && lastMessage.startsWith("OK:");
+    }
+
+    private void validateUsernamePart(String username) {
+        if (username.isEmpty()) {
+            fail("Email username cannot be empty.");
             return;
         }
 
@@ -51,6 +70,15 @@ public class EmailValidator {
 
         if (!username.matches("[a-zA-Z0-9._-]+")) {
             fail("Email username contains invalid characters.");
+            return;
+        }
+
+        success("Email username is valid.");
+    }
+
+    private void validateDomainPart(String domain) {
+        if (domain.isEmpty()) {
+            fail("Email domain cannot be empty.");
             return;
         }
 
@@ -87,15 +115,7 @@ public class EmailValidator {
             return;
         }
 
-        success("Email is valid.");
-    }
-
-    public String getLastMessage() {
-        return lastMessage;
-    }
-
-    public boolean wasSuccessful() {
-        return lastMessage != null && lastMessage.startsWith("OK:");
+        success("Email domain is valid.");
     }
 
     private void success(String message) {
