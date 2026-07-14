@@ -3,7 +3,6 @@ package models.engine;
 import models.core.plant.Plant;
 import models.core.plant.PlantFactory;
 import models.core.plant.PlantFood;
-import models.level.Chapter;
 import models.level.Level;
 import models.level.Season;
 
@@ -15,7 +14,6 @@ public class GameSession {
     private Season currentSeason;
     private int totalSunAmount;
     private int plantFoodCount;
-    private Chapter currentChapter;
     private Level currentLevel;
     private Board board;
     private TickManager tickManager;
@@ -170,14 +168,6 @@ public class GameSession {
 
     public void setCurrentSeason(Season currentSeason) {
         this.currentSeason = currentSeason;
-    }
-
-    public Chapter getCurrentChapter() {
-        return currentChapter;
-    }
-
-    public void setCurrentChapter(Chapter currentChapter) {
-        this.currentChapter = currentChapter;
     }
 
     public Level getCurrentLevel() {
