@@ -44,9 +44,11 @@ public class GameSession {
     }
 
     public void initSession() {
-        state = new GameState();
-        state.setStatus(GameState.Status.RUNNING);
+        if (isRunning()) {
+            throw new IllegalStateException("Game session is already running.");
+        }
 
+        state = new GameState();
         plantFoodCount = 0;
         totalSunProduced = 0;
         board = new Board();
@@ -61,13 +63,23 @@ public class GameSession {
                 ? DEFAULT_INITIAL_SUN_AMOUNT
                 : currentLevel.resolveInitialSunAmount();
 
-        tickManager.start();
+        try {
+            tickManager.start();
 
-        if (currentLevel != null) {
-            LevelRuntimeContext context = createLevelContext();
-            currentLevel.startLevel(board, context);
-            lastSpawnedWave = currentLevel.updateTicks(context);
-            updateStateFromLevel();
+            if (currentLevel != null) {
+                LevelRuntimeContext context = createLevelContext();
+                currentLevel.startLevel(board, context);
+                lastSpawnedWave = currentLevel.updateTicks(context);
+            }
+
+            state.setStatus(GameState.Status.RUNNING);
+            if (currentLevel != null) {
+                updateStateFromLevel();
+            }
+        } catch (RuntimeException exception) {
+            tickManager.pause();
+            state.setStatus(GameState.Status.NOT_STARTED);
+            throw exception;
         }
     }
 
