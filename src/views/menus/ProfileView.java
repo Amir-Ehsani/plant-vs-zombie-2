@@ -2,6 +2,7 @@ package views.menus;
 
 import controllers.auth.AuthController;
 import controllers.core.MenuManager;
+import controllers.features.ProfileController;
 import views.core.BaseView;
 
 import java.util.regex.Matcher;
@@ -21,29 +22,17 @@ public class ProfileView extends BaseView {
             "^menu\\s+profile\\s+change-password\\s+-p\\s+(\\S+)\\s+-o\\s+(\\S+)\\s*$"
     );
 
-    // i should add a profile controller
-
     private final MenuManager menuManager;
-    private final AuthController authController;
+    private final ProfileController profileController;
 
-    public ProfileView(String viewName) {
-        super(viewName);
-        this.menuManager = null;
-        this.authController = null;
-    }
-
-    public ProfileView(String viewName, MenuManager menuManager, AuthController authController) {
+    public ProfileView(String viewName, MenuManager menuManager, ProfileController profileController) {
         super(viewName);
         this.menuManager = menuManager;
-        this.authController = authController;
+        this.profileController = profileController;
     }
 
     @Override
     public void display() {
-        if (menuManager == null) {
-            return;
-        }
-
         menuManager.showProfileMenuText();
         printControllerMessage(menuManager.getLastMessage());
     }
@@ -52,9 +41,9 @@ public class ProfileView extends BaseView {
     public void handleInput(String input) {
         String command = cleanInput(input);
 
-        if (!authController.isLoggedIn()) {
-            authController.invalidCommand("profile menu");
-            printControllerMessage(authController.getLastMessage());
+        if (!profileController.isLoggedIn()) {
+            profileController.invalidCommand("profile menu");
+            printControllerMessage(profileController.getLastMessage());
             menuManager.enterLoginMenu();
             return;
         }
@@ -83,8 +72,8 @@ public class ProfileView extends BaseView {
             return;
         }
 
-        authController.invalidCommand("profile menu");
-        printControllerMessage(authController.getLastMessage());
+        profileController.invalidCommand("profile menu");
+        printControllerMessage(profileController.getLastMessage());
     }
 
     private boolean handleMenuCommand(String command) {
@@ -95,7 +84,7 @@ public class ProfileView extends BaseView {
         }
 
         if ("menu exit".equals(command)) {
-            menuManager.enterMainMenu();
+            menuManager.exitCurrentMenu();
             printControllerMessage(menuManager.getLastMessage());
             return true;
         }
@@ -107,8 +96,8 @@ public class ProfileView extends BaseView {
             return false;
         }
 
-        authController.showProfileInfo();
-        printControllerMessage(authController.getLastMessage());
+        profileController.showProfileInfo();
+        printControllerMessage(profileController.getLastMessage());
         return true;
     }
 
@@ -119,8 +108,8 @@ public class ProfileView extends BaseView {
             return false;
         }
 
-        authController.changeUsername(matcher.group(1));
-        printControllerMessage(authController.getLastMessage());
+        profileController.changeUsername(matcher.group(1));
+        printControllerMessage(profileController.getLastMessage());
         return true;
     }
 
@@ -131,8 +120,8 @@ public class ProfileView extends BaseView {
             return false;
         }
 
-        authController.changeNickname(matcher.group(1));
-        printControllerMessage(authController.getLastMessage());
+        profileController.changeNickname(matcher.group(1));
+        printControllerMessage(profileController.getLastMessage());
         return true;
     }
 
@@ -143,8 +132,8 @@ public class ProfileView extends BaseView {
             return false;
         }
 
-        authController.changeEmail(matcher.group(1));
-        printControllerMessage(authController.getLastMessage());
+        profileController.changeEmail(matcher.group(1));
+        printControllerMessage(profileController.getLastMessage());
         return true;
     }
 
@@ -155,8 +144,8 @@ public class ProfileView extends BaseView {
             return false;
         }
 
-        authController.changePassword(matcher.group(1), matcher.group(2));
-        printControllerMessage(authController.getLastMessage());
+        profileController.changePassword(matcher.group(1), matcher.group(2));
+        printControllerMessage(profileController.getLastMessage());
         return true;
     }
 }
