@@ -33,8 +33,12 @@ public class AuthController {
         this.lastMessage = "";
     }
 
-    public void register(String username, String password, String passwordConfirm, String nickname, String email,
-                         String gender) {
+    public void register(String username, String password, String passwordConfirm, String nickname, String email, String gender) {
+        if (pendingUser != null) {
+            fail("Finish the current registration first.");
+            return;
+        }
+
         if (!isValidUsername(username)) {
             fail("Invalid username.");
             return;
@@ -151,84 +155,17 @@ public class AuthController {
             return;
         }
 
-        success("Security answer accepted.");
+        success("Security answer accepted. Enter your new password:");
     }
 
-    public void changeUsername(String newUsername) {
-        if (!requireLoggedIn()) {
+    public void resetForgottenPassword(String newPassword) {
+        if (recoveryUser == null) {
+            fail("No password recovery request exists.");
             return;
         }
 
-        if (!isValidUsername(newUsername)) {
-            fail("Invalid username.");
-            return;
-        }
-
-        if (loggedInUser.getUsername().equals(newUsername)) {
-            fail("New username is the same as current username.");
-            return;
-        }
-
-        if (findUser(newUsername) != null) {
-            fail("Username already exists.");
-            return;
-        }
-
-        loggedInUser.setUsername(newUsername);
-        saveUsers();
-        success("Username changed successfully.");
-    }
-
-    public void changeNickname(String newNickname) {
-        if (!requireLoggedIn()) {
-            return;
-        }
-
-        if (!checkNickname(newNickname)) {
-            return;
-        }
-
-        if (loggedInUser.getNickname().equals(newNickname)) {
-            fail("New nickname is the same as current nickname.");
-            return;
-        }
-
-        loggedInUser.setNickname(newNickname);
-        saveUsers();
-        success("Nickname changed successfully.");
-    }
-
-    public void changeEmail(String newEmail) {
-        if (!requireLoggedIn()) {
-            return;
-        }
-
-        if (!checkEmail(newEmail)) {
-            return;
-        }
-
-        if (loggedInUser.getEmail().equals(newEmail)) {
-            fail("New email is the same as current email.");
-            return;
-        }
-
-        loggedInUser.setEmail(newEmail);
-        saveUsers();
-        success("Email changed successfully.");
-    }
-
-    public void changePassword(String newPassword, String oldPassword) {
-        if (!requireLoggedIn()) {
-            return;
-        }
-
-        if (oldPassword == null || !oldPassword.equals(loggedInUser.getPassword())) {
-            fail("Old password is incorrect.");
-            return;
-        }
-
-        if (newPassword == null || newPassword.equals(loggedInUser.getPassword())) {
-            fail("New password must be different from current password.");
+        if (newPassword == null || newPassword.isBlank()) {
+            fail("Password cannot be empty.");
             return;
         }
 
@@ -236,78 +173,10 @@ public class AuthController {
             return;
         }
 
-        loggedInUser.setPassword(newPassword);
+        recoveryUser.setPassword(newPassword);
+        recoveryUser = null;
         saveUsers();
         success("Password changed successfully.");
-    }
-
-    public void changeDifficulty(int difficultyLevel) {
-        if (!requireLoggedIn()) {
-            return;
-        }
-
-        if (difficultyLevel < 1 || difficultyLevel > 5) {
-            fail("Difficulty level must be between 1 and 5.");
-            return;
-        }
-
-        loggedInUser.setDifficultyLevel(difficultyLevel);
-        saveUsers();
-        success("Difficulty changed successfully.");
-    }
-
-    public void addCheatCurrency(int amount, String currency) {
-        if (!requireLoggedIn()) {
-            return;
-        }
-
-        if (amount <= 0) {
-            fail("Amount must be positive.");
-            return;
-        }
-
-        String normalizedCurrency = normalize(currency);
-
-        if ("coin".equals(normalizedCurrency) || "coins".equals(normalizedCurrency)) {
-            loggedInUser.addCoins(amount);
-            saveUsers();
-            success(amount + " coins added.");
-            return;
-        }
-
-        if ("diamond".equals(normalizedCurrency) || "diamonds".equals(normalizedCurrency)
-                || "gem".equals(normalizedCurrency) || "gems".equals(normalizedCurrency)) {
-            loggedInUser.addGems(amount);
-            saveUsers();
-            success(amount + " gems added.");
-            return;
-        }
-
-        fail("Unknown currency.");
-    }
-
-    public void showCoinWallet() {
-        if (!requireLoggedIn()) {
-            return;
-        }
-
-        success("Coins: " + loggedInUser.getCoins());
-    }
-
-    public void showGemWallet() {
-        if (!requireLoggedIn()) {
-            return;
-        }
-
-        success("Gems: " + loggedInUser.getGems());
-    }
-
-    public void showProfileInfo() {
-        if (!requireLoggedIn()) {
-            return;
-        }
-
-        success(profileInfoText());
     }
 
     public void invalidCommand(String menuName) {
@@ -316,6 +185,10 @@ public class AuthController {
 
     public User getLoggedInUser() {
         return loggedInUser;
+    }
+
+    public boolean usernameExists(String username) {
+        return findUser(username) != null;
     }
 
     public String getLastMessage() {
@@ -368,15 +241,6 @@ public class AuthController {
     private boolean checkGender(String gender) {
         if (!isValidGender(gender)) {
             fail("Gender must be male or female.");
-            return false;
-        }
-
-        return true;
-    }
-
-    private boolean requireLoggedIn() {
-        if (loggedInUser == null) {
-            fail("No user is logged in.");
             return false;
         }
 
@@ -449,17 +313,6 @@ public class AuthController {
 
         text.append("pick question -q <question_number> -a <answer> -c <answer_confirm>");
         return text.toString();
-    }
-
-    private String profileInfoText() {
-        return "Profile Info\n"
-                + "Username: " + loggedInUser.getUsername() + "\n"
-                + "Nickname: " + loggedInUser.getNickname() + "\n"
-                + "Games played: " + loggedInUser.getGamesPlayed() + "\n"
-                + "Coins: " + loggedInUser.getCoins() + "\n"
-                + "Gems: " + loggedInUser.getGems() + "\n"
-                + "Passed levels: " + loggedInUser.getPassedLevels() + "\n"
-                + "Best mio point: " + loggedInUser.getBestMioPoint();
     }
 
     private String normalize(String value) {
