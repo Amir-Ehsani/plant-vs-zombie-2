@@ -19,6 +19,10 @@ public class User {
     private int passedLevels;
     private int bestMioPoint;
     private int difficultyLevel;
+    private String profileImage;
+    private String currentChapterName;
+    private List<String> unlockedChapters;
+    private List<News> newsList;
     private boolean stayLoggedIn;
     private Collection collection;
     private Greenhouse greenhouse;
@@ -31,6 +35,10 @@ public class User {
         this.nickname = safeText(nickname);
         this.email = safeText(email);
         this.gender = safeText(gender);
+        this.profileImage = "default";
+        this.currentChapterName = "";
+        this.unlockedChapters = new ArrayList<>();
+        this.newsList = new ArrayList<>();
         this.securityQuestionNumber = 0;
         this.securityAnswer = "";
         this.coins = 0;
@@ -274,6 +282,80 @@ public class User {
     public void addQuest(Quest quest) {
         if (quest != null) {
             quests.add(quest);
+        }
+    }
+
+    public String getProfileImage() {
+        return profileImage;
+    }
+
+    public void setProfileImage(String profileImage) {
+        String cleanedProfileImage = safeText(profileImage);
+
+        if (cleanedProfileImage.isEmpty()) {
+            this.profileImage = "default";
+            return;
+        }
+
+        this.profileImage = cleanedProfileImage;
+    }
+
+    public String getCurrentChapterName() {
+        return currentChapterName;
+    }
+
+    public void setCurrentChapterName(String currentChapterName) {
+        this.currentChapterName = safeText(currentChapterName);
+    }
+
+    public List<String> getUnlockedChapters() {
+        return new ArrayList<>(unlockedChapters);
+    }
+
+    public void setUnlockedChapters(List<String> unlockedChapters) {
+        this.unlockedChapters = new ArrayList<>();
+
+        if (unlockedChapters == null) {
+            return;
+        }
+
+        for (String chapterName : unlockedChapters) {
+            unlockChapter(chapterName);
+        }
+    }
+
+    public void unlockChapter(String chapterName) {
+        String cleanedChapterName = safeText(chapterName);
+
+        if (cleanedChapterName.isEmpty()) {
+            return;
+        }
+
+        if (!unlockedChapters.contains(cleanedChapterName)) {
+            unlockedChapters.add(cleanedChapterName);
+        }
+    }
+
+    public boolean isChapterUnlocked(String chapterName) {
+        return unlockedChapters.contains(safeText(chapterName));
+    }
+
+    public List<News> getNewsList() {
+        return new ArrayList<>(newsList);
+    }
+
+    public void setNewsList(List<News> newsList) {
+        if (newsList == null) {
+            this.newsList = new ArrayList<>();
+            return;
+        }
+
+        this.newsList = newsList;
+    }
+
+    public void addNews(News news) {
+        if (news != null) {
+            newsList.add(news);
         }
     }
 
