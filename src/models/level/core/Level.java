@@ -95,8 +95,8 @@ public class Level {
 
         this.board = board;
         waveManager.bindBoard(board);
-        status = LevelStatus.RUNNING;
         levelRule.onLevelStart(context);
+        status = LevelStatus.RUNNING;
         evaluate(context);
     }
 
