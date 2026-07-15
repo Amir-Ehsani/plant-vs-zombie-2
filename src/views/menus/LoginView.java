@@ -8,12 +8,6 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class LoginView extends BaseView {
-    private static final Pattern REGISTER_PATTERN = Pattern.compile(
-            "^register\\s+-u\\s+(\\S+)\\s+-p\\s+(\\S+)\\s+(\\S+)\\s+-n\\s+(\\S+)\\s+-e\\s+(\\S+)\\s+-g\\s+(\\S+)\\s*$"
-    );
-    private static final Pattern PICK_QUESTION_PATTERN = Pattern.compile(
-            "^pick\\s+question\\s+-q\\s+(\\d+)\\s+-a\\s+(.+?)\\s+-c\\s+(.+)\\s*$"
-    );
     private static final Pattern LOGIN_PATTERN = Pattern.compile(
             "^login\\s+-u\\s+(\\S+)\\s+-p\\s+(\\S+)(\\s+-stay-logged-in)?\\s*$"
     );
@@ -25,25 +19,19 @@ public class LoginView extends BaseView {
 
     private final MenuManager menuManager;
     private final AuthController authController;
-
-    public LoginView(String viewName) {
-        super(viewName);
-        this.menuManager = null;
-        this.authController = null;
-    }
+    private boolean waitingForSecurityAnswer;
+    private boolean waitingForNewPassword;
 
     public LoginView(String viewName, MenuManager menuManager, AuthController authController) {
         super(viewName);
         this.menuManager = menuManager;
         this.authController = authController;
+        this.waitingForSecurityAnswer = false;
+        this.waitingForNewPassword = false;
     }
 
     @Override
     public void display() {
-        if (menuManager == null) {
-            return;
-        }
-
         menuManager.showLoginMenuText();
         printControllerMessage(menuManager.getLastMessage());
     }
@@ -52,15 +40,11 @@ public class LoginView extends BaseView {
     public void handleInput(String input) {
         String command = cleanInput(input);
 
+        if (handleForgetPassword(command)) {
+            return;
+        }
+
         if (handleMenuCommand(command)) {
-            return;
-        }
-
-        if (handleRegister(command)) {
-            return;
-        }
-
-        if (handlePickQuestion(command)) {
             return;
         }
 
@@ -68,16 +52,60 @@ public class LoginView extends BaseView {
             return;
         }
 
-        if (handleForgetPassword(command)) {
-            return;
-        }
-
-        if (handleAnswer(command)) {
-            return;
-        }
-
         authController.invalidCommand("login menu");
         printControllerMessage(authController.getLastMessage());
+    }
+
+    private boolean handleForgetPassword(String command) {
+        if (waitingForNewPassword) {
+            authController.resetForgottenPassword(command);
+            printControllerMessage(authController.getLastMessage());
+
+            if (authController.wasSuccessful()) {
+                waitingForNewPassword = false;
+                waitingForSecurityAnswer = false;
+            }
+
+            return true;
+        }
+
+        if (waitingForSecurityAnswer) {
+            Matcher answerMatcher = ANSWER_PATTERN.matcher(command);
+
+            if (!answerMatcher.matches()) {
+                authController.invalidCommand("login menu");
+                printControllerMessage(authController.getLastMessage());
+                return true;
+            }
+
+            authController.answerSecurityQuestion(answerMatcher.group(1));
+            printControllerMessage(authController.getLastMessage());
+
+            if (authController.wasSuccessful()) {
+                waitingForSecurityAnswer = false;
+                waitingForNewPassword = true;
+            } else {
+                waitingForSecurityAnswer = false;
+                waitingForNewPassword = false;
+            }
+
+            return true;
+        }
+
+        Matcher forgetMatcher = FORGET_PASSWORD_PATTERN.matcher(command);
+
+        if (!forgetMatcher.matches()) {
+            return false;
+        }
+
+        authController.forgetPassword(forgetMatcher.group(1), forgetMatcher.group(2));
+        printControllerMessage(authController.getLastMessage());
+
+        if (authController.wasSuccessful()) {
+            waitingForSecurityAnswer = true;
+        }
+
+        return true;
     }
 
     private boolean handleMenuCommand(String command) {
@@ -104,45 +132,6 @@ public class LoginView extends BaseView {
         return false;
     }
 
-    private boolean handleRegister(String command) {
-        Matcher matcher = REGISTER_PATTERN.matcher(command);
-
-        if (!matcher.matches()) {
-            return false;
-        }
-
-        authController.register(
-                matcher.group(1),
-                matcher.group(2),
-                matcher.group(3),
-                matcher.group(4),
-                matcher.group(5),
-                matcher.group(6)
-        );
-        printControllerMessage(authController.getLastMessage());
-        return true;
-    }
-
-    private boolean handlePickQuestion(String command) {
-        Matcher matcher = PICK_QUESTION_PATTERN.matcher(command);
-
-        if (!matcher.matches()) {
-            return false;
-        }
-
-        Integer questionNumber = parseInteger(matcher.group(1));
-
-        if (questionNumber == null) {
-            authController.invalidCommand("login menu");
-            printControllerMessage(authController.getLastMessage());
-            return true;
-        }
-
-        authController.pickQuestion(questionNumber, matcher.group(2), matcher.group(3));
-        printControllerMessage(authController.getLastMessage());
-        return true;
-    }
-
     private boolean handleLogin(String command) {
         Matcher matcher = LOGIN_PATTERN.matcher(command);
 
@@ -155,32 +144,9 @@ public class LoginView extends BaseView {
 
         if (authController.wasSuccessful()) {
             menuManager.enterMainMenu();
+            printControllerMessage(menuManager.getLastMessage());
         }
 
-        return true;
-    }
-
-    private boolean handleForgetPassword(String command) {
-        Matcher matcher = FORGET_PASSWORD_PATTERN.matcher(command);
-
-        if (!matcher.matches()) {
-            return false;
-        }
-
-        authController.forgetPassword(matcher.group(1), matcher.group(2));
-        printControllerMessage(authController.getLastMessage());
-        return true;
-    }
-
-    private boolean handleAnswer(String command) {
-        Matcher matcher = ANSWER_PATTERN.matcher(command);
-
-        if (!matcher.matches()) {
-            return false;
-        }
-
-        authController.answerSecurityQuestion(matcher.group(1));
-        printControllerMessage(authController.getLastMessage());
         return true;
     }
 }
