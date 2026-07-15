@@ -15,6 +15,7 @@ import models.level.rules.impl.DeadLineRule;
 import models.level.core.Level;
 import models.level.rules.LevelRule;
 import models.level.rules.LevelRuntimeContext;
+import models.level.rules.SpecialLevelType;
 import models.level.rules.impl.LockedPlantsRule;
 import models.level.rules.impl.LoveYourPlantsRule;
 import models.level.rules.impl.NightOpsRule;
@@ -43,6 +44,9 @@ public class GameController {
     }
 
     public boolean startGame() {
+        if (gameSession == null) {
+            return fail("Game session is not available.");
+        }
         if (gameSession.isRunning()) {
             return fail("Game is already running.");
         }
@@ -56,6 +60,9 @@ public class GameController {
     }
 
     public boolean advanceTime(int ticks) {
+        if (!hasRunningSession()) {
+            return fail("No running game is available.");
+        }
         if (ticks <= 0) {
             return fail("Tick count must be positive.");
         }
@@ -146,7 +153,10 @@ public class GameController {
     }
 
     public boolean addSunCheat(int amount) {
-        if (!hasRunningSession() || amount <= 0) {
+        if (!hasRunningSession()) {
+            return fail("No running game is available.");
+        }
+        if (amount <= 0) {
             return fail("Sun cheat amount must be positive.");
         }
 
@@ -198,8 +208,8 @@ public class GameController {
     }
 
     public void handlePause() {
-        if (gameSession == null || gameSession.getTickManager() == null) {
-            fail("Game is not available.");
+        if (!hasRunningSession()) {
+            fail("No running game is available.");
             return;
         }
 
@@ -425,7 +435,7 @@ public class GameController {
                     .append(" | level-status: ")
                     .append(level.getStatus());
 
-            if (level.getSpecialLevelType() != null) {
+            if (level.getSpecialLevelType() != SpecialLevelType.NONE) {
                 builder.append(" | special: ")
                         .append(level.getSpecialLevelType());
             }
