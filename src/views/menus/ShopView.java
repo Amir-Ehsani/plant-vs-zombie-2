@@ -1,45 +1,78 @@
 package views.menus;
 
+import controllers.core.MenuManager;
+import controllers.features.GreenhouseController;
 import controllers.features.ShopController;
 import models.account.IPurchasable;
 import views.core.BaseView;
 
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class ShopView extends BaseView {
-    public ShopView(String viewName) {
+    private static final Pattern BUY_PATTERN = Pattern.compile(
+            "^shop\\s+buy\\s+-i\\s+(\\S+)\\s+-n\\s+(\\d+)(?:\\s+-t\\s+(.+?))?\\s*$"
+    );
+
+    private final MenuManager menuManager;
+    private final ShopController controller;
+    private final GreenhouseController greenhouseController;
+
+    public ShopView(
+            String viewName,
+            MenuManager menuManager,
+            ShopController controller,
+            GreenhouseController greenhouseController
+    ) {
         super(viewName);
+        this.menuManager = menuManager;
+        this.controller = controller;
+        this.greenhouseController = greenhouseController;
+    }
+
+    public ShopView(String viewName) {
+        this(viewName, null, new ShopController(), null);
     }
 
     public ShopView() {
-        super("Shop");
+        this("Shop Menu");
     }
 
     @Override
     public void display() {
-        System.out.println("Shop");
-        System.out.println("====");
-        System.out.println("Use shop list to see permanent items.");
-        System.out.println("Use shop daily to see daily items.");
-        System.out.println("Use shop buy -i <item_id> -n <count> [-t <plant_type>] to buy an item.");
+        System.out.print(menuText());
     }
 
     @Override
-    public void showErrorMessage(String message) {
-        if (message == null || message.isBlank()) {
+    public void handleInput(String input) {
+        String command = cleanInput(input);
+        if (!isConnected()) {
+            printControllerMessage("ERROR: Shop menu is not connected.");
+            return;
+        }
+        if (!controller.isLoggedIn()) {
+            printControllerMessage("ERROR: No user is logged in.");
+            menuManager.enterLoginMenu();
             return;
         }
 
-        System.out.println("ERROR: " + message);
+        if (handleNavigation(command) || handleList(command) || handleBuy(command)) {
+            return;
+        }
+        controller.invalidCommand("shop menu");
+        printControllerMessage(controller.getLastMessage());
     }
 
-    @Override
-    public void showSuccessMessage(String message) {
-        if (message == null || message.isBlank()) {
-            return;
-        }
-
-        System.out.println("OK: " + message);
+    public String menuText() {
+        return """
+                Shop Menu
+                shop list
+                shop daily
+                shop buy -i <item_id> -n <count> [-t <plant_type>]
+                menu show current
+                menu exit
+                """;
     }
 
     public void showCatalog(List<IPurchasable> permanent, List<IPurchasable> daily) {
@@ -51,76 +84,44 @@ public class ShopView extends BaseView {
     }
 
     public void showDailyItems(List<ShopController.ShopItem> items) {
-        System.out.print(renderShopItems("Daily Shop", items));
+        System.out.print(renderShopItems("Daily Offer", items));
     }
 
-    public void showAllItems(List<ShopController.ShopItem> permanentItems, List<ShopController.ShopItem> dailyItems) {
-        StringBuilder builder = new StringBuilder();
-        builder.append(renderShopItems("Permanent Shop", permanentItems));
-        builder.append("\n");
-        builder.append(renderShopItems("Daily Shop", dailyItems));
-        System.out.print(builder);
-    }
-
-    public void showPurchaseMessage(String message) {
-        if (message == null || message.isBlank()) {
-            return;
-        }
-
-        System.out.println(message);
+    public void showAllItems(
+            List<ShopController.ShopItem> permanentItems,
+            List<ShopController.ShopItem> dailyItems
+    ) {
+        System.out.print(renderShopItems("Permanent Shop", permanentItems));
+        System.out.println();
+        System.out.print(renderShopItems("Daily Offer", dailyItems));
     }
 
     public String renderCatalog(List<IPurchasable> permanent, List<IPurchasable> daily) {
-        StringBuilder builder = new StringBuilder();
-
-        builder.append("Shop Catalog\n");
-        builder.append("============\n\n");
-
-        builder.append("Permanent Items\n");
-        builder.append("---------------\n");
+        StringBuilder builder = new StringBuilder("Shop Catalog\n============\n\n");
+        builder.append("Permanent Items\n---------------\n");
         builder.append(renderPurchasableList(permanent));
-
-        builder.append("\n");
-
-        builder.append("Daily Items\n");
-        builder.append("-----------\n");
+        builder.append("\nDaily Items\n-----------\n");
         builder.append(renderPurchasableList(daily));
-
         return builder.toString();
     }
 
     public String renderShopItems(String title, List<ShopController.ShopItem> items) {
-        StringBuilder builder = new StringBuilder();
-
-        builder.append(title)
-                .append("\n");
-        builder.append(repeat("=", title.length()))
-                .append("\n");
-
+        StringBuilder builder = new StringBuilder(title).append("\n");
+        builder.append("=".repeat(title.length())).append("\n");
         if (items == null || items.isEmpty()) {
             builder.append("No items available.\n");
             return builder.toString();
         }
 
-        builder.append(String.format("%-24s %-22s %-14s %-10s %-10s %-8s%n", "ID", "Name", "Type", "Price", "Currency", "Amount"));
-        builder.append(String.format("%-24s %-22s %-14s %-10s %-10s %-8s%n", "--", "----", "----", "-----", "--------", "------"));
-
+        builder.append(String.format(
+                "%-22s %-22s %-22s %-9s %-9s %-7s%n",
+                "ID", "Name", "Type", "Price", "Currency", "Amount"
+        ));
         for (ShopController.ShopItem item : items) {
-            if (item == null) {
-                continue;
+            if (item != null) {
+                appendItemRow(builder, item);
             }
-
-            builder.append(String.format(
-                    "%-24s %-22s %-14s %-10d %-10s %-8d%n",
-                    item.getId(),
-                    item.getName(),
-                    item.getType(),
-                    item.getPrice(),
-                    item.getCurrency(),
-                    item.getAmount()
-            ));
         }
-
         return builder.toString();
     }
 
@@ -128,85 +129,97 @@ public class ShopView extends BaseView {
         if (item == null) {
             return "Item is not available.\n";
         }
-
-        StringBuilder builder = new StringBuilder();
-
-        builder.append("Item Details\n");
-        builder.append("============\n");
+        StringBuilder builder = new StringBuilder("Item Details\n============\n");
         builder.append("ID: ").append(item.getId()).append("\n");
         builder.append("Name: ").append(item.getName()).append("\n");
         builder.append("Type: ").append(item.getType()).append("\n");
-
-        if (item.getTargetName() != null && !item.getTargetName().isBlank()) {
+        if (!item.getTargetName().isBlank()) {
             builder.append("Target: ").append(item.getTargetName()).append("\n");
         }
-
         builder.append("Price: ").append(item.getPrice()).append(" ").append(item.getCurrency()).append("\n");
         builder.append("Amount: ").append(item.getAmount()).append("\n");
         builder.append("Daily: ").append(item.isDaily() ? "yes" : "no").append("\n");
-
         return builder.toString();
     }
 
-    private String renderPurchasableList(List<IPurchasable> items) {
-        StringBuilder builder = new StringBuilder();
+    private boolean handleNavigation(String command) {
+        if ("menu show current".equals(command)) {
+            menuManager.showCurrentMenu();
+            printControllerMessage(menuManager.getLastMessage());
+            return true;
+        }
+        if ("menu exit".equals(command)) {
+            if (greenhouseController == null) {
+                menuManager.enterGameMenu();
+            } else {
+                menuManager.changeView(new GreenhouseView(
+                        "Greenhouse Menu", menuManager, greenhouseController, controller
+                ));
+            }
+            return true;
+        }
+        return false;
+    }
 
-        if (items == null || items.isEmpty()) {
-            builder.append("No items available.\n");
-            return builder.toString();
+    private boolean handleList(String command) {
+        if ("shop list".equals(command)) {
+            showPermanentItems(controller.getPermanentItems());
+            return true;
+        }
+        if ("shop daily".equals(command)) {
+            showDailyItems(controller.getDailyItems());
+            return true;
+        }
+        return false;
+    }
+
+    private boolean handleBuy(String command) {
+        Matcher matcher = BUY_PATTERN.matcher(command);
+        if (!matcher.matches()) {
+            return false;
         }
 
-        int index = 1;
+        Integer count = parseInteger(matcher.group(2));
+        String plantType = matcher.group(3) == null ? "" : matcher.group(3);
+        if (count == null) {
+            controller.invalidCommand("shop menu");
+        } else {
+            controller.buy(matcher.group(1), count, plantType);
+        }
+        printControllerMessage(controller.getLastMessage());
+        return true;
+    }
 
+    private void appendItemRow(StringBuilder builder, ShopController.ShopItem item) {
+        builder.append(String.format(
+                "%-22s %-22s %-22s %-9d %-9s %-7d%n",
+                item.getId(), item.getName(), item.getType(), item.getPrice(), item.getCurrency(), item.getAmount()
+        ));
+        if (!item.getTargetName().isBlank()) {
+            builder.append("  target: ").append(item.getTargetName()).append("\n");
+        }
+    }
+
+    private String renderPurchasableList(List<IPurchasable> items) {
+        if (items == null || items.isEmpty()) {
+            return "No items available.\n";
+        }
+        StringBuilder builder = new StringBuilder();
+        int index = 1;
         for (IPurchasable item : items) {
             if (item == null) {
                 continue;
             }
-
-            builder.append(index)
-                    .append(". ");
-
+            builder.append(index++).append(". price=").append(item.getPrice());
             if (item instanceof ShopController.ShopItem shopItem) {
-                builder.append(shopItem.getId())
-                        .append(" | ")
-                        .append(shopItem.getName())
-                        .append(" | ")
-                        .append(shopItem.getPrice())
-                        .append(" ")
-                        .append(shopItem.getCurrency())
-                        .append(" | ")
-                        .append(shopItem.getType());
-
-                if (shopItem.getTargetName() != null && !shopItem.getTargetName().isBlank()) {
-                    builder.append(" | target: ")
-                            .append(shopItem.getTargetName());
-                }
-            } else {
-                builder.append("Item")
-                        .append(" | price: ")
-                        .append(item.getPrice())
-                        .append(" | unlocked: ")
-                        .append(item.isUnlocked() ? "yes" : "no");
+                builder.append(" id=").append(shopItem.getId()).append(" name=").append(shopItem.getName());
             }
-
             builder.append("\n");
-            index++;
         }
-
-        if (index == 1) {
-            builder.append("No items available.\n");
-        }
-
         return builder.toString();
     }
 
-    private String repeat(String value, int count) {
-        StringBuilder builder = new StringBuilder();
-
-        for (int i = 0; i < count; i++) {
-            builder.append(value);
-        }
-
-        return builder.toString();
+    private boolean isConnected() {
+        return menuManager != null && controller != null;
     }
 }
