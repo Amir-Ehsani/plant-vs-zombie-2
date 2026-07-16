@@ -1,34 +1,135 @@
 package controllers.features;
 
+import controllers.auth.AuthController;
 import models.account.Collection;
+import models.account.News;
 import models.account.PlantData;
+import models.account.User;
+import models.core.plant.DefaultPlantRegistry;
+import models.core.plant.PlantRegistry;
+import models.core.plant.PlantType;
+import models.core.zombie.DefaultZombieRegistry;
+import models.core.zombie.ZombieRegistry;
+import models.core.zombie.ZombieType;
+
+import java.util.List;
 
 public class CollectionController {
+    public static final int PLANT_PURCHASE_PRICE = 2000;
+
+    private final AuthController authController;
+    private final PlantRegistry plantRegistry;
+    private final ZombieRegistry zombieRegistry;
     private String lastMessage;
 
     public CollectionController() {
-        this.lastMessage = "";
+        this(null);
+    }
+
+    public CollectionController(AuthController authController) {
+        this.authController = authController;
+        plantRegistry = DefaultPlantRegistry.getInstance();
+        zombieRegistry = DefaultZombieRegistry.getInstance();
+        lastMessage = "";
+    }
+
+    public String showPlants() {
+        User user = getLoggedInUserOrFail();
+        return user == null ? "" : showPlants(user.getCollection());
+    }
+
+    public String showAllPlants() {
+        User user = getLoggedInUserOrFail();
+        return user == null ? "" : showAllPlants(user.getCollection());
+    }
+
+    public String showZombies() {
+        User user = getLoggedInUserOrFail();
+        return user == null ? "" : showZombies(user.getCollection());
+    }
+
+    public String showAllZombies() {
+        User user = getLoggedInUserOrFail();
+        return user == null ? "" : showAllZombies(user.getCollection());
+    }
+
+    public String showPlant(String plantName) {
+        User user = getLoggedInUserOrFail();
+        return user == null ? "" : showPlant(user.getCollection(), plantName);
+    }
+
+    public String showZombie(String zombieName) {
+        User user = getLoggedInUserOrFail();
+        return user == null ? "" : showZombie(user.getCollection(), zombieName);
+    }
+
+    public boolean upgradePlant(String plantName) {
+        User user = getLoggedInUserOrFail();
+        if (user == null) {
+            return false;
+        }
+
+        Collection collection = prepareCollection(user.getCollection());
+        PlantData plant = collection.findOwnedPlant(plantName);
+        if (!validateUpgrade(user, plant)) {
+            return false;
+        }
+
+        int price = plant.getUpgradePrice();
+        user.spendCoins(price);
+        if (!plant.upgrade()) {
+            user.addCoins(price);
+            fail("Plant could not be upgraded.");
+            return false;
+        }
+
+        saveUsers();
+        success(plant.getName() + " upgraded to level " + plant.getLevel() + ".");
+        return true;
+    }
+
+    public boolean purchasePlant(String plantName) {
+        User user = getLoggedInUserOrFail();
+        if (user == null) {
+            return false;
+        }
+
+        PlantType type = plantRegistry.getByName(plantName);
+        if (type == null) {
+            fail("Plant was not found.");
+            return false;
+        }
+
+        Collection collection = prepareCollection(user.getCollection());
+        if (collection.hasOwnedPlant(type.getName())) {
+            fail("Plant is already unlocked.");
+            return false;
+        }
+
+        if (!user.spendCoins(PLANT_PURCHASE_PRICE)) {
+            fail("Not enough coins. Required: " + PLANT_PURCHASE_PRICE + ".");
+            return false;
+        }
+
+        collection.unlockPlant(type.getName());
+        user.addNews(News.plantUnlocked(type.getName()));
+        saveUsers();
+        success(type.getName() + " purchased for " + PLANT_PURCHASE_PRICE + " coins.");
+        return true;
     }
 
     public String showPlants(Collection collection) {
-        if (collection == null) {
-            fail("Collection is not available.");
+        Collection prepared = prepareCollection(collection);
+        if (prepared == null) {
             return "";
         }
 
-        StringBuilder builder = new StringBuilder();
-
-        builder.append("Unlocked Plants\n");
-        builder.append("===============\n");
-
-        if (collection.getOwnedPlants().isEmpty()) {
+        StringBuilder builder = header("Unlocked Plants");
+        List<PlantData> plants = prepared.getOwnedPlants();
+        if (plants.isEmpty()) {
             builder.append("No unlocked plants.\n");
-            success("Unlocked plants shown.");
-            return builder.toString();
-        }
-
-        for (PlantData plant : collection.getOwnedPlants()) {
-            builder.append(formatPlantLine(plant)).append("\n");
+        } else {
+            appendPlants(builder, plants);
         }
 
         success("Unlocked plants shown.");
@@ -36,75 +137,47 @@ public class CollectionController {
     }
 
     public String showAllPlants(Collection collection) {
-        if (collection == null) {
-            fail("Collection is not available.");
+        Collection prepared = prepareCollection(collection);
+        if (prepared == null) {
             return "";
         }
 
-        StringBuilder builder = new StringBuilder();
-
-        builder.append("All Plants\n");
-        builder.append("==========\n");
-
-        if (collection.getAllPlants().isEmpty()) {
-            builder.append("No plants available.\n");
-            success("All plants shown.");
-            return builder.toString();
-        }
-
-        for (PlantData plant : collection.getAllPlants()) {
-            builder.append(formatPlantLine(plant)).append("\n");
-        }
-
+        StringBuilder builder = header("All Plants");
+        appendPlants(builder, prepared.getAllPlants());
         success("All plants shown.");
         return builder.toString();
     }
 
     public String showZombies(Collection collection) {
-        if (collection == null) {
-            fail("Collection is not available.");
+        Collection prepared = prepareCollection(collection);
+        if (prepared == null) {
             return "";
         }
 
-        StringBuilder builder = new StringBuilder();
-
-        builder.append("Unlocked Zombies\n");
-        builder.append("================\n");
-
-        if (collection.getOwnedZombies().isEmpty()) {
-            builder.append("No unlocked zombies.\n");
-            success("Unlocked zombies shown.");
-            return builder.toString();
+        StringBuilder builder = header("Discovered Zombies");
+        List<String> zombies = prepared.getOwnedZombies();
+        if (zombies.isEmpty()) {
+            builder.append("No discovered zombies.\n");
+        } else {
+            for (String zombie : zombies) {
+                builder.append("- ").append(zombie).append("\n");
+            }
         }
 
-        for (String zombie : collection.getOwnedZombies()) {
-            builder.append("- ").append(zombie).append("\n");
-        }
-
-        success("Unlocked zombies shown.");
+        success("Discovered zombies shown.");
         return builder.toString();
     }
 
     public String showAllZombies(Collection collection) {
-        if (collection == null) {
-            fail("Collection is not available.");
+        Collection prepared = prepareCollection(collection);
+        if (prepared == null) {
             return "";
         }
 
-        StringBuilder builder = new StringBuilder();
-
-        builder.append("All Zombies\n");
-        builder.append("===========\n");
-
-        if (collection.getAllZombies().isEmpty()) {
-            builder.append("No zombies available.\n");
-            success("All zombies shown.");
-            return builder.toString();
-        }
-
-        for (String zombie : collection.getAllZombies()) {
-            String status = collection.hasOwnedZombie(zombie) ? "unlocked" : "locked";
-            builder.append("- ").append(zombie).append(" [").append(status).append("]\n");
+        StringBuilder builder = header("All Zombies");
+        for (ZombieType type : zombieRegistry.getAllZombieTypes()) {
+            String status = prepared.hasOwnedZombie(type.getName()) ? "discovered" : "unknown";
+            builder.append("- ").append(type.getName()).append(" [").append(status).append("]\n");
         }
 
         success("All zombies shown.");
@@ -112,62 +185,46 @@ public class CollectionController {
     }
 
     public String showPlant(Collection collection, String plantName) {
-        if (collection == null) {
-            fail("Collection is not available.");
+        Collection prepared = prepareCollection(collection);
+        if (prepared == null) {
             return "";
         }
 
-        PlantData plant = collection.findPlant(plantName);
-
-        if (plant == null) {
+        PlantType type = plantRegistry.getByName(plantName);
+        PlantData data = prepared.findPlant(plantName);
+        if (type == null || data == null) {
             fail("Plant was not found.");
             return "Plant was not found.\n";
         }
 
         success("Plant shown.");
-        return renderPlantDetails(plant);
+        return renderPlantDetails(type, data);
     }
 
     public String showZombie(Collection collection, String zombieName) {
-        if (collection == null) {
-            fail("Collection is not available.");
+        Collection prepared = prepareCollection(collection);
+        if (prepared == null) {
             return "";
         }
 
-        if (!collection.hasZombie(zombieName)) {
+        ZombieType type = zombieRegistry.getZombieTypeByName(zombieName);
+        if (type == null) {
             fail("Zombie was not found.");
             return "Zombie was not found.\n";
         }
 
-        String status = collection.hasOwnedZombie(zombieName) ? "unlocked" : "locked";
-
-        StringBuilder builder = new StringBuilder();
-
-        builder.append("Zombie Details\n");
-        builder.append("==============\n");
-        builder.append("Name: ").append(zombieName).append("\n");
-        builder.append("Status: ").append(status).append("\n");
-
         success("Zombie shown.");
-        return builder.toString();
+        return renderZombieDetails(type, prepared.hasOwnedZombie(type.getName()));
     }
 
     public boolean upgradePlant(Collection collection, String plantName) {
-        if (collection == null) {
-            fail("Collection is not available.");
+        Collection prepared = prepareCollection(collection);
+        if (prepared == null) {
             return false;
         }
 
-        PlantData plant = collection.findOwnedPlant(plantName);
-
-        if (plant == null) {
-            fail("Plant is not unlocked.");
-            return false;
-        }
-
-        boolean upgraded = collection.upgradePlant(plantName);
-
-        if (!upgraded) {
+        PlantData plant = prepared.findOwnedPlant(plantName);
+        if (plant == null || !plant.upgrade()) {
             fail("Plant could not be upgraded.");
             return false;
         }
@@ -177,41 +234,39 @@ public class CollectionController {
     }
 
     public boolean purchasePlant(Collection collection, PlantData plant) {
-        if (collection == null) {
-            fail("Collection is not available.");
-            return false;
-        }
-
-        if (plant == null) {
+        Collection prepared = prepareCollection(collection);
+        if (prepared == null || plant == null) {
             fail("Plant is not available.");
             return false;
         }
 
-        collection.unlockPlant(plant);
+        prepared.unlockPlant(plant);
         success("Plant purchased.");
         return true;
     }
 
     public boolean purchasePlant(Collection collection, String plantName, int price) {
-        if (collection == null) {
-            fail("Collection is not available.");
-            return false;
-        }
-
-        if (plantName == null || plantName.isBlank()) {
+        Collection prepared = prepareCollection(collection);
+        if (prepared == null || plantName == null || plantName.isBlank()) {
             fail("Plant name is empty.");
             return false;
         }
 
-        PlantData plant = collection.findPlant(plantName);
-
+        PlantData plant = prepared.findPlant(plantName);
         if (plant == null) {
             plant = new PlantData(plantName, price, true);
         }
-
-        collection.unlockPlant(plant);
+        prepared.unlockPlant(plant);
         success("Plant purchased.");
         return true;
+    }
+
+    public boolean isLoggedIn() {
+        return authController != null && authController.isLoggedIn();
+    }
+
+    public void invalidCommand(String menuName) {
+        fail("Invalid command in " + menuName + ".");
     }
 
     public String getLastMessage() {
@@ -222,42 +277,120 @@ public class CollectionController {
         return lastMessage != null && lastMessage.startsWith("OK:");
     }
 
-    private String formatPlantLine(PlantData plant) {
+    private boolean validateUpgrade(User user, PlantData plant) {
         if (plant == null) {
-            return "- Unknown";
+            fail("Plant is not unlocked.");
+            return false;
         }
-
-        String status = plant.isUnlocked() ? "unlocked" : "locked";
-
-        return "- "
-                + plant.getName()
-                + " ["
-                + status
-                + "] level="
-                + plant.getLevel()
-                + " seeds="
-                + plant.getSeedPackets()
-                + " boosts="
-                + plant.getBoostCount()
-                + " price="
-                + plant.getPrice();
+        if (plant.getLevel() >= 4) {
+            fail("Plant is already at maximum level.");
+            return false;
+        }
+        if (plant.getSeedPackets() < plant.getRequiredSeedPacketsForNextLevel()) {
+            fail("Not enough seed packets. Required: " + plant.getRequiredSeedPacketsForNextLevel() + ".");
+            return false;
+        }
+        if (user.getCoins() < plant.getUpgradePrice()) {
+            fail("Not enough coins. Required: " + plant.getUpgradePrice() + ".");
+            return false;
+        }
+        return true;
     }
 
-    private String renderPlantDetails(PlantData plant) {
-        StringBuilder builder = new StringBuilder();
+    private Collection prepareCollection(Collection collection) {
+        if (collection == null) {
+            fail("Collection is not available.");
+            return null;
+        }
 
-        builder.append("Plant Details\n");
-        builder.append("=============\n");
-        builder.append("Name: ").append(plant.getName()).append("\n");
-        builder.append("Status: ").append(plant.isUnlocked() ? "unlocked" : "locked").append("\n");
-        builder.append("Level: ").append(plant.getLevel()).append("\n");
-        builder.append("Price: ").append(plant.getPrice()).append("\n");
-        builder.append("Seed packets: ").append(plant.getSeedPackets()).append("\n");
-        builder.append("Required seeds for next level: ").append(plant.getRequiredSeedPacketsForNextLevel()).append("\n");
-        builder.append("Boosts: ").append(plant.getBoostCount()).append("\n");
-        builder.append("Can upgrade: ").append(plant.canUpgrade() ? "yes" : "no").append("\n");
+        for (PlantType type : plantRegistry.getAllPlantTypes()) {
+            if (!collection.hasPlant(type.getName())) {
+                collection.addPlant(new PlantData(type.getName(), PLANT_PURCHASE_PRICE, false));
+            }
+        }
+        for (ZombieType type : zombieRegistry.getAllZombieTypes()) {
+            if (!collection.hasZombie(type.getName())) {
+                collection.addZombie(type.getName(), false);
+            }
+        }
+        return collection;
+    }
 
+    private void appendPlants(StringBuilder builder, List<PlantData> plants) {
+        for (PlantData plant : plants) {
+            builder.append(formatPlantLine(plant)).append("\n");
+        }
+    }
+
+    private String formatPlantLine(PlantData plant) {
+        String status = plant.isUnlocked() ? "unlocked" : "locked";
+        return "- " + plant.getName() + " [" + status + "] level=" + plant.getLevel()
+                + " seeds=" + plant.getSeedPackets() + " boosts=" + plant.getBoostCount();
+    }
+
+    private String renderPlantDetails(PlantType type, PlantData data) {
+        StringBuilder builder = header("Plant Details");
+        builder.append("Name: ").append(type.getName()).append("\n");
+        builder.append("Status: ").append(data.isUnlocked() ? "unlocked" : "locked").append("\n");
+        builder.append("Level: ").append(data.getLevel()).append("\n");
+        builder.append("Purchase price: ").append(PLANT_PURCHASE_PRICE).append(" coins\n");
+        builder.append("Seed packets: ").append(data.getSeedPackets()).append("\n");
+        appendUpgradeState(builder, data);
+        builder.append("Stored boosts: ").append(data.getBoostCount()).append("\n");
+        builder.append("Category: ").append(type.getCategory()).append("\n");
+        builder.append("Tags: ").append(blankAsDash(type.getTags())).append("\n");
+        builder.append("Sun cost: ").append(type.getSunCost()).append("\n");
+        builder.append("Base HP: ").append(type.getBaseHp()).append("\n");
+        builder.append("Damage: ").append(type.getDamage()).append("\n");
+        builder.append("Ability: ").append(blankAsDash(type.getBaseAbility())).append("\n");
+        builder.append("Plant food: ").append(blankAsDash(type.getPlantFoodEffect())).append("\n");
+        builder.append("Level 2: ").append(blankAsDash(type.getLevel2Upgrade())).append("\n");
+        builder.append("Level 3: ").append(blankAsDash(type.getLevel3Upgrade())).append("\n");
+        builder.append("Level 4: ").append(blankAsDash(type.getLevel4Upgrade())).append("\n");
         return builder.toString();
+    }
+
+    private void appendUpgradeState(StringBuilder builder, PlantData data) {
+        if (data.getLevel() >= 4) {
+            builder.append("Next upgrade: maximum level\n");
+            return;
+        }
+        builder.append("Next upgrade seeds: ").append(data.getRequiredSeedPacketsForNextLevel()).append("\n");
+        builder.append("Next upgrade coins: ").append(data.getUpgradePrice()).append("\n");
+    }
+
+    private String renderZombieDetails(ZombieType type, boolean discovered) {
+        StringBuilder builder = header("Zombie Details");
+        builder.append("Name: ").append(type.getName()).append("\n");
+        builder.append("Status: ").append(discovered ? "discovered" : "unknown").append("\n");
+        builder.append("Base HP: ").append(type.getBaseHp()).append("\n");
+        builder.append("Speed: ").append(type.getSpeed()).append("\n");
+        builder.append("Damage per tick: ").append(type.getDamagePerTick()).append("\n");
+        builder.append("Wave cost: ").append(type.getWaveCost()).append("\n");
+        builder.append("Armor: ").append(blankAsDash(type.getDefaultArmorName())).append("\n");
+        return builder.toString();
+    }
+
+    private StringBuilder header(String title) {
+        return new StringBuilder(title).append("\n").append("=".repeat(title.length())).append("\n");
+    }
+
+    private String blankAsDash(String value) {
+        return value == null || value.isBlank() ? "-" : value;
+    }
+
+    private User getLoggedInUserOrFail() {
+        if (authController == null || authController.getLoggedInUser() == null) {
+            fail("No user is logged in.");
+            return null;
+        }
+        return authController.getLoggedInUser();
+    }
+
+    private void saveUsers() {
+        if (authController != null) {
+            authController.saveUsers();
+        }
     }
 
     private void success(String message) {

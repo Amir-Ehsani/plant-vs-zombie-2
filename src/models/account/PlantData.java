@@ -1,5 +1,7 @@
 package models.account;
 
+import java.util.Locale;
+
 public class PlantData implements IPurchasable {
     private String name;
     private int price;
@@ -17,12 +19,12 @@ public class PlantData implements IPurchasable {
     }
 
     public PlantData(String name, int price, boolean unlocked) {
-        this.name = normalizeName(name);
+        this.name = normalizeDisplayName(name);
         this.price = Math.max(0, price);
-        this.level = 1;
+        level = 1;
         this.unlocked = unlocked;
-        this.seedPackets = 0;
-        this.boostCount = 0;
+        seedPackets = 0;
+        boostCount = 0;
     }
 
     public String getName() {
@@ -30,7 +32,7 @@ public class PlantData implements IPurchasable {
     }
 
     public void setName(String name) {
-        this.name = normalizeName(name);
+        this.name = normalizeDisplayName(name);
     }
 
     @Override
@@ -47,13 +49,7 @@ public class PlantData implements IPurchasable {
     }
 
     public void setLevel(int level) {
-        if (level < 1) {
-            this.level = 1;
-        } else if (level > 4) {
-            this.level = 4;
-        } else {
-            this.level = level;
-        }
+        this.level = Math.max(1, Math.min(4, level));
     }
 
     @Override
@@ -62,11 +58,11 @@ public class PlantData implements IPurchasable {
     }
 
     public void unlock() {
-        this.unlocked = true;
+        unlocked = true;
     }
 
     public void lock() {
-        this.unlocked = false;
+        unlocked = false;
     }
 
     public int getSeedPackets() {
@@ -98,6 +94,15 @@ public class PlantData implements IPurchasable {
         }
     }
 
+    public boolean addStoredGreenhouseBoost() {
+        if (boostCount > 0) {
+            return false;
+        }
+
+        boostCount = 1;
+        return true;
+    }
+
     public boolean useBoost() {
         if (boostCount <= 0) {
             return false;
@@ -124,7 +129,6 @@ public class PlantData implements IPurchasable {
         if (level >= 4) {
             return Integer.MAX_VALUE;
         }
-
         return price * level;
     }
 
@@ -133,24 +137,29 @@ public class PlantData implements IPurchasable {
     }
 
     public boolean upgrade() {
+        int requiredPackets = getRequiredSeedPacketsForNextLevel();
         if (!canUpgrade()) {
             return false;
         }
 
-        seedPackets -= getRequiredSeedPacketsForNextLevel();
+        seedPackets -= requiredPackets;
         level++;
         return true;
     }
 
     public boolean hasName(String plantName) {
-        return normalizeName(name).equals(normalizeName(plantName));
+        return normalizeKey(name).equals(normalizeKey(plantName));
     }
 
-    private String normalizeName(String value) {
-        if (value == null) {
-            return "";
-        }
+    private String normalizeDisplayName(String value) {
+        return value == null ? "" : value.trim();
+    }
 
-        return value.trim();
+    private String normalizeKey(String value) {
+        return normalizeDisplayName(value)
+                .toLowerCase(Locale.ROOT)
+                .replace('-', ' ')
+                .replace('_', ' ')
+                .replaceAll("\\s+", " ");
     }
 }

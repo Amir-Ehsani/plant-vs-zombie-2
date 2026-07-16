@@ -14,6 +14,7 @@ public class News {
     private boolean read;
     private LocalDateTime createdAt;
     private LocalDateTime readAt;
+    private boolean effectsApplied;
 
     public News() {
         this("", "", "general");
@@ -34,6 +35,7 @@ public class News {
         this.read = false;
         this.createdAt = LocalDateTime.now();
         this.readAt = null;
+        this.effectsApplied = false;
     }
 
     public static News plantUnlocked(String plantName) {
@@ -157,6 +159,15 @@ public class News {
 
     public LocalDateTime getReadAt() {
         return readAt;
+    }
+
+
+    public boolean areEffectsApplied() {
+        return effectsApplied;
+    }
+
+    public void markEffectsApplied() {
+        effectsApplied = true;
     }
 
     public boolean isPlantUnlockNews() {
