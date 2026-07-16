@@ -9,6 +9,13 @@ public class GameMenuController {
     private final AuthController authController;
     private String lastMessage;
 
+    private static final String[] CHAPTER_NAMES = {
+            "ancient-egypt",
+            "ice-cave",
+            "wave-beach",
+            "wild-west"
+    };
+
     public GameMenuController(AuthController authController) {
         this.authController = authController;
         this.lastMessage = "";
@@ -26,8 +33,35 @@ public class GameMenuController {
             return;
         }
 
-        //add logic for enter chapter (in user)
-        success("Entered chapter " + chapterName.trim() + ".");
+        String cleanedChapterName = chapterName.trim();
+
+        if (!chapterExists(cleanedChapterName)) {
+            fail("Chapter " + cleanedChapterName + " does not exist.");
+            return;
+        }
+
+        if (!user.isChapterUnlocked(cleanedChapterName)) {
+            fail("Chapter " + cleanedChapterName + " is locked.");
+            return;
+        }
+
+        user.setCurrentChapterName(cleanedChapterName);
+        authController.saveUsers();
+        success("Entered chapter " + cleanedChapterName + ".");
+    }
+
+    private boolean chapterExists(String chapterName) {
+        if (chapterName == null) {
+            return false;
+        }
+
+        for (String validChapterName : CHAPTER_NAMES) {
+            if (validChapterName.equalsIgnoreCase(chapterName.trim())) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public void showCoinWallet() {
