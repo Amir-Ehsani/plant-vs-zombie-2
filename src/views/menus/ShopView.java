@@ -148,16 +148,13 @@ public class ShopView extends BaseView {
             printControllerMessage(menuManager.getLastMessage());
             return true;
         }
+
         if ("menu exit".equals(command)) {
-            if (greenhouseController == null) {
-                menuManager.enterGameMenu();
-            } else {
-                menuManager.changeView(new GreenhouseView(
-                        "Greenhouse Menu", menuManager, greenhouseController, controller
-                ));
-            }
+            menuManager.exitCurrentMenu();
+            printControllerMessage(menuManager.getLastMessage());
             return true;
         }
+
         return false;
     }
 
