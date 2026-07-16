@@ -98,14 +98,15 @@ public class GameMenuController {
 
         String normalizedCurrency = normalize(currency);
 
-        if ("coins".equals(normalizedCurrency)) {
+        if ("coin".equals(normalizedCurrency) || "coins".equals(normalizedCurrency)) {
             user.addCoins(amount);
             authController.saveUsers();
             success(amount + " coins added.");
             return;
         }
 
-        if ("gems".equals(normalizedCurrency)) {
+        if ("diamond".equals(normalizedCurrency) || "diamonds".equals(normalizedCurrency) ||
+                "gem".equals(normalizedCurrency) || "gems".equals(normalizedCurrency)) {
             user.addGems(amount);
             authController.saveUsers();
             success(amount + " gems added.");
@@ -113,16 +114,6 @@ public class GameMenuController {
         }
 
         fail("Unknown currency.");
-    }
-
-    public void enterGreenhouse() {
-        //implement greenhouse menu
-        fail("Greenhouse menu is not implemented yet.");
-    }
-
-    public void enterTravelLog() {
-        //implement travel log menu
-        fail("Travel log menu is not implemented yet.");
     }
 
     public boolean isLoggedIn() {
