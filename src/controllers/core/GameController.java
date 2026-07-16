@@ -1,21 +1,26 @@
 package controllers.core;
 
 import models.core.plant.Plant;
+import models.core.plant.PlantType;
+import models.core.zombie.Armor;
 import models.core.zombie.Zombie;
 import models.engine.board.Board;
-import models.engine.session.GameSession;
-import models.engine.session.GameState;
 import models.engine.board.Lane;
 import models.engine.board.Position;
-import models.engine.sun.Sun;
 import models.engine.board.Tile;
 import models.engine.board.TileType;
-import models.level.rules.impl.ConveyorBeltRule;
-import models.level.rules.impl.DeadLineRule;
+import models.engine.events.GameEvent;
+import models.engine.events.GameEventType;
+import models.engine.session.GameSession;
+import models.engine.session.GameState;
+import models.engine.session.PlantRechargeStatus;
+import models.engine.sun.Sun;
 import models.level.core.Level;
 import models.level.rules.LevelRule;
 import models.level.rules.LevelRuntimeContext;
 import models.level.rules.SpecialLevelType;
+import models.level.rules.impl.ConveyorBeltRule;
+import models.level.rules.impl.DeadLineRule;
 import models.level.rules.impl.LockedPlantsRule;
 import models.level.rules.impl.LoveYourPlantsRule;
 import models.level.rules.impl.NightOpsRule;
@@ -53,7 +58,10 @@ public class GameController {
 
         try {
             gameSession.initSession();
-            return success("Game started.");
+            StringBuilder message = new StringBuilder("Game started.");
+            appendEvents(message, gameSession.drainEvents());
+            appendFinishedState(message);
+            return success(message.toString());
         } catch (IllegalStateException | IllegalArgumentException exception) {
             return fail(exception.getMessage());
         }
@@ -67,25 +75,18 @@ public class GameController {
             return fail("Tick count must be positive.");
         }
 
-        Level level = gameSession.getCurrentLevel();
-        int previousWave = currentWaveNumber(level);
-
+        gameSession.clearPendingEvents();
         if (!gameSession.advanceTicks(ticks)) {
             return fail("Time could not be advanced.");
         }
 
         StringBuilder message = new StringBuilder();
-        message.append("Advanced ").append(ticks).append(" ticks.");
+        message.append("Advanced ")
+                .append(gameSession.getLastAdvancedTickCount())
+                .append(" ticks. Current tick=")
+                .append(gameSession.getTickManager().getCurrentTick());
 
-        int currentWave = currentWaveNumber(level);
-        if (currentWave > previousWave) {
-            if (currentWave == totalWaves(level)) {
-                message.append(" The final wave has come.");
-            } else {
-                message.append(" Wave ").append(currentWave).append(" started.");
-            }
-        }
-
+        appendEvents(message, gameSession.drainEvents());
         appendFinishedState(message);
         return success(message.toString());
     }
@@ -97,12 +98,40 @@ public class GameController {
         if (plantName == null || plantName.isBlank() || position == null) {
             return fail("Plant name and position are required.");
         }
+
+        PlantType type = gameSession.getPlantType(plantName);
+        if (type == null) {
+            return fail("Plant does not exist.");
+        }
+        if (!gameSession.isPlantSelected(plantName)) {
+            return fail("Plant is not selected.");
+        }
+
+        Level level = gameSession.getCurrentLevel();
+        if (level != null && !level.isPlantAllowed(plantName)) {
+            return fail("Plant is locked or unavailable in this level.");
+        }
+
+        int remainingTicks = gameSession.getPlantRechargeRemainingTicks(plantName);
+        if (remainingTicks > 0) {
+            return fail(
+                    "Plant is on cooldown for "
+                            + formatSeconds(remainingTicks)
+                            + " seconds."
+            );
+        }
+
+        int cost = gameSession.getPlantCost(plantName);
+        if (cost > gameSession.getTotalSunAmount()) {
+            return fail("Not enough suns.");
+        }
+
         if (!gameSession.plant(plantName, position)) {
             return fail("Plant could not be planted at " + position + ".");
         }
 
         return success(
-                "Plant " + plantName.trim() + " planted at " + position
+                "Plant " + type.getName() + " planted at " + position
                         + "; sun amount: " + gameSession.getTotalSunAmount() + "."
         );
     }
@@ -135,14 +164,24 @@ public class GameController {
         if (!hasRunningSession()) {
             return fail("No running game is available.");
         }
-        if (position == null || !gameSession.collectSun(position)) {
+        if (position == null) {
+            return fail("Sun position is required.");
+        }
+
+        gameSession.clearPendingEvents();
+        if (!gameSession.collectSun(position)) {
             return fail("No collectible sun exists at " + position + ".");
         }
 
-        return success(
-                "Sun collected; sun amount: "
-                        + gameSession.getTotalSunAmount() + "."
-        );
+        StringBuilder message = new StringBuilder();
+        message.append("Sun collected at ")
+                .append(position)
+                .append("; sun amount: ")
+                .append(gameSession.getTotalSunAmount())
+                .append(".");
+        appendEvents(message, gameSession.drainEvents());
+        appendFinishedState(message);
+        return success(message.toString());
     }
 
     public boolean startZombieWaves() {
@@ -167,9 +206,22 @@ public class GameController {
         );
     }
 
+    public boolean removeCooldownCheat() {
+        if (!hasRunningSession() || !gameSession.removePlantCooldowns()) {
+            return fail("Cooldowns could not be removed.");
+        }
+        return success("Cooldowns have been removed.");
+    }
+
     public boolean addPlantFoodCheat() {
-        if (!hasRunningSession() || !gameSession.addPlantFood()) {
-            return fail("Plant food could not be added.");
+        if (!hasRunningSession()) {
+            return fail("No running game is available.");
+        }
+        if (!gameSession.addPlantFood()) {
+            return fail(
+                    "Plant food storage is full; plant foods: "
+                            + gameSession.getPlantFoodCount() + "."
+            );
         }
 
         return success(
@@ -228,8 +280,12 @@ public class GameController {
             return;
         }
 
+        gameSession.clearPendingEvents();
         gameSession.updateSession();
-        success("Game updated.");
+        StringBuilder message = new StringBuilder("Game updated.");
+        appendEvents(message, gameSession.drainEvents());
+        appendFinishedState(message);
+        success(message.toString());
     }
 
     public String showSun() {
@@ -249,15 +305,23 @@ public class GameController {
         } else {
             for (Sun sun : suns) {
                 builder.append("\n  ")
+                        .append(sun.getType())
+                        .append(" amount=")
                         .append(sun.getSunAmount())
                         .append(" at ")
                         .append(sun.getPosition())
-                        .append(" time-left=");
+                        .append(" state=");
 
-                if (sun.getTimeLeft() == Integer.MAX_VALUE) {
-                    builder.append("permanent");
+                if (sun.isFalling()) {
+                    builder.append("falling, time-left=")
+                            .append(sun.getFallingTicksRemaining())
+                            .append(" ticks (")
+                            .append(formatSeconds(sun.getFallingTicksRemaining()))
+                            .append("s)");
+                } else if (sun.isProducedByPlant()) {
+                    builder.append("plant-produced, permanent");
                 } else {
-                    builder.append(sun.getTimeLeft());
+                    builder.append("ground, permanent");
                 }
             }
         }
@@ -281,7 +345,10 @@ public class GameController {
         appendSpecialLevelStatus(builder, level);
         appendLawnMowerStatus(builder, board);
 
-        builder.append("\nLegend: terrain[.=normal,G=grave,W=water,F=ice,L=low-tide,N=necromancy,^/v=slip]");
+        builder.append("\ncolumns:   1    2    3    4    5    6    7    8    9")
+                .append("\nLegend: terrain[.=normal,G=grave,W=water,F=ice,L=low-tide,N=necromancy,^/v=slip], ")
+                .append("middle=plant initial, right=zombie count");
+
         for (Lane lane : board.getLanes()) {
             builder.append("\nrow ").append(lane.getLaneId()).append(" ");
             for (Tile tile : lane.getTiles()) {
@@ -299,25 +366,22 @@ public class GameController {
             return lastMessage;
         }
 
-        List<Plant> plants = gameSession.getBoard().getAllPlants();
-        StringBuilder builder = new StringBuilder("plants:");
+        List<PlantRechargeStatus> statuses = gameSession.getPlantRechargeStatuses();
+        StringBuilder builder = new StringBuilder("plants status:");
 
-        if (plants.isEmpty()) {
+        if (statuses.isEmpty()) {
             builder.append("\n  none");
         } else {
-            for (Plant plant : plants) {
-                builder.append("\n  ")
-                        .append(plant.getName())
-                        .append(" at (")
-                        .append((int) plant.getX())
-                        .append(", ")
-                        .append((int) plant.getY())
-                        .append(") hp=")
-                        .append(plant.getHp())
-                        .append("/")
-                        .append(plant.getMaxHp())
-                        .append(" cooldown=")
-                        .append(plant.getCooldownRemaining());
+            for (PlantRechargeStatus status : statuses) {
+                builder.append("\n")
+                        .append(status.getPlantName())
+                        .append(" | cost: ")
+                        .append(status.getSunCost())
+                        .append(" | plantable: ")
+                        .append(status.isPlantable())
+                        .append(" | cooldown remaining: ")
+                        .append(formatSeconds(status.getRemainingTicks()))
+                        .append("s");
             }
         }
 
@@ -341,13 +405,17 @@ public class GameController {
                 builder.append("\n  ")
                         .append(zombie.getName())
                         .append(" position=")
-                        .append(String.format(Locale.ROOT, "%.2f", zombie.getX()))
-                        .append(",")
-                        .append((int) zombie.getY())
+                        .append(formatCoordinate(zombie.getX(), zombie.getY()))
                         .append(" hp=")
                         .append(zombie.getHp())
                         .append("/")
-                        .append(zombie.getMaxHp());
+                        .append(zombie.getMaxHp())
+                        .append(" speed=")
+                        .append(String.format(Locale.ROOT, "%.3f", zombie.getCurrentSpeed()))
+                        .append(" damage/tick=")
+                        .append(zombie.getType().getDamagePerTick())
+                        .append(" glowing=")
+                        .append(zombie.isGlowing());
             }
         }
 
@@ -367,20 +435,20 @@ public class GameController {
             return lastMessage;
         }
 
+        Lane lane = gameSession.getBoard().getLaneAt(position.getY());
         StringBuilder builder = new StringBuilder();
         builder.append("tile ").append(position)
                 .append("\ntype: ").append(tile.getTileType())
-                .append("\nplant: ");
+                .append("\nplantable: ").append(tile.isPlantable())
+                .append("\nlawn mower: ")
+                .append(lane != null && lane.getLawnMower().isReady() ? "ready" : "used")
+                .append("\nplant:");
 
         Plant plant = tile.getCurrentPlant();
         if (plant == null) {
-            builder.append("none");
+            builder.append(" none");
         } else {
-            builder.append(plant.getName())
-                    .append(" hp=")
-                    .append(plant.getHp())
-                    .append("/")
-                    .append(plant.getMaxHp());
+            appendPlantDetails(builder, plant);
         }
 
         builder.append("\nzombies:");
@@ -388,12 +456,7 @@ public class GameController {
         for (Zombie zombie : tile.getZombies()) {
             if (zombie != null && zombie.isAlive()) {
                 livingZombies++;
-                builder.append("\n  ")
-                        .append(zombie.getName())
-                        .append(" hp=")
-                        .append(zombie.getHp())
-                        .append("/")
-                        .append(zombie.getMaxHp());
+                appendZombieDetails(builder, zombie);
             }
         }
 
@@ -411,6 +474,42 @@ public class GameController {
 
     public boolean wasSuccessful() {
         return lastMessage != null && lastMessage.startsWith("OK:");
+    }
+
+    private void appendPlantDetails(StringBuilder builder, Plant plant) {
+        PlantType type = plant.getType();
+        builder.append("\n  name: ").append(plant.getName())
+                .append("\n  category: ").append(type.getCategory())
+                .append("\n  tags: ").append(type.getTags().isBlank() ? "none" : type.getTags())
+                .append("\n  health: ").append(plant.getHp()).append("/").append(plant.getMaxHp())
+                .append("\n  sun cost: ").append(plant.getCurrentSunCost())
+                .append("\n  damage: ").append(plant.getAttackDamage())
+                .append("\n  action interval: ").append(type.getActionInterval()).append(" ticks")
+                .append("\n  seed recharge: ").append(type.getRecharge()).append(" ticks")
+                .append("\n  attack cooldown remaining: ").append(plant.getCooldownRemaining()).append(" ticks")
+                .append("\n  boosted: ").append(plant.isBoosted());
+    }
+
+    private void appendZombieDetails(StringBuilder builder, Zombie zombie) {
+        builder.append("\n  name: ").append(zombie.getName())
+                .append("\n    position: ").append(formatCoordinate(zombie.getX(), zombie.getY()))
+                .append("\n    health: ").append(zombie.getHp()).append("/").append(zombie.getMaxHp())
+                .append("\n    speed: ").append(String.format(Locale.ROOT, "%.3f", zombie.getCurrentSpeed()))
+                .append("\n    damage/tick: ").append(zombie.getType().getDamagePerTick())
+                .append("\n    wave cost: ").append(zombie.getType().getWaveCost())
+                .append("\n    glowing: ").append(zombie.isGlowing())
+                .append("\n    armor: ");
+
+        Armor armor = zombie.getArmor();
+        if (armor == null || armor.isBroken()) {
+            builder.append("none");
+        } else {
+            builder.append(armor.getName())
+                    .append(" type=")
+                    .append(armor.getArmorType())
+                    .append(" hp=")
+                    .append(armor.getHp());
+        }
     }
 
     private void appendGameHeader(
@@ -494,7 +593,9 @@ public class GameController {
                     .append(" | locked-slots=")
                     .append(lockedRule.getLockedSelectionSlotCount())
                     .append(" | remaining=")
-                    .append(lockedRule.getRemainingSelectionSlotCount());
+                    .append(lockedRule.getRemainingSelectionSlotCount())
+                    .append(" | selection-closed=")
+                    .append(lockedRule.isSelectionLocked());
 
             if (!lockedRule.getUnavailablePlants().isEmpty()) {
                 builder.append(" | unavailable=")
@@ -541,6 +642,72 @@ public class GameController {
         }
     }
 
+    private void appendEvents(StringBuilder builder, List<GameEvent> events) {
+        for (GameEvent event : events) {
+            String eventText = formatEvent(event);
+            if (eventText != null && !eventText.isBlank()) {
+                builder.append("\n").append(eventText);
+            }
+        }
+    }
+
+    private String formatEvent(GameEvent event) {
+        if (event == null) {
+            return "";
+        }
+
+        switch (event.getType()) {
+            case WAVE_STARTED:
+                return event.isFinalWave()
+                        ? "The final wave has come."
+                        : "Wave " + event.getWaveNumber() + " started.";
+            case ZOMBIE_SPAWNED:
+                return "Zombie " + event.getEntityName()
+                        + " spawned at wave " + event.getWaveNumber()
+                        + " in lane " + event.getLaneNumber()
+                        + " which costed " + event.getWaveCost() + ".";
+            case ZOMBIE_KILLED:
+                if (event.isGroupedByLawnMower()) {
+                    return "";
+                }
+                return "Zombie of type " + event.getEntityName()
+                        + " is dead at " + formatCoordinate(event.getX(), event.getY());
+            case PLANT_DESTROYED:
+                return "Plant " + event.getEntityName()
+                        + " at " + formatCoordinate(event.getX(), event.getY())
+                        + " is destroyed.";
+            case LAWN_MOWER_TRIGGERED:
+                return "The lawn mower in the row " + event.getLaneNumber()
+                        + " is triggered and killed these zombies: "
+                        + (event.getEntityNames().isEmpty()
+                        ? "none"
+                        : String.join(", ", event.getEntityNames()));
+            case PLANT_SUN_PRODUCED:
+                return "plant " + event.getEntityName()
+                        + " produced a sun at "
+                        + formatCoordinate(event.getX(), event.getY());
+            case SKY_SUN_DROPPING:
+                return "New " + event.getSunType().name().toLowerCase(Locale.ROOT)
+                        + " sun is dropping at position "
+                        + formatCoordinate(event.getX(), event.getY());
+            case SKY_SUN_LANDED:
+                return "Sun reached the ground at position "
+                        + formatCoordinate(event.getX(), event.getY());
+            case RADIOACTIVE_SUN_EXPLODED:
+                return "Radioactive sun exploded at "
+                        + formatCoordinate(event.getX(), event.getY())
+                        + "; zombies killed=" + event.getAmount()
+                        + ", plants destroyed=" + event.getSecondaryAmount() + ".";
+            case PLANT_FOOD_DROPPED:
+                return "The glowing zombie dropped a plant food; you have "
+                        + event.getCurrentCount() + " plant foods now.";
+            case REWARD_DROPPED:
+                return "A zombie dropped a " + event.getEntityName() + ".";
+            default:
+                return "";
+        }
+    }
+
     private LevelRuntimeContext createLevelContext() {
         return new LevelRuntimeContext(
                 gameSession.getBoard(),
@@ -554,6 +721,14 @@ public class GameController {
 
     private String formatSeconds(int ticks) {
         return String.format(Locale.ROOT, "%.1f", ticks / TICKS_PER_SECOND);
+    }
+
+    private String formatCoordinate(double x, double y) {
+        if (Math.abs(x - Math.rint(x)) < 0.000001) {
+            return "(" + (int) Math.rint(x) + ", " + (int) Math.rint(y) + ")";
+        }
+        return "(" + String.format(Locale.ROOT, "%.2f", x)
+                + ", " + (int) Math.rint(y) + ")";
     }
 
     private String formatTile(Tile tile) {
@@ -601,9 +776,9 @@ public class GameController {
         }
 
         if (state.getStatus() == GameState.Status.WON) {
-            message.append(" Level won.");
+            message.append("\nDear humanz, zis is not done yet; we will come back to eat your brainz, humanz.");
         } else if (state.getStatus() == GameState.Status.LOST) {
-            message.append(" The zombie ate your brain; LOSER!");
+            message.append("\nThe zombie ate your brain; LOSER!!!");
         }
     }
 
