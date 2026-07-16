@@ -8,15 +8,13 @@ import java.util.Iterator;
 import java.util.List;
 
 public class SunManager {
-    private static final int PERMANENT_SUN_TIME = Integer.MAX_VALUE;
-
     private final List<Sun> suns;
 
     public SunManager() {
         this.suns = new ArrayList<>();
     }
 
-    public void spawnSun(Position position, int sunAmount, int timeLeft) {
+    public Sun spawnSun(Position position, int sunAmount, int timeLeft) {
         if (position == null) {
             throw new IllegalArgumentException("Position cannot be null.");
         }
@@ -26,42 +24,70 @@ public class SunManager {
 
         Sun sun = new Sun(position, sunAmount, timeLeft);
         suns.add(sun);
+        return sun;
     }
 
-    public void spawnPermanentSun(Position position, int sunAmount) {
-        spawnSun(position, sunAmount, PERMANENT_SUN_TIME);
+    public Sun spawnSkySun(Position position, SunType type, int fallingTicks) {
+        if (position == null) {
+            throw new IllegalArgumentException("Position cannot be null.");
+        }
+        if (type == null) {
+            throw new IllegalArgumentException("Sun type cannot be null.");
+        }
+        if (fallingTicks <= 0) {
+            throw new IllegalArgumentException("Falling ticks must be positive.");
+        }
+
+        Sun sun = Sun.skySun(position, type, fallingTicks);
+        suns.add(sun);
+        return sun;
+    }
+
+    public Sun spawnPermanentSun(Position position, int sunAmount) {
+        if (position == null) {
+            throw new IllegalArgumentException("Position cannot be null.");
+        }
+        if (sunAmount <= 0) {
+            throw new IllegalArgumentException("Amount must be positive.");
+        }
+
+        Sun sun = Sun.plantSun(position, sunAmount);
+        suns.add(sun);
+        return sun;
+    }
+
+    public Sun collectSunObject(Position position) {
+        if (position == null) {
+            return null;
+        }
+
+        Iterator<Sun> iterator = suns.iterator();
+        while (iterator.hasNext()) {
+            Sun sun = iterator.next();
+            if (sun.getPosition().equals(position)) {
+                iterator.remove();
+                return sun;
+            }
+        }
+
+        return null;
     }
 
     public int collectSun(Position position) {
-        if (position == null) {
-            return 0;
-        }
-
-        Iterator<Sun> iterator = suns.iterator();
-        while (iterator.hasNext()) {
-            Sun sun = iterator.next();
-
-            if (sun.getPosition().equals(position)) {
-                int collectedAmount = sun.getSunAmount();
-                iterator.remove();
-                return collectedAmount;
-            }
-        }
-
-        return 0;
+        Sun sun = collectSunObject(position);
+        return sun == null ? 0 : sun.getSunAmount();
     }
 
-    public void update() {
-        Iterator<Sun> iterator = suns.iterator();
+    public List<Sun> update() {
+        List<Sun> landedSuns = new ArrayList<>();
 
-        while (iterator.hasNext()) {
-            Sun sun = iterator.next();
-            sun.tick();
-
-            if (sun.isExpired()) {
-                iterator.remove();
+        for (Sun sun : suns) {
+            if (sun.tick()) {
+                landedSuns.add(sun);
             }
         }
+
+        return Collections.unmodifiableList(landedSuns);
     }
 
     public List<Sun> getSuns() {
