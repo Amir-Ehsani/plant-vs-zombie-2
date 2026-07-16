@@ -1,29 +1,42 @@
 package controllers.features;
 
+import controllers.auth.AuthController;
 import models.account.Collection;
 import models.account.Greenhouse;
 import models.account.IPurchasable;
 import models.account.PlantData;
 import models.account.User;
 
-import java.lang.reflect.Field;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Random;
 
 public class ShopController {
+    private static final int POT_PRICE = 2000;
+    private static final int PLANT_FOOD_PRICE = 3;
+    private static final int RANDOM_SEED_PRICE = 1000;
+    private static final int SELECTED_SEED_PRICE = 5;
+    private static final int EXCHANGE_PRICE = 5;
+    private static final int DAILY_SEED_PRICE = 1600;
+
+    private final AuthController authController;
+    private final Random random;
     private final List<ShopItem> permanentItems;
-    private final List<ShopItem> dailyItems;
     private boolean insideShop;
     private String lastMessage;
 
     public ShopController() {
-        this.permanentItems = new ArrayList<>();
-        this.dailyItems = new ArrayList<>();
-        this.insideShop = false;
-        this.lastMessage = "";
-        initializePermanentItems();
-        initializeDailyItems();
+        this(null);
+    }
+
+    public ShopController(AuthController authController) {
+        this.authController = authController;
+        random = new Random();
+        permanentItems = createPermanentItems();
+        insideShop = false;
+        lastMessage = "";
     }
 
     public void enterShop() {
@@ -45,61 +58,69 @@ public class ShopController {
     }
 
     public List<ShopItem> getDailyItems() {
-        return new ArrayList<>(dailyItems);
+        User user = authController == null ? null : authController.getLoggedInUser();
+        return getDailyItems(user);
+    }
+
+    public List<ShopItem> getDailyItems(User user) {
+        ShopItem daily = createDailyItem(user);
+        List<ShopItem> items = new ArrayList<>();
+        if (daily != null) {
+            items.add(daily);
+        }
+        return items;
     }
 
     public List<ShopItem> getAllItems() {
-        List<ShopItem> items = new ArrayList<>();
-        items.addAll(permanentItems);
-        items.addAll(dailyItems);
+        List<ShopItem> items = getPermanentItems();
+        items.addAll(getDailyItems());
         return items;
     }
 
     public ShopItem findItemById(String itemId) {
-        String normalizedId = normalize(itemId);
+        User user = authController == null ? null : authController.getLoggedInUser();
+        return findItemById(user, itemId);
+    }
 
-        for (ShopItem item : getAllItems()) {
+    public ShopItem findItemById(User user, String itemId) {
+        String normalizedId = normalize(itemId);
+        for (ShopItem item : permanentItems) {
             if (normalize(item.getId()).equals(normalizedId)) {
                 return item;
             }
         }
 
+        ShopItem daily = createDailyItem(user);
+        if (daily != null && normalize(daily.getId()).equals(normalizedId)) {
+            return daily;
+        }
         return null;
     }
 
     public void processPurchase(User user, IPurchasable item) {
-        if (user == null) {
-            fail("User is not available.");
+        if (user == null || item == null) {
+            fail("User or item is not available.");
             return;
         }
-
-        if (item == null) {
-            fail("Item is not available.");
-            return;
-        }
-
         if (item.isUnlocked()) {
             fail("Item is already unlocked.");
             return;
         }
-
-        int price = item.getPrice();
-
-        if (!spendCoins(user, price)) {
+        if (!user.spendCoins(item.getPrice())) {
             fail("Not enough coins.");
             return;
         }
-
         if (item instanceof PlantData plantData) {
             plantData.unlock();
-            Collection collection = getOrCreateCollection(user);
-
-            if (collection != null) {
-                collection.unlockPlant(plantData);
-            }
+            user.getCollection().unlockPlant(plantData);
         }
-
+        saveUsers();
         success("Purchase completed.");
+    }
+
+    public boolean buy(String itemId, int count, String plantType) {
+        User user = getLoggedInUserOrFail();
+        return user != null && buy(user, itemId, count, plantType);
     }
 
     public boolean buy(User user, String itemId, int count) {
@@ -111,36 +132,57 @@ public class ShopController {
             fail("User is not available.");
             return false;
         }
-
         if (count <= 0) {
             fail("Count must be positive.");
             return false;
         }
 
-        ShopItem item = findItemById(itemId);
-
+        ShopItem item = findItemById(user, itemId);
         if (item == null) {
             fail("Item was not found.");
             return false;
         }
-
-        int totalPrice = item.getPrice() * count;
-
-        if (!spendCurrency(user, item.getCurrency(), totalPrice)) {
-            fail("Not enough " + item.getCurrency() + ".");
+        if (item.isDaily() && count != 1) {
+            fail("The daily offer can only be bought once.");
+            return false;
+        }
+        if (!validatePurchase(user, item, count, plantType)) {
             return false;
         }
 
-        boolean applied = applyPurchasedItem(user, item, count, plantType);
-
-        if (!applied) {
-            addCurrency(user, item.getCurrency(), totalPrice);
+        int totalPrice = item.getPrice() * count;
+        if (!spendCurrency(user, item.getCurrency(), totalPrice)) {
+            fail("Not enough " + item.getCurrency() + "s.");
+            return false;
+        }
+        if (!applyPurchasedItem(user, item, count, plantType)) {
+            refundCurrency(user, item.getCurrency(), totalPrice);
             fail("Purchase could not be applied.");
             return false;
         }
 
+        if (item.isDaily()) {
+            user.getCollection().markDailyOfferPurchased();
+        }
+        saveUsers();
         success("Purchased " + count + "x " + item.getName() + ".");
         return true;
+    }
+
+    public User getCurrentUser() {
+        return authController == null ? null : authController.getLoggedInUser();
+    }
+
+    public AuthController getAuthController() {
+        return authController;
+    }
+
+    public boolean isLoggedIn() {
+        return authController != null && authController.isLoggedIn();
+    }
+
+    public void invalidCommand(String menuName) {
+        fail("Invalid command in " + menuName + ".");
     }
 
     public String getLastMessage() {
@@ -151,286 +193,173 @@ public class ShopController {
         return lastMessage != null && lastMessage.startsWith("OK:");
     }
 
+    private boolean validatePurchase(User user, ShopItem item, int count, String plantType) {
+        Collection collection = user.getCollection();
+        if ("pot".equals(item.getType()) && user.getGreenhouse().getLockedPotCount() < count) {
+            fail("Greenhouse pot capacity is full.");
+            return false;
+        }
+        if ("plant_food".equals(item.getType())
+                && collection.getRemainingPlantFoodCapacity() < count) {
+            fail("Plant Food storage is full.");
+            return false;
+        }
+        if ("selected_seed_packet".equals(item.getType())
+                && collection.findOwnedPlant(plantType) == null) {
+            fail("The selected plant is not unlocked.");
+            return false;
+        }
+        if (("random_seed_packet".equals(item.getType()) || item.isDaily())
+                && collection.getOwnedPlants().isEmpty()) {
+            fail("No unlocked plant is available for seed packets.");
+            return false;
+        }
+        if (item.isDaily() && collection.isDailyOfferPurchased()) {
+            fail("Today's offer has already been purchased.");
+            return false;
+        }
+        return true;
+    }
+
     private boolean applyPurchasedItem(User user, ShopItem item, int count, String plantType) {
-        Collection collection = getOrCreateCollection(user);
-
-        if (item.getType().equals("plant")) {
-            if (collection == null) {
-                return false;
-            }
-
-            PlantData plant = collection.findPlant(item.getTargetName());
-
-            if (plant == null) {
-                plant = new PlantData(item.getTargetName(), item.getPrice(), true);
-            }
-
-            collection.unlockPlant(plant);
+        String type = item.getType();
+        if ("pot".equals(type)) {
+            return unlockPots(user.getGreenhouse(), count);
+        }
+        if ("plant_food".equals(type)) {
+            return user.getCollection().addStoredPlantFood(count);
+        }
+        if ("random_seed_packet".equals(type)) {
+            return addRandomSeeds(user.getCollection(), item.getAmount() * count);
+        }
+        if ("selected_seed_packet".equals(type)) {
+            return addSelectedSeeds(user.getCollection(), plantType, item.getAmount() * count);
+        }
+        if ("currency_exchange".equals(type)) {
+            user.addCoins(item.getAmount() * count);
             return true;
         }
-
-        if (item.getType().equals("seed_packet")) {
-            if (collection == null || plantType == null || plantType.isBlank()) {
-                return false;
-            }
-
-            PlantData plant = collection.findPlant(plantType);
-
-            if (plant == null) {
-                plant = new PlantData(plantType, 0, false);
-                collection.addPlant(plant);
-            }
-
-            plant.addSeedPackets(item.getAmount() * count);
-            return true;
+        if ("daily_seed_packet".equals(type)) {
+            return addSelectedSeeds(user.getCollection(), item.getTargetName(), item.getAmount());
         }
-
-        if (item.getType().equals("plant_food")) {
-            if (collection == null || plantType == null || plantType.isBlank()) {
-                return false;
-            }
-
-            PlantData plant = collection.findOwnedPlant(plantType);
-
-            if (plant == null) {
-                return false;
-            }
-
-            plant.addBoost(item.getAmount() * count);
-            return true;
-        }
-
-        if (item.getType().equals("pot")) {
-            Greenhouse greenhouse = getOrCreateGreenhouse(user);
-
-            if (greenhouse == null) {
-                return false;
-            }
-
-            int unlockedCount = 0;
-
-            for (Greenhouse.Pot pot : greenhouse.getAllPots()) {
-                if (unlockedCount >= count) {
-                    break;
-                }
-
-                if (pot.isLocked()) {
-                    pot.unlock();
-                    unlockedCount++;
-                }
-            }
-
-            return unlockedCount == count;
-        }
-
-        if (item.getType().equals("coin_pack")) {
-            addCoins(user, item.getAmount() * count);
-            return true;
-        }
-
-        if (item.getType().equals("gem_pack")) {
-            addGems(user, item.getAmount() * count);
-            return true;
-        }
-
         return false;
     }
 
-    private void initializePermanentItems() {
-        permanentItems.add(new ShopItem("plant_peashooter", "Peashooter", "plant", "Peashooter", 100, "coin", 1, false));
-        permanentItems.add(new ShopItem("plant_sunflower", "Sunflower", "plant", "Sunflower", 50, "coin", 1, false));
-        permanentItems.add(new ShopItem("plant_wallnut", "Wall-nut", "plant", "Wall-nut", 50, "coin", 1, false));
-        permanentItems.add(new ShopItem("seed_packet", "Seed Packet", "seed_packet", "", 25, "coin", 10, false));
-        permanentItems.add(new ShopItem("plant_food", "Plant Food", "plant_food", "", 75, "coin", 1, false));
-        permanentItems.add(new ShopItem("greenhouse_pot", "Greenhouse Pot", "pot", "", 100, "coin", 1, false));
+    private boolean unlockPots(Greenhouse greenhouse, int count) {
+        for (int index = 0; index < count; index++) {
+            if (!greenhouse.unlockNextPot()) {
+                return false;
+            }
+        }
+        return true;
     }
 
-    private void initializeDailyItems() {
-        dailyItems.add(new ShopItem("daily_seed_packet", "Daily Seed Packet", "seed_packet", "", 10, "coin", 5, true));
-        dailyItems.add(new ShopItem("daily_plant_food", "Daily Plant Food", "plant_food", "", 40, "coin", 1, true));
-        dailyItems.add(new ShopItem("daily_greenhouse_pot", "Daily Greenhouse Pot", "pot", "", 75, "coin", 1, true));
+    private boolean addRandomSeeds(Collection collection, int amount) {
+        List<PlantData> plants = collection.getOwnedPlants();
+        if (plants.isEmpty()) {
+            return false;
+        }
+        PlantData plant = plants.get(random.nextInt(plants.size()));
+        plant.addSeedPackets(amount);
+        return true;
     }
 
-    private boolean spendCoins(User user, int amount) {
-        return spendCurrency(user, "coin", amount);
+    private boolean addSelectedSeeds(Collection collection, String plantName, int amount) {
+        PlantData plant = collection.findOwnedPlant(plantName);
+        if (plant == null) {
+            return false;
+        }
+        plant.addSeedPackets(amount);
+        return true;
+    }
+
+    private ShopItem createDailyItem(User user) {
+        if (user == null) {
+            return null;
+        }
+
+        Collection collection = user.getCollection();
+        LocalDate today = LocalDate.now();
+        if (!today.toString().equals(collection.getDailyOfferDate())) {
+            collection.refreshDailyOffer(selectDailyPlant(collection), today);
+            saveUsers();
+        }
+        if (collection.getDailyOfferPlantName().isBlank()) {
+            return null;
+        }
+        return new ShopItem(
+                "daily_seed_packet",
+                "Daily Seed Packet",
+                "daily_seed_packet",
+                collection.getDailyOfferPlantName(),
+                DAILY_SEED_PRICE,
+                "coin",
+                10,
+                true
+        );
+    }
+
+    private String selectDailyPlant(Collection collection) {
+        List<PlantData> plants = collection.getOwnedPlants();
+        if (plants.isEmpty()) {
+            return "";
+        }
+        int index = Math.floorMod(LocalDate.now().toString().hashCode(), plants.size());
+        return plants.get(index).getName();
+    }
+
+    private List<ShopItem> createPermanentItems() {
+        List<ShopItem> items = new ArrayList<>();
+        items.add(new ShopItem("pot", "Greenhouse Pot", "pot", "", POT_PRICE, "coin", 1, false));
+        items.add(new ShopItem(
+                "plant_food", "Plant Food", "plant_food", "", PLANT_FOOD_PRICE, "gem", 1, false
+        ));
+        items.add(new ShopItem(
+                "random_seed_packet", "Random Seed Packet", "random_seed_packet", "",
+                RANDOM_SEED_PRICE, "coin", 5, false
+        ));
+        items.add(new ShopItem(
+                "selected_seed_packet", "Selected Seed Packet", "selected_seed_packet", "",
+                SELECTED_SEED_PRICE, "gem", 10, false
+        ));
+        items.add(new ShopItem(
+                "currency_exchange", "Currency Exchange", "currency_exchange", "",
+                EXCHANGE_PRICE, "gem", 500, false
+        ));
+        return items;
     }
 
     private boolean spendCurrency(User user, String currency, int amount) {
-        if (amount < 0) {
-            return false;
-        }
-
-        String fieldName = resolveCurrencyFieldName(currency);
-        Integer currentAmount = getIntField(user, fieldName);
-
-        if (currentAmount == null || currentAmount < amount) {
-            return false;
-        }
-
-        return setIntField(user, fieldName, currentAmount - amount);
+        return "gem".equals(currency) ? user.spendGems(amount) : user.spendCoins(amount);
     }
 
-    private void addCurrency(User user, String currency, int amount) {
-        if (currency.equals("gem") || currency.equals("diamond")) {
-            addGems(user, amount);
-            return;
-        }
-
-        addCoins(user, amount);
-    }
-
-    private void addCoins(User user, int amount) {
-        if (amount <= 0) {
-            return;
-        }
-
-        Integer currentCoins = getIntField(user, "coins");
-
-        if (currentCoins == null) {
-            return;
-        }
-
-        setIntField(user, "coins", currentCoins + amount);
-    }
-
-    private void addGems(User user, int amount) {
-        if (amount <= 0) {
-            return;
-        }
-
-        Integer currentGems = getIntField(user, "gems");
-
-        if (currentGems == null) {
-            return;
-        }
-
-        setIntField(user, "gems", currentGems + amount);
-    }
-
-    private String resolveCurrencyFieldName(String currency) {
-        String normalizedCurrency = normalize(currency);
-
-        if (normalizedCurrency.equals("gem") || normalizedCurrency.equals("diamond")) {
-            return "gems";
-        }
-
-        return "coins";
-    }
-
-    private Collection getOrCreateCollection(User user) {
-        Object value = getObjectField(user, "collection");
-
-        if (value instanceof Collection collection) {
-            return collection;
-        }
-
-        Collection collection = new Collection();
-
-        if (setObjectField(user, "collection", collection)) {
-            return collection;
-        }
-
-        return null;
-    }
-
-    private Greenhouse getOrCreateGreenhouse(User user) {
-        Object value = getObjectField(user, "greenhouse");
-
-        if (value instanceof Greenhouse greenhouse) {
-            return greenhouse;
-        }
-
-        Greenhouse greenhouse = new Greenhouse();
-
-        if (setObjectField(user, "greenhouse", greenhouse)) {
-            return greenhouse;
-        }
-
-        return null;
-    }
-
-    private Integer getIntField(Object target, String fieldName) {
-        try {
-            Field field = findField(target.getClass(), fieldName);
-
-            if (field == null) {
-                return null;
-            }
-
-            field.setAccessible(true);
-            return field.getInt(target);
-        } catch (IllegalAccessException exception) {
-            return null;
+    private void refundCurrency(User user, String currency, int amount) {
+        if ("gem".equals(currency)) {
+            user.addGems(amount);
+        } else {
+            user.addCoins(amount);
         }
     }
 
-    private boolean setIntField(Object target, String fieldName, int value) {
-        try {
-            Field field = findField(target.getClass(), fieldName);
-
-            if (field == null) {
-                return false;
-            }
-
-            field.setAccessible(true);
-            field.setInt(target, Math.max(0, value));
-            return true;
-        } catch (IllegalAccessException exception) {
-            return false;
+    private User getLoggedInUserOrFail() {
+        User user = getCurrentUser();
+        if (user == null) {
+            fail("No user is logged in.");
         }
+        return user;
     }
 
-    private Object getObjectField(Object target, String fieldName) {
-        try {
-            Field field = findField(target.getClass(), fieldName);
-
-            if (field == null) {
-                return null;
-            }
-
-            field.setAccessible(true);
-            return field.get(target);
-        } catch (IllegalAccessException exception) {
-            return null;
+    private void saveUsers() {
+        if (authController != null) {
+            authController.saveUsers();
         }
-    }
-
-    private boolean setObjectField(Object target, String fieldName, Object value) {
-        try {
-            Field field = findField(target.getClass(), fieldName);
-
-            if (field == null) {
-                return false;
-            }
-
-            field.setAccessible(true);
-            field.set(target, value);
-            return true;
-        } catch (IllegalAccessException exception) {
-            return false;
-        }
-    }
-
-    private Field findField(Class<?> type, String fieldName) {
-        Class<?> current = type;
-
-        while (current != null) {
-            try {
-                return current.getDeclaredField(fieldName);
-            } catch (NoSuchFieldException exception) {
-                current = current.getSuperclass();
-            }
-        }
-
-        return null;
     }
 
     private String normalize(String value) {
         if (value == null) {
             return "";
         }
-
-        return value.trim().toLowerCase(Locale.ROOT).replace("-", "_").replace(" ", "_");
+        return value.trim().toLowerCase(Locale.ROOT).replace('-', '_').replace(' ', '_');
     }
 
     private void success(String message) {
@@ -451,11 +380,20 @@ public class ShopController {
         private final int amount;
         private final boolean daily;
 
-        public ShopItem(String id, String name, String type, String targetName, int price, String currency, int amount, boolean daily) {
-            this.id = normalizeStatic(id);
-            this.name = normalizeStatic(name);
-            this.type = normalizeStatic(type);
-            this.targetName = normalizeStatic(targetName);
+        public ShopItem(
+                String id,
+                String name,
+                String type,
+                String targetName,
+                int price,
+                String currency,
+                int amount,
+                boolean daily
+        ) {
+            this.id = safeText(id);
+            this.name = safeText(name);
+            this.type = safeText(type);
+            this.targetName = safeText(targetName);
             this.price = Math.max(0, price);
             this.currency = normalizeCurrency(currency);
             this.amount = Math.max(1, amount);
@@ -500,26 +438,13 @@ public class ShopController {
             return false;
         }
 
-        private static String normalizeStatic(String value) {
-            if (value == null) {
-                return "";
-            }
-
-            return value.trim();
+        private static String safeText(String value) {
+            return value == null ? "" : value.trim();
         }
 
         private static String normalizeCurrency(String value) {
-            String normalized = normalizeStatic(value).toLowerCase(Locale.ROOT);
-
-            if (normalized.equals("diamond")) {
-                return "gem";
-            }
-
-            if (normalized.isEmpty()) {
-                return "coin";
-            }
-
-            return normalized;
+            String normalized = safeText(value).toLowerCase(Locale.ROOT);
+            return "diamond".equals(normalized) ? "gem" : normalized;
         }
     }
 }

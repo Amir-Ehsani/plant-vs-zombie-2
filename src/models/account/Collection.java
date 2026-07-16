@@ -1,52 +1,67 @@
 package models.account;
 
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 public class Collection {
+    private static final int MAX_STORED_PLANT_FOOD = 3;
+
     private List<PlantData> ownedPlants;
     private List<PlantData> lockedPlants;
     private List<String> ownedZombies;
     private List<String> lockedZombies;
+    private int storedPlantFood;
+    private String dailyOfferDate;
+    private String dailyOfferPlantName;
+    private boolean dailyOfferPurchased;
 
     public Collection() {
-        this.ownedPlants = new ArrayList<>();
-        this.lockedPlants = new ArrayList<>();
-        this.ownedZombies = new ArrayList<>();
-        this.lockedZombies = new ArrayList<>();
+        ownedPlants = new ArrayList<>();
+        lockedPlants = new ArrayList<>();
+        ownedZombies = new ArrayList<>();
+        lockedZombies = new ArrayList<>();
+        storedPlantFood = 0;
+        dailyOfferDate = "";
+        dailyOfferPlantName = "";
+        dailyOfferPurchased = false;
     }
 
     public List<PlantData> getOwnedPlants() {
+        ensureLists();
         return new ArrayList<>(ownedPlants);
     }
 
     public List<PlantData> getLockedPlants() {
+        ensureLists();
         return new ArrayList<>(lockedPlants);
     }
 
     public List<PlantData> getAllPlants() {
-        List<PlantData> allPlants = new ArrayList<>();
-        allPlants.addAll(ownedPlants);
-        allPlants.addAll(lockedPlants);
+        List<PlantData> allPlants = getOwnedPlants();
+        allPlants.addAll(getLockedPlants());
         return allPlants;
     }
 
     public List<String> getOwnedZombies() {
+        ensureLists();
         return new ArrayList<>(ownedZombies);
     }
 
     public List<String> getLockedZombies() {
+        ensureLists();
         return new ArrayList<>(lockedZombies);
     }
 
     public List<String> getAllZombies() {
-        List<String> allZombies = new ArrayList<>();
-        allZombies.addAll(ownedZombies);
-        allZombies.addAll(lockedZombies);
+        List<String> allZombies = getOwnedZombies();
+        allZombies.addAll(getLockedZombies());
         return allZombies;
     }
 
     public void addPlant(PlantData plant) {
+        ensureLists();
         if (plant == null || hasPlant(plant.getName())) {
             return;
         }
@@ -59,8 +74,8 @@ public class Collection {
     }
 
     public void addZombie(String zombieName, boolean unlocked) {
-        String normalizedName = normalizeName(zombieName);
-
+        ensureLists();
+        String normalizedName = normalizeDisplayName(zombieName);
         if (normalizedName.isEmpty() || hasZombie(normalizedName)) {
             return;
         }
@@ -73,12 +88,12 @@ public class Collection {
     }
 
     public void unlockPlant(PlantData plant) {
+        ensureLists();
         if (plant == null) {
             return;
         }
 
         PlantData existingPlant = findPlant(plant.getName());
-
         if (existingPlant == null) {
             plant.unlock();
             ownedPlants.add(plant);
@@ -87,7 +102,6 @@ public class Collection {
 
         existingPlant.unlock();
         lockedPlants.remove(existingPlant);
-
         if (!ownedPlants.contains(existingPlant)) {
             ownedPlants.add(existingPlant);
         }
@@ -95,7 +109,6 @@ public class Collection {
 
     public boolean unlockPlant(String plantName) {
         PlantData plant = findPlant(plantName);
-
         if (plant == null) {
             return false;
         }
@@ -105,19 +118,21 @@ public class Collection {
     }
 
     public boolean unlockZombie(String zombieName) {
-        String normalizedName = normalizeName(zombieName);
-
+        ensureLists();
+        String normalizedName = normalizeDisplayName(zombieName);
         if (normalizedName.isEmpty()) {
             return false;
         }
 
-        if (ownedZombies.contains(normalizedName)) {
+        String ownedName = findMatchingName(ownedZombies, normalizedName);
+        if (ownedName != null) {
             return true;
         }
 
-        if (lockedZombies.contains(normalizedName)) {
-            lockedZombies.remove(normalizedName);
-            ownedZombies.add(normalizedName);
+        String lockedName = findMatchingName(lockedZombies, normalizedName);
+        if (lockedName != null) {
+            lockedZombies.remove(lockedName);
+            ownedZombies.add(lockedName);
             return true;
         }
 
@@ -127,31 +142,26 @@ public class Collection {
 
     public PlantData findPlant(String plantName) {
         PlantData plant = findOwnedPlant(plantName);
-
-        if (plant != null) {
-            return plant;
-        }
-
-        return findLockedPlant(plantName);
+        return plant == null ? findLockedPlant(plantName) : plant;
     }
 
     public PlantData findOwnedPlant(String plantName) {
+        ensureLists();
         for (PlantData plant : ownedPlants) {
-            if (plant.hasName(plantName)) {
+            if (plant != null && plant.hasName(plantName)) {
                 return plant;
             }
         }
-
         return null;
     }
 
     public PlantData findLockedPlant(String plantName) {
+        ensureLists();
         for (PlantData plant : lockedPlants) {
-            if (plant.hasName(plantName)) {
+            if (plant != null && plant.hasName(plantName)) {
                 return plant;
             }
         }
-
         return null;
     }
 
@@ -168,31 +178,28 @@ public class Collection {
     }
 
     public boolean hasZombie(String zombieName) {
-        String normalizedName = normalizeName(zombieName);
-        return ownedZombies.contains(normalizedName) || lockedZombies.contains(normalizedName);
+        ensureLists();
+        return findMatchingName(ownedZombies, zombieName) != null
+                || findMatchingName(lockedZombies, zombieName) != null;
     }
 
     public boolean hasOwnedZombie(String zombieName) {
-        return ownedZombies.contains(normalizeName(zombieName));
+        ensureLists();
+        return findMatchingName(ownedZombies, zombieName) != null;
     }
 
     public boolean hasLockedZombie(String zombieName) {
-        return lockedZombies.contains(normalizeName(zombieName));
+        ensureLists();
+        return findMatchingName(lockedZombies, zombieName) != null;
     }
 
     public boolean upgradePlant(String plantName) {
         PlantData plant = findOwnedPlant(plantName);
-
-        if (plant == null) {
-            return false;
-        }
-
-        return plant.upgrade();
+        return plant != null && plant.upgrade();
     }
 
     public boolean addSeedPackets(String plantName, int amount) {
         PlantData plant = findPlant(plantName);
-
         if (plant == null || amount <= 0) {
             return false;
         }
@@ -203,7 +210,6 @@ public class Collection {
 
     public boolean addBoost(String plantName, int amount) {
         PlantData plant = findOwnedPlant(plantName);
-
         if (plant == null || amount <= 0) {
             return false;
         }
@@ -212,11 +218,101 @@ public class Collection {
         return true;
     }
 
-    private String normalizeName(String name) {
-        if (name == null) {
-            return "";
+    public int getStoredPlantFood() {
+        return storedPlantFood;
+    }
+
+    public int getMaxStoredPlantFood() {
+        return MAX_STORED_PLANT_FOOD;
+    }
+
+    public int getRemainingPlantFoodCapacity() {
+        return MAX_STORED_PLANT_FOOD - storedPlantFood;
+    }
+
+    public boolean addStoredPlantFood(int amount) {
+        if (amount <= 0 || storedPlantFood + amount > MAX_STORED_PLANT_FOOD) {
+            return false;
         }
 
-        return name.trim();
+        storedPlantFood += amount;
+        return true;
+    }
+
+    public boolean useStoredPlantFood() {
+        if (storedPlantFood <= 0) {
+            return false;
+        }
+
+        storedPlantFood--;
+        return true;
+    }
+
+    public void refreshDailyOffer(String plantName, LocalDate date) {
+        if (date == null) {
+            return;
+        }
+
+        String dateText = date.toString();
+        if (dateText.equals(dailyOfferDate)) {
+            return;
+        }
+
+        dailyOfferDate = dateText;
+        dailyOfferPlantName = normalizeDisplayName(plantName);
+        dailyOfferPurchased = false;
+    }
+
+    public String getDailyOfferDate() {
+        return dailyOfferDate == null ? "" : dailyOfferDate;
+    }
+
+    public String getDailyOfferPlantName() {
+        return dailyOfferPlantName == null ? "" : dailyOfferPlantName;
+    }
+
+    public boolean isDailyOfferPurchased() {
+        return dailyOfferPurchased;
+    }
+
+    public void markDailyOfferPurchased() {
+        dailyOfferPurchased = true;
+    }
+
+    private String findMatchingName(List<String> names, String targetName) {
+        String targetKey = normalizeKey(targetName);
+        for (String name : names) {
+            if (normalizeKey(name).equals(targetKey)) {
+                return name;
+            }
+        }
+        return null;
+    }
+
+    private String normalizeDisplayName(String name) {
+        return name == null ? "" : name.trim();
+    }
+
+    private String normalizeKey(String name) {
+        return normalizeDisplayName(name)
+                .toLowerCase(Locale.ROOT)
+                .replace('-', ' ')
+                .replace('_', ' ')
+                .replaceAll("\\s+", " ");
+    }
+
+    private void ensureLists() {
+        if (ownedPlants == null) {
+            ownedPlants = new ArrayList<>();
+        }
+        if (lockedPlants == null) {
+            lockedPlants = new ArrayList<>();
+        }
+        if (ownedZombies == null) {
+            ownedZombies = new ArrayList<>();
+        }
+        if (lockedZombies == null) {
+            lockedZombies = new ArrayList<>();
+        }
     }
 }

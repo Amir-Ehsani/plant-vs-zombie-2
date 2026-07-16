@@ -1,45 +1,73 @@
 package views.menus;
 
+import controllers.core.MenuManager;
+import controllers.features.LeaderboardController;
 import models.account.User;
 import views.core.BaseView;
 
-import java.lang.reflect.Field;
-import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class LeaderboardView extends BaseView {
-    public LeaderboardView(String viewName) {
+    private static final Pattern SORT_PATTERN = Pattern.compile(
+            "^menu\\s+leaderboard\\s+sort\\s+-b\\s+(\\S+)\\s+-o\\s+(asc|desc)\\s*$"
+    );
+
+    private final MenuManager menuManager;
+    private final LeaderboardController controller;
+
+    public LeaderboardView(String viewName, MenuManager menuManager, LeaderboardController controller) {
         super(viewName);
+        this.menuManager = menuManager;
+        this.controller = controller;
+    }
+
+    public LeaderboardView(String viewName) {
+        this(viewName, null, new LeaderboardController());
     }
 
     public LeaderboardView() {
-        super("Leaderboard");
+        this("Leaderboard Menu");
     }
 
     @Override
     public void display() {
-        System.out.println("Leaderboard");
-        System.out.println("===========");
-        System.out.println("No ranking data provided.");
+        System.out.print(menuText());
+        if (controller.isLoggedIn()) {
+            showRankings(controller.getRankedUsers());
+        }
     }
 
     @Override
-    public void showErrorMessage(String message) {
-        if (message == null || message.isBlank()) {
+    public void handleInput(String input) {
+        String command = cleanInput(input);
+        if (!isConnected()) {
+            printControllerMessage("ERROR: Leaderboard menu is not connected.");
+            return;
+        }
+        if (!controller.isLoggedIn()) {
+            printControllerMessage("ERROR: No user is logged in.");
+            menuManager.enterLoginMenu();
             return;
         }
 
-        System.out.println("ERROR: " + message);
+        if (handleNavigation(command) || handleLeaderboard(command)) {
+            return;
+        }
+        controller.invalidCommand("leaderboard menu");
+        printControllerMessage(controller.getLastMessage());
     }
 
-    @Override
-    public void showSuccessMessage(String message) {
-        if (message == null || message.isBlank()) {
-            return;
-        }
-
-        System.out.println("OK: " + message);
+    public String menuText() {
+        return """
+                Leaderboard Menu
+                menu leaderboard
+                menu leaderboard sort -b <column> -o <asc|desc>
+                columns: username, progress, minigames, daily-quests, quests, best-score
+                menu show current
+                menu exit
+                """;
     }
 
     public void showRankings(List<User> rankedUsers) {
@@ -47,163 +75,85 @@ public class LeaderboardView extends BaseView {
     }
 
     public String renderRankings(List<User> users) {
-        StringBuilder builder = new StringBuilder();
-
-        builder.append("Leaderboard\n");
-        builder.append("===========\n");
-
+        StringBuilder builder = new StringBuilder("Leaderboard\n===========\n");
         if (users == null || users.isEmpty()) {
-            builder.append("No users available.\n");
-            return builder.toString();
+            return builder.append("No users available.\n").toString();
         }
 
-        List<User> rankedUsers = new ArrayList<>(users);
-        rankedUsers.sort(Comparator.comparingInt(this::getScore).reversed());
-
-        builder.append(String.format("%-6s %-20s %-20s %-10s %-10s %-10s%n", "Rank", "Username", "Nickname", "Score", "Coins", "Gems"));
-        builder.append(String.format("%-6s %-20s %-20s %-10s %-10s %-10s%n", "----", "--------", "--------", "-----", "-----", "----"));
-
+        builder.append(String.format(
+                "%-5s %-16s %-24s %-10s %-12s %-12s %-10s%n",
+                "Rank", "Username", "Last progress", "MiniGames", "Daily quests", "Other quests", "Best score"
+        ));
         int rank = 1;
-
-        for (User user : rankedUsers) {
-            if (user == null) {
-                continue;
+        for (User user : users) {
+            if (user != null) {
+                appendUser(builder, rank++, user);
             }
-
-            builder.append(String.format(
-                    "%-6d %-20s %-20s %-10d %-10d %-10d%n",
-                    rank,
-                    safeText(user.getUsername()),
-                    safeText(getStringField(user, "nickname")),
-                    getScore(user),
-                    getIntField(user, "coins"),
-                    getIntField(user, "gems")
-            ));
-
-            rank++;
         }
-
-        if (rank == 1) {
-            builder.append("No users available.\n");
-        }
-
         return builder.toString();
     }
 
     public String renderUserRank(User user, List<User> users) {
-        if (user == null) {
-            return "User is not available.\n";
+        if (user == null || users == null) {
+            return "User or leaderboard is not available.\n";
         }
-
-        if (users == null || users.isEmpty()) {
-            return "Leaderboard is empty.\n";
-        }
-
-        List<User> rankedUsers = new ArrayList<>(users);
-        rankedUsers.sort(Comparator.comparingInt(this::getScore).reversed());
-
         int rank = 1;
-
-        for (User currentUser : rankedUsers) {
-            if (currentUser == null) {
-                continue;
+        for (User current : users) {
+            if (current != null && current.getUsername().equals(user.getUsername())) {
+                return "Rank: " + rank + "\n" + renderRankings(List.of(current));
             }
-
-            if (sameUser(user, currentUser)) {
-                StringBuilder builder = new StringBuilder();
-
-                builder.append("User Rank\n");
-                builder.append("=========\n");
-                builder.append("Rank: ").append(rank).append("\n");
-                builder.append("Username: ").append(safeText(currentUser.getUsername())).append("\n");
-                builder.append("Nickname: ").append(safeText(getStringField(currentUser, "nickname"))).append("\n");
-                builder.append("Score: ").append(getScore(currentUser)).append("\n");
-                builder.append("Coins: ").append(getIntField(currentUser, "coins")).append("\n");
-                builder.append("Gems: ").append(getIntField(currentUser, "gems")).append("\n");
-
-                return builder.toString();
-            }
-
             rank++;
         }
-
         return "User was not found in leaderboard.\n";
     }
 
-    private boolean sameUser(User first, User second) {
-        if (first == second) {
+    private boolean handleNavigation(String command) {
+        if ("menu show current".equals(command)) {
+            menuManager.showCurrentMenu();
+            printControllerMessage(menuManager.getLastMessage());
+            return true;
+        }
+        if ("menu exit".equals(command)) {
+            menuManager.enterGameMenu();
+            printControllerMessage(menuManager.getLastMessage());
+            return true;
+        }
+        return false;
+    }
+
+    private boolean handleLeaderboard(String command) {
+        if ("menu leaderboard".equals(command)) {
+            showRankings(controller.getRankedUsers());
             return true;
         }
 
-        if (first == null || second == null) {
+        Matcher matcher = SORT_PATTERN.matcher(command);
+        if (!matcher.matches()) {
             return false;
         }
-
-        String firstUsername = first.getUsername();
-        String secondUsername = second.getUsername();
-
-        return firstUsername != null && firstUsername.equals(secondUsername);
+        boolean ascending = "asc".equals(matcher.group(2));
+        showRankings(controller.getRankedUsers(matcher.group(1), ascending));
+        return true;
     }
 
-    private int getScore(User user) {
-        return getIntField(user, "score");
-    }
-
-    private int getIntField(Object target, String fieldName) {
-        try {
-            Field field = findField(target.getClass(), fieldName);
-
-            if (field == null) {
-                return 0;
-            }
-
-            field.setAccessible(true);
-            return field.getInt(target);
-        } catch (IllegalAccessException exception) {
-            return 0;
-        }
-    }
-
-    private String getStringField(Object target, String fieldName) {
-        try {
-            Field field = findField(target.getClass(), fieldName);
-
-            if (field == null) {
-                return "";
-            }
-
-            field.setAccessible(true);
-            Object value = field.get(target);
-
-            if (value == null) {
-                return "";
-            }
-
-            return value.toString();
-        } catch (IllegalAccessException exception) {
-            return "";
-        }
-    }
-
-    private Field findField(Class<?> type, String fieldName) {
-        Class<?> current = type;
-
-        while (current != null) {
-            try {
-                return current.getDeclaredField(fieldName);
-            } catch (NoSuchFieldException exception) {
-                current = current.getSuperclass();
-            }
-        }
-
-        return null;
+    private void appendUser(StringBuilder builder, int rank, User user) {
+        builder.append(String.format(
+                "%-5d %-16s %-24s %-10d %-12d %-12d %-10d%n",
+                rank,
+                safeText(user.getUsername()),
+                controller.getLastProgress(user),
+                controller.getCompletedMiniGameCount(user),
+                controller.getDailyQuestCount(user),
+                controller.getNonDailyQuestCount(user),
+                user.getBestMioPoint()
+        ));
     }
 
     private String safeText(String value) {
-        if (value == null || value.isBlank()) {
-            return "-";
-        }
+        return value == null || value.isBlank() ? "-" : value.trim();
+    }
 
-        return value.trim();
+    private boolean isConnected() {
+        return menuManager != null && controller != null;
     }
 }

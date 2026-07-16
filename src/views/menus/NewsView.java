@@ -1,10 +1,61 @@
 package views.menus;
 
+import controllers.core.MenuManager;
+import controllers.features.NewsController;
 import models.account.News;
+import views.core.BaseView;
 
 import java.util.List;
 
-public class NewsView {
+public class NewsView extends BaseView {
+    private final MenuManager menuManager;
+    private final NewsController controller;
+
+    public NewsView(String viewName, MenuManager menuManager, NewsController controller) {
+        super(viewName);
+        this.menuManager = menuManager;
+        this.controller = controller;
+    }
+
+    public NewsView() {
+        this("News Menu", null, new NewsController());
+    }
+
+    @Override
+    public void display() {
+        System.out.print(menuText());
+    }
+
+    @Override
+    public void handleInput(String input) {
+        String command = cleanInput(input);
+        if (!isConnected()) {
+            printControllerMessage("ERROR: News menu is not connected.");
+            return;
+        }
+        if (!controller.isLoggedIn()) {
+            printControllerMessage("ERROR: No user is logged in.");
+            menuManager.enterLoginMenu();
+            return;
+        }
+
+        if (handleNavigation(command) || handleNewsCommand(command)) {
+            return;
+        }
+        controller.invalidCommand("news menu");
+        printControllerMessage(controller.getLastMessage());
+    }
+
+    public String menuText() {
+        return """
+                News Menu
+                menu news show-unread
+                menu news show-all
+                menu show current
+                menu exit
+                """;
+    }
+
     public void showUnread(List<News> newsList) {
         System.out.print(renderUnread(newsList));
     }
@@ -13,182 +64,98 @@ public class NewsView {
         System.out.print(renderAll(newsList));
     }
 
-    public void showMessage(String message) {
-        if (message == null || message.isBlank()) {
-            return;
-        }
-
-        System.out.println(message);
-    }
-
     public String renderUnread(List<News> newsList) {
-        return renderNewsList("Unread News", newsList, true);
+        return renderNewsList("Unread News", newsList, "No unread news.\n");
     }
 
     public String renderAll(List<News> newsList) {
-        return renderNewsList("All News", newsList, false);
+        return renderNewsList("All News", newsList, "No news available.\n");
     }
 
     public String renderNews(News news) {
         if (news == null) {
             return "News is not available.\n";
         }
-
         StringBuilder builder = new StringBuilder();
-
-        builder.append("Title: ")
-                .append(news.getTitle())
-                .append("\n");
-
-        builder.append("Status: ")
-                .append(news.isRead() ? "read" : "unread")
-                .append("\n");
-
-        builder.append("Type: ")
-                .append(news.getType())
-                .append("\n");
-
-        if (news.getTargetName() != null && !news.getTargetName().isBlank()) {
-            builder.append("Target: ")
-                    .append(news.getTargetName())
-                    .append("\n");
+        builder.append("Title: ").append(news.getTitle()).append("\n");
+        builder.append("Status: ").append(news.isRead() ? "read" : "unread").append("\n");
+        builder.append("Type: ").append(news.getType()).append("\n");
+        if (news.hasTarget()) {
+            builder.append("Target: ").append(news.getTargetName()).append("\n");
         }
-
         if (news.hasReward()) {
-            builder.append("Reward: ");
-
-            boolean hasCoin = news.getCoinAmount() > 0;
-            boolean hasGem = news.getGemAmount() > 0;
-
-            if (hasCoin) {
-                builder.append(news.getCoinAmount())
-                        .append(" coins");
-            }
-
-            if (hasCoin && hasGem) {
-                builder.append(", ");
-            }
-
-            if (hasGem) {
-                builder.append(news.getGemAmount())
-                        .append(" gems");
-            }
-
-            builder.append("\n");
+            builder.append("Reward: ").append(rewardText(news)).append("\n");
         }
-
-        builder.append("Created at: ")
-                .append(news.getCreatedAt())
-                .append("\n");
-
-        if (news.getReadAt() != null) {
-            builder.append("Read at: ")
-                    .append(news.getReadAt())
-                    .append("\n");
+        builder.append("Created at: ").append(news.getCreatedAt()).append("\n");
+        if (!news.getContent().isBlank()) {
+            builder.append("Content: ").append(news.getContent()).append("\n");
         }
-
-        if (news.getContent() != null && !news.getContent().isBlank()) {
-            builder.append("Content: ")
-                    .append(news.getContent())
-                    .append("\n");
-        }
-
         return builder.toString();
     }
 
-    private String renderNewsList(String title, List<News> newsList, boolean unreadOnly) {
-        StringBuilder builder = new StringBuilder();
+    private boolean handleNavigation(String command) {
+        if ("menu show current".equals(command)) {
+            menuManager.showCurrentMenu();
+            printControllerMessage(menuManager.getLastMessage());
+            return true;
+        }
+        if ("menu exit".equals(command)) {
+            menuManager.enterMainMenu();
+            printControllerMessage(menuManager.getLastMessage());
+            return true;
+        }
+        return false;
+    }
 
-        builder.append(title)
-                .append("\n");
-        builder.append(repeat("=", title.length()))
-                .append("\n");
+    private boolean handleNewsCommand(String command) {
+        if ("menu news show-unread".equals(command)) {
+            showUnread(controller.showUnreadNews());
+            return true;
+        }
+        if ("menu news show-all".equals(command)) {
+            showAll(controller.showAllNews());
+            return true;
+        }
+        return false;
+    }
 
+    private String renderNewsList(String title, List<News> newsList, String emptyMessage) {
+        StringBuilder builder = new StringBuilder(title).append("\n");
+        builder.append("=".repeat(title.length())).append("\n");
         if (newsList == null || newsList.isEmpty()) {
-            builder.append(unreadOnly ? "No unread news.\n" : "No news available.\n");
-            return builder.toString();
+            return builder.append(emptyMessage).toString();
         }
 
         int index = 1;
-
         for (News news : newsList) {
             if (news == null) {
                 continue;
             }
-
-            if (unreadOnly && news.isRead()) {
-                continue;
-            }
-
-            builder.append(index)
-                    .append(". ")
-                    .append(news.getTitle())
-                    .append(" [")
-                    .append(news.isRead() ? "read" : "unread")
-                    .append("]\n");
-
-            if (news.getContent() != null && !news.getContent().isBlank()) {
-                builder.append("   ")
-                        .append(news.getContent())
-                        .append("\n");
-            }
-
-            if (news.getTargetName() != null && !news.getTargetName().isBlank()) {
-                builder.append("   Target: ")
-                        .append(news.getTargetName())
-                        .append("\n");
-            }
-
+            builder.append(index++).append(". ").append(news.getTitle()).append("\n");
+            builder.append("   ").append(news.getContent()).append("\n");
             if (news.hasReward()) {
-                builder.append("   Reward: ")
-                        .append(renderReward(news))
-                        .append("\n");
+                builder.append("   Reward: ").append(rewardText(news)).append("\n");
             }
-
-            builder.append("   Created at: ")
-                    .append(news.getCreatedAt())
-                    .append("\n");
-
-            index++;
+            builder.append("   Created at: ").append(news.getCreatedAt()).append("\n");
         }
-
-        if (index == 1) {
-            builder.append(unreadOnly ? "No unread news.\n" : "No news available.\n");
-        }
-
         return builder.toString();
     }
 
-    private String renderReward(News news) {
+    private String rewardText(News news) {
         StringBuilder builder = new StringBuilder();
-
-        boolean hasCoin = news.getCoinAmount() > 0;
-        boolean hasGem = news.getGemAmount() > 0;
-
-        if (hasCoin) {
-            builder.append(news.getCoinAmount())
-                    .append(" coins");
+        if (news.getCoinAmount() > 0) {
+            builder.append(news.getCoinAmount()).append(" coins");
         }
-
-        if (hasCoin && hasGem) {
+        if (news.getCoinAmount() > 0 && news.getGemAmount() > 0) {
             builder.append(", ");
         }
-
-        if (hasGem) {
-            builder.append(news.getGemAmount())
-                    .append(" gems");
+        if (news.getGemAmount() > 0) {
+            builder.append(news.getGemAmount()).append(" gems");
         }
-
         return builder.toString();
     }
 
-    private String repeat(String value, int count) {
-        StringBuilder builder = new StringBuilder();
-
-        for (int i = 0; i < count; i++) {
-            builder.append(value);
-        }
-
-        return builder.toString();
+    private boolean isConnected() {
+        return menuManager != null && controller != null;
     }
 }
