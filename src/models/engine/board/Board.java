@@ -1,9 +1,11 @@
 package models.engine.board;
 
 import models.core.plant.Plant;
+import models.core.projectile.Damage;
 import models.core.zombie.Zombie;
 import models.engine.combat.BoardTickResult;
 import models.engine.combat.LaneTickResult;
+import models.engine.events.GameEvent;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -55,6 +57,7 @@ public class Board {
         int plantsDestroyed = 0;
         int mowersTriggered = 0;
         boolean brainWasEaten = false;
+        List<GameEvent> events = new ArrayList<>();
 
         for (Lane lane : lanes) {
             LaneTickResult result = lane.updateLaneTicks();
@@ -64,6 +67,7 @@ public class Board {
                 mowersTriggered++;
             }
             brainWasEaten = brainWasEaten || result.isBrainEaten();
+            events.addAll(result.getEvents());
         }
 
         totalZombiesKilled += zombiesKilled;
@@ -73,9 +77,88 @@ public class Board {
                 zombiesKilled,
                 plantsDestroyed,
                 mowersTriggered,
-                brainWasEaten
+                brainWasEaten,
+                events
         );
         return lastTickResult;
+    }
+
+    public BoardTickResult applyAreaDamage(
+            Position center,
+            int zombieRadius,
+            int zombieDamage,
+            int plantRadius,
+            int plantDamage
+    ) {
+        if (center == null) {
+            throw new IllegalArgumentException("Damage center cannot be null.");
+        }
+        if (zombieRadius < 0 || plantRadius < 0 || zombieDamage < 0 || plantDamage < 0) {
+            throw new IllegalArgumentException("Damage values and radii cannot be negative.");
+        }
+
+        for (Lane lane : lanes) {
+            for (Tile tile : lane.getTiles()) {
+                Position position = tile.getPosition();
+                int xDistance = Math.abs(position.getX() - center.getX());
+                int yDistance = Math.abs(position.getY() - center.getY());
+
+                if (xDistance <= zombieRadius && yDistance <= zombieRadius) {
+                    for (Zombie zombie : new ArrayList<>(tile.getZombies())) {
+                        if (zombie != null && zombie.isAlive()) {
+                            zombie.takeDamage(new Damage(zombieDamage, "radioactive sun"));
+                        }
+                    }
+                }
+
+                Plant plant = tile.getCurrentPlant();
+                if (plant != null && plant.isAlive()
+                        && xDistance <= plantRadius && yDistance <= plantRadius) {
+                    plant.takeDamage(new Damage(plantDamage, "radioactive sun"));
+                }
+            }
+        }
+
+        return removeDeadEntities();
+    }
+
+    public BoardTickResult removeDeadEntities() {
+        int zombiesKilled = 0;
+        int plantsDestroyed = 0;
+        List<GameEvent> events = new ArrayList<>();
+
+        for (Lane lane : lanes) {
+            for (Tile tile : lane.getTiles()) {
+                Plant plant = tile.getCurrentPlant();
+                if (plant != null && !plant.isAlive()) {
+                    tile.removePlant();
+                    plantsDestroyed++;
+                    events.add(GameEvent.plantDestroyed(
+                            plant.getName(),
+                            tile.getPosition()
+                    ));
+                }
+
+                for (Zombie zombie : new ArrayList<>(tile.getZombies())) {
+                    if (zombie != null && !zombie.isAlive()) {
+                        tile.removeZombie(zombie);
+                        zombiesKilled++;
+                        events.add(GameEvent.zombieKilled(zombie, false));
+                    }
+                }
+            }
+        }
+
+        totalZombiesKilled += zombiesKilled;
+        totalPlantsDestroyed += plantsDestroyed;
+
+        return new BoardTickResult(
+                zombiesKilled,
+                plantsDestroyed,
+                0,
+                false,
+                events
+        );
     }
 
     public int getWidth() {
