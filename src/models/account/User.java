@@ -38,6 +38,7 @@ public class User {
         this.profileImage = "default";
         this.currentChapterName = "";
         this.unlockedChapters = new ArrayList<>();
+        unlockedChapters.add("ancient-egypt");
         this.newsList = new ArrayList<>();
         this.securityQuestionNumber = 0;
         this.securityAnswer = "";
@@ -337,7 +338,15 @@ public class User {
     }
 
     public boolean isChapterUnlocked(String chapterName) {
-        return unlockedChapters.contains(safeText(chapterName));
+        String cleanedChapterName = safeText(chapterName);
+
+        for (String unlockedChapter : unlockedChapters) {
+            if (unlockedChapter.equalsIgnoreCase(cleanedChapterName)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public List<News> getNewsList() {
