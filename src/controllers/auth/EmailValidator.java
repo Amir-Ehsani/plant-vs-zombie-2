@@ -1,74 +1,128 @@
 package controllers.auth;
 
-import models.Result;
-
 public class EmailValidator {
-    public static Result isValid(String email) {
-        if (email.isEmpty()) {
-            return new Result(false, "Email cannot be empty.");
+    private String lastMessage;
+
+    public EmailValidator() {
+        this.lastMessage = "";
+    }
+
+    public void isValid(String email) {
+        if (email == null || email.isEmpty()) {
+            fail("Email cannot be empty.");
+            return;
         }
 
         int atIndex = email.indexOf('@');
 
         if (atIndex == -1) {
-            return new Result(false, "Email must contain @.");
+            fail("Email must contain @.");
+            return;
         }
 
         if (atIndex != email.lastIndexOf('@')) {
-            return new Result(false, "Email must contain only one @.");
+            fail("Email must contain only one @.");
+            return;
         }
 
         String username = email.substring(0, atIndex);
         String domain = email.substring(atIndex + 1);
 
-        if (username.isEmpty()) {
-            return new Result(false, "Email username cannot be empty.");
+        validateUsernamePart(username);
+
+        if (!wasSuccessful()) {
+            return;
         }
 
-        if (domain.isEmpty()) {
-            return new Result(false, "Email domain cannot be empty.");
+        validateDomainPart(domain);
+
+        if (!wasSuccessful()) {
+            return;
+        }
+
+        success("Email is valid.");
+    }
+
+    public String getLastMessage() {
+        return lastMessage;
+    }
+
+    public boolean wasSuccessful() {
+        return lastMessage != null && lastMessage.startsWith("OK:");
+    }
+
+    private void validateUsernamePart(String username) {
+        if (username.isEmpty()) {
+            fail("Email username cannot be empty.");
+            return;
         }
 
         if (!Character.isLetterOrDigit(username.charAt(0))
                 || !Character.isLetterOrDigit(username.charAt(username.length() - 1))) {
-            return new Result(false, "Email username must start and end with a letter or digit.");
+            fail("Email username must start and end with a letter or digit.");
+            return;
         }
 
         if (username.contains("..")) {
-            return new Result(false, "Email username cannot contain consecutive dots.");
+            fail("Email username cannot contain consecutive dots.");
+            return;
         }
 
         if (!username.matches("[a-zA-Z0-9._-]+")) {
-            return new Result(false, "Email username contains invalid characters.");
+            fail("Email username contains invalid characters.");
+            return;
+        }
+
+        success("Email username is valid.");
+    }
+
+    private void validateDomainPart(String domain) {
+        if (domain.isEmpty()) {
+            fail("Email domain cannot be empty.");
+            return;
         }
 
         if (!Character.isLetterOrDigit(domain.charAt(0))
                 || !Character.isLetterOrDigit(domain.charAt(domain.length() - 1))) {
-            return new Result(false, "Email domain must start and end with a letter or digit.");
+            fail("Email domain must start and end with a letter or digit.");
+            return;
         }
 
         if (!domain.contains(".")) {
-            return new Result(false, "Email domain must contain a dot.");
+            fail("Email domain must contain a dot.");
+            return;
         }
 
         if (domain.contains("..")) {
-            return new Result(false, "Email domain cannot contain consecutive dots.");
+            fail("Email domain cannot contain consecutive dots.");
+            return;
         }
 
         if (!domain.matches("[a-zA-Z0-9.-]+")) {
-            return new Result(false, "Email domain contains invalid characters.");
+            fail("Email domain contains invalid characters.");
+            return;
         }
 
         String domainSuffix = domain.substring(domain.lastIndexOf('.') + 1);
 
         if (domainSuffix.length() < 2) {
-            return new Result(false, "Email domain suffix must be at least two letters.");
+            fail("Email domain suffix must be at least two letters.");
+            return;
         }
 
         if (!domainSuffix.matches("[a-zA-Z]+")) {
-            return new Result(false, "Email domain suffix must only contain letters.");
+            fail("Email domain suffix must only contain letters.");
+            return;
         }
 
-        return new Result(true, "");
+        success("Email domain is valid.");
+    }
+
+    private void success(String message) {
+        lastMessage = "OK: " + message;
+    }
+
+    private void fail(String message) {
+        lastMessage = "ERROR: " + message;
     }
 }
