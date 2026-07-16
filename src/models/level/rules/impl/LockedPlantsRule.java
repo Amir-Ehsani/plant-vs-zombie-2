@@ -25,6 +25,8 @@ public class LockedPlantsRule extends AbstractLevelRule {
     private final Set<String> selectedPlants;
     private final Map<String, String> selectedPlantByFamily;
 
+    private boolean selectionLocked;
+
     public LockedPlantsRule(
             List<String> unavailablePlants,
             Map<String, List<String>> plantFamilies
@@ -52,7 +54,7 @@ public class LockedPlantsRule extends AbstractLevelRule {
         if (lockedSelectionSlots < 0
                 || lockedSelectionSlots >= totalSelectionSlots) {
             throw new IllegalArgumentException(
-                    "Locked slot count is invalid."
+                    "Locked selection slot count is invalid."
             );
         }
 
@@ -75,6 +77,7 @@ public class LockedPlantsRule extends AbstractLevelRule {
 
         this.selectedPlants = new LinkedHashSet<>();
         this.selectedPlantByFamily = new LinkedHashMap<>();
+        this.selectionLocked = false;
     }
 
     @Override
@@ -85,8 +88,14 @@ public class LockedPlantsRule extends AbstractLevelRule {
     @Override
     public void onLevelStart(LevelRuntimeContext context) {
         resetResult();
-        selectedPlants.clear();
-        selectedPlantByFamily.clear();
+
+        if (selectedPlants.isEmpty()) {
+            throw new IllegalStateException(
+                    "At least one plant must be selected before starting the level."
+            );
+        }
+
+        selectionLocked = true;
     }
 
     @Override
@@ -95,37 +104,21 @@ public class LockedPlantsRule extends AbstractLevelRule {
 
     @Override
     public boolean isPlantAllowed(String plantName) {
-        if (plantName == null || plantName.isBlank()) {
+        if (!isValidName(plantName)) {
             return false;
         }
 
         String normalizedName = plantName.trim();
 
-        if (containsIgnoreCase(unavailablePlants, normalizedName)) {
-            return false;
+        if (selectionLocked) {
+            return containsIgnoreCase(selectedPlants, normalizedName);
         }
 
-        if (containsIgnoreCase(selectedPlants, normalizedName)) {
-            return true;
-        }
-
-        String familyName = findFamily(normalizedName);
-
-        if (familyName != null) {
-            String selectedFamilyPlant =
-                    selectedPlantByFamily.get(familyName);
-
-            if (selectedFamilyPlant != null
-                    && !selectedFamilyPlant.equalsIgnoreCase(normalizedName)) {
-                return false;
-            }
-        }
-
-        return selectedPlants.size() < getAvailableSelectionSlotCount();
+        return canSelectPlant(normalizedName);
     }
 
     public boolean selectPlant(String plantName) {
-        if (!isPlantAllowed(plantName)) {
+        if (selectionLocked || !isValidName(plantName)) {
             return false;
         }
 
@@ -133,25 +126,59 @@ public class LockedPlantsRule extends AbstractLevelRule {
 
         if (containsIgnoreCase(selectedPlants, normalizedName)) {
             return true;
+        }
+
+        if (!canSelectPlant(normalizedName)) {
+            return false;
         }
 
         selectedPlants.add(normalizedName);
 
         String familyName = findFamily(normalizedName);
-
         if (familyName != null) {
-            selectedPlantByFamily.putIfAbsent(
-                    familyName,
-                    normalizedName
-            );
+            selectedPlantByFamily.put(familyName, normalizedName);
         }
 
         return true;
     }
 
+    public boolean deselectPlant(String plantName) {
+        if (selectionLocked || !isValidName(plantName)) {
+            return false;
+        }
+
+        String selectedName = findSelectedName(plantName);
+        if (selectedName == null) {
+            return false;
+        }
+
+        selectedPlants.remove(selectedName);
+
+        String familyName = findFamily(selectedName);
+        if (familyName != null) {
+            selectedPlantByFamily.remove(familyName);
+        }
+
+        return true;
+    }
+
+    public boolean resetSelections() {
+        if (selectionLocked) {
+            return false;
+        }
+
+        selectedPlants.clear();
+        selectedPlantByFamily.clear();
+        return true;
+    }
+
     @Override
     public void onPlantUsed(String plantName) {
-        selectPlant(plantName);
+        // Planting during the level must not modify the selected loadout.
+    }
+
+    public boolean isSelectionLocked() {
+        return selectionLocked;
     }
 
     public int getTotalSelectionSlotCount() {
@@ -174,7 +201,7 @@ public class LockedPlantsRule extends AbstractLevelRule {
     }
 
     public boolean areAllAvailableSlotsFilled() {
-        return selectedPlants.size() >= getAvailableSelectionSlotCount();
+        return selectedPlants.size() == getAvailableSelectionSlotCount();
     }
 
     public Set<String> getUnavailablePlants() {
@@ -185,97 +212,146 @@ public class LockedPlantsRule extends AbstractLevelRule {
         return Collections.unmodifiableSet(selectedPlants);
     }
 
-    public Map<String, Set<String>> getPlantFamilies() {
-        Map<String, Set<String>> copy = new LinkedHashMap<>();
+    public Map<String, String> getSelectedPlantByFamily() {
+        return Collections.unmodifiableMap(selectedPlantByFamily);
+    }
 
-        for (Map.Entry<String, Set<String>> entry
-                : plantFamilies.entrySet()) {
-            copy.put(
+    public Map<String, Set<String>> getPlantFamilies() {
+        Map<String, Set<String>> readOnlyFamilies = new LinkedHashMap<>();
+
+        for (Map.Entry<String, Set<String>> entry : plantFamilies.entrySet()) {
+            readOnlyFamilies.put(
                     entry.getKey(),
                     Collections.unmodifiableSet(entry.getValue())
             );
         }
 
-        return Collections.unmodifiableMap(copy);
+        return Collections.unmodifiableMap(readOnlyFamilies);
     }
 
-    public Map<String, String> getSelectedPlantByFamily() {
-        return Collections.unmodifiableMap(selectedPlantByFamily);
+    private boolean canSelectPlant(String plantName) {
+        if (containsIgnoreCase(unavailablePlants, plantName)) {
+            return false;
+        }
+
+        if (containsIgnoreCase(selectedPlants, plantName)) {
+            return true;
+        }
+
+        if (selectedPlants.size() >= getAvailableSelectionSlotCount()) {
+            return false;
+        }
+
+        String familyName = findFamily(plantName);
+        if (familyName == null) {
+            return true;
+        }
+
+        String selectedFamilyPlant = selectedPlantByFamily.get(familyName);
+
+        return selectedFamilyPlant == null
+                || selectedFamilyPlant.equalsIgnoreCase(plantName);
     }
 
     private Set<String> copyPlantNames(List<String> source) {
-        Set<String> copy = new LinkedHashSet<>();
+        Set<String> copiedNames = new LinkedHashSet<>();
 
         for (String plantName : source) {
-            if (plantName == null || plantName.isBlank()) {
+            if (!isValidName(plantName)) {
                 throw new IllegalArgumentException(
-                        "Plant names cannot be empty."
+                        "Plant names cannot be null or empty."
                 );
             }
 
             String normalizedName = plantName.trim();
 
-            if (!containsIgnoreCase(copy, normalizedName)) {
-                copy.add(normalizedName);
+            if (!containsIgnoreCase(copiedNames, normalizedName)) {
+                copiedNames.add(normalizedName);
             }
         }
 
-        return copy;
+        return copiedNames;
     }
 
     private Map<String, Set<String>> copyPlantFamilies(
             Map<String, List<String>> source
     ) {
-        Map<String, Set<String>> copy = new LinkedHashMap<>();
+        Map<String, Set<String>> copiedFamilies = new LinkedHashMap<>();
         Set<String> registeredPlants = new LinkedHashSet<>();
 
         for (Map.Entry<String, List<String>> entry : source.entrySet()) {
             String familyName = entry.getKey();
             List<String> familyPlants = entry.getValue();
 
-            if (familyName == null || familyName.isBlank()) {
+            if (!isValidName(familyName)) {
                 throw new IllegalArgumentException(
-                        "Family name cannot be empty."
+                        "Plant family name cannot be null or empty."
                 );
             }
 
             if (familyPlants == null || familyPlants.isEmpty()) {
                 throw new IllegalArgumentException(
-                        "Plant family cannot be empty."
+                        "Plant family cannot be null or empty."
                 );
             }
 
-            Set<String> plantsCopy = new LinkedHashSet<>();
+            String normalizedFamilyName = familyName.trim();
 
-            for (String plantName : familyPlants) {
-                if (plantName == null || plantName.isBlank()) {
-                    throw new IllegalArgumentException(
-                            "Plant family cannot contain empty names."
-                    );
-                }
-
-                String normalizedName = plantName.trim();
-
-                if (containsIgnoreCase(registeredPlants, normalizedName)) {
-                    throw new IllegalArgumentException(
-                            "A plant cannot belong to multiple families: "
-                                    + normalizedName
-                    );
-                }
-
-                registeredPlants.add(normalizedName);
-                plantsCopy.add(normalizedName);
+            if (containsIgnoreCase(
+                    copiedFamilies.keySet(),
+                    normalizedFamilyName
+            )) {
+                throw new IllegalArgumentException(
+                        "Duplicate plant family: " + normalizedFamilyName
+                );
             }
 
-            copy.put(familyName.trim(), plantsCopy);
+            Set<String> copiedFamilyPlants = new LinkedHashSet<>();
+
+            for (String plantName : familyPlants) {
+                if (!isValidName(plantName)) {
+                    throw new IllegalArgumentException(
+                            "Plant family cannot contain null or empty names."
+                    );
+                }
+
+                String normalizedPlantName = plantName.trim();
+
+                if (containsIgnoreCase(
+                        registeredPlants,
+                        normalizedPlantName
+                )) {
+                    throw new IllegalArgumentException(
+                            "A plant cannot belong to multiple families: "
+                                    + normalizedPlantName
+                    );
+                }
+
+                registeredPlants.add(normalizedPlantName);
+                copiedFamilyPlants.add(normalizedPlantName);
+            }
+
+            copiedFamilies.put(
+                    normalizedFamilyName,
+                    copiedFamilyPlants
+            );
         }
 
-        return copy;
+        return copiedFamilies;
+    }
+
+    private String findSelectedName(String plantName) {
+        for (String selectedPlant : selectedPlants) {
+            if (selectedPlant.equalsIgnoreCase(plantName.trim())) {
+                return selectedPlant;
+            }
+        }
+
+        return null;
     }
 
     private String findFamily(String plantName) {
-        for (Map.Entry<String, Set<String>> entry
-                : plantFamilies.entrySet()) {
+        for (Map.Entry<String, Set<String>> entry : plantFamilies.entrySet()) {
             if (containsIgnoreCase(entry.getValue(), plantName)) {
                 return entry.getKey();
             }
@@ -288,12 +364,22 @@ public class LockedPlantsRule extends AbstractLevelRule {
             Collection<String> values,
             String target
     ) {
+        if (target == null) {
+            return false;
+        }
+
+        String normalizedTarget = target.trim();
+
         for (String value : values) {
-            if (value.equalsIgnoreCase(target)) {
+            if (value.equalsIgnoreCase(normalizedTarget)) {
                 return true;
             }
         }
 
         return false;
+    }
+
+    private boolean isValidName(String value) {
+        return value != null && !value.isBlank();
     }
 }
