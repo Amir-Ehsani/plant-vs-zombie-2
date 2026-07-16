@@ -3,15 +3,19 @@ package models.engine.combat;
 import models.core.plant.Plant;
 import models.core.zombie.Zombie;
 import models.engine.board.Lane;
+import models.engine.board.Position;
 import models.engine.board.Tile;
+import models.engine.events.GameEvent;
 import models.entities.LawnMower;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 
 public class DefaultLaneCombatStrategy implements LaneCombatStrategy {
@@ -24,25 +28,63 @@ public class DefaultLaneCombatStrategy implements LaneCombatStrategy {
         }
 
         List<Zombie> livingAtStart = collectLivingZombies(lane);
-        Set<Plant> consumedPlants = new HashSet<>();
+        Map<Plant, Position> plantPositions = capturePlantPositions(lane);
+        Set<Plant> consumedPlants = Collections.newSetFromMap(new IdentityHashMap<>());
+        List<GameEvent> events = new ArrayList<>();
 
         updatePlants(lane, livingAtStart, consumedPlants);
         updateZombies(lane, livingAtStart);
 
         boolean mowerWasReady = lane.getLawnMower().isReady();
-        boolean brainEaten = handleLaneEnd(lane, livingAtStart);
+        List<Zombie> mowerKilled = handleLaneEnd(lane, livingAtStart);
         boolean mowerTriggered = mowerWasReady && lane.getLawnMower().isTriggered();
+        boolean brainEaten = hasLivingZombieAtLaneEnd(livingAtStart);
 
-        int zombiesKilled = countDead(livingAtStart);
-        int plantsDestroyed = removeDeadPlants(lane, consumedPlants);
+        Set<Zombie> mowerKilledSet = Collections.newSetFromMap(new IdentityHashMap<>());
+        mowerKilledSet.addAll(mowerKilled);
+
+        int zombiesKilled = 0;
+        for (Zombie zombie : livingAtStart) {
+            if (!zombie.isAlive()) {
+                zombiesKilled++;
+                events.add(GameEvent.zombieKilled(zombie, mowerKilledSet.contains(zombie)));
+            }
+        }
+
+        if (mowerTriggered) {
+            List<String> killedNames = new ArrayList<>();
+            for (Zombie zombie : mowerKilled) {
+                killedNames.add(zombie.getName());
+            }
+            events.add(GameEvent.lawnMowerTriggered(lane.getLaneId(), killedNames));
+        }
+
+        int plantsDestroyed = removeDeadPlants(
+                lane,
+                consumedPlants,
+                plantPositions,
+                events
+        );
         redistributeLivingZombies(lane, livingAtStart);
 
         return new LaneTickResult(
                 zombiesKilled,
                 plantsDestroyed,
                 mowerTriggered,
-                brainEaten
+                brainEaten,
+                events
         );
+    }
+
+    private Map<Plant, Position> capturePlantPositions(Lane lane) {
+        Map<Plant, Position> positions = new IdentityHashMap<>();
+        for (Tile tile : lane.getTiles()) {
+            Plant plant = tile.getCurrentPlant();
+            if (plant != null) {
+                positions.put(plant, tile.getPosition());
+            }
+        }
+        return positions;
     }
 
     private void updatePlants(
@@ -112,25 +154,20 @@ public class DefaultLaneCombatStrategy implements LaneCombatStrategy {
         return selected;
     }
 
-    private boolean handleLaneEnd(Lane lane, List<Zombie> zombies) {
-        boolean breached = false;
-        for (Zombie zombie : zombies) {
-            if (zombie.isAlive() && zombie.getX() <= 0) {
-                breached = true;
-                break;
-            }
-        }
-
-        if (!breached) {
-            return false;
+    private List<Zombie> handleLaneEnd(Lane lane, List<Zombie> zombies) {
+        if (!hasLivingZombieAtLaneEnd(zombies)) {
+            return Collections.emptyList();
         }
 
         LawnMower mower = lane.getLawnMower();
         if (!mower.isReady()) {
-            return true;
+            return Collections.emptyList();
         }
 
-        mower.destroyZombies(zombies);
+        return mower.destroyZombies(zombies);
+    }
+
+    private boolean hasLivingZombieAtLaneEnd(List<Zombie> zombies) {
         for (Zombie zombie : zombies) {
             if (zombie.isAlive() && zombie.getX() <= 0) {
                 return true;
@@ -139,7 +176,12 @@ public class DefaultLaneCombatStrategy implements LaneCombatStrategy {
         return false;
     }
 
-    private int removeDeadPlants(Lane lane, Set<Plant> consumedPlants) {
+    private int removeDeadPlants(
+            Lane lane,
+            Set<Plant> consumedPlants,
+            Map<Plant, Position> plantPositions,
+            List<GameEvent> events
+    ) {
         int destroyed = 0;
         for (Tile tile : lane.getTiles()) {
             Plant plant = tile.getCurrentPlant();
@@ -147,6 +189,11 @@ public class DefaultLaneCombatStrategy implements LaneCombatStrategy {
                 tile.removePlant();
                 if (!consumedPlants.contains(plant)) {
                     destroyed++;
+                    Position position = plantPositions.get(plant);
+                    if (position == null) {
+                        position = tile.getPosition();
+                    }
+                    events.add(GameEvent.plantDestroyed(plant.getName(), position));
                 }
             }
         }
@@ -177,7 +224,7 @@ public class DefaultLaneCombatStrategy implements LaneCombatStrategy {
 
     private List<Zombie> collectLivingZombies(Lane lane) {
         List<Zombie> zombies = new ArrayList<>();
-        Set<Zombie> seen = Collections.newSetFromMap(new java.util.IdentityHashMap<>());
+        Set<Zombie> seen = Collections.newSetFromMap(new IdentityHashMap<>());
 
         for (Tile tile : lane.getTiles()) {
             for (Zombie zombie : tile.getZombies()) {
@@ -187,16 +234,6 @@ public class DefaultLaneCombatStrategy implements LaneCombatStrategy {
             }
         }
         return zombies;
-    }
-
-    private int countDead(List<Zombie> zombies) {
-        int count = 0;
-        for (Zombie zombie : zombies) {
-            if (!zombie.isAlive()) {
-                count++;
-            }
-        }
-        return count;
     }
 
     private boolean isOneUseExplosive(Plant plant) {
