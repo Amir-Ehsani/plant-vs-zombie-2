@@ -1,16 +1,34 @@
 package models.engine.combat;
 
+import models.engine.events.GameEvent;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
 public class LaneTickResult {
     private final int zombiesKilled;
     private final int plantsDestroyed;
     private final boolean lawnMowerTriggered;
     private final boolean brainEaten;
+    private final List<GameEvent> events;
 
     public LaneTickResult(
             int zombiesKilled,
             int plantsDestroyed,
             boolean lawnMowerTriggered,
             boolean brainEaten
+    ) {
+        this(zombiesKilled, plantsDestroyed, lawnMowerTriggered, brainEaten,
+                Collections.emptyList());
+    }
+
+    public LaneTickResult(
+            int zombiesKilled,
+            int plantsDestroyed,
+            boolean lawnMowerTriggered,
+            boolean brainEaten,
+            List<GameEvent> events
     ) {
         if (zombiesKilled < 0 || plantsDestroyed < 0) {
             throw new IllegalArgumentException("Tick counters cannot be negative.");
@@ -19,6 +37,9 @@ public class LaneTickResult {
         this.plantsDestroyed = plantsDestroyed;
         this.lawnMowerTriggered = lawnMowerTriggered;
         this.brainEaten = brainEaten;
+        this.events = events == null
+                ? Collections.emptyList()
+                : Collections.unmodifiableList(new ArrayList<>(events));
     }
 
     public static LaneTickResult empty() {
@@ -39,5 +60,9 @@ public class LaneTickResult {
 
     public boolean isBrainEaten() {
         return brainEaten;
+    }
+
+    public List<GameEvent> getEvents() {
+        return events;
     }
 }
