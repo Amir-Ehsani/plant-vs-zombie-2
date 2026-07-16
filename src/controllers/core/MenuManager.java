@@ -1,10 +1,7 @@
 package controllers.core;
 
 import controllers.auth.AuthController;
-import controllers.features.GameMenuController;
-import controllers.features.MainMenuController;
-import controllers.features.ProfileController;
-import controllers.features.SettingsController;
+import controllers.features.*;
 import views.core.BaseView;
 import views.menus.*;
 
@@ -14,6 +11,12 @@ public class MenuManager {
     private final ProfileController profileController;
     private final SettingsController settingsController;
     private final GameMenuController gameMenuController;
+    private final CollectionController collectionController;
+    private final GreenhouseController greenhouseController;
+    private final ShopController shopController;
+    private final NewsController newsController;
+    private final TravelLogController travelLogController;
+    private final LeaderboardController leaderboardController;
     private BaseView currentView;
     private String lastMessage;
 
@@ -23,6 +26,12 @@ public class MenuManager {
         this.profileController = new ProfileController(authController);
         this.settingsController = new SettingsController(authController);
         this.gameMenuController = new GameMenuController(authController);
+        this.collectionController = new CollectionController(authController);
+        this.greenhouseController = new GreenhouseController(authController);
+        this.shopController = new ShopController(authController);
+        this.newsController = new NewsController(authController);
+        this.leaderboardController = new LeaderboardController(authController);
+        this.travelLogController = new TravelLogController(authController);
         this.lastMessage = "";
 
         if (authController.isLoggedIn()) {
@@ -122,34 +131,132 @@ public class MenuManager {
         success("Entered game menu.");
     }
 
+    public void enterCollectionMenu() {
+        if (!authController.isLoggedIn()) {
+            fail("You must login first.");
+            return;
+        }
+
+        changeView(new CollectionView("Collection Menu", this, collectionController));
+        success("Entered collection menu.");
+    }
+
+    public void enterGreenhouseMenu() {
+        if (!authController.isLoggedIn()) {
+            fail("You must login first.");
+            return;
+        }
+
+        changeView(new GreenhouseView("Greenhouse Menu", this, greenhouseController, shopController));
+        success("Entered greenhouse menu.");
+    }
+
+    public void enterShopMenu() {
+        if (!authController.isLoggedIn()) {
+            fail("You must login first.");
+            return;
+        }
+
+        changeView(new ShopView("Shop Menu", this, shopController, null));
+        success("Entered shop menu.");
+    }
+
+    public void enterNewsMenu() {
+        if (!authController.isLoggedIn()) {
+            fail("You must login first.");
+            return;
+        }
+
+        changeView(new NewsView("News Menu", this, newsController));
+        success("Entered news menu.");
+    }
+
+    public void enterLeaderboardMenu() {
+        if (!authController.isLoggedIn()) {
+            fail("You must login first.");
+            return;
+        }
+
+        changeView(new LeaderboardView("Leaderboard Menu", this, leaderboardController));
+        success("Entered leaderboard menu.");
+    }
+
+    public void enterTravelLogMenu() {
+        if (!authController.isLoggedIn()) {
+            fail("You must login first.");
+            return;
+        }
+
+        changeView(new TravelLogView("Travel Log Menu", this, travelLogController));
+        success("Entered travel log menu.");
+    }
+
     public void enterNamedMenu(String menuName) {
         if (menuName == null || menuName.isBlank()) {
             fail("Menu name is required.");
             return;
         }
 
-        switch (menuName) {
-            case "register":
-                enterRegisterMenu();
-                break;
-            case "login":
-                enterLoginMenu();
-                break;
-            case "main":
-                enterMainMenu();
-                break;
-            case "profile":
-                enterProfileMenu();
-                break;
-            case "settings":
-                enterSettingsMenu();
-                break;
-            case "game":
-                enterGameMenu();
-                break;
+        String targetMenu = menuName.trim().toLowerCase();
+        String currentMenu = currentView == null ? "" : currentView.getViewName();
+
+        switch (currentMenu) {
+            case "Register Menu":
+                if ("login".equals(targetMenu)) {
+                    enterLoginMenu();
+                    return;
+                }
+
+                fail("You can't enter " + targetMenu + " menu from register menu.");
+                return;
+
+            case "Login Menu":
+                if ("register".equals(targetMenu)) {
+                    enterRegisterMenu();
+                    return;
+                }
+
+                if ("main".equals(targetMenu) && authController.isLoggedIn()) {
+                    enterMainMenu();
+                    return;
+                }
+
+                fail("You can't enter " + targetMenu + " menu from login menu.");
+                return;
+
+            case "Main Menu":
+                switch (targetMenu) {
+                    case "game":
+                        enterGameMenu();
+                        return;
+                    case "settings":
+                        enterSettingsMenu();
+                        return;
+                    case "profile":
+                        enterProfileMenu();
+                        return;
+                    case "news":
+                        enterNewsMenu();
+                        return;
+                    case "network":
+                        fail("Network menu is not implemented yet.");
+                        return;
+                    default:
+                        fail("You can't enter " + targetMenu + " menu from main menu.");
+                        return;
+                }
+
+            case "Game Menu":
+                if ("collection".equals(targetMenu)) {
+                    enterCollectionMenu();
+                    return;
+                }
+
+                fail("You can't enter " + targetMenu + " menu from game menu.");
+                return;
+
             default:
-                fail("can't find " + menuName + " menu.");
-                break;
+                fail("You can't enter " + targetMenu + " menu from " + currentMenu + ".");
         }
     }
 
@@ -173,6 +280,36 @@ public class MenuManager {
 
         if ("Main Menu".equals(viewName)) {
             fail("Use menu logout to leave the main menu.");
+            return;
+        }
+
+        if ("Collection Menu".equals(viewName)) {
+            enterGameMenu();
+            return;
+        }
+
+        if ("Greenhouse Menu".equals(viewName)) {
+            enterGameMenu();
+            return;
+        }
+
+        if ("Shop Menu".equals(viewName)) {
+            enterGreenhouseMenu();
+            return;
+        }
+
+        if ("Leaderboard Menu".equals(viewName)) {
+            enterGameMenu();
+            return;
+        }
+
+        if ("News Menu".equals(viewName)) {
+            enterMainMenu();
+            return;
+        }
+
+        if ("Travel Log Menu".equals(viewName)) {
+            enterGameMenu();
             return;
         }
 
@@ -213,7 +350,6 @@ public class MenuManager {
                 menu enter settings
                 menu enter profile
                 menu enter news
-                menu enter network
                 menu logout
                 menu show current
                 menu exit""");
@@ -254,6 +390,21 @@ public class MenuManager {
                 menu exit""");
     }
 
+    public void showTravelLogMenuText() {
+        success("""
+                Travel Log Menu
+                travel log page adventure
+                travel log page special
+                travel log page minigames
+                travel log page community
+                travel log page challenges
+                travel log page mystery
+                travel log collect -q <quest_number>
+                travel log collect all
+                enter minigame -n <mini_game_name>
+                menu show current
+                menu exit""");
+    }
 
     public void invalidCommand(String menuName) {
         fail("Invalid command in " + menuName + ".");
