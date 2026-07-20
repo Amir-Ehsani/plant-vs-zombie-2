@@ -114,7 +114,7 @@ public class LeaderboardView extends BaseView {
             return true;
         }
         if ("menu exit".equals(command)) {
-            menuManager.enterGameMenu();
+            menuManager.exitCurrentMenu();
             printControllerMessage(menuManager.getLastMessage());
             return true;
         }

@@ -100,7 +100,7 @@ public class NewsView extends BaseView {
             return true;
         }
         if ("menu exit".equals(command)) {
-            menuManager.enterMainMenu();
+            menuManager.exitCurrentMenu();
             printControllerMessage(menuManager.getLastMessage());
             return true;
         }

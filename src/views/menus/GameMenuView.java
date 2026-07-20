@@ -9,7 +9,8 @@ import java.util.regex.Pattern;
 
 public class GameMenuView extends BaseView {
     private static final Pattern MENU_ENTER_CHAPTER_PATTERN = Pattern.compile("^menu\\s+enter\\s+chapter\\s+-c\\s+(.+)\\s*$");
-    private static final Pattern CHEAT_CURRENCY_PATTERN = Pattern.compile("^menu\\s+cheat\\s+add\\s+(\\d+)\\s+(coins|gems)\\s*$");
+    private static final Pattern CHEAT_CURRENCY_PATTERN = Pattern.compile("^menu\\s+cheat\\s+add\\s+(\\d+)\\s+(coin|coins|diamond|diamonds|gem|gems)\\s*$");
+    private static final Pattern MENU_ENTER_PATTERN = Pattern.compile("^menu\\s+enter\\s+(\\S+)\\s*$");
 
     private final MenuManager menuManager;
     private final GameMenuController gameMenuController;
@@ -49,10 +50,6 @@ public class GameMenuView extends BaseView {
             return;
         }
 
-        if (handleNotImplementedMenus(command)) {
-            return;
-        }
-
         if (handleCheatCommand(command)) {
             return;
         }
@@ -70,6 +67,32 @@ public class GameMenuView extends BaseView {
 
         if ("menu exit".equals(command)) {
             menuManager.exitCurrentMenu();
+            printControllerMessage(menuManager.getLastMessage());
+            return true;
+        }
+
+        if ("menu greenhouse".equals(command)) {
+            menuManager.enterGreenhouseMenu();
+            printControllerMessage(menuManager.getLastMessage());
+            return true;
+        }
+
+        if ("menu travel-log".equals(command)) {
+            menuManager.enterTravelLogMenu();
+            printControllerMessage(menuManager.getLastMessage());
+            return true;
+        }
+
+        if ("menu leaderboard".equals(command)) {
+            menuManager.enterLeaderboardMenu();
+            printControllerMessage(menuManager.getLastMessage());
+            return true;
+        }
+
+        Matcher matcher = MENU_ENTER_PATTERN.matcher(command);
+
+        if (matcher.matches()) {
+            menuManager.enterNamedMenu(matcher.group(1));
             printControllerMessage(menuManager.getLastMessage());
             return true;
         }
@@ -98,22 +121,6 @@ public class GameMenuView extends BaseView {
 
         if ("menu gem-wallet".equals(command)) {
             gameMenuController.showGemWallet();
-            printControllerMessage(gameMenuController.getLastMessage());
-            return true;
-        }
-
-        return false;
-    }
-
-    private boolean handleNotImplementedMenus(String command) {
-        if ("menu greenhouse".equals(command)) {
-            gameMenuController.enterGreenhouse();
-            printControllerMessage(gameMenuController.getLastMessage());
-            return true;
-        }
-
-        if ("menu travel-log".equals(command)) {
-            gameMenuController.enterTravelLog();
             printControllerMessage(gameMenuController.getLastMessage());
             return true;
         }
