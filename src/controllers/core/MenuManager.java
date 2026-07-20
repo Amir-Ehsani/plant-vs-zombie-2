@@ -11,12 +11,14 @@ public class MenuManager {
     private final ProfileController profileController;
     private final SettingsController settingsController;
     private final GameMenuController gameMenuController;
+    private final GameController gameController;
     private final CollectionController collectionController;
     private final GreenhouseController greenhouseController;
     private final ShopController shopController;
     private final NewsController newsController;
     private final TravelLogController travelLogController;
     private final LeaderboardController leaderboardController;
+
     private BaseView currentView;
     private String lastMessage;
 
@@ -26,12 +28,13 @@ public class MenuManager {
         this.profileController = new ProfileController(authController);
         this.settingsController = new SettingsController(authController);
         this.gameMenuController = new GameMenuController(authController);
+        this.gameController = new GameController(authController);
         this.collectionController = new CollectionController(authController);
         this.greenhouseController = new GreenhouseController(authController);
         this.shopController = new ShopController(authController);
         this.newsController = new NewsController(authController);
-        this.leaderboardController = new LeaderboardController(authController);
         this.travelLogController = new TravelLogController(authController);
+        this.leaderboardController = new LeaderboardController(authController);
         this.lastMessage = "";
 
         if (authController.isLoggedIn()) {
@@ -69,7 +72,6 @@ public class MenuManager {
 
         success("Current menu: " + currentView.getViewName());
     }
-
 
     public void enterRegisterMenu() {
         if (authController.isLoggedIn()) {
@@ -131,6 +133,30 @@ public class MenuManager {
         success("Entered game menu.");
     }
 
+    public void enterGamePlayMenu() {
+        if (!authController.isLoggedIn()) {
+            fail("You must login first.");
+            return;
+        }
+
+        String chapterName = authController.getLoggedInUser().getCurrentChapterName();
+        gameController.prepareChapter(chapterName);
+
+        if (!gameController.wasSuccessful()) {
+            String message = gameController.getLastMessage();
+
+            if (message != null && message.startsWith("ERROR: ")) {
+                message = message.substring("ERROR: ".length());
+            }
+
+            fail(message);
+            return;
+        }
+
+        changeView(new GameView("Game Play Menu", this, gameController));
+        success("Entered game play menu.");
+    }
+
     public void enterCollectionMenu() {
         if (!authController.isLoggedIn()) {
             fail("You must login first.");
@@ -157,7 +183,7 @@ public class MenuManager {
             return;
         }
 
-        changeView(new ShopView("Shop Menu", this, shopController, null));
+        changeView(new ShopView("Shop Menu", this, shopController, greenhouseController));
         success("Entered shop menu.");
     }
 
@@ -283,6 +309,11 @@ public class MenuManager {
             return;
         }
 
+        if ("Game Play Menu".equals(viewName)) {
+            enterGameMenu();
+            return;
+        }
+
         if ("Collection Menu".equals(viewName)) {
             enterGameMenu();
             return;
@@ -303,13 +334,23 @@ public class MenuManager {
             return;
         }
 
+        if ("Travel Log Menu".equals(viewName)) {
+            enterGameMenu();
+            return;
+        }
+
         if ("News Menu".equals(viewName)) {
             enterMainMenu();
             return;
         }
 
-        if ("Travel Log Menu".equals(viewName)) {
-            enterGameMenu();
+        if ("Profile Menu".equals(viewName)) {
+            enterMainMenu();
+            return;
+        }
+
+        if ("Settings Menu".equals(viewName)) {
+            enterMainMenu();
             return;
         }
 
@@ -350,6 +391,7 @@ public class MenuManager {
                 menu enter settings
                 menu enter profile
                 menu enter news
+                menu enter network
                 menu logout
                 menu show current
                 menu exit""");
@@ -386,6 +428,42 @@ public class MenuManager {
                 menu travel-log
                 menu leaderboard
                 menu cheat add <n> <coin/diamond>
+                menu show current
+                menu exit""");
+    }
+
+    public void showGamePlayMenuText() {
+        success("""
+                Game View
+                
+                Plant Selection Phase
+                show all plants
+                show available plants
+                add plant -t <type>
+                remove plant -t <type>
+                boost plant -t <type>
+                start game
+                
+                Game Play Phase
+                show map
+                show sun
+                show plants
+                zombies info
+                show tile -l <x, y>
+                plant -t <plant_type> -l <x, y>
+                pluck -l <x, y>
+                feed plant -l <x, y>
+                collect sun -l <x, y>
+                advance time -t <ticks>
+                update game
+                pause game
+                start zombie waves
+                cheat add sun -a <amount>
+                cheat remove cooldown
+                cheat add plant-food
+                cheat spawn-zombie -t <zombie_type> -l <x, y>
+                cheat nuke
+                
                 menu show current
                 menu exit""");
     }
