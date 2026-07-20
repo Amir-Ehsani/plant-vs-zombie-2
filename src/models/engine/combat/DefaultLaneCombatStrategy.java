@@ -1,17 +1,18 @@
 package models.engine.combat;
 
 import models.core.plant.Plant;
+import models.core.projectile.Damage;
 import models.core.zombie.Zombie;
 import models.engine.board.Lane;
 import models.engine.board.Position;
 import models.engine.board.Tile;
+import models.engine.board.TileType;
 import models.engine.events.GameEvent;
 import models.entities.LawnMower;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -79,9 +80,10 @@ public class DefaultLaneCombatStrategy implements LaneCombatStrategy {
     private Map<Plant, Position> capturePlantPositions(Lane lane) {
         Map<Plant, Position> positions = new IdentityHashMap<>();
         for (Tile tile : lane.getTiles()) {
-            Plant plant = tile.getCurrentPlant();
-            if (plant != null) {
-                positions.put(plant, tile.getPosition());
+            for (Plant plant : tile.getPlants()) {
+                if (plant != null) {
+                    positions.put(plant, tile.getPosition());
+                }
             }
         }
         return positions;
@@ -93,21 +95,34 @@ public class DefaultLaneCombatStrategy implements LaneCombatStrategy {
             Set<Plant> consumedPlants
     ) {
         for (Tile tile : lane.getTiles()) {
-            Plant plant = tile.getCurrentPlant();
-            if (plant == null || !plant.isAlive()) {
+            if (tile.isFrozenTerrain()) {
                 continue;
             }
 
-            plant.tickCooldown();
-            Zombie target = findTarget(plant, zombies);
-            if (target == null) {
-                continue;
-            }
+            for (Plant plant : new ArrayList<>(tile.getPlants())) {
+                if (plant == null || !plant.isAlive()) {
+                    continue;
+                }
 
-            plant.attack(target);
-            if (isOneUseExplosive(plant)) {
-                tile.removePlant();
-                consumedPlants.add(plant);
+                plant.tickCooldown();
+                Zombie target = findTarget(plant, zombies);
+                if (target == null) {
+                    continue;
+                }
+
+                Tile blockingTerrain = findBlockingTerrain(lane, plant, target);
+                if (blockingTerrain != null) {
+                    int damage = Math.max(1, plant.getAttackDamage());
+                    blockingTerrain.damageTerrain(damage, isFirePlant(plant));
+                    plant.attack();
+                } else {
+                    plant.attack(target);
+                    applyAdditionalPlantDamage(plant, target, zombies);
+                }
+
+                if (isOneUseExplosive(plant) && tile.removePlant(plant)) {
+                    consumedPlants.add(plant);
+                }
             }
         }
     }
@@ -122,10 +137,23 @@ public class DefaultLaneCombatStrategy implements LaneCombatStrategy {
             }
 
             Tile currentTile = tileForZombie(lane, zombie);
+            if (currentTile != null && currentTile.isFrozenTerrain()) {
+                continue;
+            }
+
+            zombie.executeAbility();
+            if (!zombie.isAlive()) {
+                continue;
+            }
+
+            currentTile = tileForZombie(lane, zombie);
             Plant plant = currentTile == null ? null : currentTile.getCurrentPlant();
 
             if (plant != null && plant.isAlive()) {
                 zombie.attack(plant);
+                if (plant.getReflectDamage() > 0 && zombie.isAlive()) {
+                    zombie.takeDamage(new Damage(plant.getReflectDamage(), "reflected"));
+                }
             } else {
                 zombie.move();
             }
@@ -152,6 +180,55 @@ public class DefaultLaneCombatStrategy implements LaneCombatStrategy {
             }
         }
         return selected;
+    }
+
+    private Tile findBlockingTerrain(Lane lane, Plant plant, Zombie target) {
+        int startX = Math.max(1, (int) Math.floor(plant.getX()) + 1);
+        int endX = Math.min(lane.getWidth(), (int) Math.ceil(target.getX()));
+        boolean directHorizontalShot = normalizeCategory(plant).equals("shooter");
+
+        for (int x = startX; x <= endX; x++) {
+            Tile tile = lane.getTileAt(x);
+            if (tile == null || !tile.hasDamageableTerrain()) {
+                continue;
+            }
+            if (tile.getTileType() == TileType.ICE || directHorizontalShot) {
+                return tile;
+            }
+        }
+        return null;
+    }
+
+    private void applyAdditionalPlantDamage(
+            Plant plant,
+            Zombie primaryTarget,
+            List<Zombie> zombies
+    ) {
+        int targetLimit = Math.max(1, plant.getTargetCount() + plant.getPierceCount());
+        if (targetLimit <= 1 || plant.getAttackDamage() <= 0) {
+            return;
+        }
+
+        List<Zombie> ordered = new ArrayList<>();
+        for (Zombie zombie : zombies) {
+            if (zombie != null && zombie.isAlive() && zombie != primaryTarget
+                    && zombie.getX() >= plant.getX()) {
+                ordered.add(zombie);
+            }
+        }
+        ordered.sort(Comparator.comparingDouble(Zombie::getX));
+
+        int remainingTargets = targetLimit - 1;
+        int damage = plant.isBoosted()
+                ? plant.getAttackDamage() * 2
+                : plant.getAttackDamage();
+        for (Zombie zombie : ordered) {
+            if (remainingTargets <= 0) {
+                break;
+            }
+            zombie.takeDamage(new Damage(damage, "multi-target"));
+            remainingTargets--;
+        }
     }
 
     private List<Zombie> handleLaneEnd(Lane lane, List<Zombie> zombies) {
@@ -184,9 +261,10 @@ public class DefaultLaneCombatStrategy implements LaneCombatStrategy {
     ) {
         int destroyed = 0;
         for (Tile tile : lane.getTiles()) {
-            Plant plant = tile.getCurrentPlant();
-            if (plant != null && !plant.isAlive()) {
-                tile.removePlant();
+            for (Plant plant : new ArrayList<>(tile.getPlants())) {
+                if (plant == null || plant.isAlive() || !tile.removePlant(plant)) {
+                    continue;
+                }
                 if (!consumedPlants.contains(plant)) {
                     destroyed++;
                     Position position = plantPositions.get(plant);
@@ -241,13 +319,35 @@ public class DefaultLaneCombatStrategy implements LaneCombatStrategy {
                 && plant.getAttackDamage() > 0;
     }
 
+    private boolean isFirePlant(Plant plant) {
+        if (plant == null || plant.getType() == null) {
+            return false;
+        }
+        String tags = normalizeText(plant.getType().getTags());
+        if (tags.contains("fire")) {
+            return true;
+        }
+        String name = normalizeText(plant.getName());
+        return name.contains("fire")
+                || name.contains("pepper")
+                || name.contains("jalapeno")
+                || name.contains("torchwood")
+                || name.contains("wasabi")
+                || name.contains("hot potato");
+    }
+
     private String normalizeCategory(Plant plant) {
-        if (plant == null || plant.getType() == null || plant.getType().getCategory() == null) {
+        if (plant == null || plant.getType() == null) {
             return "";
         }
-        return plant.getType()
-                .getCategory()
-                .trim()
+        return normalizeText(plant.getType().getCategory());
+    }
+
+    private String normalizeText(String value) {
+        if (value == null) {
+            return "";
+        }
+        return value.trim()
                 .toLowerCase(Locale.ROOT)
                 .replace('-', ' ')
                 .replace('_', ' ')
