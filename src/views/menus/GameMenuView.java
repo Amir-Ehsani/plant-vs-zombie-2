@@ -106,6 +106,12 @@ public class GameMenuView extends BaseView {
         if (menuMatcher.matches()) {
             gameMenuController.enterChapter(menuMatcher.group(1));
             printControllerMessage(gameMenuController.getLastMessage());
+
+            if (gameMenuController.wasSuccessful()) {
+                menuManager.enterGamePlayMenu();
+                printControllerMessage(menuManager.getLastMessage());
+            }
+
             return true;
         }
 
