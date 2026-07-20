@@ -1,4 +1,4 @@
-package models.engine;
+package models.engine.board;
 
 import java.util.Objects;
 
