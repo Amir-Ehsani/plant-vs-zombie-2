@@ -16,10 +16,15 @@ public class Season {
 
 
     private Season(SeasonType seasonType, String name, String specialFeatures, List<Level> levels) {
+        if (seasonType == null) {
+            throw new IllegalArgumentException("Season type cannot be null.");
+        }
 
         this.seasonType = seasonType;
-        this.name = name.trim();
-        this.specialFeatures = specialFeatures.trim();
+        this.name = name == null || name.isBlank()
+                ? seasonType.getDisplayName()
+                : name.trim();
+        this.specialFeatures = specialFeatures == null ? "" : specialFeatures.trim();
         this.levels = new ArrayList<>();
 
         for (Level level : levels) {
@@ -32,6 +37,7 @@ public class Season {
             throw new IllegalArgumentException("Level cannot be null.");
         }
         validateLevelZombies(level);
+        level.bindSeasonType(seasonType);
         levels.add(level);
     }
 
