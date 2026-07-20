@@ -4,6 +4,7 @@ import models.core.plant.Plant;
 import models.core.projectile.Damage;
 import models.core.zombie.Zombie;
 import models.engine.combat.BoardTickResult;
+import models.engine.combat.DefaultLaneCombatStrategy;
 import models.engine.combat.LaneTickResult;
 import models.engine.events.GameEvent;
 
@@ -13,6 +14,7 @@ import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 public class Board {
     private static final int DEFAULT_WIDTH = 9;
@@ -25,6 +27,7 @@ public class Board {
     private final int width;
     private final int height;
     private final List<Lane> lanes;
+    private final DefaultLaneCombatStrategy combatStrategy;
     private final Map<Zombie, Position> lastSlipperyTileByZombie;
     private BoardTickResult lastTickResult;
     private int totalZombiesKilled;
@@ -46,6 +49,7 @@ public class Board {
         this.width = width;
         this.height = height;
         this.lanes = new ArrayList<>();
+        this.combatStrategy = new DefaultLaneCombatStrategy(this);
         this.lastSlipperyTileByZombie = new IdentityHashMap<>();
         this.lastTickResult = BoardTickResult.empty();
         this.totalZombiesKilled = 0;
@@ -57,7 +61,9 @@ public class Board {
 
     private void initializeLanes() {
         for (int y = 1; y <= height; y++) {
-            lanes.add(new Lane(y, width));
+            Lane lane = new Lane(y, width);
+            lane.setCombatStrategy(combatStrategy);
+            lanes.add(lane);
         }
     }
 
@@ -67,6 +73,8 @@ public class Board {
         int mowersTriggered = 0;
         boolean brainWasEaten = false;
         List<GameEvent> events = new ArrayList<>();
+
+        combatStrategy.beginBoardTick();
 
         for (Lane lane : lanes) {
             LaneTickResult result = lane.updateLaneTicks();
@@ -81,6 +89,11 @@ public class Board {
 
         applySlipperyTiles();
         applyAdjacentFireToIce();
+
+        BoardTickResult cleanup = removeDeadEntitiesInternal(false);
+        zombiesKilled += cleanup.getZombiesKilled();
+        plantsDestroyed += cleanup.getPlantsDestroyed();
+        events.addAll(cleanup.getEvents());
 
         List<GameEvent> unsupportedPlantEvents = new ArrayList<>();
         int unsupportedPlants = removeUnsupportedWaterPlants(unsupportedPlantEvents);
@@ -142,14 +155,26 @@ public class Board {
     }
 
     public BoardTickResult removeDeadEntities() {
+        return removeDeadEntitiesInternal(true);
+    }
+
+    private BoardTickResult removeDeadEntitiesInternal(boolean updateTotals) {
         int zombiesKilled = 0;
         int plantsDestroyed = 0;
         List<GameEvent> events = new ArrayList<>();
 
+        // Plant death effects may kill zombies on another tile or lane. Remove all
+        // dead plants first, execute every death effect, and only then collect dead
+        // zombies. This guarantees that an explosion is accounted for in the same
+        // cleanup pass instead of one tick later.
         for (Lane lane : lanes) {
             for (Tile tile : lane.getTiles()) {
                 for (Plant plant : new ArrayList<>(tile.getPlants())) {
-                    if (plant != null && !plant.isAlive() && tile.removePlant(plant)) {
+                    if (plant == null || plant.isAlive()) {
+                        continue;
+                    }
+                    combatStrategy.handleExternalPlantDeath(plant, tile.getPosition(), events);
+                    if (tile.removePlant(plant)) {
                         plantsDestroyed++;
                         events.add(GameEvent.plantDestroyed(
                                 plant.getName(),
@@ -157,11 +182,19 @@ public class Board {
                         ));
                     }
                 }
+            }
+        }
 
+        Set<Zombie> removedZombies = Collections.newSetFromMap(new IdentityHashMap<>());
+        for (Lane lane : lanes) {
+            for (Tile tile : lane.getTiles()) {
                 for (Zombie zombie : new ArrayList<>(tile.getZombies())) {
-                    if (zombie != null && !zombie.isAlive()) {
-                        tile.removeZombie(zombie);
-                        lastSlipperyTileByZombie.remove(zombie);
+                    if (zombie == null || zombie.isAlive()) {
+                        continue;
+                    }
+                    tile.removeZombie(zombie);
+                    lastSlipperyTileByZombie.remove(zombie);
+                    if (removedZombies.add(zombie)) {
                         zombiesKilled++;
                         events.add(GameEvent.zombieKilled(zombie, false));
                     }
@@ -170,8 +203,10 @@ public class Board {
         }
 
         plantsDestroyed += removeUnsupportedWaterPlants(events);
-        totalZombiesKilled += zombiesKilled;
-        totalPlantsDestroyed += plantsDestroyed;
+        if (updateTotals) {
+            totalZombiesKilled += zombiesKilled;
+            totalPlantsDestroyed += plantsDestroyed;
+        }
 
         return new BoardTickResult(
                 zombiesKilled,
@@ -268,6 +303,159 @@ public class Board {
     public boolean damageTerrain(Position position, int damage, boolean fireDamage) {
         Tile tile = getTileAt(position);
         return tile != null && tile.damageTerrain(damage, fireDamage);
+    }
+
+    public BoardTickResult damageZombiesInArea(
+            Position center,
+            int xRadius,
+            int yRadius,
+            int damage,
+            String damageType
+    ) {
+        if (center == null || xRadius < 0 || yRadius < 0 || damage < 0) {
+            throw new IllegalArgumentException("Damage center, radii and amount are invalid.");
+        }
+        for (Zombie zombie : new ArrayList<>(getAllZombies())) {
+            int x = Math.max(1, Math.min(width, (int) Math.ceil(zombie.getX())));
+            int y = Math.max(1, Math.min(height, (int) Math.round(zombie.getY())));
+            if (Math.abs(x - center.getX()) <= xRadius
+                    && Math.abs(y - center.getY()) <= yRadius) {
+                zombie.takeDamage(new Damage(damage, damageType));
+            }
+        }
+        return removeDeadEntities();
+    }
+
+    public BoardTickResult damageZombiesInLane(int laneNumber, int damage, String damageType) {
+        Lane lane = getLaneAt(laneNumber);
+        if (lane == null || damage < 0) {
+            return BoardTickResult.empty();
+        }
+        for (Zombie zombie : new ArrayList<>(lane.getAllZombies())) {
+            zombie.takeDamage(new Damage(damage, damageType));
+        }
+        return removeDeadEntities();
+    }
+
+    public BoardTickResult damageAllZombies(int damage, String damageType) {
+        if (damage < 0) {
+            throw new IllegalArgumentException("Damage cannot be negative.");
+        }
+        for (Zombie zombie : new ArrayList<>(getAllZombies())) {
+            zombie.takeDamage(new Damage(damage, damageType));
+        }
+        return removeDeadEntities();
+    }
+
+    public BoardTickResult damageRandomZombies(
+            int hitCount,
+            int damage,
+            String damageType,
+            java.util.Random random
+    ) {
+        if (hitCount <= 0 || damage <= 0) {
+            return BoardTickResult.empty();
+        }
+        java.util.Random generator = random == null ? new java.util.Random() : random;
+        List<Zombie> living = new ArrayList<>(getAllZombies());
+        for (int index = 0; index < hitCount && !living.isEmpty(); index++) {
+            Zombie target = living.get(generator.nextInt(living.size()));
+            target.takeDamage(new Damage(damage, damageType));
+            if (!target.isAlive()) {
+                living.remove(target);
+            }
+        }
+        return removeDeadEntities();
+    }
+
+    public void freezeAllZombies(int ticks) {
+        for (Zombie zombie : getAllZombies()) {
+            combatStrategy.applyFreeze(zombie, ticks);
+        }
+    }
+
+    public void applyFreeze(Zombie zombie, int ticks) {
+        combatStrategy.applyFreeze(zombie, ticks);
+    }
+
+    public void applyChill(Zombie zombie, int ticks) {
+        combatStrategy.applyChill(zombie, ticks);
+    }
+
+    public void applyPoison(Zombie zombie, int damagePerTick, int ticks) {
+        combatStrategy.applyPoison(zombie, damagePerTick, ticks);
+    }
+
+    public void hypnotizeZombie(Zombie zombie) {
+        combatStrategy.hypnotize(zombie);
+    }
+
+    public List<String> getZombieEffects(Zombie zombie) {
+        return combatStrategy.getActiveEffects(zombie);
+    }
+
+    public void activatePlantFamilyBoost(String category, int ticks) {
+        combatStrategy.activateFamilyBoost(category, ticks);
+    }
+
+    public boolean isPlantFamilyBoosted(String category) {
+        return combatStrategy.isFamilyBoosted(category);
+    }
+
+    public int meltTerrainArea(Position center, int radius) {
+        if (center == null || radius < 0) {
+            return 0;
+        }
+        int melted = 0;
+        for (int y = Math.max(1, center.getY() - radius);
+             y <= Math.min(height, center.getY() + radius); y++) {
+            for (int x = Math.max(1, center.getX() - radius);
+                 x <= Math.min(width, center.getX() + radius); x++) {
+                Tile tile = getTileAt(new Position(x, y));
+                if (tile != null && tile.getTileType() == TileType.ICE
+                        && tile.damageTerrain(Integer.MAX_VALUE, true)) {
+                    melted++;
+                }
+            }
+        }
+        return melted;
+    }
+
+    public int meltTerrainInLane(int laneNumber) {
+        Lane lane = getLaneAt(laneNumber);
+        if (lane == null) {
+            return 0;
+        }
+        int melted = 0;
+        for (Tile tile : lane.getTiles()) {
+            if (tile.getTileType() == TileType.ICE
+                    && tile.damageTerrain(Integer.MAX_VALUE, true)) {
+                melted++;
+            }
+        }
+        return melted;
+    }
+
+    public boolean removeTerrain(Position position, TileType expectedType) {
+        Tile tile = getTileAt(position);
+        if (tile == null || expectedType == null || tile.getTileType() != expectedType) {
+            return false;
+        }
+        tile.setTileType(TileType.NORMAL);
+        return true;
+    }
+
+    public BoardTickResult stabilizeTerrain() {
+        List<GameEvent> events = new ArrayList<>();
+        int removed = removeUnsupportedWaterPlants(events);
+        if (removed > 0) {
+            totalPlantsDestroyed += removed;
+        }
+        return new BoardTickResult(0, removed, 0, false, events);
+    }
+
+    public Tile getTileContainingZombie(Zombie zombie) {
+        return findTileContainingZombie(zombie);
     }
 
     public List<Zombie> getAllZombies() {
