@@ -9,15 +9,23 @@ import models.engine.events.GameEvent;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.IdentityHashMap;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 
 public class Board {
     private static final int DEFAULT_WIDTH = 9;
     private static final int DEFAULT_HEIGHT = 5;
+    private static final int TICKS_PER_SECOND = 10;
+    private static final int ADJACENT_FIRE_MELT_PER_SECOND = 60;
+    private static final int ADJACENT_FIRE_MELT_PER_TICK =
+            Math.max(1, ADJACENT_FIRE_MELT_PER_SECOND / TICKS_PER_SECOND);
 
     private final int width;
     private final int height;
     private final List<Lane> lanes;
+    private final Map<Zombie, Position> lastSlipperyTileByZombie;
     private BoardTickResult lastTickResult;
     private int totalZombiesKilled;
     private int totalPlantsDestroyed;
@@ -38,6 +46,7 @@ public class Board {
         this.width = width;
         this.height = height;
         this.lanes = new ArrayList<>();
+        this.lastSlipperyTileByZombie = new IdentityHashMap<>();
         this.lastTickResult = BoardTickResult.empty();
         this.totalZombiesKilled = 0;
         this.totalPlantsDestroyed = 0;
@@ -69,6 +78,14 @@ public class Board {
             brainWasEaten = brainWasEaten || result.isBrainEaten();
             events.addAll(result.getEvents());
         }
+
+        applySlipperyTiles();
+        applyAdjacentFireToIce();
+
+        List<GameEvent> unsupportedPlantEvents = new ArrayList<>();
+        int unsupportedPlants = removeUnsupportedWaterPlants(unsupportedPlantEvents);
+        plantsDestroyed += unsupportedPlants;
+        events.addAll(unsupportedPlantEvents);
 
         totalZombiesKilled += zombiesKilled;
         totalPlantsDestroyed += plantsDestroyed;
@@ -111,10 +128,12 @@ public class Board {
                     }
                 }
 
-                Plant plant = tile.getCurrentPlant();
-                if (plant != null && plant.isAlive()
-                        && xDistance <= plantRadius && yDistance <= plantRadius) {
-                    plant.takeDamage(new Damage(plantDamage, "radioactive sun"));
+                if (xDistance <= plantRadius && yDistance <= plantRadius) {
+                    for (Plant plant : new ArrayList<>(tile.getPlants())) {
+                        if (plant != null && plant.isAlive()) {
+                            plant.takeDamage(new Damage(plantDamage, "radioactive sun"));
+                        }
+                    }
                 }
             }
         }
@@ -129,19 +148,20 @@ public class Board {
 
         for (Lane lane : lanes) {
             for (Tile tile : lane.getTiles()) {
-                Plant plant = tile.getCurrentPlant();
-                if (plant != null && !plant.isAlive()) {
-                    tile.removePlant();
-                    plantsDestroyed++;
-                    events.add(GameEvent.plantDestroyed(
-                            plant.getName(),
-                            tile.getPosition()
-                    ));
+                for (Plant plant : new ArrayList<>(tile.getPlants())) {
+                    if (plant != null && !plant.isAlive() && tile.removePlant(plant)) {
+                        plantsDestroyed++;
+                        events.add(GameEvent.plantDestroyed(
+                                plant.getName(),
+                                tile.getPosition()
+                        ));
+                    }
                 }
 
                 for (Zombie zombie : new ArrayList<>(tile.getZombies())) {
                     if (zombie != null && !zombie.isAlive()) {
                         tile.removeZombie(zombie);
+                        lastSlipperyTileByZombie.remove(zombie);
                         zombiesKilled++;
                         events.add(GameEvent.zombieKilled(zombie, false));
                     }
@@ -149,6 +169,7 @@ public class Board {
             }
         }
 
+        plantsDestroyed += removeUnsupportedWaterPlants(events);
         totalZombiesKilled += zombiesKilled;
         totalPlantsDestroyed += plantsDestroyed;
 
@@ -196,13 +217,22 @@ public class Board {
         return getTileAt(position) != null;
     }
 
+    /**
+     * Compatibility check for callers that do not yet have a Plant instance.
+     * Water and stacking require the overload that receives the plant.
+     */
     public boolean canPlacePlant(Position position) {
         Tile tile = getTileAt(position);
         return tile != null && tile.isPlantable() && !tile.hasPlant();
     }
 
+    public boolean canPlacePlant(Plant plant, Position position) {
+        Tile tile = getTileAt(position);
+        return tile != null && tile.canPlacePlant(plant);
+    }
+
     public boolean placePlant(Plant plant, Position position) {
-        if (plant == null || !canPlacePlant(position)) {
+        if (plant == null || !canPlacePlant(plant, position)) {
             return false;
         }
 
@@ -211,12 +241,33 @@ public class Board {
         return true;
     }
 
+    /** Removes the uppermost plant at the position. */
     public Plant removePlant(Position position) {
         Tile tile = getTileAt(position);
         if (tile == null || !tile.hasPlant()) {
             return null;
         }
         return tile.removePlant();
+    }
+
+    /** Removes one exact plant instance without disturbing another layer. */
+    public boolean removePlant(Position position, Plant plant) {
+        Tile tile = getTileAt(position);
+        return tile != null && tile.removePlant(plant);
+    }
+
+    public boolean setTileType(Position position, TileType tileType) {
+        Tile tile = getTileAt(position);
+        if (tile == null || tileType == null) {
+            return false;
+        }
+        tile.setTileType(tileType);
+        return true;
+    }
+
+    public boolean damageTerrain(Position position, int damage, boolean fireDamage) {
+        Tile tile = getTileAt(position);
+        return tile != null && tile.damageTerrain(damage, fireDamage);
     }
 
     public List<Zombie> getAllZombies() {
@@ -235,9 +286,10 @@ public class Board {
         List<Plant> plants = new ArrayList<>();
         for (Lane lane : lanes) {
             for (Tile tile : lane.getTiles()) {
-                Plant plant = tile.getCurrentPlant();
-                if (plant != null && plant.isAlive()) {
-                    plants.add(plant);
+                for (Plant plant : tile.getPlants()) {
+                    if (plant != null && plant.isAlive()) {
+                        plants.add(plant);
+                    }
                 }
             }
         }
@@ -273,6 +325,7 @@ public class Board {
                         zombie.kill();
                         destroyed++;
                     }
+                    lastSlipperyTileByZombie.remove(zombie);
                 }
                 tile.clearZombies();
             }
@@ -283,5 +336,147 @@ public class Board {
 
     public BoardTickResult getLastTickResult() {
         return lastTickResult;
+    }
+
+    private void applySlipperyTiles() {
+        for (Zombie zombie : new ArrayList<>(getAllZombies())) {
+            Tile currentTile = findTileContainingZombie(zombie);
+            if (currentTile == null || !zombie.isAlive()) {
+                lastSlipperyTileByZombie.remove(zombie);
+                continue;
+            }
+
+            TileType type = currentTile.getTileType();
+            if ((type != TileType.SLIPPERY_UP && type != TileType.SLIPPERY_DOWN)
+                    || ignoresSlipperyTile(zombie)) {
+                lastSlipperyTileByZombie.remove(zombie);
+                continue;
+            }
+
+            Position currentPosition = currentTile.getPosition();
+            Position previousTrigger = lastSlipperyTileByZombie.get(zombie);
+            if (currentPosition.equals(previousTrigger)) {
+                continue;
+            }
+
+            int laneDelta = type == TileType.SLIPPERY_UP ? -1 : 1;
+            int targetLaneNumber = currentPosition.getY() + laneDelta;
+            Lane targetLane = getLaneAt(targetLaneNumber);
+            if (targetLane == null) {
+                lastSlipperyTileByZombie.put(zombie, currentPosition);
+                continue;
+            }
+
+            int targetX = Math.max(1, Math.min(width, (int) Math.ceil(zombie.getX())));
+            Tile targetTile = targetLane.getTileAt(targetX);
+            if (targetTile == null) {
+                continue;
+            }
+
+            currentTile.removeZombie(zombie);
+            zombie.moveBy(0, laneDelta);
+            targetTile.addZombie(zombie);
+            lastSlipperyTileByZombie.put(zombie, currentPosition);
+        }
+    }
+
+    private Tile findTileContainingZombie(Zombie zombie) {
+        if (zombie == null) {
+            return null;
+        }
+        for (Lane lane : lanes) {
+            for (Tile tile : lane.getTiles()) {
+                if (tile.getZombies().contains(zombie)) {
+                    return tile;
+                }
+            }
+        }
+        return null;
+    }
+
+    private boolean ignoresSlipperyTile(Zombie zombie) {
+        String name = normalize(zombie == null ? null : zombie.getName());
+        String id = zombie == null || zombie.getType() == null
+                ? ""
+                : normalize(zombie.getType().getId());
+        return name.contains("dodo") || id.contains("dodo");
+    }
+
+    private void applyAdjacentFireToIce() {
+        for (Lane lane : lanes) {
+            for (Tile iceTile : lane.getTiles()) {
+                if (!iceTile.isFrozenTerrain()) {
+                    continue;
+                }
+                if (hasAdjacentFirePlant(iceTile.getPosition())) {
+                    iceTile.damageTerrain(ADJACENT_FIRE_MELT_PER_TICK, false);
+                }
+            }
+        }
+    }
+
+    private boolean hasAdjacentFirePlant(Position center) {
+        for (int y = Math.max(1, center.getY() - 1);
+             y <= Math.min(height, center.getY() + 1);
+             y++) {
+            for (int x = Math.max(1, center.getX() - 1);
+                 x <= Math.min(width, center.getX() + 1);
+                 x++) {
+                if (x == center.getX() && y == center.getY()) {
+                    continue;
+                }
+                Tile tile = getTileAt(new Position(x, y));
+                if (tile == null || tile.isFrozenTerrain()) {
+                    continue;
+                }
+                for (Plant plant : tile.getPlants()) {
+                    if (plant != null && plant.isAlive() && isFirePlant(plant)) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    private boolean isFirePlant(Plant plant) {
+        if (plant == null || plant.getType() == null) {
+            return false;
+        }
+        String tags = normalize(plant.getType().getTags());
+        if (tags.contains("fire")) {
+            return true;
+        }
+        String name = normalize(plant.getName());
+        return name.contains("fire")
+                || name.contains("pepper")
+                || name.contains("jalapeno")
+                || name.contains("torchwood")
+                || name.contains("wasabi")
+                || name.contains("hot potato");
+    }
+
+    private int removeUnsupportedWaterPlants(List<GameEvent> events) {
+        int removedCount = 0;
+        for (Lane lane : lanes) {
+            for (Tile tile : lane.getTiles()) {
+                for (Plant plant : tile.removeUnsupportedWaterPlants()) {
+                    removedCount++;
+                    events.add(GameEvent.plantDestroyed(plant.getName(), tile.getPosition()));
+                }
+            }
+        }
+        return removedCount;
+    }
+
+    private String normalize(String value) {
+        if (value == null) {
+            return "";
+        }
+        return value.trim()
+                .toLowerCase(Locale.ROOT)
+                .replace('-', ' ')
+                .replace('_', ' ')
+                .replaceAll("\\s+", " ");
     }
 }
