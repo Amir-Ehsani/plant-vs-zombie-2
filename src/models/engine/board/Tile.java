@@ -112,9 +112,13 @@ public class Tile {
             return false;
         }
 
-        if (tileType == TileType.GRAVE
-                || tileType == TileType.ICE
-                || tileType == TileType.SLIPPERY_UP
+        if (tileType == TileType.GRAVE) {
+            return plants.isEmpty() && isNamedPlant(plant, "grave buster");
+        }
+        if (tileType == TileType.ICE) {
+            return plants.isEmpty() && isNamedPlant(plant, "hot potato");
+        }
+        if (tileType == TileType.SLIPPERY_UP
                 || tileType == TileType.SLIPPERY_DOWN) {
             return false;
         }
@@ -274,7 +278,25 @@ public class Tile {
         if (isLilyPad(lowerPlant)) {
             return true;
         }
-        return isStackPlant(lowerPlant) || isStackPlant(upperPlant);
+
+        String lowerName = normalize(lowerPlant.getName());
+        String upperName = normalize(upperPlant.getName());
+
+        // Pumpkin is the protective upper layer. A normal plant cannot be put
+        // above a Pumpkin that is already covering the tile.
+        if (lowerName.equals("pumpkin")) {
+            return false;
+        }
+        if (upperName.equals("pumpkin")) {
+            return true;
+        }
+
+        // Pea Pod may only stack with another Pea Pod.
+        if (lowerName.equals("pea pod") || upperName.equals("pea pod")) {
+            return lowerName.equals("pea pod") && upperName.equals("pea pod");
+        }
+
+        return containsTag(lowerPlant, "stack") || containsTag(upperPlant, "stack");
     }
 
     private boolean isStackPlant(Plant plant) {
@@ -303,6 +325,10 @@ public class Tile {
 
     private boolean isLilyPad(Plant plant) {
         return plant != null && normalize(plant.getName()).equals("lily pad");
+    }
+
+    private boolean isNamedPlant(Plant plant, String expectedName) {
+        return plant != null && normalize(plant.getName()).equals(normalize(expectedName));
     }
 
     private boolean containsTag(Plant plant, String expectedTag) {
