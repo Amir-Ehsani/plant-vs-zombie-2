@@ -63,6 +63,7 @@ public class GameSession {
     private ZombieFactory zombieFactory;
     private Wave lastSpawnedWave;
     private final Map<Plant, Integer> nextSunProductionTick;
+    private final Map<Plant, PlantFood> activePlantFoods;
     private final Map<String, Integer> plantRechargeUntilTick;
     private final Set<String> selectedPlantNames;
     private final List<GameEvent> pendingEvents;
@@ -82,6 +83,7 @@ public class GameSession {
         }
         this.random = random;
         this.nextSunProductionTick = new IdentityHashMap<>();
+        this.activePlantFoods = new IdentityHashMap<>();
         this.plantRechargeUntilTick = new HashMap<>();
         this.selectedPlantNames = new LinkedHashSet<>();
         this.pendingEvents = new ArrayList<>();
@@ -102,6 +104,7 @@ public class GameSession {
         plantFactory = new PlantFactory();
         zombieFactory = new ZombieFactory();
         nextSunProductionTick.clear();
+        activePlantFoods.clear();
         plantRechargeUntilTick.clear();
         pendingEvents.clear();
         glowingZombies.clear();
@@ -142,6 +145,7 @@ public class GameSession {
         }
 
         updateFallingSuns();
+        updatePlantFoodEffects();
         BoardTickResult boardResult = board.updateTicks();
         recordBoardEvents(boardResult);
         updatePlantSunProduction();
@@ -205,7 +209,7 @@ public class GameSession {
 
         if (currentLevel != null && currentLevel.usesConveyorBelt()
                 && !currentLevel.consumeConveyorPlant(plantName)) {
-            board.removePlant(position);
+            board.removePlant(position, plant);
             return false;
         }
 
@@ -228,6 +232,7 @@ public class GameSession {
             return false;
         }
         nextSunProductionTick.remove(removedPlant);
+        activePlantFoods.remove(removedPlant);
         return true;
     }
 
@@ -242,7 +247,9 @@ public class GameSession {
         }
 
         Plant plant = tile.getCurrentPlant();
-        plant.usePlantFood(new PlantFood());
+        PlantFood plantFood = new PlantFood();
+        plant.usePlantFood(plantFood);
+        activePlantFoods.put(plant, plantFood);
         plantFoodCount--;
         return true;
     }
@@ -280,8 +287,8 @@ public class GameSession {
 
         totalSunAmount += sun.getSunAmount();
         Tile tile = board.getTileAt(position);
-        Plant plant = tile == null ? null : tile.getCurrentPlant();
-        if (sun.isProducedByPlant() && isSunProducer(plant)) {
+        Plant plant = findSunProducerWaitingAt(tile);
+        if (sun.isProducedByPlant() && plant != null) {
             scheduleSunProduction(plant);
         }
         return true;
@@ -627,8 +634,47 @@ public class GameSession {
         }
     }
 
+
+    private void updatePlantFoodEffects() {
+        for (Map.Entry<Plant, PlantFood> entry : new ArrayList<>(activePlantFoods.entrySet())) {
+            Plant plant = entry.getKey();
+            PlantFood food = entry.getValue();
+            if (plant == null || !plant.isAlive() || food == null) {
+                activePlantFoods.remove(plant);
+                continue;
+            }
+            food.tick();
+            if (food.isExpired()) {
+                activePlantFoods.remove(plant);
+            }
+        }
+    }
+
+    private Plant findSunProducerWaitingAt(Tile tile) {
+        if (tile == null) {
+            return null;
+        }
+        Plant fallback = null;
+        for (Plant plant : tile.getPlants()) {
+            if (!isSunProducer(plant)) {
+                continue;
+            }
+            if (Integer.valueOf(-1).equals(nextSunProductionTick.get(plant))) {
+                return plant;
+            }
+            if (fallback == null) {
+                fallback = plant;
+            }
+        }
+        return fallback;
+    }
+
     private void updatePlantSunProduction() {
-        nextSunProductionTick.keySet().removeIf(plant -> !plant.isAlive());
+        Set<Plant> plantsOnBoard = Collections.newSetFromMap(new IdentityHashMap<>());
+        plantsOnBoard.addAll(board.getAllPlants());
+        nextSunProductionTick.keySet().removeIf(
+                plant -> !plant.isAlive() || !plantsOnBoard.contains(plant)
+        );
 
         for (Plant plant : board.getAllPlants()) {
             if (!isSunProducer(plant)) {
