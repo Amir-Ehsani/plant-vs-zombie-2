@@ -11,6 +11,7 @@ import java.util.Locale;
 public class LawnMower {
     private final int assignedRow;
     private boolean triggered;
+    private boolean enabled;
 
     public LawnMower(int assignedRow) {
         if (assignedRow <= 0) {
@@ -19,6 +20,7 @@ public class LawnMower {
 
         this.assignedRow = assignedRow;
         this.triggered = false;
+        this.enabled = true;
     }
 
     public int getAssignedRow() {
@@ -30,11 +32,25 @@ public class LawnMower {
     }
 
     public boolean isReady() {
-        return !triggered;
+        return enabled && !triggered;
+    }
+
+    public boolean isEnabled() {
+        return enabled;
+    }
+
+    public void disable() {
+        enabled = false;
+    }
+
+    public void enable() {
+        if (!triggered) {
+            enabled = true;
+        }
     }
 
     public List<Zombie> destroyZombies(List<Zombie> zombies) {
-        if (triggered) {
+        if (!enabled || triggered) {
             return Collections.emptyList();
         }
 
