@@ -69,7 +69,7 @@ public class SaveOurSeedsRule extends AbstractLevelRule {
             if (tile == null) {
                 throw new IllegalStateException("Protected plant position is outside the board.");
             }
-            if (tile.hasPlant()) {
+            if (tile.hasPlantNamed(entry.getValue())) {
                 continue;
             }
 
@@ -85,14 +85,25 @@ public class SaveOurSeedsRule extends AbstractLevelRule {
     }
 
     private void checkProtectedPlants(LevelRuntimeContext context) {
-        for (Position position : protectedPlantNames.keySet()) {
-            Tile tile = context.getBoard().getTileAt(position);
-            Plant plant = tile == null ? null : tile.getCurrentPlant();
-            if (plant == null || !plant.isAlive()) {
+        for (Map.Entry<Position, String> entry : protectedPlantNames.entrySet()) {
+            Tile tile = context.getBoard().getTileAt(entry.getKey());
+            if (tile == null || !hasLivingPlantNamed(tile, entry.getValue())) {
                 markLost();
                 return;
             }
         }
+    }
+
+
+    private boolean hasLivingPlantNamed(Tile tile, String plantName) {
+        for (Plant plant : tile.getPlants()) {
+            if (plant != null
+                    && plant.isAlive()
+                    && plant.getName().equalsIgnoreCase(plantName)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private Map<Position, String> copyProtectedPlants(Map<Position, String> source) {
