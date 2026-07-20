@@ -347,7 +347,7 @@ public class GameController {
 
         builder.append("\ncolumns:   1    2    3    4    5    6    7    8    9")
                 .append("\nLegend: terrain[.=normal,G=grave,W=water,F=ice,L=low-tide,N=necromancy,^/v=slip], ")
-                .append("middle=plant initial, right=zombie count");
+                .append("middle=plant initial (+ means stacked), right=zombie count");
 
         for (Lane lane : board.getLanes()) {
             builder.append("\nrow ").append(lane.getLaneId()).append(" ");
@@ -439,16 +439,27 @@ public class GameController {
         StringBuilder builder = new StringBuilder();
         builder.append("tile ").append(position)
                 .append("\ntype: ").append(tile.getTileType())
-                .append("\nplantable: ").append(tile.isPlantable())
+                .append("\nplantable land: ").append(tile.isPlantable())
                 .append("\nlawn mower: ")
-                .append(lane != null && lane.getLawnMower().isReady() ? "ready" : "used")
-                .append("\nplant:");
+                .append(lane != null && lane.getLawnMower().isReady() ? "ready" : "used");
 
-        Plant plant = tile.getCurrentPlant();
-        if (plant == null) {
+        if (tile.hasDamageableTerrain()) {
+            builder.append("\nterrain health: ")
+                    .append(tile.getTerrainHealth())
+                    .append("/")
+                    .append(tile.getMaximumTerrainHealth());
+        }
+
+        builder.append("\nplants (bottom to top):");
+        if (tile.getPlants().isEmpty()) {
             builder.append(" none");
         } else {
-            appendPlantDetails(builder, plant);
+            int layer = 1;
+            for (Plant plant : tile.getPlants()) {
+                builder.append("\n  layer ").append(layer).append(":");
+                appendPlantDetails(builder, plant, "    ");
+                layer++;
+            }
         }
 
         builder.append("\nzombies:");
@@ -476,18 +487,23 @@ public class GameController {
         return lastMessage != null && lastMessage.startsWith("OK:");
     }
 
-    private void appendPlantDetails(StringBuilder builder, Plant plant) {
+    private void appendPlantDetails(StringBuilder builder, Plant plant, String indent) {
         PlantType type = plant.getType();
-        builder.append("\n  name: ").append(plant.getName())
-                .append("\n  category: ").append(type.getCategory())
-                .append("\n  tags: ").append(type.getTags().isBlank() ? "none" : type.getTags())
-                .append("\n  health: ").append(plant.getHp()).append("/").append(plant.getMaxHp())
-                .append("\n  sun cost: ").append(plant.getCurrentSunCost())
-                .append("\n  damage: ").append(plant.getAttackDamage())
-                .append("\n  action interval: ").append(type.getActionInterval()).append(" ticks")
-                .append("\n  seed recharge: ").append(type.getRecharge()).append(" ticks")
-                .append("\n  attack cooldown remaining: ").append(plant.getCooldownRemaining()).append(" ticks")
-                .append("\n  boosted: ").append(plant.isBoosted());
+        builder.append("\n").append(indent).append("name: ").append(plant.getName())
+                .append("\n").append(indent).append("category: ").append(type.getCategory())
+                .append("\n").append(indent).append("tags: ")
+                .append(type.getTags().isBlank() ? "none" : type.getTags())
+                .append("\n").append(indent).append("health: ")
+                .append(plant.getHp()).append("/").append(plant.getMaxHp())
+                .append("\n").append(indent).append("sun cost: ").append(plant.getCurrentSunCost())
+                .append("\n").append(indent).append("damage: ").append(plant.getAttackDamage())
+                .append("\n").append(indent).append("action interval: ")
+                .append(type.getActionInterval()).append(" ticks")
+                .append("\n").append(indent).append("seed recharge: ")
+                .append(type.getRecharge()).append(" ticks")
+                .append("\n").append(indent).append("attack cooldown remaining: ")
+                .append(plant.getCooldownRemaining()).append(" ticks")
+                .append("\n").append(indent).append("boosted: ").append(plant.isBoosted());
     }
 
     private void appendZombieDetails(StringBuilder builder, Zombie zombie) {
@@ -733,9 +749,14 @@ public class GameController {
 
     private String formatTile(Tile tile) {
         char terrain = terrainSymbol(tile.getTileType());
-        char plant = tile.hasPlant()
-                ? Character.toUpperCase(tile.getCurrentPlant().getName().charAt(0))
-                : ' ';
+        char plant;
+        if (tile.getPlantLayerCount() > 1) {
+            plant = '+';
+        } else if (tile.hasPlant()) {
+            plant = Character.toUpperCase(tile.getCurrentPlant().getName().charAt(0));
+        } else {
+            plant = ' ';
+        }
 
         int zombies = 0;
         for (Zombie zombie : tile.getZombies()) {
