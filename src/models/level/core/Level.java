@@ -2,6 +2,8 @@ package models.level.core;
 
 import models.core.zombie.Zombie;
 import models.engine.board.Board;
+import models.engine.board.Position;
+import models.engine.board.TileType;
 import models.level.rules.LevelRule;
 import models.level.rules.LevelRuntimeContext;
 import models.level.rules.NoSpecialRule;
@@ -13,6 +15,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.LinkedHashMap;
 
 public class Level {
     private static final int DEFAULT_INITIAL_SUN = 50;
@@ -24,6 +28,7 @@ public class Level {
     private final List<String> allowedZombieNames;
     private final LevelRule levelRule;
     private final int initialSunAmount;
+    private final Map<Position, TileType> terrainLayout;
 
     private LevelStatus status;
     private Board board;
@@ -76,6 +81,7 @@ public class Level {
         this.allowedZombieNames = copyNames(allowedZombieNames, "Allowed zombies");
         this.levelRule = resolveRule(levelType, levelRule);
         this.initialSunAmount = initialSunAmount;
+        this.terrainLayout = new LinkedHashMap<>();
         this.status = LevelStatus.NOT_STARTED;
         this.board = null;
 
@@ -94,6 +100,7 @@ public class Level {
         }
 
         this.board = board;
+        applyTerrainLayout(board);
         waveManager.bindBoard(board);
         levelRule.onLevelStart(context);
         status = LevelStatus.RUNNING;
@@ -228,6 +235,34 @@ public class Level {
         return levelRule.startZombieWaves();
     }
 
+
+    public void setTerrainTile(Position position, TileType tileType) {
+        if (status != LevelStatus.NOT_STARTED) {
+            throw new IllegalStateException("Terrain cannot be changed after the level starts.");
+        }
+        if (position == null || tileType == null) {
+            throw new IllegalArgumentException("Terrain position and type cannot be null.");
+        }
+        terrainLayout.put(position, tileType);
+    }
+
+    public void setTerrainLayout(Map<Position, TileType> terrainLayout) {
+        if (status != LevelStatus.NOT_STARTED) {
+            throw new IllegalStateException("Terrain cannot be changed after the level starts.");
+        }
+        this.terrainLayout.clear();
+        if (terrainLayout == null) {
+            return;
+        }
+        for (Map.Entry<Position, TileType> entry : terrainLayout.entrySet()) {
+            setTerrainTile(entry.getKey(), entry.getValue());
+        }
+    }
+
+    public Map<Position, TileType> getTerrainLayout() {
+        return Collections.unmodifiableMap(terrainLayout);
+    }
+
     public int getLevelId() {
         return levelId;
     }
@@ -262,6 +297,17 @@ public class Level {
 
     public Board getBoard() {
         return board;
+    }
+
+
+    private void applyTerrainLayout(Board board) {
+        for (Map.Entry<Position, TileType> entry : terrainLayout.entrySet()) {
+            if (!board.setTileType(entry.getKey(), entry.getValue())) {
+                throw new IllegalStateException(
+                        "Terrain position is outside the board: " + entry.getKey()
+                );
+            }
+        }
     }
 
     private LevelRule resolveRule(LevelType type, LevelRule rule) {
