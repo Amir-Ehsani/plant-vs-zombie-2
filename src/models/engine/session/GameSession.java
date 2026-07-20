@@ -11,6 +11,7 @@ import models.core.zombie.ZombieFactory;
 import models.engine.board.Board;
 import models.engine.board.Position;
 import models.engine.board.Tile;
+import models.engine.board.TileType;
 import models.engine.combat.BoardTickResult;
 import models.engine.events.GameEvent;
 import models.engine.events.GameEventType;
@@ -40,6 +41,11 @@ public class GameSession {
     private static final int DEFAULT_INITIAL_SUN_AMOUNT = 50;
     private static final int MAX_PLANT_FOOD = 3;
     private static final int BASE_PLANT_SUN_AMOUNT = 25;
+    private static final int TWIN_SUNFLOWER_SUN_AMOUNT = 50;
+    private static final int PRIMAL_SUNFLOWER_SUN_AMOUNT = 75;
+    private static final int MATURE_SUN_SHROOM_SUN_AMOUNT = 50;
+    private static final int DEFAULT_SUN_SHROOM_GROW_TICKS = 30 * 10;
+    private static final int DOUBLE_SUN_CHANCE_PERCENT = 25;
     private static final int FALLING_SUN_TICKS = 50;
     private static final int TICKS_PER_SECOND = 10;
     private static final int NORMAL_SKY_SUN_PERCENT = 80;
@@ -63,6 +69,7 @@ public class GameSession {
     private ZombieFactory zombieFactory;
     private Wave lastSpawnedWave;
     private final Map<Plant, Integer> nextSunProductionTick;
+    private final Map<Plant, Integer> plantAgeTicks;
     private final Map<Plant, PlantFood> activePlantFoods;
     private final Map<String, Integer> plantRechargeUntilTick;
     private final Set<String> selectedPlantNames;
@@ -83,6 +90,7 @@ public class GameSession {
         }
         this.random = random;
         this.nextSunProductionTick = new IdentityHashMap<>();
+        this.plantAgeTicks = new IdentityHashMap<>();
         this.activePlantFoods = new IdentityHashMap<>();
         this.plantRechargeUntilTick = new HashMap<>();
         this.selectedPlantNames = new LinkedHashSet<>();
@@ -104,6 +112,7 @@ public class GameSession {
         plantFactory = new PlantFactory();
         zombieFactory = new ZombieFactory();
         nextSunProductionTick.clear();
+        plantAgeTicks.clear();
         activePlantFoods.clear();
         plantRechargeUntilTick.clear();
         pendingEvents.clear();
@@ -126,6 +135,8 @@ public class GameSession {
                 currentLevel.startLevel(board, context);
                 lastSpawnedWave = currentLevel.updateTicks(context);
                 recordWaveEvents(lastSpawnedWave);
+                recordTerrainSpawnEvents(currentLevel.drainTerrainSpawnedZombies());
+                recordBoardEvents(board.stabilizeTerrain());
             }
 
             state.setStatus(GameState.Status.RUNNING);
@@ -154,6 +165,8 @@ public class GameSession {
         if (currentLevel != null) {
             lastSpawnedWave = currentLevel.updateTicks(createLevelContext());
             recordWaveEvents(lastSpawnedWave);
+            recordTerrainSpawnEvents(currentLevel.drainTerrainSpawnedZombies());
+            recordBoardEvents(board.stabilizeTerrain());
             updateStateFromLevel();
         } else if (board.hasBrainBeenEaten()) {
             state.setStatus(GameState.Status.LOST);
@@ -203,21 +216,103 @@ public class GameSession {
         }
 
         int cost = resolvePlantCost(type);
-        if (totalSunAmount < cost || !board.placePlant(plant, position)) {
+        if (totalSunAmount < cost) {
+            return false;
+        }
+
+        return placePreparedPlant(plant, type, type.getName(), position, cost);
+    }
+
+    /**
+     * Places a copy through the Imitater seed packet. The copied plant supplies
+     * the battlefield behavior, while cost, recharge, conveyor consumption and
+     * level usage belong to Imitater itself.
+     */
+    public boolean plantImitater(String copiedPlantName, Position position) {
+        if (!isRunning() || copiedPlantName == null || position == null) {
+            return false;
+        }
+
+        PlantType imitaterType = getPlantType("Imitater");
+        PlantType copiedType = getPlantType(copiedPlantName);
+        if (imitaterType == null || copiedType == null
+                || normalizeName(copiedType.getName()).equals("imitater")) {
+            return false;
+        }
+        if (!isPlantSelected(imitaterType.getName())
+                || !isPlantSelected(copiedType.getName())) {
+            return false;
+        }
+        if (currentLevel != null
+                && (!currentLevel.isPlantAllowed(imitaterType.getName())
+                || !currentLevel.isPlantAllowed(copiedType.getName()))) {
+            return false;
+        }
+        if (getPlantRechargeRemainingTicks(imitaterType.getName()) > 0) {
+            return false;
+        }
+
+        Plant copiedPlant;
+        try {
+            copiedPlant = plantFactory.createPlant(
+                    copiedType,
+                    position.getX(),
+                    position.getY()
+            );
+        } catch (IllegalArgumentException exception) {
+            return false;
+        }
+
+        int cost = resolvePlantCost(imitaterType);
+        if (totalSunAmount < cost) {
+            return false;
+        }
+        return placePreparedPlant(
+                copiedPlant,
+                imitaterType,
+                imitaterType.getName(),
+                position,
+                cost
+        );
+    }
+
+    private boolean placePreparedPlant(
+            Plant plant,
+            PlantType rechargeType,
+            String consumedSeedName,
+            Position position,
+            int cost
+    ) {
+        if (plant == null || rechargeType == null || consumedSeedName == null) {
+            return false;
+        }
+
+        if (isImmediatePlant(plant)) {
+            return useImmediatePlant(
+                    plant,
+                    rechargeType,
+                    consumedSeedName,
+                    position,
+                    cost
+            );
+        }
+
+        if (!board.placePlant(plant, position)) {
             return false;
         }
 
         if (currentLevel != null && currentLevel.usesConveyorBelt()
-                && !currentLevel.consumeConveyorPlant(plantName)) {
+                && !currentLevel.consumeConveyorPlant(consumedSeedName)) {
             board.removePlant(position, plant);
             return false;
         }
 
         totalSunAmount -= cost;
-        startPlantRecharge(type);
+        startPlantRecharge(rechargeType);
+        plantAgeTicks.put(plant, 0);
         scheduleSunProduction(plant);
         if (currentLevel != null) {
-            currentLevel.onPlantUsed(plantName);
+            currentLevel.onPlantUsed(consumedSeedName);
         }
         return true;
     }
@@ -232,6 +327,7 @@ public class GameSession {
             return false;
         }
         nextSunProductionTick.remove(removedPlant);
+        plantAgeTicks.remove(removedPlant);
         activePlantFoods.remove(removedPlant);
         return true;
     }
@@ -670,13 +766,19 @@ public class GameSession {
     }
 
     private void updatePlantSunProduction() {
+        List<Plant> currentPlants = board.getAllPlants();
         Set<Plant> plantsOnBoard = Collections.newSetFromMap(new IdentityHashMap<>());
-        plantsOnBoard.addAll(board.getAllPlants());
+        plantsOnBoard.addAll(currentPlants);
+
         nextSunProductionTick.keySet().removeIf(
-                plant -> !plant.isAlive() || !plantsOnBoard.contains(plant)
+                plant -> plant == null || !plant.isAlive() || !plantsOnBoard.contains(plant)
+        );
+        plantAgeTicks.keySet().removeIf(
+                plant -> plant == null || !plant.isAlive() || !plantsOnBoard.contains(plant)
         );
 
-        for (Plant plant : board.getAllPlants()) {
+        for (Plant plant : currentPlants) {
+            plantAgeTicks.merge(plant, 1, Integer::sum);
             if (!isSunProducer(plant)) {
                 continue;
             }
@@ -691,7 +793,7 @@ public class GameSession {
             }
 
             Position position = new Position((int) plant.getX(), (int) plant.getY());
-            int amount = BASE_PLANT_SUN_AMOUNT + plant.getSunProductionBonus();
+            int amount = resolvePlantSunAmount(plant);
             if (spawnPlantSun(position, amount)) {
                 nextSunProductionTick.put(plant, -1);
                 pendingEvents.add(GameEvent.plantSunProduced(
@@ -701,6 +803,37 @@ public class GameSession {
                 ));
             }
         }
+    }
+
+    private int resolvePlantSunAmount(Plant plant) {
+        String name = normalizeName(plant == null ? null : plant.getName());
+        int amount = BASE_PLANT_SUN_AMOUNT;
+
+        if (name.equals("twin sunflower")) {
+            amount = TWIN_SUNFLOWER_SUN_AMOUNT;
+        } else if (name.equals("primal sunflower")) {
+            amount = PRIMAL_SUNFLOWER_SUN_AMOUNT;
+        } else if (name.equals("sun shroom")) {
+            int growTicks = plant.getGrowTimeTicks() > 0
+                    ? plant.getGrowTimeTicks()
+                    : DEFAULT_SUN_SHROOM_GROW_TICKS;
+            if (plantAgeTicks.getOrDefault(plant, 0) >= growTicks) {
+                amount = MATURE_SUN_SHROOM_SUN_AMOUNT;
+            }
+        }
+
+        amount += Math.max(0, plant.getSunProductionBonus());
+        if (plant.isBoosted()) {
+            amount *= 2;
+        }
+        if (board.isPlantFamilyBoosted("sun producer")) {
+            amount *= 2;
+        }
+        if (plant.hasDoubleSunChance()
+                && random.nextInt(100) < DOUBLE_SUN_CHANCE_PERCENT) {
+            amount *= 2;
+        }
+        return Math.max(1, amount);
     }
 
     private void scheduleSunProduction(Plant plant) {
@@ -723,6 +856,156 @@ public class GameSession {
         String category = plant.getType().getCategory();
         return category != null
                 && category.trim().toLowerCase(Locale.ROOT).equals("sun producer");
+    }
+
+    private boolean isImmediatePlant(Plant plant) {
+        String name = normalizeName(plant == null ? null : plant.getName());
+        return name.equals("gold bloom")
+                || name.equals("cherry bomb")
+                || name.equals("grapeshot")
+                || name.equals("jalapeno")
+                || name.equals("doom shroom")
+                || name.equals("ice shroom")
+                || name.equals("hot potato")
+                || name.equals("grave buster")
+                || name.endsWith(" mint");
+    }
+
+    private boolean useImmediatePlant(
+            Plant plant,
+            PlantType rechargeType,
+            String consumedSeedName,
+            Position position,
+            int cost
+    ) {
+        Tile tile = board.getTileAt(position);
+        if (tile == null || !tile.canPlacePlant(plant)) {
+            return false;
+        }
+
+        if (currentLevel != null && currentLevel.usesConveyorBelt()
+                && !currentLevel.consumeConveyorPlant(consumedSeedName)) {
+            return false;
+        }
+
+        if (!executeImmediatePlantEffect(plant, position)) {
+            return false;
+        }
+
+        totalSunAmount -= cost;
+        startPlantRecharge(rechargeType);
+        if (currentLevel != null) {
+            currentLevel.onPlantUsed(consumedSeedName);
+            currentLevel.evaluate(createLevelContext());
+            updateStateFromLevel();
+        }
+        return true;
+    }
+
+    private boolean executeImmediatePlantEffect(Plant plant, Position position) {
+        String name = normalizeName(plant.getName());
+        int damage = Math.max(1, plant.getAttackDamage());
+
+        if (name.equals("gold bloom")) {
+            int produced = 375 + plant.getSunProductionBonus();
+            totalSunAmount += produced;
+            totalSunProduced += produced;
+            return true;
+        }
+        if (name.equals("grave buster")) {
+            return board.removeTerrain(position, TileType.GRAVE);
+        }
+        if (name.equals("hot potato")) {
+            if (board.getTileAt(position).getTileType() != TileType.ICE) {
+                return false;
+            }
+            int radius = plant.hasMeltAreaThreeByThree() ? 1 : 0;
+            board.meltTerrainArea(position, radius);
+            return true;
+        }
+        if (name.equals("cherry bomb")) {
+            recordBoardEvents(board.damageZombiesInArea(
+                    position, 1, 1, Math.max(1800, damage), "cherry bomb"));
+            return true;
+        }
+        if (name.equals("grapeshot")) {
+            recordBoardEvents(board.damageZombiesInArea(
+                    position, 1, 1, Math.max(1800, damage), "grapeshot"));
+            recordBoardEvents(board.damageRandomZombies(
+                    8 + Math.max(0, plant.getBounces()),
+                    200,
+                    "grapeshot bounce",
+                    random
+            ));
+            return true;
+        }
+        if (name.equals("jalapeno")) {
+            recordBoardEvents(board.damageZombiesInLane(
+                    position.getY(), Math.max(1800, damage), "jalapeno"));
+            board.meltTerrainInLane(position.getY());
+            return true;
+        }
+        if (name.equals("doom shroom")) {
+            recordBoardEvents(board.damageZombiesInArea(
+                    position, 2, 2, Math.max(1800, damage), "doom shroom"));
+            return true;
+        }
+        if (name.equals("ice shroom")) {
+            recordBoardEvents(board.damageAllZombies(50, "ice shroom"));
+            board.freezeAllZombies(Math.max(50, plant.getFreezeDurationTicks()));
+            return true;
+        }
+        if (name.endsWith(" mint")) {
+            activateMint(name, plant);
+            return true;
+        }
+        return false;
+    }
+
+    private void activateMint(String normalizedName, Plant plant) {
+        int duration = Math.max(100, plant.getDurationTicks());
+        if (normalizedName.equals("enlighten mint")) {
+            activateFamily("sun producer", duration);
+        } else if (normalizedName.equals("appease mint")) {
+            activateFamily("shooter", duration);
+        } else if (normalizedName.equals("arma mint")) {
+            activateFamily("lobber", duration);
+        } else if (normalizedName.equals("bombard mint")) {
+            activateFamily("explosive", duration);
+        } else if (normalizedName.equals("enforce mint")) {
+            activateFamily("melee", duration);
+        } else if (normalizedName.equals("reinforce mint")) {
+            activateFamily("wall nut", duration);
+        } else if (normalizedName.equals("enchant mint")) {
+            activateFamily("modifier", duration);
+            activateFamily("homing", duration);
+        } else if (normalizedName.equals("pierce mint")) {
+            activateFamily("strike through", duration);
+        } else if (normalizedName.equals("cattail mint")) {
+            activateFamily("homing", duration);
+        }
+    }
+
+    private void activateFamily(String category, int duration) {
+        board.activatePlantFamilyBoost(category, duration);
+        resetFamilyRecharge(category);
+        for (Plant plant : board.getAllPlants()) {
+            if (plant.getType() != null
+                    && normalizeName(plant.getType().getCategory()).equals(normalizeName(category))) {
+                plant.resetCooldown();
+            }
+        }
+    }
+
+    private void resetFamilyRecharge(String category) {
+        PlantRegistry registry = plantFactory == null
+                ? DefaultPlantRegistry.getInstance()
+                : plantFactory.getPlantRegistry();
+        for (PlantType type : registry.getAllPlantTypes()) {
+            if (normalizeName(type.getCategory()).equals(normalizeName(category))) {
+                plantRechargeUntilTick.remove(normalizeName(type.getName()));
+            }
+        }
     }
 
     private void updateSkySunProduction() {
@@ -825,7 +1108,28 @@ public class GameSession {
         for (GameEvent event : result.getEvents()) {
             if (event.getType() == GameEventType.ZOMBIE_KILLED) {
                 handleZombieDeath(event.getZombie());
+            } else if (event.getType() == GameEventType.PLANT_DESTROYED
+                    && normalizeName(event.getEntityName()).equals("sun bean")) {
+                int releasedSun = 50;
+                totalSunAmount += releasedSun;
+                totalSunProduced += releasedSun;
             }
+        }
+    }
+
+    private void recordTerrainSpawnEvents(List<Zombie> zombies) {
+        if (zombies == null || zombies.isEmpty()) {
+            return;
+        }
+        int waveNumber = currentLevel == null
+                ? 0
+                : currentLevel.getWaveManager().getCurrentWaveNumber();
+        for (Zombie zombie : zombies) {
+            if (zombie == null) {
+                continue;
+            }
+            registerSpawnedZombie(zombie);
+            pendingEvents.add(GameEvent.zombieSpawned(zombie, waveNumber));
         }
     }
 
