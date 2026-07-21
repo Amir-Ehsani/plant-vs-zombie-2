@@ -1,5 +1,10 @@
 package models.core.zombie;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Locale;
+
 public class ZombieType {
     private static final String DEFAULT_NAME = "normal zombie";
     private static final String DEFAULT_ID = "ZombieDefault";
@@ -15,21 +20,16 @@ public class ZombieType {
     private final int damagePerTick;
     private final int waveCost;
     private final String defaultArmorName;
+    private final List<String> tags;
+    private final String ability;
 
     public ZombieType() {
-        this(
-                DEFAULT_NAME,
-                DEFAULT_BASE_HP,
-                DEFAULT_SPEED,
-                DEFAULT_DAMAGE_PER_TICK,
-                DEFAULT_WAVE_COST,
-                DEFAULT_ID,
-                null
-        );
+        this(DEFAULT_NAME, DEFAULT_BASE_HP, DEFAULT_SPEED, DEFAULT_DAMAGE_PER_TICK,
+                DEFAULT_WAVE_COST, DEFAULT_ID, null, List.of(), "");
     }
 
     public ZombieType(String name, int baseHp, double speed, int damagePerTick, int waveCost) {
-        this(name, baseHp, speed, damagePerTick, waveCost, createDefaultId(name), null);
+        this(name, baseHp, speed, damagePerTick, waveCost, createDefaultId(name), null, List.of(), "");
     }
 
     public ZombieType(
@@ -41,6 +41,20 @@ public class ZombieType {
             String id,
             String defaultArmorName
     ) {
+        this(name, baseHp, speed, damagePerTick, waveCost, id, defaultArmorName, List.of(), "");
+    }
+
+    public ZombieType(
+            String name,
+            int baseHp,
+            double speed,
+            int damagePerTick,
+            int waveCost,
+            String id,
+            String defaultArmorName,
+            List<String> tags,
+            String ability
+    ) {
         this.name = normalizeName(name);
         this.baseHp = Math.max(1, baseHp);
         this.speed = Math.max(0, speed);
@@ -48,38 +62,48 @@ public class ZombieType {
         this.waveCost = Math.max(0, waveCost);
         this.id = normalizeId(id);
         this.defaultArmorName = normalizeArmorName(defaultArmorName);
+        this.tags = normalizeTags(tags);
+        this.ability = ability == null ? "" : ability.trim();
     }
 
     private static String createDefaultId(String name) {
         if (name == null || name.isBlank()) {
             return DEFAULT_ID;
         }
-
         return "Zombie" + name.trim().replaceAll("[^a-zA-Z0-9]", "");
     }
 
-    private String normalizeName(String name) {
-        if (name == null || name.isBlank()) {
-            return DEFAULT_NAME;
-        }
-
-        return name.trim();
+    private String normalizeName(String value) {
+        return value == null || value.isBlank() ? DEFAULT_NAME : value.trim();
     }
 
-    private String normalizeId(String id) {
-        if (id == null || id.isBlank()) {
-            return createDefaultId(name);
-        }
-
-        return id.trim();
+    private String normalizeId(String value) {
+        return value == null || value.isBlank() ? createDefaultId(name) : value.trim();
     }
 
-    private String normalizeArmorName(String armorName) {
-        if (armorName == null || armorName.isBlank() || armorName.equals("-")) {
+    private String normalizeArmorName(String value) {
+        if (value == null || value.isBlank() || value.equals("-")) {
             return null;
         }
+        return value.trim();
+    }
 
-        return armorName.trim();
+    private List<String> normalizeTags(List<String> values) {
+        List<String> result = new ArrayList<>();
+        if (values != null) {
+            for (String value : values) {
+                String normalized = normalizeToken(value);
+                if (!normalized.isEmpty() && !result.contains(normalized)) {
+                    result.add(normalized);
+                }
+            }
+        }
+        return Collections.unmodifiableList(result);
+    }
+
+    private String normalizeToken(String value) {
+        return value == null ? "" : value.trim().toLowerCase(Locale.ROOT)
+                .replace('-', '_').replace(' ', '_');
     }
 
     public String getName() {
@@ -112,5 +136,17 @@ public class ZombieType {
 
     public boolean hasDefaultArmor() {
         return defaultArmorName != null;
+    }
+
+    public List<String> getTags() {
+        return tags;
+    }
+
+    public boolean hasTag(String tag) {
+        return tags.contains(normalizeToken(tag));
+    }
+
+    public String getAbility() {
+        return ability;
     }
 }

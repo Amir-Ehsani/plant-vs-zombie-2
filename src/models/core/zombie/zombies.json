@@ -1,0 +1,361 @@
+{
+  "armors": [
+    {
+      "name": "Cone",
+      "hp": 370,
+      "type": "normal"
+    },
+    {
+      "name": "Bucket",
+      "hp": 1100,
+      "type": "metallic"
+    },
+    {
+      "name": "Brick",
+      "hp": 2200,
+      "type": "normal"
+    },
+    {
+      "name": "Shoulder Armor",
+      "hp": 1600,
+      "type": "metallic"
+    },
+    {
+      "name": "Crown (knights helmet)",
+      "hp": 1600,
+      "type": "metallic"
+    },
+    {
+      "name": "Newspaper",
+      "hp": 800,
+      "type": "normal"
+    },
+    {
+      "name": "Crown",
+      "hp": 1600,
+      "type": "metallic"
+    }
+  ],
+  "zombies": [
+    {
+      "name": "Default",
+      "eatDps": 100,
+      "baseHp": 190,
+      "speed": 0.185,
+      "waveCost": 100,
+      "id": "ZombieDefault",
+      "defaultArmor": null,
+      "tags": [],
+      "ability": "Walks forward and eats plants."
+    },
+    {
+      "name": "cone head",
+      "eatDps": 100,
+      "baseHp": 190,
+      "speed": 0.185,
+      "waveCost": 200,
+      "id": "ZombieArmor1",
+      "defaultArmor": "Cone",
+      "tags": [],
+      "ability": "A normal zombie protected by a cone."
+    },
+    {
+      "name": "bucket head",
+      "eatDps": 100,
+      "baseHp": 190,
+      "speed": 0.185,
+      "waveCost": 400,
+      "id": "ZombieArmor2",
+      "defaultArmor": "Bucket",
+      "tags": [],
+      "ability": "A normal zombie protected by a metallic bucket."
+    },
+    {
+      "name": "brick head",
+      "eatDps": 100,
+      "baseHp": 190,
+      "speed": 0.185,
+      "waveCost": 700,
+      "id": "ZombieArmor4",
+      "defaultArmor": "Brick",
+      "tags": [],
+      "ability": "A normal zombie protected by a heavy brick."
+    },
+    {
+      "name": "knight",
+      "eatDps": 100,
+      "baseHp": 190,
+      "speed": 0.185,
+      "waveCost": 550,
+      "id": "ZombieDarkArmor3",
+      "defaultArmor": "Crown + Shoulder Armor",
+      "tags": [],
+      "ability": "A normal zombie protected by crown and shoulder armor."
+    },
+    {
+      "name": "Gargantuar",
+      "eatDps": 1500,
+      "baseHp": 3600,
+      "speed": 0.24,
+      "waveCost": 1500,
+      "id": "ZombieGargantuar",
+      "defaultArmor": null,
+      "tags": [],
+      "ability": "Instantly crushes plants and throws an Imp when reduced to half health."
+    },
+    {
+      "name": "Imp",
+      "eatDps": 100,
+      "baseHp": 190,
+      "speed": 0.22,
+      "waveCost": 100,
+      "id": "ZombieImp",
+      "defaultArmor": null,
+      "tags": [],
+      "ability": "Moves and attacks faster than a normal zombie."
+    },
+    {
+      "name": "Ra",
+      "eatDps": 100,
+      "baseHp": 190,
+      "speed": 0.2,
+      "waveCost": 100,
+      "id": "ZombieRa",
+      "defaultArmor": null,
+      "tags": [
+        "sun_thief"
+      ],
+      "ability": "Pulls nearby ground suns toward itself and steals them."
+    },
+    {
+      "name": "Explorer",
+      "eatDps": 100,
+      "baseHp": 250,
+      "speed": 0.25,
+      "waveCost": 250,
+      "id": "ZombieExplorer",
+      "defaultArmor": null,
+      "tags": [],
+      "ability": "Uses a torch to instantly burn plants directly ahead; ice extinguishes the torch."
+    },
+    {
+      "name": "Tomb raiser",
+      "eatDps": 100,
+      "baseHp": 380,
+      "speed": 0.185,
+      "waveCost": 300,
+      "id": "ZombieTombRaiser",
+      "defaultArmor": null,
+      "tags": [],
+      "ability": "Periodically creates graves on random empty tiles."
+    },
+    {
+      "name": "Dodo",
+      "eatDps": 100,
+      "baseHp": 490,
+      "speed": 0.3,
+      "waveCost": 600,
+      "id": "ZombieIceAgeDodo",
+      "defaultArmor": null,
+      "tags": [
+        "ice_immune",
+        "flying"
+      ],
+      "ability": "Flies over most blocking plants but cannot pass Tall-nut."
+    },
+    {
+      "name": "Hunter",
+      "eatDps": 100,
+      "baseHp": 700,
+      "speed": 0.12,
+      "waveCost": 500,
+      "id": "ZombieIceAgeHunter",
+      "defaultArmor": null,
+      "tags": [
+        "ice_immune"
+      ],
+      "ability": "Periodically throws ice; a plant freezes after three hits."
+    },
+    {
+      "name": "Troglobite",
+      "eatDps": 100,
+      "baseHp": 470,
+      "speed": 0.185,
+      "waveCost": 600,
+      "id": "ZombieIceAgeTroglobite",
+      "defaultArmor": null,
+      "tags": [
+        "ice_immune"
+      ],
+      "ability": "Pushes ice blocks that destroy plants on collision."
+    },
+    {
+      "name": "Fisherman",
+      "eatDps": 100,
+      "baseHp": 1000,
+      "speed": 0.185,
+      "waveCost": 700,
+      "id": "ZombieBeachFisherman",
+      "defaultArmor": null,
+      "tags": [
+        "stationary"
+      ],
+      "ability": "Stays near the right side and periodically pulls a plant one tile right."
+    },
+    {
+      "name": "Octopus",
+      "eatDps": 100,
+      "baseHp": 910,
+      "speed": 0.12,
+      "waveCost": 900,
+      "id": "ZombieBeachOctopus",
+      "defaultArmor": null,
+      "tags": [],
+      "ability": "Periodically disables a plant with an octopus."
+    },
+    {
+      "name": "Snorkel",
+      "eatDps": 100,
+      "baseHp": 350,
+      "speed": 0.185,
+      "waveCost": 200,
+      "id": "ZombieBeachSnorkel",
+      "defaultArmor": null,
+      "tags": [
+        "submersible"
+      ],
+      "ability": "Submerges in water and can only be damaged by lobbers while submerged."
+    },
+    {
+      "name": "Juggler",
+      "eatDps": 100,
+      "baseHp": 420,
+      "speed": 0.2,
+      "waveCost": 450,
+      "id": "ZombieDarkJuggler",
+      "defaultArmor": null,
+      "tags": [
+        "reflect_direct"
+      ],
+      "ability": "Reflects direct projectiles while spinning and moves faster during the spin."
+    },
+    {
+      "name": "Wizard",
+      "eatDps": 100,
+      "baseHp": 490,
+      "speed": 0.12,
+      "waveCost": 800,
+      "id": "ZombieWizard",
+      "defaultArmor": null,
+      "tags": [],
+      "ability": "Turns plants into harmless cats until the Wizard dies."
+    },
+    {
+      "name": "King",
+      "eatDps": 100,
+      "baseHp": 1000,
+      "speed": 0.0,
+      "waveCost": 750,
+      "id": "ZombieDarkKing",
+      "defaultArmor": null,
+      "tags": [
+        "stationary"
+      ],
+      "ability": "Stays still and periodically upgrades a nearby normal zombie into a knight."
+    },
+    {
+      "name": "Imp Dragon",
+      "eatDps": 100,
+      "baseHp": 190,
+      "speed": 0.185,
+      "waveCost": 150,
+      "id": "ZombieDarkImpDragon",
+      "defaultArmor": null,
+      "tags": [
+        "fire_immune"
+      ],
+      "ability": "An Imp that is immune to fire damage."
+    },
+    {
+      "name": "Allstar",
+      "eatDps": 100,
+      "baseHp": 1100,
+      "speed": 0.16,
+      "waveCost": 1000,
+      "id": "ZombieModernAllStar",
+      "defaultArmor": null,
+      "tags": [],
+      "ability": "Charges quickly, instantly destroys the first plant hit, then becomes slow."
+    },
+    {
+      "name": "Arcade",
+      "eatDps": 100,
+      "baseHp": 490,
+      "speed": 0.19,
+      "waveCost": 600,
+      "id": "ZombieArcade",
+      "defaultArmor": null,
+      "tags": [],
+      "ability": "Pushes an arcade cabinet that instantly destroys plants on collision."
+    },
+    {
+      "name": "Umbrella",
+      "eatDps": 100,
+      "baseHp": 350,
+      "speed": 0.25,
+      "waveCost": 200,
+      "id": "ZombieLostCityJane",
+      "defaultArmor": null,
+      "tags": [
+        "lobber_immune"
+      ],
+      "ability": "Deflects all lobbed attacks."
+    },
+    {
+      "name": "Turquoise",
+      "eatDps": 100,
+      "baseHp": 250,
+      "speed": 0.185,
+      "waveCost": 500,
+      "id": "ZombieCrystalSkull",
+      "defaultArmor": null,
+      "tags": [
+        "sun_thief"
+      ],
+      "ability": "Steals sun for five seconds, then destroys plants in four tiles ahead."
+    },
+    {
+      "name": "Prospector",
+      "eatDps": 100,
+      "baseHp": 190,
+      "speed": 0.16,
+      "waveCost": 200,
+      "id": "ZombieProspector",
+      "defaultArmor": null,
+      "tags": [],
+      "ability": "After ten seconds reverses direction and attacks from behind."
+    },
+    {
+      "name": "Piano",
+      "eatDps": 4000,
+      "baseHp": 840,
+      "speed": 0.12,
+      "waveCost": 450,
+      "id": "ZombiePiano",
+      "defaultArmor": null,
+      "tags": [],
+      "ability": "Crushes plants and periodically shifts nearby zombies between lanes."
+    },
+    {
+      "name": "News Paper",
+      "eatDps": 200,
+      "baseHp": 460,
+      "speed": 0.22,
+      "waveCost": 700,
+      "id": "ZombieNewspaper",
+      "defaultArmor": "Newspaper",
+      "tags": [],
+      "ability": "Becomes much faster after its newspaper armor is destroyed."
+    }
+  ]
+}

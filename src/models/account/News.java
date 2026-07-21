@@ -65,6 +65,26 @@ public class News {
         return news;
     }
 
+    public static News levelUnlocked(String levelName) {
+        News news = new News(
+                "Level unlocked",
+                "A new level has been unlocked: " + normalizeStaticText(levelName),
+                "level_unlock"
+        );
+        news.setTargetName(levelName);
+        return news;
+    }
+
+    public static News miniGameUnlocked(String miniGameName) {
+        News news = new News(
+                "Mini-game unlocked",
+                "A new mini-game has been unlocked: " + normalizeStaticText(miniGameName),
+                "minigame_unlock"
+        );
+        news.setTargetName(miniGameName);
+        return news;
+    }
+
     public String getId() {
         return id;
     }
@@ -180,6 +200,14 @@ public class News {
 
     public boolean isRewardNews() {
         return type.equals("reward");
+    }
+
+    public boolean isLevelUnlockNews() {
+        return type.equals("level_unlock");
+    }
+
+    public boolean isMiniGameUnlockNews() {
+        return type.equals("minigame_unlock");
     }
 
     public boolean hasTarget() {

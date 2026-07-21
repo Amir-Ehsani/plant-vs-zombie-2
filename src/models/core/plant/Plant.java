@@ -70,7 +70,7 @@ public class Plant extends GameEntity {
         this.attackBehavior = attackBehavior;
         this.currentSunCost = this.type.getSunCost();
         this.attackIntervalTicks = this.type.getBaseCooldown();
-        this.attackDamage = resolveInitialDamage(this.type.getCategory());
+        this.attackDamage = resolveInitialDamage(this.type);
         this.damagePerTick = 0;
         this.areaDamage = 0;
         this.explodeDamage = 0;
@@ -190,6 +190,11 @@ public class Plant extends GameEntity {
     @Override
     public double getY() {
         return y;
+    }
+
+    public void moveTo(double x, double y) {
+        this.x = x;
+        this.y = y;
     }
 
     public String getId() {
@@ -689,34 +694,49 @@ public class Plant extends GameEntity {
         return "normal";
     }
 
-    private int resolveInitialDamage(String category) {
-        String normalizedCategory = normalizeCategory(category);
-
-        if (normalizedCategory.equals("shooter")) {
-            return 20;
+    private int resolveInitialDamage(PlantType plantType) {
+        if (plantType == null) {
+            return 0;
         }
 
-        if (normalizedCategory.equals("strike through")) {
-            return 20;
+        int configuredDamage = extractFirstNumber(plantType.getDamage());
+        if (configuredDamage > 0) {
+            return configuredDamage;
         }
 
+        String normalizedCategory = normalizeCategory(plantType.getCategory());
+        if (normalizedCategory.equals("shooter") || normalizedCategory.equals("strike through")) {
+            return 20;
+        }
         if (normalizedCategory.equals("homing")) {
             return 30;
         }
-
         if (normalizedCategory.equals("lobber")) {
             return 40;
         }
-
         if (normalizedCategory.equals("melee")) {
             return 15;
         }
-
         if (normalizedCategory.equals("explosive")) {
             return 1800;
         }
-
         return 0;
+    }
+
+    private int extractFirstNumber(String value) {
+        if (value == null) {
+            return 0;
+        }
+        StringBuilder digits = new StringBuilder();
+        for (int index = 0; index < value.length(); index++) {
+            char current = value.charAt(index);
+            if (Character.isDigit(current)) {
+                digits.append(current);
+            } else if (digits.length() > 0) {
+                break;
+            }
+        }
+        return digits.length() == 0 ? 0 : Integer.parseInt(digits.toString());
     }
 
     private String normalizeCategory(String category) {

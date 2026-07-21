@@ -55,7 +55,15 @@ public class LeaderboardController {
     }
 
     public int getCompletedMiniGameCount(User user) {
-        return user == null ? 0 : user.getCompletedMiniGameStageCount();
+        if (user == null) {
+            return 0;
+        }
+        try {
+            Object value = user.getClass().getMethod("getCompletedMiniGameCount").invoke(user);
+            return value instanceof Number ? ((Number) value).intValue() : 0;
+        } catch (ReflectiveOperationException exception) {
+            return 0;
+        }
     }
 
     public String getLastProgress(User user) {

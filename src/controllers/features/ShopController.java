@@ -98,24 +98,44 @@ public class ShopController {
     }
 
     public void processPurchase(User user, IPurchasable item) {
+        processPurchase(user, item, 1, "");
+    }
+
+    public boolean processPurchase(User user, IPurchasable item, int count, String plantType) {
         if (user == null || item == null) {
             fail("User or item is not available.");
-            return;
+            return false;
         }
-        if (item.isUnlocked()) {
-            fail("Item is already unlocked.");
-            return;
+        if (count <= 0) {
+            fail("Count must be positive.");
+            return false;
         }
-        if (!user.spendCoins(item.getPrice())) {
-            fail("Not enough coins.");
-            return;
+        if (item instanceof ShopItem shopItem) {
+            return buy(user, shopItem.getId(), count, plantType);
         }
         if (item instanceof PlantData plantData) {
+            if (plantData.isUnlocked() || user.getCollection().hasOwnedPlant(plantData.getName())) {
+                fail("Item is already unlocked.");
+                return false;
+            }
+            int totalPrice = Math.max(0, plantData.getPrice()) * count;
+            if (count != 1) {
+                fail("A plant can only be unlocked once.");
+                return false;
+            }
+            if (!user.spendCoins(totalPrice)) {
+                fail("Not enough coins.");
+                return false;
+            }
             plantData.unlock();
             user.getCollection().unlockPlant(plantData);
+            user.addNews(models.account.News.plantUnlocked(plantData.getName()));
+            saveUsers();
+            success("Purchase completed.");
+            return true;
         }
-        saveUsers();
-        success("Purchase completed.");
+        fail("Unsupported purchasable item.");
+        return false;
     }
 
     public boolean buy(String itemId, int count, String plantType) {
