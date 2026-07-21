@@ -213,8 +213,12 @@ public class CollectionController {
             return "Zombie was not found.\n";
         }
 
+        if (!prepared.hasOwnedZombie(type.getName())) {
+            fail("Zombie has not been discovered yet.");
+            return "Zombie has not been discovered yet.\n";
+        }
         success("Zombie shown.");
-        return renderZombieDetails(type, prepared.hasOwnedZombie(type.getName()));
+        return renderZombieDetails(type, true);
     }
 
     public boolean upgradePlant(Collection collection, String plantName) {
@@ -368,6 +372,9 @@ public class CollectionController {
         builder.append("Damage per tick: ").append(type.getDamagePerTick()).append("\n");
         builder.append("Wave cost: ").append(type.getWaveCost()).append("\n");
         builder.append("Armor: ").append(blankAsDash(type.getDefaultArmorName())).append("\n");
+        String tags = type.getTags().isEmpty() ? "-" : String.join(", ", type.getTags());
+        builder.append("Tags: ").append(tags).append("\n");
+        builder.append("Ability: ").append(blankAsDash(type.getAbility())).append("\n");
         return builder.toString();
     }
 
