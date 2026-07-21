@@ -71,29 +71,7 @@ public class GreenhouseController {
         if (user == null) {
             return;
         }
-
-        Greenhouse.HarvestResult result = user.getGreenhouse().collect(x, y);
-        if (!result.isSuccessful()) {
-            fail("No plant is ready to collect at (" + x + ", " + y + ").");
-            return;
-        }
-
-        if (result.isMarigold()) {
-            user.addCoins(result.getCoinReward());
-            lastHarvestAmount = result.getCoinReward();
-            saveUsers();
-            success("Marigold collected. +" + result.getCoinReward() + " coins.");
-            return;
-        }
-
-        PlantData plant = user.getCollection().findOwnedPlant(result.getPlantName());
-        boolean boostAdded = plant != null && plant.addStoredGreenhouseBoost();
-        saveUsers();
-        if (boostAdded) {
-            success(result.getPlantName() + " collected. One stored boost added.");
-        } else {
-            success(result.getPlantName() + " collected. A boost was already stored.");
-        }
+        performHarvest(user.getGreenhouse(), x, y);
     }
 
     public void growNow(int x, int y) {
@@ -148,13 +126,29 @@ public class GreenhouseController {
             fail("Greenhouse is not available.");
             return 0;
         }
-        int reward = greenhouse.harvest(x, y);
-        lastHarvestAmount = reward;
-        if (reward <= 0) {
-            fail("No Marigold is ready to harvest at (" + x + ", " + y + ").");
+        Greenhouse.Pot pot = greenhouse.getPot(x, y);
+        if (pot == null || !pot.isReady()) {
+            fail("No plant is ready to harvest at (" + x + ", " + y + ").");
             return 0;
         }
-        success("Harvest completed. +" + reward + " coins.");
+
+        User user = currentUserFor(greenhouse);
+        if (!pot.isMarigold() && !canStoreBoost(user, pot.getPlantName())) {
+            fail("The plant boost cannot be stored; the pot was not cleared.");
+            return 0;
+        }
+
+        Greenhouse.HarvestResult result = greenhouse.collect(x, y);
+        if (!result.isSuccessful()) {
+            fail("Harvest failed.");
+            return 0;
+        }
+        int reward = applyHarvestResult(user, result);
+        lastHarvestAmount = reward;
+        saveUsers();
+        success(result.isMarigold()
+                ? "Harvest completed. +" + reward + " coins."
+                : result.getPlantName() + " collected. One stored boost added.");
         return reward;
     }
 
@@ -163,14 +157,30 @@ public class GreenhouseController {
             fail("Greenhouse is not available.");
             return 0;
         }
-        int reward = greenhouse.harvestAllReadyPots();
-        lastHarvestAmount = reward;
-        if (reward <= 0) {
-            fail("No Marigolds are ready to harvest.");
+        User user = currentUserFor(greenhouse);
+        int totalReward = 0;
+        int collected = 0;
+        for (Greenhouse.Pot pot : greenhouse.getAllPots()) {
+            if (!pot.isReady()) {
+                continue;
+            }
+            if (!pot.isMarigold() && !canStoreBoost(user, pot.getPlantName())) {
+                continue;
+            }
+            Greenhouse.HarvestResult result = greenhouse.collect(pot.getX(), pot.getY());
+            if (result.isSuccessful()) {
+                totalReward += applyHarvestResult(user, result);
+                collected++;
+            }
+        }
+        lastHarvestAmount = totalReward;
+        if (collected == 0) {
+            fail("No ready harvest could be collected.");
             return 0;
         }
-        success("Harvest completed. +" + reward + " coins.");
-        return reward;
+        saveUsers();
+        success("Harvested " + collected + " pot(s). +" + totalReward + " coins.");
+        return totalReward;
     }
 
     public void grow(Greenhouse greenhouse, int x, int y) {
@@ -214,9 +224,6 @@ public class GreenhouseController {
             }
         }
         if (eligible.isEmpty()) {
-            eligible.addAll(collection.getOwnedPlants());
-        }
-        if (eligible.isEmpty()) {
             return null;
         }
         return eligible.get(random.nextInt(eligible.size()));
@@ -236,6 +243,38 @@ public class GreenhouseController {
             return false;
         }
         return true;
+    }
+
+    private User currentUserFor(Greenhouse greenhouse) {
+        if (authController == null) {
+            return null;
+        }
+        User user = authController.getLoggedInUser();
+        return user != null && user.getGreenhouse() == greenhouse ? user : null;
+    }
+
+    private boolean canStoreBoost(User user, String plantName) {
+        if (user == null) {
+            return false;
+        }
+        PlantData plant = user.getCollection().findOwnedPlant(plantName);
+        return plant != null && plant.getBoostCount() == 0;
+    }
+
+    private int applyHarvestResult(User user, Greenhouse.HarvestResult result) {
+        if (result.isMarigold()) {
+            if (user != null) {
+                user.addCoins(result.getCoinReward());
+            }
+            return result.getCoinReward();
+        }
+        if (user != null) {
+            PlantData plant = user.getCollection().findOwnedPlant(result.getPlantName());
+            if (plant != null) {
+                plant.addStoredGreenhouseBoost();
+            }
+        }
+        return 0;
     }
 
     private User getLoggedInUserOrFail() {
