@@ -3,12 +3,11 @@ package models.core.zombie;
 import models.core.base.GameEntity;
 import models.core.projectile.Damage;
 
-import java.util.Random;
+import java.util.Locale;
 
 public class Zombie extends GameEntity {
-    private static final Random RANDOM = new Random();
-    private static final double DROP_CHANCE = 0.10;
     private static final String NO_DROP = "none";
+    private static final String PLANT_FOOD_DROP = "plant_food";
 
     private double currentSpeed;
     private boolean glowing;
@@ -19,6 +18,7 @@ public class Zombie extends GameEntity {
     private ZombieAbility zombieAbility;
     private ZombieType type;
     private Armor armor;
+    private boolean submerged;
 
     public Zombie() {
         this(new ZombieType(), 9, 1, null, null, null);
@@ -53,6 +53,7 @@ public class Zombie extends GameEntity {
         this.dropChecked = false;
         this.droppedReward = false;
         this.droppedRewardType = NO_DROP;
+        this.submerged = false;
         this.id = buildId();
     }
 
@@ -64,13 +65,11 @@ public class Zombie extends GameEntity {
         if (!isAlive()) {
             return;
         }
-
         if (movementStrategy != null) {
             movementStrategy.move(this);
             normalizePosition();
             return;
         }
-
         x -= currentSpeed;
         normalizePosition();
     }
@@ -79,33 +78,23 @@ public class Zombie extends GameEntity {
         if (target == null || !target.isAlive() || !isAlive()) {
             return;
         }
-
         int damageAmount = type.getDamagePerTick();
-
-        if (damageAmount <= 0) {
-            return;
+        if (damageAmount > 0) {
+            target.takeDamage(new Damage(damageAmount, "bite"));
         }
-
-        target.takeDamage(new Damage(damageAmount, "bite"));
     }
 
+    /**
+     * A zombie's drop is determined when it spawns. Glowing zombies always
+     * drop Plant Food and ordinary zombies do not create random unrelated loot.
+     */
     public void checkDropOnDeath() {
         if (isAlive() || dropChecked) {
             return;
         }
-
         dropChecked = true;
-
-        if (RANDOM.nextDouble() > DROP_CHANCE) {
-            droppedReward = false;
-            droppedRewardType = NO_DROP;
-            glowing = false;
-            return;
-        }
-
-        droppedReward = true;
-        droppedRewardType = chooseDroppedRewardType();
-        glowing = true;
+        droppedReward = glowing;
+        droppedRewardType = glowing ? PLANT_FOOD_DROP : NO_DROP;
     }
 
     @Override
@@ -114,20 +103,29 @@ public class Zombie extends GameEntity {
             return;
         }
 
-        int remainingDamage = damage.getAmount();
+        String damageType = normalizeDamageType(damage.getType());
+        if (type.hasTag("fire_immune") && isFireDamage(damageType)) {
+            return;
+        }
+        if (type.hasTag("lobber_immune") && damageType.contains("lobber")) {
+            return;
+        }
+        if (submerged && type.hasTag("submersible") && !damageType.contains("lobber")) {
+            return;
+        }
 
-        if (armor != null && !armor.isBroken()) {
+        int remainingDamage = damage.getAmount();
+        boolean bypassArmor = damageType.contains("poison")
+                || damageType.contains("toxic")
+                || damageType.contains("true damage")
+                || damageType.contains("armor bypass");
+
+        if (!bypassArmor && armor != null && !armor.isBroken()) {
             remainingDamage = armor.reduceDamage(remainingDamage);
         }
-
         if (remainingDamage > 0) {
-            hp -= remainingDamage;
+            hp = Math.max(0, hp - remainingDamage);
         }
-
-        if (hp < 0) {
-            hp = 0;
-        }
-
         checkDropOnDeath();
     }
 
@@ -216,35 +214,38 @@ public class Zombie extends GameEntity {
 
     public void setGlowing(boolean glowing) {
         this.glowing = glowing;
+        if (!dropChecked) {
+            droppedReward = false;
+            droppedRewardType = NO_DROP;
+        }
+    }
+
+    public boolean isSubmerged() {
+        return submerged;
+    }
+
+    public void setSubmerged(boolean submerged) {
+        this.submerged = submerged;
     }
 
     public void executeAbility() {
-        if (zombieAbility == null || !isAlive()) {
-            return;
+        if (zombieAbility != null && isAlive()) {
+            zombieAbility.execute(this);
         }
-
-        zombieAbility.execute(this);
     }
 
     public void moveBy(double deltaX, double deltaY) {
         if (!isAlive()) {
             return;
         }
-
         x += deltaX;
         y += deltaY;
         normalizePosition();
     }
 
     public void heal(int amount) {
-        if (amount <= 0 || !isAlive()) {
-            return;
-        }
-
-        hp += amount;
-
-        if (hp > maxHp) {
-            hp = maxHp;
+        if (amount > 0 && isAlive()) {
+            hp = Math.min(maxHp, hp + amount);
         }
     }
 
@@ -252,32 +253,21 @@ public class Zombie extends GameEntity {
         if (!isAlive()) {
             return;
         }
-
         hp = 0;
         checkDropOnDeath();
     }
 
-    private void normalizePosition() {
-        if (x < 0) {
-            x = 0;
-        }
-
-        if (y < 0) {
-            y = 0;
-        }
+    private String normalizeDamageType(String value) {
+        return value == null ? "normal" : value.trim().toLowerCase(Locale.ROOT)
+                .replace('-', ' ').replace('_', ' ');
     }
 
-    private String chooseDroppedRewardType() {
-        int roll = RANDOM.nextInt(100);
+    private boolean isFireDamage(String value) {
+        return value.contains("fire") || value.contains("flame") || value.contains("burn");
+    }
 
-        if (roll < 70) {
-            return "coin";
-        }
-
-        if (roll < 90) {
-            return "diamond";
-        }
-
-        return "pot";
+    private void normalizePosition() {
+        x = Math.max(0, x);
+        y = Math.max(0, y);
     }
 }
