@@ -48,4 +48,4 @@ public class MainMenuController {
     private void fail(String message) {
         lastMessage = "ERROR: " + message;
     }
-}   
+}
