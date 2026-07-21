@@ -11,22 +11,29 @@ import java.util.regex.Pattern;
 
 public class TravelLogView extends BaseView {
     private static final Pattern PAGE_PATTERN = Pattern.compile(
-            "^travel\\s+log\\s+page\\s+(.+)\\s*$"
+            "^travel\\s+log\\s+page\\s+(.+)\\s*$",
+            Pattern.CASE_INSENSITIVE
     );
 
     private static final Pattern COLLECT_PATTERN = Pattern.compile(
-            "^travel\\s+log\\s+collect\\s+-q\\s+(\\d+)\\s*$"
+            "^travel\\s+log\\s+collect\\s+-q\\s+(\\d+)\\s*$",
+            Pattern.CASE_INSENSITIVE
     );
 
     private static final Pattern ENTER_MINIGAME_PATTERN = Pattern.compile(
-            "^enter\\s+minigame\\s+-n\\s+(.+)\\s*$"
+            "^enter\\s+minigame\\s+-n\\s+(.+?)(?:\\s+-s\\s+(\\d+))?\\s*$",
+            Pattern.CASE_INSENSITIVE
     );
 
     private final MenuManager menuManager;
     private final TravelLogController controller;
     private String currentPageName;
 
-    public TravelLogView(String viewName, MenuManager menuManager, TravelLogController controller) {
+    public TravelLogView(
+            String viewName,
+            MenuManager menuManager,
+            TravelLogController controller
+    ) {
         super(viewName);
         this.menuManager = menuManager;
         this.controller = controller;
@@ -61,6 +68,10 @@ public class TravelLogView extends BaseView {
             return;
         }
 
+        if (handleMiniGameListCommand(command)) {
+            return;
+        }
+
         if (handleEnterMiniGameCommand(command)) {
             return;
         }
@@ -70,13 +81,13 @@ public class TravelLogView extends BaseView {
     }
 
     private boolean handleNavigation(String command) {
-        if ("menu show current".equals(command)) {
+        if ("menu show current".equalsIgnoreCase(command)) {
             menuManager.showCurrentMenu();
             printControllerMessage(menuManager.getLastMessage());
             return true;
         }
 
-        if ("menu exit".equals(command)) {
+        if ("menu exit".equalsIgnoreCase(command)) {
             menuManager.exitCurrentMenu();
             printControllerMessage(menuManager.getLastMessage());
             return true;
@@ -104,7 +115,7 @@ public class TravelLogView extends BaseView {
     }
 
     private boolean handleCollectCommand(String command) {
-        if ("travel log collect all".equals(command)) {
+        if ("travel log collect all".equalsIgnoreCase(command)) {
             controller.collectAllDoneRewards(currentPageName);
             printControllerMessage(controller.getLastMessage());
 
@@ -141,6 +152,15 @@ public class TravelLogView extends BaseView {
         return true;
     }
 
+    private boolean handleMiniGameListCommand(String command) {
+        if (!"show minigames".equalsIgnoreCase(command)) {
+            return false;
+        }
+
+        System.out.print(renderMiniGames(controller.getMiniGames()));
+        return true;
+    }
+
     private boolean handleEnterMiniGameCommand(String command) {
         Matcher matcher = ENTER_MINIGAME_PATTERN.matcher(command);
 
@@ -148,8 +168,28 @@ public class TravelLogView extends BaseView {
             return false;
         }
 
-        controller.enterMiniGame(matcher.group(1));
+        String miniGameName = matcher.group(1).trim();
+        String stageText = matcher.group(2);
+
+        boolean started;
+        if (stageText == null) {
+            started = controller.enterMiniGame(miniGameName);
+        } else {
+            Integer stage = parseInteger(stageText);
+            if (stage == null) {
+                controller.invalidCommand("travel log menu");
+                printControllerMessage(controller.getLastMessage());
+                return true;
+            }
+            started = controller.enterMiniGame(miniGameName, stage);
+        }
+
         printControllerMessage(controller.getLastMessage());
+
+        if (started) {
+            menuManager.enterMiniGameMenu();
+        }
+
         return true;
     }
 
@@ -159,7 +199,6 @@ public class TravelLogView extends BaseView {
 
         builder.append(title).append("\n");
         builder.append("=".repeat(title.length())).append("\n");
-
         builder.append(renderQuests(quests));
 
         if (isMinigamesPage(pageName)) {
@@ -173,7 +212,8 @@ public class TravelLogView extends BaseView {
         builder.append("travel log collect all\n");
 
         if (isMinigamesPage(pageName)) {
-            builder.append("enter minigame -n <mini_game_name>\n");
+            builder.append("show minigames\n");
+            builder.append("enter minigame -n <mini_game_name> [-s <stage>]\n");
         }
 
         builder.append("menu show current\n");
@@ -217,7 +257,6 @@ public class TravelLogView extends BaseView {
             }
 
             builder.append("\n");
-
             builder.append("   Reward: ")
                     .append(quest.getCoinReward())
                     .append(" coins, ")
@@ -242,11 +281,30 @@ public class TravelLogView extends BaseView {
         }
 
         for (TravelLogController.MiniGameInfo miniGame : miniGames) {
-            builder.append("- ")
-                    .append(miniGame.getDisplayName())
-                    .append(" | command: enter minigame -n ")
+            builder.append(miniGame.getDisplayName())
+                    .append(" | name=")
                     .append(miniGame.getName())
                     .append("\n");
+
+            for (TravelLogController.MiniGameStageInfo stage : miniGame.getStages()) {
+                builder.append("  stage ")
+                        .append(stage.getStage())
+                        .append(": ");
+
+                if (stage.isCompleted()) {
+                    builder.append("completed");
+                } else if (stage.isUnlocked()) {
+                    builder.append("unlocked");
+                } else {
+                    builder.append("locked");
+                }
+
+                builder.append("\n");
+            }
+
+            builder.append("  command: enter minigame -n ")
+                    .append(miniGame.getName())
+                    .append(" -s <1|2|3>\n");
         }
 
         return builder.toString();

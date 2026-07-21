@@ -217,6 +217,21 @@ public class MenuManager {
         success("Entered travel log menu.");
     }
 
+    public void enterMiniGameMenu() {
+        if (!authController.isLoggedIn()) {
+            fail("You must login first.");
+            return;
+        }
+
+        if (!travelLogController.hasActiveMiniGame()) {
+            fail("No mini-game is active.");
+            return;
+        }
+
+        changeView(new MiniGameView("Mini-game Menu", this, travelLogController));
+        success("Entered mini-game menu.");
+    }
+
     public void enterNamedMenu(String menuName) {
         if (menuName == null || menuName.isBlank()) {
             fail("Menu name is required.");
@@ -336,6 +351,12 @@ public class MenuManager {
 
         if ("Travel Log Menu".equals(viewName)) {
             enterGameMenu();
+            return;
+        }
+
+        if ("Mini-game Menu".equals(viewName)) {
+            travelLogController.abandonMiniGame();
+            enterTravelLogMenu();
             return;
         }
 
@@ -479,7 +500,8 @@ public class MenuManager {
                 travel log page mystery
                 travel log collect -q <quest_number>
                 travel log collect all
-                enter minigame -n <mini_game_name>
+                show minigames
+                enter minigame -n <mini_game_name> [-s <stage>]
                 menu show current
                 menu exit""");
     }
