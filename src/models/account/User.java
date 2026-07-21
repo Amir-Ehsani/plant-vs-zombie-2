@@ -27,6 +27,7 @@ public class User {
     private Collection collection;
     private Greenhouse greenhouse;
     private List<Quest> quests;
+    private List<String> completedMiniGameStages;
 
     public User(String username, String password, String nickname, String email, String gender) {
         this.username = safeText(username);
@@ -53,6 +54,7 @@ public class User {
         this.collection = new Collection();
         this.greenhouse = new Greenhouse();
         this.quests = new ArrayList<>();
+        this.completedMiniGameStages = new ArrayList<>();
     }
 
     public String getUsername() {
@@ -349,6 +351,76 @@ public class User {
         return false;
     }
 
+
+    public List<String> getCompletedMiniGameStages() {
+        if (completedMiniGameStages == null) {
+            completedMiniGameStages = new ArrayList<>();
+        }
+
+        return new ArrayList<>(completedMiniGameStages);
+    }
+
+    public void setCompletedMiniGameStages(List<String> completedMiniGameStages) {
+        this.completedMiniGameStages = new ArrayList<>();
+
+        if (completedMiniGameStages == null) {
+            return;
+        }
+
+        for (String stageKey : completedMiniGameStages) {
+            String normalizedKey = normalizeMiniGameStageKey(stageKey);
+            if (!normalizedKey.isEmpty() && !this.completedMiniGameStages.contains(normalizedKey)) {
+                this.completedMiniGameStages.add(normalizedKey);
+            }
+        }
+    }
+
+    public boolean completeMiniGameStage(String miniGameName, int stage) {
+        if (stage < 1 || stage > 3) {
+            return false;
+        }
+
+        if (completedMiniGameStages == null) {
+            completedMiniGameStages = new ArrayList<>();
+        }
+
+        String stageKey = miniGameStageKey(miniGameName, stage);
+        if (stageKey.isEmpty() || completedMiniGameStages.contains(stageKey)) {
+            return false;
+        }
+
+        completedMiniGameStages.add(stageKey);
+        return true;
+    }
+
+    public boolean isMiniGameStageCompleted(String miniGameName, int stage) {
+        if (stage < 1 || stage > 3) {
+            return false;
+        }
+
+        if (completedMiniGameStages == null) {
+            completedMiniGameStages = new ArrayList<>();
+        }
+
+        return completedMiniGameStages.contains(miniGameStageKey(miniGameName, stage));
+    }
+
+    public boolean isMiniGameStageUnlocked(String miniGameName, int stage) {
+        if (stage < 1 || stage > 3) {
+            return false;
+        }
+
+        return stage == 1 || isMiniGameStageCompleted(miniGameName, stage - 1);
+    }
+
+    public int getCompletedMiniGameStageCount() {
+        if (completedMiniGameStages == null) {
+            return 0;
+        }
+
+        return completedMiniGameStages.size();
+    }
+
     public List<News> getNewsList() {
         return new ArrayList<>(newsList);
     }
@@ -366,6 +438,68 @@ public class User {
         if (news != null) {
             newsList.add(news);
         }
+    }
+
+
+    private String miniGameStageKey(String miniGameName, int stage) {
+        String normalizedName = normalizeMiniGameName(miniGameName);
+        if (normalizedName.isEmpty()) {
+            return "";
+        }
+
+        return normalizedName + ":" + stage;
+    }
+
+    private String normalizeMiniGameStageKey(String value) {
+        if (value == null || value.isBlank()) {
+            return "";
+        }
+
+        int separatorIndex = value.lastIndexOf(':');
+        if (separatorIndex <= 0 || separatorIndex >= value.length() - 1) {
+            return "";
+        }
+
+        String name = value.substring(0, separatorIndex);
+        String stageText = value.substring(separatorIndex + 1);
+
+        try {
+            int stage = Integer.parseInt(stageText.trim());
+            return stage < 1 || stage > 3 ? "" : miniGameStageKey(name, stage);
+        } catch (NumberFormatException exception) {
+            return "";
+        }
+    }
+
+    private String normalizeMiniGameName(String value) {
+        if (value == null) {
+            return "";
+        }
+
+        String normalized = value.trim()
+                .toLowerCase()
+                .replace('_', '-')
+                .replace(' ', '-')
+                .replace(",", "")
+                .replaceAll("-+", "-");
+
+        if ("wall-nut-bowling".equals(normalized)
+                || "wallnutbowling".equals(normalized)
+                || "bowling".equals(normalized)) {
+            return "wallnut-bowling";
+        }
+
+        if ("i-zombie".equals(normalized)
+                || "izombie".equals(normalized)
+                || "i--zombie".equals(normalized)) {
+            return "i-zombie";
+        }
+
+        if ("vase-breaker".equals(normalized)) {
+            return "vasebreaker";
+        }
+
+        return normalized;
     }
 
     private String safeText(String value) {

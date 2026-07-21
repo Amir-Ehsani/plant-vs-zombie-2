@@ -102,6 +102,7 @@ public class SaveManager {
         first = appendField(builder, "currentChapterName", jsonString(user.getCurrentChapterName()), first);
         first = appendField(builder, "stayLoggedIn", String.valueOf(user.isStayLoggedIn()), first);
         first = appendField(builder, "unlockedChapters", stringListToJson(user.getUnlockedChapters()), first);
+        first = appendField(builder, "completedMiniGameStages", stringListToJson(user.getCompletedMiniGameStages()), first);
         first = appendField(builder, "collection", collectionToJson(user.getCollection()), first);
         first = appendField(builder, "greenhouse", greenhouseToJson(user.getGreenhouse()), first);
         first = appendField(builder, "quests", questsToJson(user.getQuests()), first);
@@ -339,6 +340,7 @@ public class SaveManager {
         user.setCurrentChapterName(string(map, "currentChapterName"));
         user.setStayLoggedIn(bool(map, "stayLoggedIn", false));
         user.setUnlockedChapters(stringsFromList(list(map, "unlockedChapters")));
+        user.setCompletedMiniGameStages(stringsFromList(list(map, "completedMiniGameStages")));
         user.setCollection(mapToCollection(map.get("collection")));
         user.setGreenhouse(mapToGreenhouse(map.get("greenhouse")));
         user.setQuests(mapToQuests(map.get("quests")));

@@ -55,7 +55,7 @@ public class LeaderboardController {
     }
 
     public int getCompletedMiniGameCount(User user) {
-        return 0;
+        return user == null ? 0 : user.getCompletedMiniGameStageCount();
     }
 
     public String getLastProgress(User user) {
