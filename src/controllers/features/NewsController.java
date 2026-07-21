@@ -46,12 +46,16 @@ public class NewsController {
     }
 
     public List<News> showUnreadNews() {
+        pendingCoinReward = 0;
+        pendingGemReward = 0;
         List<News> unread = getUnreadNews();
+        User user = currentUser();
+        Collection collection = user == null ? null : user.getCollection();
         for (News news : unread) {
-            news.markAsRead();
+            applyEffectsSilently(news, user, collection);
         }
         saveUsers();
-        success(unread.isEmpty() ? "No unread news." : "Unread news shown and marked as read.");
+        success(unread.isEmpty() ? "No unread news." : "Unread news shown, effects applied, and marked as read.");
         return unread;
     }
 
@@ -129,19 +133,8 @@ public class NewsController {
             return;
         }
 
-        pendingCoinReward = news.getCoinAmount();
-        pendingGemReward = news.getGemAmount();
         User user = currentUser();
-        if (user != null) {
-            user.addCoins(pendingCoinReward);
-            user.addGems(pendingGemReward);
-        }
-        if (collection != null) {
-            applyCollectionEffect(news, collection);
-        }
-
-        news.markEffectsApplied();
-        news.markAsRead();
+        applyEffectsSilently(news, user, collection);
         saveUsers();
         success("News effects applied.");
     }
@@ -209,6 +202,25 @@ public class NewsController {
 
     public boolean wasSuccessful() {
         return lastMessage != null && lastMessage.startsWith("OK:");
+    }
+
+    private void applyEffectsSilently(News news, User user, Collection collection) {
+        if (news == null) {
+            return;
+        }
+        if (!news.areEffectsApplied()) {
+            pendingCoinReward += news.getCoinAmount();
+            pendingGemReward += news.getGemAmount();
+            if (user != null) {
+                user.addCoins(news.getCoinAmount());
+                user.addGems(news.getGemAmount());
+            }
+            if (collection != null) {
+                applyCollectionEffect(news, collection);
+            }
+            news.markEffectsApplied();
+        }
+        news.markAsRead();
     }
 
     private void applyCollectionEffect(News news, Collection collection) {
