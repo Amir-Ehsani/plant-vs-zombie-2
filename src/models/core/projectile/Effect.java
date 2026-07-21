@@ -41,6 +41,14 @@ public class Effect {
             return;
         }
 
+        if (entity instanceof Zombie zombie && isBlockedByImmunity(zombie)) {
+            affectedEntity = null;
+            remainingDuration = 0;
+            applied = false;
+            expired = true;
+            return;
+        }
+
         affectedEntity = entity;
         remainingDuration = duration;
         applied = true;
@@ -134,6 +142,15 @@ public class Effect {
 
     private boolean isInstantDamageEffect() {
         return duration == 0 && damagePerTick > 0;
+    }
+
+    private boolean isBlockedByImmunity(Zombie zombie) {
+        if ((type.equals("freeze") || type.equals("chill") || type.equals("ice"))
+                && zombie.getType().hasTag("ice_immune")) {
+            return true;
+        }
+        return (type.equals("fire") || type.equals("burn"))
+                && zombie.getType().hasTag("fire_immune");
     }
 
     private double resolveSpeedMultiplier(String type) {
