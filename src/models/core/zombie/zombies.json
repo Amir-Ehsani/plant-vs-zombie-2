@@ -21,12 +21,7 @@
       "type": "metallic"
     },
     {
-      "name": "Crown",
-      "hp": 1600,
-      "type": "metallic"
-    },
-    {
-      "name": "Crown knights helmet",
+      "name": "Crown (knights helmet)",
       "hp": 1600,
       "type": "metallic"
     },
@@ -34,6 +29,11 @@
       "name": "Newspaper",
       "hp": 800,
       "type": "normal"
+    },
+    {
+      "name": "Crown",
+      "hp": 1600,
+      "type": "metallic"
     }
   ],
   "zombies": [
