@@ -912,53 +912,99 @@ public class GameSession {
             totalSunProduced += produced;
             return true;
         }
+
         if (name.equals("grave buster")) {
             return board.removeTerrain(position, TileType.GRAVE);
         }
+
         if (name.equals("hot potato")) {
             if (board.getTileAt(position).getTileType() != TileType.ICE) {
                 return false;
             }
+
             int radius = plant.hasMeltAreaThreeByThree() ? 1 : 0;
             board.meltTerrainArea(position, radius);
             return true;
         }
+
         if (name.equals("cherry bomb")) {
             recordBoardEvents(board.damageZombiesInArea(
-                    position, 1, 1, Math.max(1800, damage), "cherry bomb"));
+                    position,
+                    1,
+                    1,
+                    Math.max(1800, damage),
+                    "cherry bomb",
+                    plant.getName(),
+                    plant.getType() == null ? "" : plant.getType().getCategory()
+            ));
             return true;
         }
+
         if (name.equals("grapeshot")) {
             recordBoardEvents(board.damageZombiesInArea(
-                    position, 1, 1, Math.max(1800, damage), "grapeshot"));
+                    position,
+                    1,
+                    1,
+                    Math.max(1800, damage),
+                    "grapeshot",
+                    plant.getName(),
+                    plant.getType() == null ? "" : plant.getType().getCategory()
+            ));
+
             recordBoardEvents(board.damageRandomZombies(
                     8 + Math.max(0, plant.getBounces()),
                     200,
                     "grapeshot bounce",
-                    random
+                    random,
+                    plant.getName(),
+                    plant.getType() == null ? "" : plant.getType().getCategory()
             ));
             return true;
         }
+
         if (name.equals("jalapeno")) {
             recordBoardEvents(board.damageZombiesInLane(
-                    position.getY(), Math.max(1800, damage), "jalapeno"));
+                    position.getY(),
+                    Math.max(1800, damage),
+                    "jalapeno",
+                    plant.getName(),
+                    plant.getType() == null ? "" : plant.getType().getCategory()
+            ));
+
             board.meltTerrainInLane(position.getY());
             return true;
         }
+
         if (name.equals("doom shroom")) {
             recordBoardEvents(board.damageZombiesInArea(
-                    position, 2, 2, Math.max(1800, damage), "doom shroom"));
+                    position,
+                    2,
+                    2,
+                    Math.max(1800, damage),
+                    "doom shroom",
+                    plant.getName(),
+                    plant.getType() == null ? "" : plant.getType().getCategory()
+            ));
             return true;
         }
+
         if (name.equals("ice shroom")) {
-            recordBoardEvents(board.damageAllZombies(50, "ice shroom"));
+            recordBoardEvents(board.damageAllZombies(
+                    50,
+                    "ice shroom",
+                    plant.getName(),
+                    plant.getType() == null ? "" : plant.getType().getCategory()
+            ));
+
             board.freezeAllZombies(Math.max(50, plant.getFreezeDurationTicks()));
             return true;
         }
+
         if (name.endsWith(" mint")) {
             activateMint(name, plant);
             return true;
         }
+
         return false;
     }
 
