@@ -103,6 +103,9 @@ public class SaveManager {
         first = appendField(builder, "stayLoggedIn", String.valueOf(user.isStayLoggedIn()), first);
         first = appendField(builder, "unlockedChapters", stringListToJson(user.getUnlockedChapters()), first);
         first = appendField(builder, "completedMiniGameStages", stringListToJson(user.getCompletedMiniGameStages()), first);
+        first = appendField(builder, "completedChapterLevels", stringListToJson(user.getCompletedChapterLevels()), first);
+        first = appendField(builder, "currentChapterLevel", String.valueOf(user.getCurrentChapterLevel()), first);
+        first = appendField(builder, "allAdventureLevelsUnlocked", String.valueOf(user.isAllAdventureLevelsUnlocked()), first);
         first = appendField(builder, "collection", collectionToJson(user.getCollection()), first);
         first = appendField(builder, "greenhouse", greenhouseToJson(user.getGreenhouse()), first);
         first = appendField(builder, "quests", questsToJson(user.getQuests()), first);
@@ -349,6 +352,9 @@ public class SaveManager {
         user.setStayLoggedIn(bool(map, "stayLoggedIn", false));
         user.setUnlockedChapters(stringsFromList(list(map, "unlockedChapters")));
         user.setCompletedMiniGameStages(stringsFromList(list(map, "completedMiniGameStages")));
+        user.setCompletedChapterLevels(stringsFromList(list(map, "completedChapterLevels")));
+        user.setCurrentChapterLevel(integer(map, "currentChapterLevel", 1));
+        user.setAllAdventureLevelsUnlocked(bool(map, "allAdventureLevelsUnlocked", false));
         user.setCollection(mapToCollection(map.get("collection")));
         user.setGreenhouse(mapToGreenhouse(map.get("greenhouse")));
         user.setQuests(mapToQuests(map.get("quests")));
