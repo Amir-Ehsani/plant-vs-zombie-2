@@ -35,13 +35,17 @@ public class LeaderboardController {
         }
 
         List<User> users = new ArrayList<>(saveManager.loadAllUsers());
+        users.removeIf(user -> user == null);
+
         Comparator<User> comparator = comparatorFor(column);
+
         if (!ascending) {
             comparator = comparator.reversed();
         }
+
         comparator = comparator.thenComparing(user -> safeText(user.getUsername()), String.CASE_INSENSITIVE_ORDER);
-        users.removeIf(user -> user == null);
         users.sort(comparator);
+
         success("Leaderboard sorted by " + normalizedColumn(column) + ".");
         return users;
     }
@@ -55,25 +59,20 @@ public class LeaderboardController {
     }
 
     public int getCompletedMiniGameCount(User user) {
-        if (user == null) {
-            return 0;
-        }
-        try {
-            Object value = user.getClass().getMethod("getCompletedMiniGameCount").invoke(user);
-            return value instanceof Number ? ((Number) value).intValue() : 0;
-        } catch (ReflectiveOperationException exception) {
-            return 0;
-        }
+        return user == null ? 0 : user.getCompletedMiniGameStageCount();
     }
 
     public String getLastProgress(User user) {
         if (user == null) {
             return "-";
         }
+
         String chapter = safeText(user.getCurrentChapterName());
+
         if (chapter.isEmpty()) {
             chapter = "chapter -";
         }
+
         return chapter + ", level " + user.getPassedLevels();
     }
 
@@ -95,21 +94,27 @@ public class LeaderboardController {
 
     private Comparator<User> comparatorFor(String column) {
         String normalized = normalizedColumn(column);
+
         if ("username".equals(normalized)) {
             return Comparator.comparing(user -> safeText(user.getUsername()), String.CASE_INSENSITIVE_ORDER);
         }
+
         if ("progress".equals(normalized)) {
             return Comparator.comparingInt(User::getPassedLevels);
         }
+
         if ("minigames".equals(normalized)) {
             return Comparator.comparingInt(this::getCompletedMiniGameCount);
         }
+
         if ("daily-quests".equals(normalized)) {
             return Comparator.comparingInt(this::getDailyQuestCount);
         }
+
         if ("quests".equals(normalized)) {
             return Comparator.comparingInt(this::getNonDailyQuestCount);
         }
+
         return Comparator.comparingInt(User::getBestMioPoint);
     }
 
@@ -119,15 +124,20 @@ public class LeaderboardController {
         }
 
         int count = 0;
+
         for (Quest quest : user.getQuests()) {
             if (quest == null || !quest.isCompleted()) {
                 continue;
             }
-            boolean dailyQuest = quest.getType().toLowerCase(Locale.ROOT).contains("daily");
+
+            String type = quest.getType().toLowerCase(Locale.ROOT);
+            boolean dailyQuest = type.contains("daily") || type.contains("challenge");
+
             if (dailyQuest == daily) {
                 count++;
             }
         }
+
         return count;
     }
 
@@ -135,10 +145,13 @@ public class LeaderboardController {
         if (column == null || column.isBlank()) {
             return "best-score";
         }
+
         String normalized = column.trim().toLowerCase(Locale.ROOT).replace('_', '-');
+
         if ("score".equals(normalized) || "miopoint".equals(normalized)) {
             return "best-score";
         }
+
         return normalized;
     }
 
