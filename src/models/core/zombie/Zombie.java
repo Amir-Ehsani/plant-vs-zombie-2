@@ -22,6 +22,8 @@ public class Zombie extends GameEntity {
     private String lastDamageSourcePlantName;
     private String lastDamageSourcePlantCategory;
     private String lastDamageType;
+    private int damageRevision;
+    private int stolenSun;
 
     public Zombie() {
         this(new ZombieType(), 9, 1, null, null, null);
@@ -60,6 +62,8 @@ public class Zombie extends GameEntity {
         this.lastDamageSourcePlantName = "";
         this.lastDamageSourcePlantCategory = "";
         this.lastDamageType = "";
+        this.damageRevision = 0;
+        this.stolenSun = 0;
         this.id = buildId();
     }
 
@@ -81,19 +85,22 @@ public class Zombie extends GameEntity {
     }
 
     public void attack(GameEntity target) {
+        attack(target, 1.0);
+    }
+
+    public void attack(GameEntity target, double multiplier) {
         if (target == null || !target.isAlive() || !isAlive()) {
             return;
         }
-        int damageAmount = type.getDamagePerTick();
+        double typeMultiplier = type.hasTag("fast_eater") ? 2.0 : 1.0;
+        int damageAmount = (int) Math.ceil(
+                type.getDamagePerTick() * Math.max(0, multiplier) * typeMultiplier
+        );
         if (damageAmount > 0) {
             target.takeDamage(new Damage(damageAmount, "bite"));
         }
     }
 
-    /**
-     * A zombie's drop is determined when it spawns. Glowing zombies always
-     * drop Plant Food and ordinary zombies do not create random unrelated loot.
-     */
     public void checkDropOnDeath() {
         if (isAlive() || dropChecked) {
             return;
@@ -110,6 +117,8 @@ public class Zombie extends GameEntity {
         }
 
         String damageType = normalizeDamageType(damage.getType());
+        lastDamageType = damageType;
+        damageRevision++;
         if (type.hasTag("fire_immune") && isFireDamage(damageType)) {
             return;
         }
@@ -284,6 +293,48 @@ public class Zombie extends GameEntity {
 
     public String getLastDamageType() {
         return lastDamageType == null ? "" : lastDamageType;
+    }
+
+    public int getDamageRevision() {
+        return damageRevision;
+    }
+
+    public int getStolenSun() {
+        return stolenSun;
+    }
+
+    public void addStolenSun(int amount) {
+        if (amount > 0) {
+            stolenSun += amount;
+        }
+    }
+
+    public int takeStolenSun() {
+        int result = stolenSun;
+        stolenSun = 0;
+        return result;
+    }
+
+    public void moveTo(double x, double y) {
+        if (!isAlive()) {
+            return;
+        }
+        this.x = x;
+        this.y = y;
+        normalizePosition();
+    }
+
+    public void transformTo(ZombieType newType, Armor newArmor) {
+        if (newType == null || !isAlive()) {
+            return;
+        }
+        double ratio = maxHp <= 0 ? 1.0 : hp / (double) maxHp;
+        type = newType;
+        maxHp = newType.getBaseHp();
+        hp = Math.max(1, Math.min(maxHp, (int) Math.ceil(maxHp * ratio)));
+        currentSpeed = newType.getSpeed();
+        armor = newArmor;
+        id = buildId();
     }
 
     private String safeText(String value) {
