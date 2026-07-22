@@ -52,6 +52,7 @@ public class User {
         this.difficultyLevel = 3;
         this.stayLoggedIn = false;
         this.collection = new Collection();
+        unlockStarterPlants();
         this.greenhouse = new Greenhouse();
         this.quests = new ArrayList<>();
         this.completedMiniGameStages = new ArrayList<>();
@@ -248,6 +249,7 @@ public class User {
     public Collection getCollection() {
         if (collection == null) {
             collection = new Collection();
+            unlockStarterPlants();
         }
 
         return collection;
@@ -255,6 +257,12 @@ public class User {
 
     public void setCollection(Collection collection) {
         this.collection = collection;
+
+        if (this.collection == null) {
+            this.collection = new Collection();
+        }
+
+        unlockStarterPlantsIfCollectionIsEmpty();
     }
 
     public Greenhouse getGreenhouse() {
@@ -270,6 +278,10 @@ public class User {
     }
 
     public List<Quest> getQuests() {
+        if (quests == null) {
+            quests = new ArrayList<>();
+        }
+
         return quests;
     }
 
@@ -284,7 +296,7 @@ public class User {
 
     public void addQuest(Quest quest) {
         if (quest != null) {
-            quests.add(quest);
+            getQuests().add(quest);
         }
     }
 
@@ -312,6 +324,10 @@ public class User {
     }
 
     public List<String> getUnlockedChapters() {
+        if (unlockedChapters == null) {
+            unlockedChapters = new ArrayList<>();
+        }
+
         return new ArrayList<>(unlockedChapters);
     }
 
@@ -328,6 +344,10 @@ public class User {
     }
 
     public void unlockChapter(String chapterName) {
+        if (unlockedChapters == null) {
+            unlockedChapters = new ArrayList<>();
+        }
+
         String cleanedChapterName = safeText(chapterName);
 
         if (cleanedChapterName.isEmpty()) {
@@ -342,7 +362,7 @@ public class User {
     public boolean isChapterUnlocked(String chapterName) {
         String cleanedChapterName = safeText(chapterName);
 
-        for (String unlockedChapter : unlockedChapters) {
+        for (String unlockedChapter : getUnlockedChapters()) {
             if (unlockedChapter.equalsIgnoreCase(cleanedChapterName)) {
                 return true;
             }
@@ -350,7 +370,6 @@ public class User {
 
         return false;
     }
-
 
     public List<String> getCompletedMiniGameStages() {
         if (completedMiniGameStages == null) {
@@ -369,6 +388,7 @@ public class User {
 
         for (String stageKey : completedMiniGameStages) {
             String normalizedKey = normalizeMiniGameStageKey(stageKey);
+
             if (!normalizedKey.isEmpty() && !this.completedMiniGameStages.contains(normalizedKey)) {
                 this.completedMiniGameStages.add(normalizedKey);
             }
@@ -385,6 +405,7 @@ public class User {
         }
 
         String stageKey = miniGameStageKey(miniGameName, stage);
+
         if (stageKey.isEmpty() || completedMiniGameStages.contains(stageKey)) {
             return false;
         }
@@ -422,6 +443,10 @@ public class User {
     }
 
     public List<News> getNewsList() {
+        if (newsList == null) {
+            newsList = new ArrayList<>();
+        }
+
         return new ArrayList<>(newsList);
     }
 
@@ -436,13 +461,39 @@ public class User {
 
     public void addNews(News news) {
         if (news != null) {
+            if (newsList == null) {
+                newsList = new ArrayList<>();
+            }
+
             newsList.add(news);
         }
     }
 
+    private void unlockStarterPlants() {
+        getCollection().addPlant(new PlantData("Sunflower", 2000, true));
+        getCollection().addPlant(new PlantData("Peashooter", 2000, true));
+        getCollection().addPlant(new PlantData("Wall-nut", 2000, true));
+        getCollection().addPlant(new PlantData("Potato Mine", 2000, true));
+        getCollection().addPlant(new PlantData("Cabbage-pult", 2000, true));
+        getCollection().addPlant(new PlantData("Kernel-pult", 2000, true));
+        getCollection().addPlant(new PlantData("Iceberg Lettuce", 2000, true));
+        getCollection().addPlant(new PlantData("Bonk Choy", 2000, true));
+        getCollection().addPlant(new PlantData("Cherry Bomb", 2000, true));
+    }
+
+    private void unlockStarterPlantsIfCollectionIsEmpty() {
+        if (collection == null) {
+            collection = new Collection();
+        }
+
+        if (collection.getOwnedPlants().isEmpty()) {
+            unlockStarterPlants();
+        }
+    }
 
     private String miniGameStageKey(String miniGameName, int stage) {
         String normalizedName = normalizeMiniGameName(miniGameName);
+
         if (normalizedName.isEmpty()) {
             return "";
         }
@@ -456,6 +507,7 @@ public class User {
         }
 
         int separatorIndex = value.lastIndexOf(':');
+
         if (separatorIndex <= 0 || separatorIndex >= value.length() - 1) {
             return "";
         }

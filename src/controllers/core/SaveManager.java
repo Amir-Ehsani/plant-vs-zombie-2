@@ -258,10 +258,18 @@ public class SaveManager {
         builder.append("{");
         first = appendField(builder, "questDescription", jsonString(quest.getQuestDescription()), first);
         first = appendField(builder, "type", jsonString(quest.getType()), first);
+        first = appendField(builder, "conditionDescription", jsonString(quest.getConditionDescription()), first);
+        first = appendField(builder, "rewardDescription", jsonString(quest.getRewardDescription()), first);
+        first = appendField(builder, "priority", jsonString(quest.getPriority()), first);
+        first = appendField(builder, "variables", jsonString(quest.getVariables()), first);
+        first = appendField(builder, "progressKey", jsonString(quest.getProgressKey()), first);
+        first = appendField(builder, "targetKey", jsonString(quest.getTargetKey()), first);
         first = appendField(builder, "progressAmount", String.valueOf(quest.getProgressAmount()), first);
         first = appendField(builder, "targetAmount", String.valueOf(quest.getTargetAmount()), first);
         first = appendField(builder, "coinReward", String.valueOf(quest.getCoinReward()), first);
         first = appendField(builder, "gemReward", String.valueOf(quest.getGemReward()), first);
+        first = appendField(builder, "seedPacketReward", String.valueOf(quest.getSeedPacketReward()), first);
+        first = appendField(builder, "randomPlantReward", String.valueOf(quest.hasRandomPlantReward()), first);
         appendField(builder, "rewardClaimed", String.valueOf(quest.isRewardClaimed()), first);
         builder.append("\n}");
 
@@ -459,9 +467,17 @@ public class SaveManager {
             Quest quest = new Quest(
                     string(map, "questDescription"),
                     string(map, "type"),
+                    string(map, "conditionDescription"),
+                    string(map, "rewardDescription"),
+                    string(map, "priority"),
+                    string(map, "variables"),
+                    string(map, "progressKey"),
+                    string(map, "targetKey"),
                     integer(map, "targetAmount", 1),
                     integer(map, "coinReward", 0),
-                    integer(map, "gemReward", 0)
+                    integer(map, "gemReward", 0),
+                    integer(map, "seedPacketReward", 0),
+                    bool(map, "randomPlantReward", false)
             );
 
             quest.setProgressAmount(integer(map, "progressAmount", 0));

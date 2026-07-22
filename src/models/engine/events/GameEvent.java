@@ -11,6 +11,9 @@ import java.util.List;
 public final class GameEvent {
     private final GameEventType type;
     private final String entityName;
+    private final String sourcePlantName;
+    private final String sourcePlantCategory;
+    private final String damageType;
     private final double x;
     private final double y;
     private final int laneNumber;
@@ -28,6 +31,9 @@ public final class GameEvent {
     private GameEvent(
             GameEventType type,
             String entityName,
+            String sourcePlantName,
+            String sourcePlantCategory,
+            String damageType,
             double x,
             double y,
             int laneNumber,
@@ -45,8 +51,12 @@ public final class GameEvent {
         if (type == null) {
             throw new IllegalArgumentException("Event type cannot be null.");
         }
+
         this.type = type;
         this.entityName = entityName;
+        this.sourcePlantName = sourcePlantName;
+        this.sourcePlantCategory = sourcePlantCategory;
+        this.damageType = damageType;
         this.x = x;
         this.y = y;
         this.laneNumber = laneNumber;
@@ -65,16 +75,19 @@ public final class GameEvent {
     }
 
     public static GameEvent waveStarted(int waveNumber, boolean finalWave) {
-        return new GameEvent(GameEventType.WAVE_STARTED, null, 0, 0, 0,
-                waveNumber, 0, 0, 0, 0, finalWave, false, null, null, null);
+        return new GameEvent(GameEventType.WAVE_STARTED, null, null, null, null,
+                0, 0, 0, waveNumber, 0, 0, 0, 0,
+                finalWave, false, null, null, null);
     }
 
     public static GameEvent zombieSpawned(Zombie zombie, int waveNumber) {
         if (zombie == null) {
             throw new IllegalArgumentException("Zombie cannot be null.");
         }
+
         int cost = zombie.getType() == null ? 0 : zombie.getType().getWaveCost();
-        return new GameEvent(GameEventType.ZOMBIE_SPAWNED, zombie.getName(),
+
+        return new GameEvent(GameEventType.ZOMBIE_SPAWNED, zombie.getName(), null, null, null,
                 zombie.getX(), zombie.getY(), (int) zombie.getY(), waveNumber,
                 cost, 0, 0, 0, false, false, null, null, zombie);
     }
@@ -83,7 +96,11 @@ public final class GameEvent {
         if (zombie == null) {
             throw new IllegalArgumentException("Zombie cannot be null.");
         }
+
         return new GameEvent(GameEventType.ZOMBIE_KILLED, zombie.getName(),
+                zombie.getLastDamageSourcePlantName(),
+                zombie.getLastDamageSourcePlantCategory(),
+                zombie.getLastDamageType(),
                 zombie.getX(), zombie.getY(), (int) zombie.getY(), 0, 0,
                 0, 0, 0, false, groupedByLawnMower, null, null, zombie);
     }
@@ -92,59 +109,52 @@ public final class GameEvent {
         if (position == null) {
             throw new IllegalArgumentException("Position cannot be null.");
         }
-        return new GameEvent(GameEventType.PLANT_DESTROYED, plantName,
+
+        return new GameEvent(GameEventType.PLANT_DESTROYED, plantName, null, null, null,
                 position.getX(), position.getY(), position.getY(), 0, 0,
                 0, 0, 0, false, false, null, null, null);
     }
 
     public static GameEvent lawnMowerTriggered(int laneNumber, List<String> zombieNames) {
-        return new GameEvent(GameEventType.LAWN_MOWER_TRIGGERED, null, 0, 0,
-                laneNumber, 0, 0, 0, 0, 0, false, false,
+        return new GameEvent(GameEventType.LAWN_MOWER_TRIGGERED, null, null, null, null,
+                0, 0, laneNumber, 0, 0, 0, 0, 0, false, false,
                 zombieNames, null, null);
     }
 
-    public static GameEvent plantSunProduced(
-            String plantName,
-            Position position,
-            int amount
-    ) {
-        return new GameEvent(GameEventType.PLANT_SUN_PRODUCED, plantName,
+    public static GameEvent plantSunProduced(String plantName, Position position, int amount) {
+        return new GameEvent(GameEventType.PLANT_SUN_PRODUCED, plantName, plantName, "sun producer", "sun",
                 position.getX(), position.getY(), position.getY(), 0, 0,
                 amount, 0, 0, false, false, null, SunType.NORMAL, null);
     }
 
     public static GameEvent skySunDropping(SunType sunType, Position position) {
-        return new GameEvent(GameEventType.SKY_SUN_DROPPING, null,
+        return new GameEvent(GameEventType.SKY_SUN_DROPPING, null, null, null, null,
                 position.getX(), position.getY(), position.getY(), 0, 0,
                 0, 0, 0, false, false, null, sunType, null);
     }
 
     public static GameEvent skySunLanded(SunType sunType, Position position) {
-        return new GameEvent(GameEventType.SKY_SUN_LANDED, null,
+        return new GameEvent(GameEventType.SKY_SUN_LANDED, null, null, null, null,
                 position.getX(), position.getY(), position.getY(), 0, 0,
                 0, 0, 0, false, false, null, sunType, null);
     }
 
-    public static GameEvent radioactiveSunExploded(
-            Position position,
-            int zombiesKilled,
-            int plantsDestroyed
-    ) {
-        return new GameEvent(GameEventType.RADIOACTIVE_SUN_EXPLODED, null,
+    public static GameEvent radioactiveSunExploded(Position position, int zombiesKilled, int plantsDestroyed) {
+        return new GameEvent(GameEventType.RADIOACTIVE_SUN_EXPLODED, null, null, null, "radioactive sun",
                 position.getX(), position.getY(), position.getY(), 0, 0,
                 zombiesKilled, plantsDestroyed, 0, false, false,
                 null, SunType.RADIOACTIVE, null);
     }
 
     public static GameEvent plantFoodDropped(int currentCount) {
-        return new GameEvent(GameEventType.PLANT_FOOD_DROPPED, null, 0, 0,
-                0, 0, 0, 0, 0, currentCount, false, false,
+        return new GameEvent(GameEventType.PLANT_FOOD_DROPPED, null, null, null, null,
+                0, 0, 0, 0, 0, 0, 0, currentCount, false, false,
                 null, null, null);
     }
 
     public static GameEvent rewardDropped(String rewardType) {
-        return new GameEvent(GameEventType.REWARD_DROPPED, rewardType, 0, 0,
-                0, 0, 0, 0, 0, 0, false, false,
+        return new GameEvent(GameEventType.REWARD_DROPPED, rewardType, null, null, null,
+                0, 0, 0, 0, 0, 0, 0, 0, false, false,
                 null, null, null);
     }
 
@@ -154,6 +164,18 @@ public final class GameEvent {
 
     public String getEntityName() {
         return entityName;
+    }
+
+    public String getSourcePlantName() {
+        return sourcePlantName == null ? "" : sourcePlantName;
+    }
+
+    public String getSourcePlantCategory() {
+        return sourcePlantCategory == null ? "" : sourcePlantCategory;
+    }
+
+    public String getDamageType() {
+        return damageType == null ? "" : damageType;
     }
 
     public double getX() {

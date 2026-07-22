@@ -407,15 +407,16 @@ public class MenuManager {
 
     public void showMainMenuText() {
         success("""
-                Main Menu
-                menu enter game
-                menu enter settings
-                menu enter profile
-                menu enter news
-                menu enter network
-                menu logout
-                menu show current
-                menu exit""");
+            Main Menu
+            menu enter game
+            menu enter settings
+            menu enter profile
+            menu enter news
+            menu enter network
+            menu logout
+            menu exit program
+            menu show current
+            menu exit""");
     }
 
     public void showProfileMenuText() {

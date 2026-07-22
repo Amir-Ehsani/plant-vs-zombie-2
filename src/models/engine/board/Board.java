@@ -163,10 +163,6 @@ public class Board {
         int plantsDestroyed = 0;
         List<GameEvent> events = new ArrayList<>();
 
-        // Plant death effects may kill zombies on another tile or lane. Remove all
-        // dead plants first, execute every death effect, and only then collect dead
-        // zombies. This guarantees that an explosion is accounted for in the same
-        // cleanup pass instead of one tick later.
         for (Lane lane : lanes) {
             for (Tile tile : lane.getTiles()) {
                 for (Plant plant : new ArrayList<>(tile.getPlants())) {
@@ -252,10 +248,6 @@ public class Board {
         return getTileAt(position) != null;
     }
 
-    /**
-     * Compatibility check for callers that do not yet have a Plant instance.
-     * Water and stacking require the overload that receives the plant.
-     */
     public boolean canPlacePlant(Position position) {
         Tile tile = getTileAt(position);
         return tile != null && tile.isPlantable() && !tile.hasPlant();
@@ -276,7 +268,6 @@ public class Board {
         return true;
     }
 
-    /** Removes the uppermost plant at the position. */
     public Plant removePlant(Position position) {
         Tile tile = getTileAt(position);
         if (tile == null || !tile.hasPlant()) {
@@ -285,7 +276,6 @@ public class Board {
         return tile.removePlant();
     }
 
-    /** Removes one exact plant instance without disturbing another layer. */
     public boolean removePlant(Position position, Plant plant) {
         Tile tile = getTileAt(position);
         return tile != null && tile.removePlant(plant);
@@ -312,38 +302,80 @@ public class Board {
             int damage,
             String damageType
     ) {
+        return damageZombiesInArea(center, xRadius, yRadius, damage, damageType, "", "");
+    }
+
+    public BoardTickResult damageZombiesInArea(
+            Position center,
+            int xRadius,
+            int yRadius,
+            int damage,
+            String damageType,
+            String sourcePlantName,
+            String sourcePlantCategory
+    ) {
         if (center == null || xRadius < 0 || yRadius < 0 || damage < 0) {
             throw new IllegalArgumentException("Damage center, radii and amount are invalid.");
         }
+
         for (Zombie zombie : new ArrayList<>(getAllZombies())) {
             int x = Math.max(1, Math.min(width, (int) Math.ceil(zombie.getX())));
             int y = Math.max(1, Math.min(height, (int) Math.round(zombie.getY())));
+
             if (Math.abs(x - center.getX()) <= xRadius
                     && Math.abs(y - center.getY()) <= yRadius) {
+                zombie.recordDamageSource(sourcePlantName, sourcePlantCategory, damageType);
                 zombie.takeDamage(new Damage(damage, damageType));
             }
         }
+
         return removeDeadEntities();
     }
 
     public BoardTickResult damageZombiesInLane(int laneNumber, int damage, String damageType) {
+        return damageZombiesInLane(laneNumber, damage, damageType, "", "");
+    }
+
+    public BoardTickResult damageZombiesInLane(
+            int laneNumber,
+            int damage,
+            String damageType,
+            String sourcePlantName,
+            String sourcePlantCategory
+    ) {
         Lane lane = getLaneAt(laneNumber);
+
         if (lane == null || damage < 0) {
             return BoardTickResult.empty();
         }
+
         for (Zombie zombie : new ArrayList<>(lane.getAllZombies())) {
+            zombie.recordDamageSource(sourcePlantName, sourcePlantCategory, damageType);
             zombie.takeDamage(new Damage(damage, damageType));
         }
+
         return removeDeadEntities();
     }
 
     public BoardTickResult damageAllZombies(int damage, String damageType) {
+        return damageAllZombies(damage, damageType, "", "");
+    }
+
+    public BoardTickResult damageAllZombies(
+            int damage,
+            String damageType,
+            String sourcePlantName,
+            String sourcePlantCategory
+    ) {
         if (damage < 0) {
             throw new IllegalArgumentException("Damage cannot be negative.");
         }
+
         for (Zombie zombie : new ArrayList<>(getAllZombies())) {
+            zombie.recordDamageSource(sourcePlantName, sourcePlantCategory, damageType);
             zombie.takeDamage(new Damage(damage, damageType));
         }
+
         return removeDeadEntities();
     }
 
@@ -353,18 +385,34 @@ public class Board {
             String damageType,
             java.util.Random random
     ) {
+        return damageRandomZombies(hitCount, damage, damageType, random, "", "");
+    }
+
+    public BoardTickResult damageRandomZombies(
+            int hitCount,
+            int damage,
+            String damageType,
+            java.util.Random random,
+            String sourcePlantName,
+            String sourcePlantCategory
+    ) {
         if (hitCount <= 0 || damage <= 0) {
             return BoardTickResult.empty();
         }
+
         java.util.Random generator = random == null ? new java.util.Random() : random;
         List<Zombie> living = new ArrayList<>(getAllZombies());
+
         for (int index = 0; index < hitCount && !living.isEmpty(); index++) {
             Zombie target = living.get(generator.nextInt(living.size()));
+            target.recordDamageSource(sourcePlantName, sourcePlantCategory, damageType);
             target.takeDamage(new Damage(damage, damageType));
+
             if (!target.isAlive()) {
                 living.remove(target);
             }
         }
+
         return removeDeadEntities();
     }
 

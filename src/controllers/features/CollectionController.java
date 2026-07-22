@@ -12,10 +12,23 @@ import models.core.zombie.DefaultZombieRegistry;
 import models.core.zombie.ZombieRegistry;
 import models.core.zombie.ZombieType;
 
+import java.util.Arrays;
 import java.util.List;
 
 public class CollectionController {
     public static final int PLANT_PURCHASE_PRICE = 2000;
+
+    private static final List<String> STARTER_PLANTS = Arrays.asList(
+            "Sunflower",
+            "Peashooter",
+            "Wall-nut",
+            "Potato Mine",
+            "Cabbage-pult",
+            "Kernel-pult",
+            "Iceberg Lettuce",
+            "Bonk Choy",
+            "Cherry Bomb"
+    );
 
     private final AuthController authController;
     private final PlantRegistry plantRegistry;
@@ -31,6 +44,10 @@ public class CollectionController {
         plantRegistry = DefaultPlantRegistry.getInstance();
         zombieRegistry = DefaultZombieRegistry.getInstance();
         lastMessage = "";
+    }
+
+    public static List<String> getStarterPlantNames() {
+        return STARTER_PLANTS;
     }
 
     public String showPlants() {
@@ -65,18 +82,21 @@ public class CollectionController {
 
     public boolean upgradePlant(String plantName) {
         User user = getLoggedInUserOrFail();
+
         if (user == null) {
             return false;
         }
 
         Collection collection = prepareCollection(user.getCollection());
         PlantData plant = collection.findOwnedPlant(plantName);
+
         if (!validateUpgrade(user, plant)) {
             return false;
         }
 
         int price = plant.getUpgradePrice();
         user.spendCoins(price);
+
         if (!plant.upgrade()) {
             user.addCoins(price);
             fail("Plant could not be upgraded.");
@@ -90,17 +110,20 @@ public class CollectionController {
 
     public boolean purchasePlant(String plantName) {
         User user = getLoggedInUserOrFail();
+
         if (user == null) {
             return false;
         }
 
         PlantType type = plantRegistry.getByName(plantName);
+
         if (type == null) {
             fail("Plant was not found.");
             return false;
         }
 
         Collection collection = prepareCollection(user.getCollection());
+
         if (collection.hasOwnedPlant(type.getName())) {
             fail("Plant is already unlocked.");
             return false;
@@ -120,12 +143,14 @@ public class CollectionController {
 
     public String showPlants(Collection collection) {
         Collection prepared = prepareCollection(collection);
+
         if (prepared == null) {
             return "";
         }
 
         StringBuilder builder = header("Unlocked Plants");
         List<PlantData> plants = prepared.getOwnedPlants();
+
         if (plants.isEmpty()) {
             builder.append("No unlocked plants.\n");
         } else {
@@ -138,6 +163,7 @@ public class CollectionController {
 
     public String showAllPlants(Collection collection) {
         Collection prepared = prepareCollection(collection);
+
         if (prepared == null) {
             return "";
         }
@@ -150,12 +176,14 @@ public class CollectionController {
 
     public String showZombies(Collection collection) {
         Collection prepared = prepareCollection(collection);
+
         if (prepared == null) {
             return "";
         }
 
         StringBuilder builder = header("Discovered Zombies");
         List<String> zombies = prepared.getOwnedZombies();
+
         if (zombies.isEmpty()) {
             builder.append("No discovered zombies.\n");
         } else {
@@ -170,11 +198,13 @@ public class CollectionController {
 
     public String showAllZombies(Collection collection) {
         Collection prepared = prepareCollection(collection);
+
         if (prepared == null) {
             return "";
         }
 
         StringBuilder builder = header("All Zombies");
+
         for (ZombieType type : zombieRegistry.getAllZombieTypes()) {
             String status = prepared.hasOwnedZombie(type.getName()) ? "discovered" : "unknown";
             builder.append("- ").append(type.getName()).append(" [").append(status).append("]\n");
@@ -186,12 +216,14 @@ public class CollectionController {
 
     public String showPlant(Collection collection, String plantName) {
         Collection prepared = prepareCollection(collection);
+
         if (prepared == null) {
             return "";
         }
 
         PlantType type = plantRegistry.getByName(plantName);
         PlantData data = prepared.findPlant(plantName);
+
         if (type == null || data == null) {
             fail("Plant was not found.");
             return "Plant was not found.\n";
@@ -203,11 +235,13 @@ public class CollectionController {
 
     public String showZombie(Collection collection, String zombieName) {
         Collection prepared = prepareCollection(collection);
+
         if (prepared == null) {
             return "";
         }
 
         ZombieType type = zombieRegistry.getZombieTypeByName(zombieName);
+
         if (type == null) {
             fail("Zombie was not found.");
             return "Zombie was not found.\n";
@@ -217,17 +251,20 @@ public class CollectionController {
             fail("Zombie has not been discovered yet.");
             return "Zombie has not been discovered yet.\n";
         }
+
         success("Zombie shown.");
         return renderZombieDetails(type, true);
     }
 
     public boolean upgradePlant(Collection collection, String plantName) {
         Collection prepared = prepareCollection(collection);
+
         if (prepared == null) {
             return false;
         }
 
         PlantData plant = prepared.findOwnedPlant(plantName);
+
         if (plant == null || !plant.upgrade()) {
             fail("Plant could not be upgraded.");
             return false;
@@ -239,6 +276,7 @@ public class CollectionController {
 
     public boolean purchasePlant(Collection collection, PlantData plant) {
         Collection prepared = prepareCollection(collection);
+
         if (prepared == null || plant == null) {
             fail("Plant is not available.");
             return false;
@@ -251,18 +289,37 @@ public class CollectionController {
 
     public boolean purchasePlant(Collection collection, String plantName, int price) {
         Collection prepared = prepareCollection(collection);
+
         if (prepared == null || plantName == null || plantName.isBlank()) {
             fail("Plant name is empty.");
             return false;
         }
 
         PlantData plant = prepared.findPlant(plantName);
+
         if (plant == null) {
             plant = new PlantData(plantName, price, true);
         }
+
         prepared.unlockPlant(plant);
         success("Plant purchased.");
         return true;
+    }
+
+    public void ensureStarterPlantsForUser(User user) {
+        if (user == null) {
+            return;
+        }
+
+        Collection collection = prepareCollection(user.getCollection());
+
+        for (String plantName : STARTER_PLANTS) {
+            if (!collection.hasPlant(plantName)) {
+                collection.addPlant(new PlantData(plantName, PLANT_PURCHASE_PRICE, true));
+            }
+
+            collection.unlockPlant(plantName);
+        }
     }
 
     public boolean isLoggedIn() {
@@ -286,18 +343,22 @@ public class CollectionController {
             fail("Plant is not unlocked.");
             return false;
         }
+
         if (plant.getLevel() >= 4) {
             fail("Plant is already at maximum level.");
             return false;
         }
+
         if (plant.getSeedPackets() < plant.getRequiredSeedPacketsForNextLevel()) {
             fail("Not enough seed packets. Required: " + plant.getRequiredSeedPacketsForNextLevel() + ".");
             return false;
         }
+
         if (user.getCoins() < plant.getUpgradePrice()) {
             fail("Not enough coins. Required: " + plant.getUpgradePrice() + ".");
             return false;
         }
+
         return true;
     }
 
@@ -309,14 +370,27 @@ public class CollectionController {
 
         for (PlantType type : plantRegistry.getAllPlantTypes()) {
             if (!collection.hasPlant(type.getName())) {
-                collection.addPlant(new PlantData(type.getName(), PLANT_PURCHASE_PRICE, false));
+                boolean starter = STARTER_PLANTS.contains(type.getName());
+                collection.addPlant(new PlantData(type.getName(), PLANT_PURCHASE_PRICE, starter));
             }
         }
+
+        if (collection.getOwnedPlants().isEmpty()) {
+            for (String plantName : STARTER_PLANTS) {
+                if (!collection.hasPlant(plantName)) {
+                    collection.addPlant(new PlantData(plantName, PLANT_PURCHASE_PRICE, true));
+                }
+
+                collection.unlockPlant(plantName);
+            }
+        }
+
         for (ZombieType type : zombieRegistry.getAllZombieTypes()) {
             if (!collection.hasZombie(type.getName())) {
                 collection.addZombie(type.getName(), false);
             }
         }
+
         return collection;
     }
 
@@ -359,6 +433,7 @@ public class CollectionController {
             builder.append("Next upgrade: maximum level\n");
             return;
         }
+
         builder.append("Next upgrade seeds: ").append(data.getRequiredSeedPacketsForNextLevel()).append("\n");
         builder.append("Next upgrade coins: ").append(data.getUpgradePrice()).append("\n");
     }
@@ -372,6 +447,7 @@ public class CollectionController {
         builder.append("Damage per tick: ").append(type.getDamagePerTick()).append("\n");
         builder.append("Wave cost: ").append(type.getWaveCost()).append("\n");
         builder.append("Armor: ").append(blankAsDash(type.getDefaultArmorName())).append("\n");
+
         String tags = type.getTags().isEmpty() ? "-" : String.join(", ", type.getTags());
         builder.append("Tags: ").append(tags).append("\n");
         builder.append("Ability: ").append(blankAsDash(type.getAbility())).append("\n");
@@ -391,6 +467,7 @@ public class CollectionController {
             fail("No user is logged in.");
             return null;
         }
+
         return authController.getLoggedInUser();
     }
 

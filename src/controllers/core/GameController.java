@@ -1,5 +1,10 @@
 package controllers.core;
 
+import controllers.features.TravelLogController;
+import models.account.Quest;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
 import controllers.auth.AuthController;
 import models.account.User;
 import models.core.plant.DefaultPlantRegistry;
@@ -49,16 +54,50 @@ public class GameController {
     private static final int BOOST_GEM_COST = 2;
 
     private final AuthController authController;
+    private final TravelLogController travelLogController;
     private final PlantRegistry plantRegistry;
     private final Set<String> boostedPlantNames;
+
+    private final Set<Position> plantedPositionsThisLevel;
+    private final Set<String> plantedPlantNamesThisLevel;
+    private final Set<String> plantedPlantFamiliesThisLevel;
+    private final Set<String> killingPlantNamesThisLevel;
+    private final Set<String> killingPlantFamiliesThisLevel;
+    private final Map<String, Integer> killsByPlantName;
+    private final Map<String, Integer> killsByPlantFamily;
+
     private GameSession gameSession;
+    private String currentChapterName;
     private String lastMessage;
+
+    private boolean finalStatsRecorded;
+    private int firstWaveStartTick;
+    private int fastReactionKillsThisLevel;
+    private int cactusKillsThisLevel;
+    private int firstColumnNoMowerKillsThisLevel;
+    private int lawnMowerKillsThisLevel;
+    private int explosivePlantsUsedThisLevel;
+    private int sunProducerPlantsPlantedThisLevel;
+    private boolean anyNonCactusKillThisLevel;
 
     public GameController(AuthController authController) {
         this.authController = authController;
+        this.travelLogController = new TravelLogController(authController);
         this.plantRegistry = DefaultPlantRegistry.getInstance();
         this.boostedPlantNames = new LinkedHashSet<>();
+
+        this.plantedPositionsThisLevel = new HashSet<>();
+        this.plantedPlantNamesThisLevel = new HashSet<>();
+        this.plantedPlantFamiliesThisLevel = new HashSet<>();
+        this.killingPlantNamesThisLevel = new HashSet<>();
+        this.killingPlantFamiliesThisLevel = new HashSet<>();
+        this.killsByPlantName = new HashMap<>();
+        this.killsByPlantFamily = new HashMap<>();
+
+        this.currentChapterName = "";
         this.lastMessage = "";
+
+        resetRuntimeQuestTracking();
     }
 
     public void setGameSession(GameSession gameSession) {
@@ -77,16 +116,26 @@ public class GameController {
             return;
         }
 
+        User user = getLoggedInUserOrFail();
+
+        if (user == null) {
+            return;
+        }
+
         GameSession session = new GameSession();
         session.setCurrentLevel(createDefaultLevel(chapterName));
 
         boostedPlantNames.clear();
         this.gameSession = session;
+        this.currentChapterName = chapterName.trim();
+
+        resetRuntimeQuestTracking();
+        ensureQuestList(user);
 
         success("Chapter " + chapterName.trim()
                 + " is ready. Select up to "
                 + PLANT_SELECTION_LIMIT
-                + " plants before starting the game.");
+                + " unlocked plants before starting the game.");
     }
 
     public void showAllPlants() {
@@ -147,8 +196,13 @@ public class GameController {
             return;
         }
 
-        if (!isPlantAvailableForCurrentLevel(type.getName())) {
+        if (!isPlantAllowedInCurrentLevel(type.getName())) {
             fail("Plant is not available in this chapter.");
+            return;
+        }
+
+        if (!isPlantUnlockedByUser(type.getName())) {
+            fail("Plant is locked in your collection.");
             return;
         }
 
@@ -271,11 +325,16 @@ public class GameController {
         }
 
         try {
+            resetRuntimeQuestTracking();
+            ensureQuestList(getLoggedInUserOrFail());
+
             gameSession.initSession();
 
             StringBuilder builder = new StringBuilder("Game started.");
-            appendEvents(builder, gameSession.drainEvents());
-            appendFinishedState(builder);
+            List<GameEvent> events = gameSession.drainEvents();
+            processQuestEvents(events);
+            appendEvents(builder, events);
+            updateFinishedStatsAndQuestsIfNeeded(builder);
 
             success(builder.toString());
         } catch (IllegalStateException | IllegalArgumentException exception) {
@@ -309,8 +368,10 @@ public class GameController {
                 .append(gameSession.getTickManager().getCurrentTick())
                 .append(".");
 
-        appendEvents(builder, gameSession.drainEvents());
-        appendFinishedState(builder);
+        List<GameEvent> events = gameSession.drainEvents();
+        processQuestEvents(events);
+        appendEvents(builder, events);
+        updateFinishedStatsAndQuestsIfNeeded(builder);
 
         success(builder.toString());
     }
@@ -325,8 +386,10 @@ public class GameController {
         gameSession.updateSession();
 
         StringBuilder builder = new StringBuilder("Game updated.");
-        appendEvents(builder, gameSession.drainEvents());
-        appendFinishedState(builder);
+        List<GameEvent> events = gameSession.drainEvents();
+        processQuestEvents(events);
+        appendEvents(builder, events);
+        updateFinishedStatsAndQuestsIfNeeded(builder);
 
         success(builder.toString());
     }
@@ -378,6 +441,11 @@ public class GameController {
             return;
         }
 
+        if (!isPlantUnlockedByUser(type.getName())) {
+            fail("Plant is locked in your collection.");
+            return;
+        }
+
         Level level = gameSession.getCurrentLevel();
 
         if (level != null && !level.isPlantAllowed(type.getName())) {
@@ -399,10 +467,14 @@ public class GameController {
             return;
         }
 
+        gameSession.clearPendingEvents();
+
         if (!gameSession.plant(type.getName(), position)) {
             fail("Plant could not be planted at " + position + ".");
             return;
         }
+
+        recordPlantUsedForQuests(type, position);
 
         StringBuilder builder = new StringBuilder();
 
@@ -417,6 +489,11 @@ public class GameController {
         if (isPlantBoostedForThisGame(type.getName())) {
             applyEntranceBoost(position, builder);
         }
+
+        List<GameEvent> events = gameSession.drainEvents();
+        processQuestEvents(events);
+        appendEvents(builder, events);
+        updateFinishedStatsAndQuestsIfNeeded(builder);
 
         success(builder.toString());
     }
@@ -472,11 +549,19 @@ public class GameController {
             return;
         }
 
+        int sunBefore = gameSession.getTotalSunAmount();
         gameSession.clearPendingEvents();
 
         if (!gameSession.collectSun(position)) {
             fail("No collectible sun exists at " + position + ".");
             return;
+        }
+
+        int collectedAmount = Math.max(0, gameSession.getTotalSunAmount() - sunBefore);
+        User user = getLoggedInUserOrFail();
+
+        if (user != null && collectedAmount > 0) {
+            travelLogController.recordQuestProgress(user, "daily_sun_collector", collectedAmount);
         }
 
         StringBuilder builder = new StringBuilder();
@@ -487,8 +572,10 @@ public class GameController {
                 .append(gameSession.getTotalSunAmount())
                 .append(".");
 
-        appendEvents(builder, gameSession.drainEvents());
-        appendFinishedState(builder);
+        List<GameEvent> events = gameSession.drainEvents();
+        processQuestEvents(events);
+        appendEvents(builder, events);
+        updateFinishedStatsAndQuestsIfNeeded(builder);
 
         success(builder.toString());
     }
@@ -835,12 +922,26 @@ public class GameController {
     }
 
     private boolean isPlantAvailableForCurrentLevel(String plantName) {
+        return isPlantAllowedInCurrentLevel(plantName) && isPlantUnlockedByUser(plantName);
+    }
+
+    private boolean isPlantAllowedInCurrentLevel(String plantName) {
         if (plantName == null || gameSession == null) {
             return false;
         }
 
         Level level = gameSession.getCurrentLevel();
         return level == null || level.isPlantAllowed(plantName);
+    }
+
+    private boolean isPlantUnlockedByUser(String plantName) {
+        if (plantName == null || authController == null || authController.getLoggedInUser() == null) {
+            return false;
+        }
+
+        return authController.getLoggedInUser()
+                .getCollection()
+                .hasOwnedPlant(plantName);
     }
 
     private boolean isPlantSelectedForThisLevel(String plantName) {
@@ -866,7 +967,9 @@ public class GameController {
             return;
         }
 
-        boolean available = isPlantAvailableForCurrentLevel(type.getName());
+        boolean allowedInChapter = isPlantAllowedInCurrentLevel(type.getName());
+        boolean unlocked = isPlantUnlockedByUser(type.getName());
+        boolean available = allowedInChapter && unlocked;
         boolean selected = isPlantSelectedForThisLevel(type.getName());
         boolean boosted = isPlantBoostedForThisGame(type.getName());
 
@@ -874,6 +977,10 @@ public class GameController {
                 .append(type.getName())
                 .append(" | status: ")
                 .append(available ? "available" : "locked")
+                .append(" | collection: ")
+                .append(unlocked ? "unlocked" : "locked")
+                .append(" | chapter: ")
+                .append(allowedInChapter ? "allowed" : "not allowed")
                 .append(" | cost: ")
                 .append(type.getSunCost())
                 .append(" | category: ")
@@ -941,14 +1048,14 @@ public class GameController {
     }
 
     private Level createDefaultLevel(String chapterName) {
-        List<Wave> waves = new ArrayList<>();
-        waves.add(new Wave(1, 20, zombies("Default", "Default")));
-        waves.add(new Wave(2, 80, zombies("cone head", "Default")));
-        waves.add(new Wave(3, 140, zombies("bucket head", "cone head")));
+        int difficulty = currentDifficultyLevel();
+        List<Wave> waves = createDifficultyWaves(difficulty);
 
         WaveManager waveManager = new WaveManager(waves, null, AttackPattern.ROUND_ROBIN);
         List<String> allowedPlants = allowedPlantsForChapter(chapterName);
         List<String> allowedZombies = Arrays.asList("Default", "cone head", "bucket head");
+
+        int initialSun = Math.max(50, 200 - difficulty * 10);
 
         return new Level(
                 resolveLevelId(chapterName),
@@ -957,7 +1064,7 @@ public class GameController {
                 allowedPlants,
                 allowedZombies,
                 new NoSpecialRule(),
-                150
+                initialSun
         );
     }
 
@@ -1477,6 +1584,590 @@ public class GameController {
         if (authController != null) {
             authController.saveUsers();
         }
+    }
+
+    private List<Wave> createDifficultyWaves(int difficulty) {
+        List<Wave> waves = new ArrayList<>();
+
+        int totalWaves = 2 + difficulty;
+        int delayStep = Math.max(35, 95 - difficulty * 10);
+
+        for (int waveNumber = 1; waveNumber <= totalWaves; waveNumber++) {
+            int zombieCount = difficulty + waveNumber;
+            int delay = 20 + (waveNumber - 1) * delayStep;
+
+            waves.add(new Wave(
+                    waveNumber,
+                    delay,
+                    zombiesForDifficultyWave(waveNumber, difficulty, zombieCount)
+            ));
+        }
+
+        return waves;
+    }
+
+    private List<Zombie> zombiesForDifficultyWave(int waveNumber, int difficulty, int count) {
+        ZombieFactory zombieFactory = new ZombieFactory();
+        List<Zombie> zombies = new ArrayList<>();
+
+        for (int i = 0; i < count; i++) {
+            String zombieName;
+
+            if (difficulty >= 4 && waveNumber >= 3 && i % 3 == 0) {
+                zombieName = "bucket head";
+            } else if (difficulty >= 2 && waveNumber >= 2 && i % 2 == 0) {
+                zombieName = "cone head";
+            } else {
+                zombieName = "Default";
+            }
+
+            zombies.add(zombieFactory.createZombie(zombieName, 9, 1));
+        }
+
+        return zombies;
+    }
+
+    private int currentDifficultyLevel() {
+        if (authController == null || authController.getLoggedInUser() == null) {
+            return 3;
+        }
+
+        return authController.getLoggedInUser().getDifficultyLevel();
+    }
+
+    private void resetRuntimeQuestTracking() {
+        plantedPositionsThisLevel.clear();
+        plantedPlantNamesThisLevel.clear();
+        plantedPlantFamiliesThisLevel.clear();
+        killingPlantNamesThisLevel.clear();
+        killingPlantFamiliesThisLevel.clear();
+        killsByPlantName.clear();
+        killsByPlantFamily.clear();
+
+        finalStatsRecorded = false;
+        firstWaveStartTick = -1;
+        fastReactionKillsThisLevel = 0;
+        cactusKillsThisLevel = 0;
+        firstColumnNoMowerKillsThisLevel = 0;
+        lawnMowerKillsThisLevel = 0;
+        explosivePlantsUsedThisLevel = 0;
+        sunProducerPlantsPlantedThisLevel = 0;
+        anyNonCactusKillThisLevel = false;
+    }
+
+    private void recordPlantUsedForQuests(PlantType type, Position position) {
+        if (type == null || position == null) {
+            return;
+        }
+
+        plantedPlantNamesThisLevel.add(normalizeName(type.getName()));
+        plantedPlantFamiliesThisLevel.add(normalizeName(type.getCategory()));
+        plantedPositionsThisLevel.add(position);
+
+        User user = getLoggedInUserOrFail();
+
+        if (user == null) {
+            return;
+        }
+
+        if (isExplosivePlant(type)) {
+            explosivePlantsUsedThisLevel++;
+
+            if (explosivePlantsUsedThisLevel >= 3) {
+                travelLogController.completeQuest(user, "professional_destroyer");
+            }
+        }
+
+        if (isSunProducerPlant(type)) {
+            sunProducerPlantsPlantedThisLevel++;
+        }
+    }
+
+    private void processQuestEvents(List<GameEvent> events) {
+        if (events == null || events.isEmpty()) {
+            return;
+        }
+
+        User user = getLoggedInUserOrFail();
+
+        if (user == null) {
+            return;
+        }
+
+        ensureQuestList(user);
+
+        for (GameEvent event : events) {
+            if (event == null || event.getType() == null) {
+                continue;
+            }
+
+            switch (event.getType()) {
+                case WAVE_STARTED:
+                    if (firstWaveStartTick < 0) {
+                        firstWaveStartTick = gameSession.getTickManager().getCurrentTick();
+                    }
+                    break;
+
+                case ZOMBIE_KILLED:
+                    processZombieKillQuestEvent(user, event);
+                    break;
+
+                case LAWN_MOWER_TRIGGERED:
+                    int killedByMower = event.getEntityNames().size();
+                    lawnMowerKillsThisLevel += killedByMower;
+
+                    if (killedByMower > 0) {
+                        travelLogController.recordQuestProgress(user, "lawn_mower_time", killedByMower);
+                    }
+                    break;
+
+                default:
+                    break;
+            }
+        }
+    }
+
+    private void processZombieKillQuestEvent(User user, GameEvent event) {
+        travelLogController.recordQuestProgress(user, "chapter_hunter", 1);
+
+        String killerPlantName = normalizeName(event.getSourcePlantName());
+        String killerFamily = normalizeName(event.getSourcePlantCategory());
+
+        if (!killerPlantName.isBlank()) {
+            killingPlantNamesThisLevel.add(killerPlantName);
+            killsByPlantName.put(
+                    killerPlantName,
+                    killsByPlantName.getOrDefault(killerPlantName, 0) + 1
+            );
+
+            if ("cactus".equals(killerPlantName)) {
+                cactusKillsThisLevel++;
+            } else {
+                anyNonCactusKillThisLevel = true;
+            }
+        }
+
+        if (!killerFamily.isBlank()) {
+            killingPlantFamiliesThisLevel.add(killerFamily);
+            killsByPlantFamily.put(
+                    killerFamily,
+                    killsByPlantFamily.getOrDefault(killerFamily, 0) + 1
+            );
+        }
+
+        if (firstWaveStartTick >= 0) {
+            int currentTick = gameSession.getTickManager().getCurrentTick();
+            int ticksSinceFirstWave = currentTick - firstWaveStartTick;
+
+            if (ticksSinceFirstWave <= 300) {
+                fastReactionKillsThisLevel++;
+                travelLogController.recordQuestProgress(user, "fast_reaction", 1);
+            }
+        }
+
+        if (event.getX() <= 1.000001 && isLawnMowerUsed(event.getLaneNumber())) {
+            firstColumnNoMowerKillsThisLevel++;
+            travelLogController.recordQuestProgress(user, "almost_won", 1);
+        }
+    }
+
+    private void updateFinishedStatsAndQuestsIfNeeded(StringBuilder builder) {
+        appendFinishedState(builder);
+
+        if (gameSession == null || gameSession.getState() == null || finalStatsRecorded) {
+            return;
+        }
+
+        GameState.Status status = gameSession.getState().getStatus();
+
+        if (status != GameState.Status.WON && status != GameState.Status.LOST) {
+            return;
+        }
+
+        finalStatsRecorded = true;
+
+        User user = getLoggedInUserOrFail();
+
+        if (user == null) {
+            return;
+        }
+
+        boolean won = status == GameState.Status.WON;
+        recordLeaderboardStats(user, won);
+
+        if (won) {
+            recordWinQuests(user);
+        } else {
+            resetQuestProgress(user, "win_streak");
+        }
+
+        saveUsers();
+
+        builder.append("\nProgress and quest stats were saved.");
+    }
+
+    private void recordLeaderboardStats(User user, boolean won) {
+        user.increaseGamesPlayed();
+
+        int difficulty = currentDifficultyLevel();
+        int kills = gameSession.getTotalZombiesKilled();
+        int remainingSun = gameSession.getTotalSunAmount();
+
+        int scoreGain = 100 + difficulty * 50 + kills * 10 + Math.max(0, remainingSun);
+
+        if (won) {
+            scoreGain += 500;
+            user.increasePassedLevels();
+        }
+
+        user.addScore(scoreGain);
+        user.updateBestMioPoint(scoreGain);
+    }
+
+    private void recordWinQuests(User user) {
+        int destroyedPlants = gameSession.getTotalPlantsDestroyed();
+
+        if (destroyedPlants <= 5) {
+            int seedReward = Math.max(0, 20 - destroyedPlants);
+            travelLogController.completeQuestWithSeedReward(user, "economic_gardener", seedReward);
+        }
+
+        if (gameSession.getTotalSunAmount() == 0) {
+            travelLogController.completeQuest(user, "defense_master");
+        }
+
+        if (hasSingleKillingPlantWithAtLeastTenKills()) {
+            travelLogController.completeQuest(user, "professional_plant_player");
+        }
+
+        if (cactusKillsThisLevel >= 10 && !anyNonCactusKillThisLevel) {
+            travelLogController.completeQuest(user, "only_cactus");
+        }
+
+        if (isFinalLawnSymmetric()) {
+            travelLogController.completeQuest(user, "symmetry");
+        }
+
+        if (hasSingleKillingFamily()) {
+            travelLogController.completeQuest(user, "family_massacre");
+        }
+
+        if (hasUnusedPlantFamily()) {
+            travelLogController.completeQuest(user, "bloom_under_limits");
+        }
+
+        if (usedOnlyMushroomPlants()) {
+            travelLogController.completeQuest(user, "night_or_morning");
+        }
+
+        if (currentDifficultyLevel() == 5) {
+            travelLogController.recordQuestProgress(user, "win_streak", 1);
+        } else {
+            resetQuestProgress(user, "win_streak");
+        }
+
+        if (isFinalLawnNonSymmetricExceptMiddleRow()) {
+            travelLogController.completeQuest(user, "anti_ocd");
+        }
+
+        if (sunProducerPlantsPlantedThisLevel == 3) {
+            travelLogController.completeQuest(user, "cloudy_day");
+        }
+
+        if (hasEmptyColumnByPlantHistory()) {
+            travelLogController.completeQuest(user, "one_less_column");
+        }
+
+        if (hasEmptyRowByPlantHistory()) {
+            travelLogController.completeQuest(user, "defenseless_row");
+        }
+
+        if (hasEmptyCrossByPlantHistory()) {
+            travelLogController.completeQuest(user, "defenseless_cross");
+        }
+    }
+
+    private boolean hasSingleKillingPlantWithAtLeastTenKills() {
+        return killingPlantNamesThisLevel.size() == 1
+                && !killsByPlantName.isEmpty()
+                && killsByPlantName.values().iterator().next() >= 10;
+    }
+
+    private boolean hasSingleKillingFamily() {
+        return killingPlantFamiliesThisLevel.size() == 1
+                && !killsByPlantFamily.isEmpty();
+    }
+
+    private boolean hasUnusedPlantFamily() {
+        Set<String> allFamilies = new HashSet<>();
+
+        for (PlantType type : plantRegistry.getAllPlantTypes()) {
+            if (type != null && type.getCategory() != null && !type.getCategory().isBlank()) {
+                allFamilies.add(normalizeName(type.getCategory()));
+            }
+        }
+
+        allFamilies.removeAll(plantedPlantFamiliesThisLevel);
+        return !allFamilies.isEmpty();
+    }
+
+    private boolean usedOnlyMushroomPlants() {
+        if (plantedPlantNamesThisLevel.isEmpty()) {
+            return false;
+        }
+
+        for (String plantName : plantedPlantNamesThisLevel) {
+            PlantType type = plantRegistry.getByName(plantName);
+
+            if (type == null || !isMushroomPlant(type)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private boolean isFinalLawnSymmetric() {
+        if (!hasInitializedSession()) {
+            return false;
+        }
+
+        Board board = gameSession.getBoard();
+
+        for (int y = 1; y <= board.getHeight(); y++) {
+            int mirrorY = board.getHeight() + 1 - y;
+
+            if (!rowsHaveSamePlants(y, mirrorY)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private boolean isFinalLawnNonSymmetricExceptMiddleRow() {
+        if (!hasInitializedSession()) {
+            return false;
+        }
+
+        Board board = gameSession.getBoard();
+        int middleRow = board.getHeight() % 2 == 1 ? board.getHeight() / 2 + 1 : -1;
+
+        for (int y = 1; y <= board.getHeight(); y++) {
+            int mirrorY = board.getHeight() + 1 - y;
+
+            if (y == middleRow || y >= mirrorY) {
+                continue;
+            }
+
+            if (rowsHaveSamePlants(y, mirrorY)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private boolean rowsHaveSamePlants(int firstRow, int secondRow) {
+        Board board = gameSession.getBoard();
+
+        for (int x = 1; x <= board.getWidth(); x++) {
+            Tile firstTile = board.getTileAt(new Position(x, firstRow));
+            Tile secondTile = board.getTileAt(new Position(x, secondRow));
+
+            if (!plantSignature(firstTile).equals(plantSignature(secondTile))) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private String plantSignature(Tile tile) {
+        if (tile == null || tile.getPlants().isEmpty()) {
+            return "-";
+        }
+
+        StringBuilder builder = new StringBuilder();
+
+        for (Plant plant : tile.getPlants()) {
+            if (plant == null) {
+                continue;
+            }
+
+            if (builder.length() > 0) {
+                builder.append("+");
+            }
+
+            builder.append(normalizeName(plant.getName()));
+        }
+
+        return builder.toString();
+    }
+
+    private boolean hasEmptyColumnByPlantHistory() {
+        if (!hasInitializedSession()) {
+            return false;
+        }
+
+        for (int x = 1; x <= gameSession.getBoard().getWidth(); x++) {
+            boolean hasPlantInColumn = false;
+
+            for (Position position : plantedPositionsThisLevel) {
+                if (position.getX() == x) {
+                    hasPlantInColumn = true;
+                    break;
+                }
+            }
+
+            if (!hasPlantInColumn) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private boolean hasEmptyRowByPlantHistory() {
+        if (!hasInitializedSession()) {
+            return false;
+        }
+
+        for (int y = 1; y <= gameSession.getBoard().getHeight(); y++) {
+            boolean hasPlantInRow = false;
+
+            for (Position position : plantedPositionsThisLevel) {
+                if (position.getY() == y) {
+                    hasPlantInRow = true;
+                    break;
+                }
+            }
+
+            if (!hasPlantInRow) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private boolean hasEmptyCrossByPlantHistory() {
+        if (!hasInitializedSession()) {
+            return false;
+        }
+
+        int limit = Math.min(gameSession.getBoard().getWidth(), gameSession.getBoard().getHeight());
+
+        for (int n = 1; n <= limit; n++) {
+            boolean rowHasPlant = false;
+            boolean columnHasPlant = false;
+
+            for (Position position : plantedPositionsThisLevel) {
+                if (position.getY() == n) {
+                    rowHasPlant = true;
+                }
+
+                if (position.getX() == n) {
+                    columnHasPlant = true;
+                }
+            }
+
+            if (!rowHasPlant && !columnHasPlant) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private boolean isLawnMowerUsed(int laneNumber) {
+        if (!hasInitializedSession()) {
+            return false;
+        }
+
+        Lane lane = gameSession.getBoard().getLaneAt(laneNumber);
+
+        return lane != null && !lane.getLawnMower().isReady();
+    }
+
+    private boolean isExplosivePlant(PlantType type) {
+        if (type == null) {
+            return false;
+        }
+
+        String text = normalizeName(type.getName()
+                + " "
+                + type.getCategory()
+                + " "
+                + type.getTags()
+                + " "
+                + type.getBaseAbility());
+
+        return text.contains("bomb")
+                || text.contains("explosive")
+                || text.contains("explode")
+                || text.contains("jalapeno")
+                || text.contains("doom shroom")
+                || text.contains("grapeshot")
+                || text.contains("cherry");
+    }
+
+    private boolean isSunProducerPlant(PlantType type) {
+        if (type == null) {
+            return false;
+        }
+
+        String text = normalizeName(type.getName()
+                + " "
+                + type.getCategory()
+                + " "
+                + type.getTags()
+                + " "
+                + type.getBaseAbility());
+
+        return text.contains("sunflower")
+                || text.contains("sun shroom")
+                || text.contains("sun producer")
+                || text.contains("produce sun")
+                || text.contains("sun production");
+    }
+
+    private boolean isMushroomPlant(PlantType type) {
+        if (type == null) {
+            return false;
+        }
+
+        String text = normalizeName(type.getName()
+                + " "
+                + type.getCategory()
+                + " "
+                + type.getTags());
+
+        return text.contains("shroom") || text.contains("mushroom");
+    }
+
+    private void ensureQuestList(User user) {
+        if (user == null || travelLogController == null) {
+            return;
+        }
+
+        travelLogController.showPage("all");
+    }
+
+    private void resetQuestProgress(User user, String progressKey) {
+        if (user == null || progressKey == null || progressKey.isBlank()) {
+            return;
+        }
+
+        ensureQuestList(user);
+
+        for (Quest quest : user.getQuests()) {
+            if (quest != null && quest.matchesProgressKey(progressKey)) {
+                quest.resetProgress();
+            }
+        }
+
+        saveUsers();
     }
 
     private String normalizeName(String value) {
