@@ -3,6 +3,9 @@ package controllers.auth;
 import controllers.core.SaveManager;
 import models.account.User;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Locale;
 
@@ -58,7 +61,8 @@ public class AuthController {
             return;
         }
 
-        pendingUser = new User(username, password, nickname, email, normalizeGender(gender));
+        pendingUser = new User(username, "", nickname, email, normalizeGender(gender));
+        setUserPassword(pendingUser, password);
         success(securityQuestionText());
     }
 
@@ -99,7 +103,7 @@ public class AuthController {
             return;
         }
 
-        if (password == null || !password.equals(user.getPassword())) {
+        if (!passwordMatches(user, password)) {
             fail("Password is incorrect.");
             return;
         }
@@ -173,10 +177,33 @@ public class AuthController {
             return;
         }
 
-        recoveryUser.setPassword(newPassword);
+        setUserPassword(recoveryUser, newPassword);
         recoveryUser = null;
         saveUsers();
         success("Password changed successfully.");
+    }
+
+    public boolean passwordMatches(User user, String plainPassword) {
+        if (user == null || plainPassword == null) {
+            return false;
+        }
+
+        String storedHash = user.getPasswordHash();
+
+        if (storedHash == null || storedHash.isBlank()) {
+            return false;
+        }
+
+        return storedHash.equals(hashPassword(plainPassword));
+    }
+
+    public void setUserPassword(User user, String plainPassword) {
+        if (user == null || plainPassword == null) {
+            return;
+        }
+
+        user.setPassword("");
+        user.setPasswordHash(hashPassword(plainPassword));
     }
 
     public void invalidCommand(String menuName) {
@@ -253,18 +280,22 @@ public class AuthController {
 
     private boolean isValidGender(String gender) {
         String normalizedGender = normalize(gender);
-        return "male".equals(normalizedGender) || "female".equals(normalizedGender)
-                || "man".equals(normalizedGender) || "woman".equals(normalizedGender);
+        return "male".equals(normalizedGender)
+                || "female".equals(normalizedGender)
+                || "man".equals(normalizedGender)
+                || "woman".equals(normalizedGender)
+                || "مرد".equals(normalizedGender)
+                || "زن".equals(normalizedGender);
     }
 
     private String normalizeGender(String gender) {
         String normalizedGender = normalize(gender);
 
-        if ("man".equals(normalizedGender)) {
+        if ("man".equals(normalizedGender) || "مرد".equals(normalizedGender)) {
             return "male";
         }
 
-        if ("woman".equals(normalizedGender)) {
+        if ("woman".equals(normalizedGender) || "زن".equals(normalizedGender)) {
             return "female";
         }
 
@@ -300,6 +331,22 @@ public class AuthController {
             if (user != null) {
                 user.setStayLoggedIn(false);
             }
+        }
+    }
+
+    private String hashPassword(String plainPassword) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hashBytes = digest.digest(plainPassword.getBytes(StandardCharsets.UTF_8));
+            StringBuilder builder = new StringBuilder();
+
+            for (byte hashByte : hashBytes) {
+                builder.append(String.format("%02x", hashByte));
+            }
+
+            return builder.toString();
+        } catch (NoSuchAlgorithmException exception) {
+            throw new IllegalStateException("SHA-256 is not available.", exception);
         }
     }
 
