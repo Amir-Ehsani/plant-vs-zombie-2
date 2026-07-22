@@ -15,6 +15,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.Random;
 
 public class Board {
     private static final int DEFAULT_WIDTH = 9;
@@ -33,6 +34,7 @@ public class Board {
     private int totalZombiesKilled;
     private int totalPlantsDestroyed;
     private boolean brainEaten;
+    private BoardResourceHandler resourceHandler;
 
     public Board() {
         this(DEFAULT_WIDTH, DEFAULT_HEIGHT);
@@ -55,6 +57,7 @@ public class Board {
         this.totalZombiesKilled = 0;
         this.totalPlantsDestroyed = 0;
         this.brainEaten = false;
+        this.resourceHandler = null;
 
         initializeLanes();
     }
@@ -188,6 +191,7 @@ public class Board {
                     if (zombie == null || zombie.isAlive()) {
                         continue;
                     }
+                    combatStrategy.handleExternalZombieDeath(zombie);
                     tile.removeZombie(zombie);
                     lastSlipperyTileByZombie.remove(zombie);
                     if (removedZombies.add(zombie)) {
@@ -434,8 +438,16 @@ public class Board {
         combatStrategy.applyPoison(zombie, damagePerTick, ticks);
     }
 
+    public void applyButter(Zombie zombie, int ticks) {
+        combatStrategy.applyButterStun(zombie, ticks);
+    }
+
     public void hypnotizeZombie(Zombie zombie) {
         combatStrategy.hypnotize(zombie);
+    }
+
+    public boolean isHypnotized(Zombie zombie) {
+        return combatStrategy.isHypnotized(zombie);
     }
 
     public List<String> getZombieEffects(Zombie zombie) {
@@ -500,6 +512,82 @@ public class Board {
             totalPlantsDestroyed += removed;
         }
         return new BoardTickResult(0, removed, 0, false, events);
+    }
+
+    public void setResourceHandler(BoardResourceHandler resourceHandler) {
+        this.resourceHandler = resourceHandler;
+    }
+
+    public int stealStoredSun(int amount) {
+        if (resourceHandler == null || amount <= 0) {
+            return 0;
+        }
+        return Math.max(0, resourceHandler.stealStoredSun(amount));
+    }
+
+    public int stealLooseSuns() {
+        return resourceHandler == null ? 0 : Math.max(0, resourceHandler.stealLooseSuns());
+    }
+
+    public void restoreSun(int amount) {
+        if (resourceHandler != null && amount > 0) {
+            resourceHandler.restoreSun(amount);
+        }
+    }
+
+    public boolean moveZombieToLane(Zombie zombie, int targetLaneNumber) {
+        if (zombie == null || !zombie.isAlive()) {
+            return false;
+        }
+        Lane targetLane = getLaneAt(targetLaneNumber);
+        Tile sourceTile = findTileContainingZombie(zombie);
+        if (targetLane == null || sourceTile == null) {
+            return false;
+        }
+        Tile targetTile = targetLane.getTileAt(Math.max(1, Math.min(width, (int) Math.ceil(zombie.getX()))));
+        if (targetTile == null) {
+            return false;
+        }
+        sourceTile.removeZombie(zombie);
+        zombie.moveBy(0, targetLaneNumber - zombie.getY());
+        targetTile.addZombie(zombie);
+        return true;
+    }
+
+    public boolean shiftZombieToAdjacentLane(Zombie zombie, Random random) {
+        if (zombie == null) {
+            return false;
+        }
+        int currentLane = Math.max(1, Math.min(height, (int) Math.round(zombie.getY())));
+        boolean up = getLaneAt(currentLane - 1) != null;
+        boolean down = getLaneAt(currentLane + 1) != null;
+        if (!up && !down) {
+            return false;
+        }
+        int target;
+        if (up && down) {
+            target = random != null && random.nextBoolean() ? currentLane - 1 : currentLane + 1;
+        } else {
+            target = up ? currentLane - 1 : currentLane + 1;
+        }
+        return moveZombieToLane(zombie, target);
+    }
+
+    public boolean movePlant(Position source, Position target, Plant plant) {
+        if (source == null || target == null || plant == null) {
+            return false;
+        }
+        Tile sourceTile = getTileAt(source);
+        Tile targetTile = getTileAt(target);
+        if (sourceTile == null || targetTile == null || !sourceTile.hasPlant(plant) || !targetTile.canPlacePlant(plant)) {
+            return false;
+        }
+        if (!sourceTile.removePlant(plant)) {
+            return false;
+        }
+        targetTile.placePlant(plant);
+        plant.moveTo(target.getX(), target.getY());
+        return true;
     }
 
     public Tile getTileContainingZombie(Zombie zombie) {
