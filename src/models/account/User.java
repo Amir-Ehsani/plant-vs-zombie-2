@@ -2,6 +2,7 @@ package models.account;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 public class User {
     private String username;
@@ -28,6 +29,9 @@ public class User {
     private Greenhouse greenhouse;
     private List<Quest> quests;
     private List<String> completedMiniGameStages;
+    private List<String> completedChapterLevels;
+    private int currentChapterLevel;
+    private boolean allAdventureLevelsUnlocked;
 
     public User(String username, String password, String nickname, String email, String gender) {
         this.username = safeText(username);
@@ -56,6 +60,9 @@ public class User {
         this.greenhouse = new Greenhouse();
         this.quests = new ArrayList<>();
         this.completedMiniGameStages = new ArrayList<>();
+        this.completedChapterLevels = new ArrayList<>();
+        this.currentChapterLevel = 1;
+        this.allAdventureLevelsUnlocked = false;
     }
 
     public String getUsername() {
@@ -334,12 +341,14 @@ public class User {
     public void setUnlockedChapters(List<String> unlockedChapters) {
         this.unlockedChapters = new ArrayList<>();
 
-        if (unlockedChapters == null) {
-            return;
+        if (unlockedChapters != null) {
+            for (String chapterName : unlockedChapters) {
+                unlockChapter(chapterName);
+            }
         }
 
-        for (String chapterName : unlockedChapters) {
-            unlockChapter(chapterName);
+        if (this.unlockedChapters.isEmpty()) {
+            unlockChapter("ancient-egypt");
         }
     }
 
@@ -371,6 +380,101 @@ public class User {
         return false;
     }
 
+    public int getCurrentChapterLevel() {
+        if (currentChapterLevel < 1 || currentChapterLevel > 4) {
+            currentChapterLevel = 1;
+        }
+        return currentChapterLevel;
+    }
+
+    public void setCurrentChapterLevel(int currentChapterLevel) {
+        if (currentChapterLevel < 1) {
+            this.currentChapterLevel = 1;
+            return;
+        }
+        this.currentChapterLevel = Math.min(4, currentChapterLevel);
+    }
+
+    public List<String> getCompletedChapterLevels() {
+        if (completedChapterLevels == null) {
+            completedChapterLevels = new ArrayList<>();
+        }
+        return new ArrayList<>(completedChapterLevels);
+    }
+
+    public void setCompletedChapterLevels(List<String> completedChapterLevels) {
+        this.completedChapterLevels = new ArrayList<>();
+        if (completedChapterLevels == null) {
+            return;
+        }
+
+        for (String levelKey : completedChapterLevels) {
+            String normalizedKey = normalizeChapterLevelKey(levelKey);
+            if (!normalizedKey.isEmpty() && !this.completedChapterLevels.contains(normalizedKey)) {
+                this.completedChapterLevels.add(normalizedKey);
+            }
+        }
+    }
+
+    public boolean completeChapterLevel(String chapterName, int levelNumber) {
+        if (levelNumber < 1 || levelNumber > 3) {
+            return false;
+        }
+        if (completedChapterLevels == null) {
+            completedChapterLevels = new ArrayList<>();
+        }
+
+        String key = chapterLevelKey(chapterName, levelNumber);
+        if (key.isEmpty() || completedChapterLevels.contains(key)) {
+            return false;
+        }
+        completedChapterLevels.add(key);
+        return true;
+    }
+
+    public boolean isChapterLevelCompleted(String chapterName, int levelNumber) {
+        if (levelNumber < 1 || levelNumber > 3) {
+            return false;
+        }
+        return getCompletedChapterLevels().contains(chapterLevelKey(chapterName, levelNumber));
+    }
+
+    public boolean isChapterLevelUnlocked(String chapterName, int levelNumber) {
+        if (levelNumber < 1 || levelNumber > 4 || !isChapterUnlocked(chapterName)) {
+            return false;
+        }
+        if (allAdventureLevelsUnlocked) {
+            return true;
+        }
+        if (levelNumber == 1) {
+            return true;
+        }
+        return isChapterLevelCompleted(chapterName, levelNumber - 1);
+    }
+
+    public boolean isAllAdventureLevelsUnlocked() {
+        return allAdventureLevelsUnlocked;
+    }
+
+    public void setAllAdventureLevelsUnlocked(boolean allAdventureLevelsUnlocked) {
+        this.allAdventureLevelsUnlocked = allAdventureLevelsUnlocked;
+        if (allAdventureLevelsUnlocked) {
+            unlockAllAdventureChapters();
+        }
+    }
+
+    public void unlockAllAdventureLevels() {
+        allAdventureLevelsUnlocked = true;
+        unlockAllAdventureChapters();
+    }
+
+    private void unlockAllAdventureChapters() {
+        unlockChapter("ancient-egypt");
+        unlockChapter("ice-cave");
+        unlockChapter("wave-beach");
+        unlockChapter("wild-west");
+    }
+
     public List<String> getCompletedMiniGameStages() {
         if (completedMiniGameStages == null) {
             completedMiniGameStages = new ArrayList<>();
@@ -381,6 +485,9 @@ public class User {
 
     public void setCompletedMiniGameStages(List<String> completedMiniGameStages) {
         this.completedMiniGameStages = new ArrayList<>();
+        this.completedChapterLevels = new ArrayList<>();
+        this.currentChapterLevel = 1;
+        this.allAdventureLevelsUnlocked = false;
 
         if (completedMiniGameStages == null) {
             return;
@@ -552,6 +659,41 @@ public class User {
         }
 
         return normalized;
+    }
+
+    private String chapterLevelKey(String chapterName, int levelNumber) {
+        String normalizedChapter = normalizeChapterName(chapterName);
+        if (normalizedChapter.isEmpty() || levelNumber < 1 || levelNumber > 3) {
+            return "";
+        }
+        return normalizedChapter + ":" + levelNumber;
+    }
+
+    private String normalizeChapterLevelKey(String value) {
+        if (value == null || value.isBlank()) {
+            return "";
+        }
+        int separatorIndex = value.lastIndexOf(':');
+        if (separatorIndex <= 0 || separatorIndex >= value.length() - 1) {
+            return "";
+        }
+        try {
+            int levelNumber = Integer.parseInt(value.substring(separatorIndex + 1).trim());
+            return chapterLevelKey(value.substring(0, separatorIndex), levelNumber);
+        } catch (NumberFormatException exception) {
+            return "";
+        }
+    }
+
+    private String normalizeChapterName(String value) {
+        if (value == null) {
+            return "";
+        }
+        return value.trim()
+                .toLowerCase(Locale.ROOT)
+                .replace('_', '-')
+                .replace(' ', '-')
+                .replaceAll("-+", "-");
     }
 
     private String safeText(String value) {
