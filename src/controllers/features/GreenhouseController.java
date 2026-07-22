@@ -133,11 +133,6 @@ public class GreenhouseController {
         }
 
         User user = currentUserFor(greenhouse);
-        if (!pot.isMarigold() && !canStoreBoost(user, pot.getPlantName())) {
-            fail("The plant boost cannot be stored; the pot was not cleared.");
-            return 0;
-        }
-
         Greenhouse.HarvestResult result = greenhouse.collect(x, y);
         if (!result.isSuccessful()) {
             fail("Harvest failed.");
@@ -146,9 +141,11 @@ public class GreenhouseController {
         int reward = applyHarvestResult(user, result);
         lastHarvestAmount = reward;
         saveUsers();
+        boolean boostAdded = result.isMarigold() || hasStoredBoost(user, result.getPlantName());
         success(result.isMarigold()
                 ? "Harvest completed. +" + reward + " coins."
-                : result.getPlantName() + " collected. One stored boost added.");
+                : result.getPlantName() + " collected. "
+                + (boostAdded ? "One stored boost is available." : "The existing stored boost was kept."));
         return reward;
     }
 
@@ -162,9 +159,6 @@ public class GreenhouseController {
         int collected = 0;
         for (Greenhouse.Pot pot : greenhouse.getAllPots()) {
             if (!pot.isReady()) {
-                continue;
-            }
-            if (!pot.isMarigold() && !canStoreBoost(user, pot.getPlantName())) {
                 continue;
             }
             Greenhouse.HarvestResult result = greenhouse.collect(pot.getX(), pot.getY());
@@ -253,12 +247,12 @@ public class GreenhouseController {
         return user != null && user.getGreenhouse() == greenhouse ? user : null;
     }
 
-    private boolean canStoreBoost(User user, String plantName) {
+    private boolean hasStoredBoost(User user, String plantName) {
         if (user == null) {
             return false;
         }
         PlantData plant = user.getCollection().findOwnedPlant(plantName);
-        return plant != null && plant.getBoostCount() == 0;
+        return plant != null && plant.getBoostCount() > 0;
     }
 
     private int applyHarvestResult(User user, Greenhouse.HarvestResult result) {
