@@ -300,8 +300,10 @@ public class ShopController {
 
         Collection collection = user.getCollection();
         LocalDate today = LocalDate.now();
-        if (!today.toString().equals(collection.getDailyOfferDate())) {
-            collection.refreshDailyOffer(selectDailyPlant(collection), today);
+        if (!today.toString().equals(collection.getDailyOfferDate())
+                || collection.getDailyOfferPlantName().isBlank()
+                || collection.findOwnedPlant(collection.getDailyOfferPlantName()) == null) {
+            collection.refreshDailyOffer(selectDailyPlant(user, collection, today), today);
             saveUsers();
         }
         if (collection.getDailyOfferPlantName().isBlank()) {
@@ -319,12 +321,14 @@ public class ShopController {
         );
     }
 
-    private String selectDailyPlant(Collection collection) {
-        List<PlantData> plants = collection.getOwnedPlants();
+    private String selectDailyPlant(User user, Collection collection, LocalDate date) {
+        List<PlantData> plants = new ArrayList<>(collection.getOwnedPlants());
         if (plants.isEmpty()) {
             return "";
         }
-        int index = Math.floorMod(LocalDate.now().toString().hashCode(), plants.size());
+        plants.sort((first, second) -> first.getName().compareToIgnoreCase(second.getName()));
+        String username = user == null || user.getUsername() == null ? "" : user.getUsername();
+        int index = Math.floorMod((username + "|" + date).hashCode(), plants.size());
         return plants.get(index).getName();
     }
 
