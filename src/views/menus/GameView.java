@@ -65,6 +65,18 @@ public class GameView extends BaseView {
             return true;
         }
 
+        if ("return to level menu".equals(command)) {
+            if (!gameController.isGameFinished()) {
+                gameController.returnToLevelMenuRejected();
+                printControllerMessage(gameController.getLastMessage());
+                return true;
+            }
+
+            menuManager.enterChapterLevelMenu();
+            printControllerMessage(menuManager.getLastMessage());
+            return true;
+        }
+
         return false;
     }
 

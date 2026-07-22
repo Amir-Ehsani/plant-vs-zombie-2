@@ -108,7 +108,7 @@ public class GameMenuView extends BaseView {
             printControllerMessage(gameMenuController.getLastMessage());
 
             if (gameMenuController.wasSuccessful()) {
-                menuManager.enterGamePlayMenu();
+                menuManager.enterChapterLevelMenu();
                 printControllerMessage(menuManager.getLastMessage());
             }
 
@@ -135,6 +135,12 @@ public class GameMenuView extends BaseView {
     }
 
     private boolean handleCheatCommand(String command) {
+        if ("menu cheat unlock-all-levels".equals(command)) {
+            gameMenuController.unlockAllAdventureLevelsCheat();
+            printControllerMessage(gameMenuController.getLastMessage());
+            return true;
+        }
+
         Matcher matcher = CHEAT_CURRENCY_PATTERN.matcher(command);
 
         if (!matcher.matches()) {

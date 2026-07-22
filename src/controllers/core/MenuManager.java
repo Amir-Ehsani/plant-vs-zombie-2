@@ -11,6 +11,7 @@ public class MenuManager {
     private final ProfileController profileController;
     private final SettingsController settingsController;
     private final GameMenuController gameMenuController;
+    private final ChapterLevelController chapterLevelController;
     private final GameController gameController;
     private final CollectionController collectionController;
     private final GreenhouseController greenhouseController;
@@ -28,6 +29,7 @@ public class MenuManager {
         this.profileController = new ProfileController(authController);
         this.settingsController = new SettingsController(authController);
         this.gameMenuController = new GameMenuController(authController);
+        this.chapterLevelController = new ChapterLevelController(authController);
         this.gameController = new GameController(authController);
         this.collectionController = new CollectionController(authController);
         this.greenhouseController = new GreenhouseController(authController);
@@ -133,6 +135,26 @@ public class MenuManager {
         success("Entered game menu.");
     }
 
+    public void enterChapterLevelMenu() {
+        if (!authController.isLoggedIn()) {
+            fail("You must login first.");
+            return;
+        }
+
+        String chapterName = authController.getLoggedInUser().getCurrentChapterName();
+        if (chapterName == null || chapterName.isBlank()) {
+            fail("Select a chapter first.");
+            return;
+        }
+
+        changeView(new ChapterLevelView(
+                "Chapter Level Menu",
+                this,
+                chapterLevelController
+        ));
+        success("Entered chapter level menu.");
+    }
+
     public void enterGamePlayMenu() {
         if (!authController.isLoggedIn()) {
             fail("You must login first.");
@@ -140,7 +162,8 @@ public class MenuManager {
         }
 
         String chapterName = authController.getLoggedInUser().getCurrentChapterName();
-        gameController.prepareChapter(chapterName);
+        int levelNumber = authController.getLoggedInUser().getCurrentChapterLevel();
+        gameController.prepareChapterLevel(chapterName, levelNumber);
 
         if (!gameController.wasSuccessful()) {
             String message = gameController.getLastMessage();
@@ -154,6 +177,18 @@ public class MenuManager {
         }
 
         changeView(new GameView("Game Play Menu", this, gameController));
+
+        if (gameController.shouldAutoStartCurrentLevel()) {
+            gameController.startGame();
+            if (!gameController.wasSuccessful()) {
+                String message = gameController.getLastMessage();
+                fail(message != null && message.startsWith("ERROR: ")
+                        ? message.substring("ERROR: ".length())
+                        : message);
+                return;
+            }
+        }
+
         success("Entered game play menu.");
     }
 
@@ -325,6 +360,11 @@ public class MenuManager {
         }
 
         if ("Game Play Menu".equals(viewName)) {
+            enterChapterLevelMenu();
+            return;
+        }
+
+        if ("Chapter Level Menu".equals(viewName)) {
             enterGameMenu();
             return;
         }
@@ -450,6 +490,7 @@ public class MenuManager {
                 menu travel-log
                 menu leaderboard
                 menu cheat add <n> <coin/diamond>
+                menu cheat unlock-all-levels
                 menu show current
                 menu exit""");
     }
@@ -485,6 +526,7 @@ public class MenuManager {
                 cheat add plant-food
                 cheat spawn-zombie -t <zombie_type> -l <x, y>
                 cheat nuke
+                return to level menu
                 
                 menu show current
                 menu exit""");
