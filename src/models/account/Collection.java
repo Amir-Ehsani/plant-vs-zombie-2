@@ -248,13 +248,21 @@ public class Collection {
         return true;
     }
 
+    public int takeStoredPlantFood() {
+        int amount = Math.max(0, Math.min(MAX_STORED_PLANT_FOOD, storedPlantFood));
+        storedPlantFood = 0;
+        return amount;
+    }
+
     public void refreshDailyOffer(String plantName, LocalDate date) {
         if (date == null) {
             return;
         }
 
         String dateText = date.toString();
-        if (dateText.equals(dailyOfferDate)) {
+        if (dateText.equals(dailyOfferDate)
+                && dailyOfferPlantName != null
+                && !dailyOfferPlantName.isBlank()) {
             return;
         }
 
