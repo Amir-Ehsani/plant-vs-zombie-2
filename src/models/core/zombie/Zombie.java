@@ -19,6 +19,9 @@ public class Zombie extends GameEntity {
     private ZombieType type;
     private Armor armor;
     private boolean submerged;
+    private String lastDamageSourcePlantName;
+    private String lastDamageSourcePlantCategory;
+    private String lastDamageType;
 
     public Zombie() {
         this(new ZombieType(), 9, 1, null, null, null);
@@ -54,6 +57,9 @@ public class Zombie extends GameEntity {
         this.droppedReward = false;
         this.droppedRewardType = NO_DROP;
         this.submerged = false;
+        this.lastDamageSourcePlantName = "";
+        this.lastDamageSourcePlantCategory = "";
+        this.lastDamageType = "";
         this.id = buildId();
     }
 
@@ -124,8 +130,13 @@ public class Zombie extends GameEntity {
             remainingDamage = armor.reduceDamage(remainingDamage);
         }
         if (remainingDamage > 0) {
+            if (lastDamageType == null || lastDamageType.isBlank()) {
+                lastDamageType = damageType;
+            }
+
             hp = Math.max(0, hp - remainingDamage);
         }
+
         checkDropOnDeath();
     }
 
@@ -255,6 +266,28 @@ public class Zombie extends GameEntity {
         }
         hp = 0;
         checkDropOnDeath();
+    }
+
+    public void recordDamageSource(String plantName, String plantCategory, String damageType) {
+        this.lastDamageSourcePlantName = safeText(plantName);
+        this.lastDamageSourcePlantCategory = safeText(plantCategory);
+        this.lastDamageType = safeText(damageType);
+    }
+
+    public String getLastDamageSourcePlantName() {
+        return lastDamageSourcePlantName == null ? "" : lastDamageSourcePlantName;
+    }
+
+    public String getLastDamageSourcePlantCategory() {
+        return lastDamageSourcePlantCategory == null ? "" : lastDamageSourcePlantCategory;
+    }
+
+    public String getLastDamageType() {
+        return lastDamageType == null ? "" : lastDamageType;
+    }
+
+    private String safeText(String value) {
+        return value == null ? "" : value.trim();
     }
 
     private String normalizeDamageType(String value) {
