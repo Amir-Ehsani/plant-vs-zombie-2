@@ -1,6 +1,7 @@
 package controllers.core;
 
 import controllers.features.TravelLogController;
+import models.account.PlantData;
 import models.account.Quest;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -108,6 +109,10 @@ public class GameController {
 
         this.gameSession = gameSession;
         success("Game session is ready.");
+    }
+
+    public GameSession getGameSession() {
+        return gameSession;
     }
 
     public void prepareChapter(String chapterName) {
@@ -326,9 +331,13 @@ public class GameController {
 
         try {
             resetRuntimeQuestTracking();
-            ensureQuestList(getLoggedInUserOrFail());
-
+            User user = getLoggedInUserOrFail();
+            ensureQuestList(user);
+            int storedPlantFood = user.getCollection().getStoredPlantFood();
+            gameSession.setInitialPlantFoodCount(storedPlantFood);
             gameSession.initSession();
+            user.getCollection().takeStoredPlantFood();
+            saveUsers();
 
             StringBuilder builder = new StringBuilder("Game started.");
             List<GameEvent> events = gameSession.drainEvents();
@@ -486,8 +495,10 @@ public class GameController {
                 .append(gameSession.getTotalSunAmount())
                 .append(".");
 
-        if (isPlantBoostedForThisGame(type.getName())) {
-            applyEntranceBoost(position, builder);
+        boolean paidBoost = isPlantBoostedForThisGame(type.getName());
+        boolean greenhouseBoost = consumeGreenhouseBoost(type.getName());
+        if (paidBoost || greenhouseBoost) {
+            applyEntranceBoost(position, builder, paidBoost, greenhouseBoost);
         }
 
         List<GameEvent> events = gameSession.drainEvents();
@@ -1026,25 +1037,41 @@ public class GameController {
         return builder.toString();
     }
 
-    private void applyEntranceBoost(Position position, StringBuilder builder) {
+    private void applyEntranceBoost(
+            Position position,
+            StringBuilder builder,
+            boolean paidBoost,
+            boolean greenhouseBoost
+    ) {
         if (position == null || builder == null) {
             return;
         }
 
-        boolean plantFoodAdded = gameSession.addPlantFood();
-        boolean plantFed = gameSession.feedPlant(position);
-
-        if (plantFed) {
-            builder.append(" Entrance boost was applied.");
-            return;
-        }
-
-        if (plantFoodAdded) {
-            builder.append(" Entrance boost could not be applied, but one plant food was added.");
+        if (gameSession.activatePlantFood(position, false)) {
+            builder.append(" Entrance boost was applied");
+            if (paidBoost && greenhouseBoost) {
+                builder.append(" from the game boost and the stored greenhouse boost was consumed");
+            } else if (greenhouseBoost) {
+                builder.append(" from the stored greenhouse boost");
+            }
+            builder.append(".");
             return;
         }
 
         builder.append(" Entrance boost could not be applied.");
+    }
+
+    private boolean consumeGreenhouseBoost(String plantName) {
+        User user = getLoggedInUserOrFail();
+        if (user == null) {
+            return false;
+        }
+        PlantData plantData = user.getCollection().findOwnedPlant(plantName);
+        if (plantData == null || !plantData.useBoost()) {
+            return false;
+        }
+        saveUsers();
+        return true;
     }
 
     private Level createDefaultLevel(String chapterName) {
