@@ -68,6 +68,16 @@ public class ConveyorBeltRule extends AbstractLevelRule {
     }
 
     @Override
+    public int resolveInitialSunAmount(int defaultAmount) {
+        return 0;
+    }
+
+    @Override
+    public boolean allowsSkySun() {
+        return false;
+    }
+
+    @Override
     public boolean usesConveyorBelt() {
         return true;
     }
