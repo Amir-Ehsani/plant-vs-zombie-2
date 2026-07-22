@@ -1,6 +1,8 @@
 package controllers.core;
 
 import controllers.features.TravelLogController;
+import models.account.Collection;
+import models.account.News;
 import models.account.PlantData;
 import models.account.Quest;
 import java.util.HashMap;
@@ -13,8 +15,11 @@ import models.core.plant.Plant;
 import models.core.plant.PlantRegistry;
 import models.core.plant.PlantType;
 import models.core.zombie.Armor;
+import models.core.zombie.DefaultZombieRegistry;
 import models.core.zombie.Zombie;
 import models.core.zombie.ZombieFactory;
+import models.core.zombie.ZombieRegistry;
+import models.core.zombie.ZombieType;
 import models.engine.board.Board;
 import models.engine.board.Lane;
 import models.engine.board.Position;
@@ -25,6 +30,7 @@ import models.engine.session.GameSession;
 import models.engine.session.GameState;
 import models.engine.session.PlantRechargeStatus;
 import models.engine.sun.Sun;
+import models.level.core.AdventureContentCatalog;
 import models.level.core.AdventureLevelCatalog;
 import models.level.core.Level;
 import models.level.core.LevelType;
@@ -57,6 +63,7 @@ public class GameController {
     private static final double TICKS_PER_SECOND = 10.0;
     private static final int PLANT_SELECTION_LIMIT = 8;
     private static final int BOOST_GEM_COST = 2;
+    private static final int DEFAULT_PLANT_PURCHASE_PRICE = 2000;
     private static final int FIRST_WAVE_TICK = 100;
     private static final int MINIMUM_WAVE_INTERVAL_TICKS = 220;
     private static final int BASE_WAVE_INTERVAL_TICKS = 360;
@@ -153,6 +160,12 @@ public class GameController {
             return;
         }
 
+        AdventureUnlockSummary unlockSummary = synchronizeAdventureContent(
+                user,
+                normalizedChapter,
+                levelNumber
+        );
+
         GameSession session = new GameSession();
         session.setCurrentLevel(createAdventureLevel(normalizedChapter, levelNumber));
 
@@ -165,17 +178,20 @@ public class GameController {
         ensureQuestList(user);
 
         String levelTitle = AdventureLevelCatalog.levelTitle(normalizedChapter, levelNumber);
+        String unlockText = unlockSummary.asMessage();
         if (session.getCurrentLevel().usesConveyorBelt()) {
             success("Chapter " + AdventureLevelCatalog.displayChapterName(normalizedChapter)
                     + " level " + levelNumber + " (" + levelTitle
-                    + ") is ready and will start automatically.");
+                    + ") is ready and will start automatically."
+                    + unlockText);
             return;
         }
 
         success("Chapter " + AdventureLevelCatalog.displayChapterName(normalizedChapter)
                 + " level " + levelNumber + " (" + levelTitle + ") is ready. Select up to "
                 + currentPlantSelectionLimit()
-                + " unlocked plants before starting the game.");
+                + " unlocked plants before starting the game."
+                + unlockText);
     }
 
     public boolean shouldAutoStartCurrentLevel() {
@@ -938,18 +954,33 @@ public class GameController {
         }
 
         builder.append("\nzombies:");
-
-        int livingZombies = 0;
-
-        for (Zombie zombie : tile.getZombies()) {
-            if (zombie != null && zombie.isAlive()) {
-                livingZombies++;
+        List<Zombie> displayedZombies = zombiesDisplayedAt(position);
+        if (displayedZombies.isEmpty()) {
+            builder.append(" none");
+        } else {
+            for (Zombie zombie : displayedZombies) {
                 appendZombieDetails(builder, zombie);
             }
         }
 
-        if (livingZombies == 0) {
+        builder.append("\nsuns:");
+        List<Sun> suns = sunsAt(position);
+        if (suns.isEmpty()) {
             builder.append(" none");
+        } else {
+            for (Sun sun : suns) {
+                builder.append("\n  type=")
+                        .append(sun.getType())
+                        .append(" amount=")
+                        .append(sun.getSunAmount())
+                        .append(" state=")
+                        .append(sun.isFalling() ? "falling" : "collectible");
+                if (sun.isFalling()) {
+                    builder.append(" time-left=")
+                            .append(sun.getFallingTicksRemaining())
+                            .append(" ticks");
+                }
+            }
         }
 
         success(builder.toString());
@@ -1123,12 +1154,119 @@ public class GameController {
         return true;
     }
 
+    private AdventureUnlockSummary synchronizeAdventureContent(
+            User user,
+            String chapterName,
+            int levelNumber
+    ) {
+        AdventureUnlockSummary summary = new AdventureUnlockSummary();
+        if (user == null) {
+            return summary;
+        }
+
+        Collection collection = user.getCollection();
+        ZombieRegistry zombieRegistry = DefaultZombieRegistry.getInstance();
+        boolean changed = false;
+
+        for (PlantType type : plantRegistry.getAllPlantTypes()) {
+            if (type != null && !collection.hasPlant(type.getName())) {
+                collection.addPlant(new PlantData(
+                        type.getName(),
+                        DEFAULT_PLANT_PURCHASE_PRICE,
+                        false
+                ));
+                changed = true;
+            }
+        }
+
+        for (ZombieType type : zombieRegistry.getAllZombieTypes()) {
+            if (type != null && !collection.hasZombie(type.getName())) {
+                collection.addZombie(type.getName(), false);
+                changed = true;
+            }
+        }
+
+        for (String plantName : AdventureContentCatalog.plantNamesUnlockedThrough(
+                chapterName,
+                levelNumber,
+                plantRegistry
+        )) {
+            if (collection.hasOwnedPlant(plantName)) {
+                continue;
+            }
+            if (collection.unlockPlant(plantName)) {
+                summary.plantNames.add(plantName);
+                user.addNews(News.plantUnlocked(plantName));
+                changed = true;
+            }
+        }
+
+        for (String zombieName : AdventureContentCatalog.zombieNamesUnlockedThrough(
+                chapterName,
+                levelNumber,
+                zombieRegistry
+        )) {
+            if (collection.hasOwnedZombie(zombieName)) {
+                continue;
+            }
+            if (collection.unlockZombie(zombieName)) {
+                summary.zombieNames.add(zombieName);
+                user.addNews(News.zombieDiscovered(zombieName));
+                changed = true;
+            }
+        }
+
+        if (changed) {
+            saveUsers();
+        }
+        return summary;
+    }
+
+    private static final class AdventureUnlockSummary {
+        private final List<String> plantNames = new ArrayList<>();
+        private final List<String> zombieNames = new ArrayList<>();
+
+        private String asMessage() {
+            StringBuilder builder = new StringBuilder();
+            if (!plantNames.isEmpty()) {
+                builder.append("\nNew plants unlocked: ")
+                        .append(String.join(", ", plantNames))
+                        .append(".");
+            }
+            if (!zombieNames.isEmpty()) {
+                builder.append("\nNew zombies discovered: ")
+                        .append(String.join(", ", zombieNames))
+                        .append(".");
+            }
+            return builder.toString();
+        }
+    }
+
     private Level createAdventureLevel(String chapterName, int levelNumber) {
         int difficulty = currentDifficultyLevel();
-        List<Wave> waves = createDifficultyWaves(difficulty);
+        ZombieRegistry zombieRegistry = DefaultZombieRegistry.getInstance();
+        List<String> allowedPlants = AdventureContentCatalog.plantNamesUnlockedThrough(
+                chapterName,
+                levelNumber,
+                plantRegistry
+        );
+        List<String> allowedZombies = AdventureContentCatalog.zombieNamesUnlockedThrough(
+                chapterName,
+                levelNumber,
+                zombieRegistry
+        );
+        List<String> newlyUnlockedZombies = AdventureContentCatalog.zombieNamesUnlockedAt(
+                chapterName,
+                levelNumber,
+                zombieRegistry
+        );
+        List<Wave> waves = createDifficultyWaves(
+                difficulty,
+                allowedZombies,
+                newlyUnlockedZombies,
+                AdventureContentCatalog.stageOrdinal(chapterName, levelNumber)
+        );
         WaveManager waveManager = new WaveManager(waves, null, AttackPattern.ROUND_ROBIN);
-        List<String> allowedPlants = allowedPlantsForChapter(chapterName);
-        List<String> allowedZombies = Arrays.asList("Default", "cone head", "bucket head");
         int initialSun = Math.max(50, 200 - difficulty * 10);
 
         LevelRule rule = levelNumber == 1
@@ -1181,8 +1319,11 @@ public class GameController {
         List<String> ownedPlants = new ArrayList<>();
         if (allowedPlants != null) {
             for (String plantName : allowedPlants) {
-                if (isPlantUnlockedByUser(plantName)) {
-                    ownedPlants.add(plantName);
+                PlantType type = plantRegistry.getByName(plantName);
+                if (type != null
+                        && isPlantUnlockedByUser(type.getName())
+                        && !normalizeName(type.getCategory()).equals("sun producer")) {
+                    ownedPlants.add(type.getName());
                 }
             }
         }
@@ -1210,97 +1351,6 @@ public class GameController {
         protectedPlants.put(new Position(3, 2), "Peashooter");
         protectedPlants.put(new Position(3, 4), "Wall-nut");
         return protectedPlants;
-    }
-
-    private List<String> allowedPlantsForChapter(String chapterName) {
-        String normalizedChapterName = normalizeName(chapterName);
-
-        if ("ice cave".equals(normalizedChapterName)) {
-            return Arrays.asList(
-                    "Sunflower",
-                    "Peashooter",
-                    "Repeater",
-                    "Wall-nut",
-                    "Potato Mine",
-                    "Iceberg Lettuce",
-                    "Hot Potato",
-                    "Pepper-pult",
-                    "Fire Peashooter"
-            );
-        }
-
-        if ("wave beach".equals(normalizedChapterName)) {
-            return Arrays.asList(
-                    "Sunflower",
-                    "Peashooter",
-                    "Wall-nut",
-                    "Potato Mine",
-                    "Lily Pad",
-                    "Tangle Kelp",
-                    "Sea-shroom",
-                    "Bowling Bulb",
-                    "Rotobaga"
-            );
-        }
-
-        if ("wild west".equals(normalizedChapterName)) {
-            return Arrays.asList(
-                    "Sunflower",
-                    "Peashooter",
-                    "Repeater",
-                    "Wall-nut",
-                    "Potato Mine",
-                    "Split Pea",
-                    "Pea Pod",
-                    "Tall-nut",
-                    "Melon-pult"
-            );
-        }
-
-        return Arrays.asList(
-                "Sunflower",
-                "Peashooter",
-                "Wall-nut",
-                "Potato Mine",
-                "Cabbage-pult",
-                "Kernel-pult",
-                "Iceberg Lettuce",
-                "Bonk Choy",
-                "Cherry Bomb"
-        );
-    }
-
-    private List<Zombie> zombies(String... names) {
-        ZombieFactory zombieFactory = new ZombieFactory();
-        List<Zombie> zombies = new ArrayList<>();
-
-        if (names == null) {
-            return zombies;
-        }
-
-        for (String name : names) {
-            zombies.add(zombieFactory.createZombie(name, 9, 1));
-        }
-
-        return zombies;
-    }
-
-    private int resolveLevelId(String chapterName) {
-        String normalizedChapterName = normalizeName(chapterName);
-
-        if ("ice cave".equals(normalizedChapterName)) {
-            return 2;
-        }
-
-        if ("wave beach".equals(normalizedChapterName)) {
-            return 3;
-        }
-
-        if ("wild west".equals(normalizedChapterName)) {
-            return 4;
-        }
-
-        return 1;
     }
 
     private void appendPlantDetails(StringBuilder builder, Plant plant, String indent) {
@@ -1660,18 +1710,20 @@ public class GameController {
     }
 
     private void appendDetailedMap(StringBuilder builder, Board board) {
-        List<String> cellTexts = new ArrayList<>();
-        int cellContentWidth = 18;
+        List<Tile> mapTiles = new ArrayList<>();
+        int baseContentWidth = 18;
 
         for (Lane lane : board.getLanes()) {
             for (Tile tile : lane.getTiles()) {
-                String text = detailedTileText(tile);
-                cellTexts.add(text);
-                cellContentWidth = Math.max(cellContentWidth, text.length());
+                mapTiles.add(tile);
+                baseContentWidth = Math.max(
+                        baseContentWidth,
+                        detailedTileBaseText(tile).length()
+                );
             }
         }
 
-        int cellWidth = cellContentWidth + 2;
+        int cellWidth = baseContentWidth + 4;
         String samplePrefix = rowPrefix(1, false);
         builder.append("\n")
                 .append(" ".repeat(samplePrefix.length()));
@@ -1686,22 +1738,25 @@ public class GameController {
             builder.append("\n").append(rowPrefix(lane.getLaneId(), mowerReady));
 
             for (int column = 1; column <= board.getWidth(); column++) {
-                String content = cellTexts.get(cellIndex++);
+                Tile tile = mapTiles.get(cellIndex++);
                 builder.append("[")
-                        .append(padRight(content, cellContentWidth))
+                        .append(padRight(detailedTileBaseText(tile), baseContentWidth))
+                        .append("|")
+                        .append(hasSunAt(tile.getPosition()) ? "*" : "-")
                         .append("]");
             }
         }
 
-        builder.append("\nLegend: [terrain|P:plant names|Z:zombie names], ")
+        builder.append("\nLegend: [terrain|P:plant names|Z:zombie names|sun], ")
+                .append("the final marker is *=sun and -=no sun; ")
                 .append("terrain .=normal, G=grave, W=water, F=ice, B=barrel, A=arcade, ")
                 .append("L=low-tide, N=necromancy, ^/v=slip; [LM]=active lawn mower.");
     }
 
-    private String detailedTileText(Tile tile) {
+    private String detailedTileBaseText(Tile tile) {
         return terrainSymbol(tile.getTileType())
                 + "|P:" + plantNamesInTile(tile)
-                + "|Z:" + zombieNamesInTile(tile);
+                + "|Z:" + zombieNamesAt(tile.getPosition());
     }
 
     private String plantNamesInTile(Tile tile) {
@@ -1714,14 +1769,61 @@ public class GameController {
         return groupedNames(names);
     }
 
-    private String zombieNamesInTile(Tile tile) {
+    private String zombieNamesAt(Position position) {
         List<String> names = new ArrayList<>();
-        for (Zombie zombie : tile.getZombies()) {
-            if (zombie != null && zombie.isAlive()) {
-                names.add(zombie.getName());
-            }
+        for (Zombie zombie : zombiesDisplayedAt(position)) {
+            names.add(zombie.getName());
         }
         return groupedNames(names);
+    }
+
+    private List<Zombie> zombiesDisplayedAt(Position position) {
+        List<Zombie> zombies = new ArrayList<>();
+        if (position == null || gameSession == null || gameSession.getBoard() == null) {
+            return zombies;
+        }
+
+        Board board = gameSession.getBoard();
+        for (Lane lane : board.getLanes()) {
+            for (Tile tile : lane.getTiles()) {
+                for (Zombie zombie : tile.getZombies()) {
+                    if (zombie == null || !zombie.isAlive() || zombies.contains(zombie)) {
+                        continue;
+                    }
+                    int displayedX = Math.max(
+                            1,
+                            Math.min(board.getWidth(), (int) Math.ceil(zombie.getX()))
+                    );
+                    int displayedY = Math.max(
+                            1,
+                            Math.min(board.getHeight(), (int) Math.round(zombie.getY()))
+                    );
+                    if (displayedX == position.getX() && displayedY == position.getY()) {
+                        zombies.add(zombie);
+                    }
+                }
+            }
+        }
+        return zombies;
+    }
+
+    private List<Sun> sunsAt(Position position) {
+        List<Sun> suns = new ArrayList<>();
+        if (position == null || gameSession == null || gameSession.getSunManager() == null) {
+            return suns;
+        }
+        for (Sun sun : gameSession.getSunManager().getSuns()) {
+            if (sun != null && position.equals(sun.getPosition())) {
+                suns.add(sun);
+            }
+        }
+        return suns;
+    }
+
+    private boolean hasSunAt(Position position) {
+        return gameSession != null
+                && gameSession.getSunManager() != null
+                && gameSession.getSunManager().hasSunAt(position);
     }
 
     private String groupedNames(List<String> names) {
@@ -1833,48 +1935,135 @@ public class GameController {
         }
     }
 
-    private List<Wave> createDifficultyWaves(int difficulty) {
+    private List<Wave> createDifficultyWaves(
+            int difficulty,
+            List<String> allowedZombieNames,
+            List<String> newlyUnlockedZombieNames,
+            int stageOrdinal
+    ) {
         List<Wave> waves = new ArrayList<>();
-
         int totalWaves = 2 + difficulty;
         int delayStep = Math.max(
                 MINIMUM_WAVE_INTERVAL_TICKS,
                 BASE_WAVE_INTERVAL_TICKS - difficulty * 20
         );
+        int stageBonus = Math.max(0, stageOrdinal) / 3;
 
         for (int waveNumber = 1; waveNumber <= totalWaves; waveNumber++) {
-            int zombieCount = difficulty + waveNumber;
+            int zombieCount = difficulty + waveNumber + Math.min(3, stageBonus);
             int delay = FIRST_WAVE_TICK + (waveNumber - 1) * delayStep;
 
             waves.add(new Wave(
                     waveNumber,
                     delay,
-                    zombiesForDifficultyWave(waveNumber, difficulty, zombieCount)
+                    zombiesForDifficultyWave(
+                            waveNumber,
+                            totalWaves,
+                            difficulty,
+                            zombieCount,
+                            allowedZombieNames,
+                            newlyUnlockedZombieNames,
+                            stageOrdinal
+                    )
             ));
         }
 
         return waves;
     }
 
-    private List<Zombie> zombiesForDifficultyWave(int waveNumber, int difficulty, int count) {
-        ZombieFactory zombieFactory = new ZombieFactory();
-        List<Zombie> zombies = new ArrayList<>();
+    private List<Zombie> zombiesForDifficultyWave(
+            int waveNumber,
+            int totalWaves,
+            int difficulty,
+            int requestedCount,
+            List<String> allowedZombieNames,
+            List<String> newlyUnlockedZombieNames,
+            int stageOrdinal
+    ) {
+        ZombieRegistry registry = DefaultZombieRegistry.getInstance();
+        ZombieFactory zombieFactory = new ZombieFactory(registry);
+        List<ZombieType> availableTypes = new ArrayList<>();
 
-        for (int i = 0; i < count; i++) {
-            String zombieName;
-
-            if (difficulty >= 4 && waveNumber >= 3 && i % 3 == 0) {
-                zombieName = "bucket head";
-            } else if (difficulty >= 2 && waveNumber >= 2 && i % 2 == 0) {
-                zombieName = "cone head";
-            } else {
-                zombieName = "Default";
+        for (ZombieType type : registry.getAllZombieTypes()) {
+            if (type != null && containsNormalizedName(allowedZombieNames, type.getName())) {
+                availableTypes.add(type);
             }
+        }
 
-            zombies.add(zombieFactory.createZombie(zombieName, 9, 1));
+        availableTypes.sort((first, second) -> {
+            int costComparison = Integer.compare(first.getWaveCost(), second.getWaveCost());
+            if (costComparison != 0) {
+                return costComparison;
+            }
+            return first.getName().compareToIgnoreCase(second.getName());
+        });
+
+        if (availableTypes.isEmpty()) {
+            ZombieType fallback = registry.getZombieTypeByName("Default");
+            if (fallback != null) {
+                availableTypes.add(fallback);
+            }
+        }
+
+        int maximumWaveCost = 250
+                + Math.max(0, stageOrdinal) * 80
+                + waveNumber * 120
+                + difficulty * 70;
+        List<ZombieType> eligibleTypes = new ArrayList<>();
+        for (ZombieType type : availableTypes) {
+            if (type.getWaveCost() <= maximumWaveCost) {
+                eligibleTypes.add(type);
+            }
+        }
+        if (eligibleTypes.isEmpty() && !availableTypes.isEmpty()) {
+            eligibleTypes.add(availableTypes.get(0));
+        }
+
+        List<Zombie> zombies = new ArrayList<>();
+        boolean finalWave = waveNumber == totalWaves;
+        if (finalWave && newlyUnlockedZombieNames != null) {
+            for (String zombieName : newlyUnlockedZombieNames) {
+                ZombieType type = registry.getZombieTypeByName(zombieName);
+                if (type != null && containsNormalizedName(allowedZombieNames, type.getName())) {
+                    zombies.add(zombieFactory.createZombie(type, 9, 1));
+                }
+            }
+        }
+
+        int count = Math.max(requestedCount, zombies.size());
+        if (eligibleTypes.isEmpty()) {
+            return zombies;
+        }
+
+        int accessibleTypeCount = Math.max(
+                1,
+                (int) Math.ceil(eligibleTypes.size() * waveNumber / (double) totalWaves)
+        );
+        accessibleTypeCount = Math.min(accessibleTypeCount, eligibleTypes.size());
+
+        for (int index = zombies.size(); index < count; index++) {
+            int typeIndex = Math.floorMod(
+                    index * 2 + waveNumber + difficulty + Math.max(0, stageOrdinal),
+                    accessibleTypeCount
+            );
+            ZombieType type = eligibleTypes.get(typeIndex);
+            zombies.add(zombieFactory.createZombie(type, 9, 1));
         }
 
         return zombies;
+    }
+
+    private boolean containsNormalizedName(List<String> names, String targetName) {
+        if (names == null || targetName == null) {
+            return false;
+        }
+        String target = normalizeName(targetName);
+        for (String name : names) {
+            if (normalizeName(name).equals(target)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private int currentDifficultyLevel() {
