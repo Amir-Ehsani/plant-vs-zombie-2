@@ -104,12 +104,12 @@ public class ProfileController {
             return;
         }
 
-        if (oldPassword == null || !oldPassword.equals(user.getPassword())) {
+        if (!authController.passwordMatches(user, oldPassword)) {
             fail("Old password is incorrect.");
             return;
         }
 
-        if (newPassword == null || newPassword.equals(user.getPassword())) {
+        if (newPassword == null || authController.passwordMatches(user, newPassword)) {
             fail("New password must be different from current password.");
             return;
         }
@@ -118,7 +118,7 @@ public class ProfileController {
             return;
         }
 
-        user.setPassword(newPassword);
+        authController.setUserPassword(user, newPassword);
         authController.saveUsers();
         success("Password changed successfully.");
     }
