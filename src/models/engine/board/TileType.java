@@ -5,6 +5,8 @@ public enum TileType {
     GRAVE,
     WATER,
     ICE,
+    BARREL,
+    ARCADE,
     SLIPPERY_UP,
     SLIPPERY_DOWN,
     LOW_TIDE,
