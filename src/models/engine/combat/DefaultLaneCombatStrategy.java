@@ -41,6 +41,8 @@ public class DefaultLaneCombatStrategy implements LaneCombatStrategy {
         private int chilledTicks;
         private int poisonTicks;
         private int poisonDamage;
+        private String poisonSourcePlantName;
+        private String poisonSourcePlantCategory;
         private int butterTicks;
         private boolean hypnotized;
         private int pendingLaneShift;
@@ -114,12 +116,22 @@ public class DefaultLaneCombatStrategy implements LaneCombatStrategy {
     }
 
     public void applyPoison(Zombie zombie, int damagePerTick, int ticks) {
+        applyPoison(zombie, damagePerTick, ticks, null);
+    }
+
+    private void applyPoison(Zombie zombie, int damagePerTick, int ticks, Plant source) {
         if (zombie == null || !zombie.isAlive() || damagePerTick <= 0 || ticks <= 0) {
             return;
         }
+
         ZombieRuntimeState state = stateOf(zombie);
         state.poisonDamage = Math.max(state.poisonDamage, damagePerTick);
         state.poisonTicks = Math.max(state.poisonTicks, ticks);
+
+        if (source != null) {
+            state.poisonSourcePlantName = source.getName();
+            state.poisonSourcePlantCategory = source.getType() == null ? "" : source.getType().getCategory();
+        }
     }
 
     public void applyButterStun(Zombie zombie, int ticks) {
@@ -326,6 +338,12 @@ public class DefaultLaneCombatStrategy implements LaneCombatStrategy {
             if (target != null && Math.abs(target.getX() - plant.getX()) <= 1.25) {
                 int limit = plant.canCrushTwice() ? 2 : 1;
                 for (Zombie zombie : closestTargets(plant, collectCandidateZombies(plant, lane), limit, true)) {
+                    zombie.recordDamageSource(
+                            plant.getName(),
+                            plant.getType() == null ? "" : plant.getType().getCategory(),
+                            "crush"
+                    );
+
                     zombie.kill();
                     state.crushCount++;
                 }
@@ -344,6 +362,12 @@ public class DefaultLaneCombatStrategy implements LaneCombatStrategy {
             int killed = 0;
             for (Zombie target : targets) {
                 if (Math.abs(target.getX() - plant.getX()) <= 0.75) {
+                    target.recordDamageSource(
+                            plant.getName(),
+                            plant.getType() == null ? "" : plant.getType().getCategory(),
+                            "drag"
+                    );
+
                     target.kill();
                     killed++;
                 }
@@ -389,6 +413,12 @@ public class DefaultLaneCombatStrategy implements LaneCombatStrategy {
             if (plant.getCooldownRemaining() == 0) {
                 Zombie target = strongestTarget(collectCandidateZombies(plant, lane), false);
                 if (target != null) {
+                    target.recordDamageSource(
+                            plant.getName(),
+                            plant.getType() == null ? "" : plant.getType().getCategory(),
+                            "electric"
+                    );
+
                     target.kill();
                     plant.attack();
                 }
@@ -400,6 +430,12 @@ public class DefaultLaneCombatStrategy implements LaneCombatStrategy {
             if (plant.getCooldownRemaining() == 0) {
                 Zombie target = nearestZombie(collectCandidateZombies(plant, lane), plant, true);
                 if (target != null && Math.abs(target.getX() - plant.getX()) <= MELEE_RANGE) {
+                    target.recordDamageSource(
+                            plant.getName(),
+                            plant.getType() == null ? "" : plant.getType().getCategory(),
+                            "chomp"
+                    );
+
                     target.kill();
                     state.digestTicks = plant.getDigestTimeTicks() > 0
                             ? plant.getDigestTimeTicks()
@@ -624,7 +660,7 @@ public class DefaultLaneCombatStrategy implements LaneCombatStrategy {
         }
         if (name.equals("goo peashooter") || plant.getDamagePerTick() > 0) {
             int damage = Math.max(5, plant.getDamagePerTick());
-            applyPoison(target, damage, DEFAULT_POISON_TICKS);
+            applyPoison(target, damage, DEFAULT_POISON_TICKS, plant);
         }
         if (name.equals("kernel pult")) {
             int chance = Math.min(100, 25 + plant.getButterChancePercent());
@@ -729,10 +765,21 @@ public class DefaultLaneCombatStrategy implements LaneCombatStrategy {
         if (target == null || !target.isAlive() || damage <= 0 || isHypnotized(target)) {
             return;
         }
+
         int adjusted = damage;
+
         if (source != null && isFamilyBoosted(source.getType().getCategory())) {
             adjusted *= 2;
         }
+
+        if (source != null) {
+            target.recordDamageSource(
+                    source.getName(),
+                    source.getType() == null ? "" : source.getType().getCategory(),
+                    damageType
+            );
+        }
+
         target.takeDamage(new Damage(adjusted, damageType));
 
         if (fireDamage && board != null) {
@@ -740,6 +787,7 @@ public class DefaultLaneCombatStrategy implements LaneCombatStrategy {
                     Math.max(1, Math.min(board.getWidth(), (int) Math.ceil(target.getX()))),
                     Math.max(1, Math.min(board.getHeight(), (int) Math.round(target.getY())))
             );
+
             board.damageTerrain(targetPosition, adjusted, true);
         }
     }
@@ -756,8 +804,15 @@ public class DefaultLaneCombatStrategy implements LaneCombatStrategy {
             ZombieRuntimeState state = stateOf(zombie);
             state.ageTicks++;
             if (state.poisonTicks > 0) {
+                zombie.recordDamageSource(
+                        state.poisonSourcePlantName,
+                        state.poisonSourcePlantCategory,
+                        "poison"
+                );
+
                 zombie.takeDamage(new Damage(state.poisonDamage, "poison"));
                 state.poisonTicks--;
+
                 if (!zombie.isAlive()) {
                     continue;
                 }
@@ -807,6 +862,12 @@ public class DefaultLaneCombatStrategy implements LaneCombatStrategy {
             if (plant != null && plant.isAlive() && !fliesOverPlant(zombie, plant)) {
                 zombie.attack(plant);
                 if (plant.getReflectDamage() > 0 && zombie.isAlive()) {
+                    zombie.recordDamageSource(
+                            plant.getName(),
+                            plant.getType() == null ? "" : plant.getType().getCategory(),
+                            "reflected"
+                    );
+
                     zombie.takeDamage(new Damage(plant.getReflectDamage(), "reflected"));
                 }
 
