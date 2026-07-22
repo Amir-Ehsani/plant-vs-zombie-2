@@ -8,6 +8,7 @@ import java.util.Locale;
 public class Zombie extends GameEntity {
     private static final String NO_DROP = "none";
     private static final String PLANT_FOOD_DROP = "plant_food";
+    private static final double MOVEMENT_SPEED_SCALE = 0.5;
 
     private double currentSpeed;
     private boolean glowing;
@@ -50,7 +51,7 @@ public class Zombie extends GameEntity {
         this.y = Math.max(0, y);
         this.maxHp = this.type.getBaseHp();
         this.hp = this.maxHp;
-        this.currentSpeed = this.type.getSpeed();
+        this.currentSpeed = this.type.getSpeed() * MOVEMENT_SPEED_SCALE;
         this.armor = armor;
         this.movementStrategy = movementStrategy;
         this.zombieAbility = zombieAbility;
@@ -229,7 +230,7 @@ public class Zombie extends GameEntity {
     }
 
     public void resetSpeed() {
-        currentSpeed = type.getSpeed();
+        currentSpeed = type.getSpeed() * MOVEMENT_SPEED_SCALE;
     }
 
     public void setGlowing(boolean glowing) {
