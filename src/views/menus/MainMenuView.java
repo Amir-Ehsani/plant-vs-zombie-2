@@ -1,6 +1,5 @@
 package views.menus;
 
-import controllers.auth.AuthController;
 import controllers.core.MenuManager;
 import controllers.features.MainMenuController;
 import views.core.BaseView;
@@ -54,6 +53,12 @@ public class MainMenuView extends BaseView {
 
         if ("menu exit".equals(command)) {
             menuManager.exitCurrentMenu();
+            printControllerMessage(menuManager.getLastMessage());
+            return true;
+        }
+
+        if ("menu exit program".equals(command)) {
+            menuManager.closeProgram();
             printControllerMessage(menuManager.getLastMessage());
             return true;
         }
