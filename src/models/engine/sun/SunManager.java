@@ -108,6 +108,19 @@ public class SunManager {
         return false;
     }
 
+    public int stealLooseSuns() {
+        int amount = 0;
+        Iterator<Sun> iterator = suns.iterator();
+        while (iterator.hasNext()) {
+            Sun sun = iterator.next();
+            if (!sun.isFalling()) {
+                amount += sun.getSunAmount();
+                iterator.remove();
+            }
+        }
+        return amount;
+    }
+
     public void clearSuns() {
         suns.clear();
     }
