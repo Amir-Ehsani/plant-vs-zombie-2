@@ -2,19 +2,13 @@ package controllers.features;
 
 import controllers.auth.AuthController;
 import models.account.User;
+import models.level.core.AdventureLevelCatalog;
 
 import java.util.Locale;
 
 public class GameMenuController {
     private final AuthController authController;
     private String lastMessage;
-
-    private static final String[] CHAPTER_NAMES = {
-            "ancient-egypt",
-            "ice-cave",
-            "wave-beach",
-            "wild-west"
-    };
 
     public GameMenuController(AuthController authController) {
         this.authController = authController;
@@ -33,9 +27,9 @@ public class GameMenuController {
             return;
         }
 
-        String cleanedChapterName = chapterName.trim();
+        String cleanedChapterName = AdventureLevelCatalog.normalizeChapterName(chapterName);
 
-        if (!chapterExists(cleanedChapterName)) {
+        if (!AdventureLevelCatalog.chapterExists(cleanedChapterName)) {
             fail("Chapter " + cleanedChapterName + " does not exist.");
             return;
         }
@@ -46,22 +40,9 @@ public class GameMenuController {
         }
 
         user.setCurrentChapterName(cleanedChapterName);
+        user.setCurrentChapterLevel(1);
         authController.saveUsers();
         success("Entered chapter " + cleanedChapterName + ".");
-    }
-
-    private boolean chapterExists(String chapterName) {
-        if (chapterName == null) {
-            return false;
-        }
-
-        for (String validChapterName : CHAPTER_NAMES) {
-            if (validChapterName.equalsIgnoreCase(chapterName.trim())) {
-                return true;
-            }
-        }
-
-        return false;
     }
 
     public void showCoinWallet() {
@@ -114,6 +95,17 @@ public class GameMenuController {
         }
 
         fail("Unknown currency.");
+    }
+
+    public void unlockAllAdventureLevelsCheat() {
+        User user = getLoggedInUserOrFail();
+        if (user == null) {
+            return;
+        }
+
+        user.unlockAllAdventureLevels();
+        authController.saveUsers();
+        success("All adventure chapters and levels are unlocked.");
     }
 
     public boolean isLoggedIn() {
