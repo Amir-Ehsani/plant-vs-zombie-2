@@ -43,7 +43,17 @@ public class ZombieFactory {
     }
 
     private Armor createArmorFor(ZombieType type) {
-        if (type == null || !type.hasDefaultArmor()) {
+        if (type == null) {
+            return null;
+        }
+        String normalizedName = normalize(type.getName());
+        if (normalizedName.equals("arcade")) {
+            return new Armor("Arcade Machine", 1100, "normal");
+        }
+        if (normalizedName.equals("barrel roller")) {
+            return new Armor("Barrel", 1100, "normal");
+        }
+        if (!type.hasDefaultArmor()) {
             return null;
         }
         String armorName = type.getDefaultArmorName();
@@ -65,25 +75,14 @@ public class ZombieFactory {
     }
 
     private MovementStrategy createMovementStrategyFor(ZombieType type) {
-        String name = normalize(type.getName());
-        if (name.equals("dodo")) {
-            return zombie -> zombie.moveBy(-zombie.getCurrentSpeed() * 1.5, 0);
+        if (type != null && type.hasTag("stationary")) {
+            return zombie -> {
+            };
         }
         return null;
     }
 
     private ZombieAbility createAbilityFor(ZombieType type) {
-        String name = normalize(type.getName());
-        if (name.equals("imp")) {
-            return zombie -> zombie.setCurrentSpeed(zombie.getCurrentSpeed() * 1.25);
-        }
-        if (name.equals("news paper") || name.equals("newspaper")) {
-            return zombie -> {
-                if (!zombie.hasArmor()) {
-                    zombie.setCurrentSpeed(zombie.getType().getSpeed() * 2.0);
-                }
-            };
-        }
         return null;
     }
 
