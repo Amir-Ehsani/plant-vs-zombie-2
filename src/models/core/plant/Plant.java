@@ -2,6 +2,7 @@ package models.core.plant;
 
 import models.core.base.GameEntity;
 import models.core.projectile.Damage;
+import models.core.zombie.Zombie;
 
 import java.util.Locale;
 
@@ -49,6 +50,15 @@ public class Plant extends GameEntity {
     private boolean explodeOnFinish;
     private boolean resetFamilyCooldowns;
     private boolean meltAreaThreeByThree;
+    private int armorHp;
+    private int plantFoodDamageMultiplier;
+    private int plantFoodCooldownRate;
+    private boolean plantFoodUnlimitedPierce;
+    private boolean blueFlame;
+    private boolean plantFoodHypnoGargantuar;
+    private int iceHits;
+    private int octopusHits;
+    private Zombie transformedByWizard;
 
     public Plant() {
         this(new PlantType(), 0, 0, null);
@@ -106,6 +116,15 @@ public class Plant extends GameEntity {
         this.explodeOnFinish = false;
         this.resetFamilyCooldowns = false;
         this.meltAreaThreeByThree = false;
+        this.armorHp = 0;
+        this.plantFoodDamageMultiplier = 1;
+        this.plantFoodCooldownRate = 1;
+        this.plantFoodUnlimitedPierce = false;
+        this.blueFlame = false;
+        this.plantFoodHypnoGargantuar = false;
+        this.iceHits = 0;
+        this.octopusHits = 0;
+        this.transformedByWizard = null;
         this.id = buildId();
     }
 
@@ -143,11 +162,14 @@ public class Plant extends GameEntity {
     }
 
     public void usePlantFood(PlantFood food) {
+        usePlantFood(food, null);
+    }
+
+    public void usePlantFood(PlantFood food, PlantFoodContext context) {
         if (food == null || !isAlive()) {
             return;
         }
-
-        food.activateBoost(this);
+        food.activateBoost(this, context);
     }
 
     public void upgrade(PlantUpgrade upgrade) {
@@ -160,7 +182,7 @@ public class Plant extends GameEntity {
 
     public void tickCooldown() {
         if (cooldownRemaining > 0) {
-            cooldownRemaining--;
+            cooldownRemaining = Math.max(0, cooldownRemaining - Math.max(1, plantFoodCooldownRate));
         }
     }
 
@@ -170,10 +192,14 @@ public class Plant extends GameEntity {
             return;
         }
 
-        hp -= damage.getAmount();
-
-        if (hp < 0) {
-            hp = 0;
+        int remainingDamage = damage.getAmount();
+        if (armorHp > 0) {
+            int absorbed = Math.min(armorHp, remainingDamage);
+            armorHp -= absorbed;
+            remainingDamage -= absorbed;
+        }
+        if (remainingDamage > 0) {
+            hp = Math.max(0, hp - remainingDamage);
         }
     }
 
@@ -251,6 +277,54 @@ public class Plant extends GameEntity {
 
     public int getReflectDamage() {
         return reflectDamage;
+    }
+
+    public int getArmorHp() {
+        return armorHp;
+    }
+
+    public int getPlantFoodDamageMultiplier() {
+        return plantFoodDamageMultiplier;
+    }
+
+    public boolean hasPlantFoodUnlimitedPierce() {
+        return plantFoodUnlimitedPierce;
+    }
+
+    public boolean hasBlueFlame() {
+        return blueFlame;
+    }
+
+    public boolean hasPlantFoodHypnoGargantuar() {
+        return plantFoodHypnoGargantuar;
+    }
+
+    public int getIceHits() {
+        return iceHits;
+    }
+
+    public int getOctopusHits() {
+        return octopusHits;
+    }
+
+    public Zombie getTransformedByWizard() {
+        return transformedByWizard;
+    }
+
+    public boolean isFrozenByZombie() {
+        return iceHits >= 3;
+    }
+
+    public boolean isCoveredByOctopus() {
+        return octopusHits > 0;
+    }
+
+    public boolean isTransformedToCat() {
+        return transformedByWizard != null;
+    }
+
+    public boolean isDisabled() {
+        return isFrozenByZombie() || isCoveredByOctopus() || isTransformedToCat();
     }
 
     public int getSunProductionBonus() {
@@ -383,6 +457,80 @@ public class Plant extends GameEntity {
 
     public void setBoosted(boolean boosted) {
         this.boosted = boosted;
+    }
+
+    public void setPlantFoodModifiers(int damageMultiplier, int cooldownRate, boolean unlimitedPierce) {
+        plantFoodDamageMultiplier = Math.max(1, damageMultiplier);
+        plantFoodCooldownRate = Math.max(1, cooldownRate);
+        plantFoodUnlimitedPierce = unlimitedPierce;
+    }
+
+    public void resetPlantFoodModifiers() {
+        plantFoodDamageMultiplier = 1;
+        plantFoodCooldownRate = 1;
+        plantFoodUnlimitedPierce = false;
+        plantFoodHypnoGargantuar = false;
+    }
+
+    public void addArmor(int amount) {
+        if (amount > 0) {
+            armorHp += amount;
+        }
+    }
+
+    public void healToFull() {
+        if (isAlive()) {
+            hp = maxHp;
+        }
+    }
+
+    public void kill() {
+        hp = 0;
+        armorHp = 0;
+    }
+
+    public void finishGrowth() {
+        growTimeTicks = 0;
+    }
+
+    public void finishArming() {
+        armTimeTicks = 0;
+    }
+
+    public void enableBlueFlame() {
+        blueFlame = true;
+    }
+
+    public void enablePlantFoodHypnoGargantuar() {
+        plantFoodHypnoGargantuar = true;
+    }
+
+    public void addIceHit() {
+        iceHits = Math.min(3, iceHits + 1);
+    }
+
+    public void removeIceHit() {
+        iceHits = Math.max(0, iceHits - 1);
+    }
+
+    public void addOctopus() {
+        octopusHits = Math.max(3, octopusHits);
+    }
+
+    public void damageOctopus() {
+        octopusHits = Math.max(0, octopusHits - 1);
+    }
+
+    public void transformToCat(Zombie wizard) {
+        if (wizard != null) {
+            transformedByWizard = wizard;
+        }
+    }
+
+    public void restoreFromCat(Zombie wizard) {
+        if (wizard == null || transformedByWizard == wizard) {
+            transformedByWizard = null;
+        }
     }
 
     public void setLevel(int level) {
@@ -661,11 +809,7 @@ public class Plant extends GameEntity {
     }
 
     private int getEffectiveAttackDamage() {
-        if (boosted) {
-            return attackDamage * 2;
-        }
-
-        return attackDamage;
+        return attackDamage * Math.max(1, plantFoodDamageMultiplier);
     }
 
     private String resolveDamageType() {

@@ -12,6 +12,8 @@ public class Tile {
     private static final int MAX_PLANT_LAYERS = 2;
     private static final int GRAVE_HEALTH = 700;
     private static final int ICE_HEALTH = 600;
+    private static final int BARREL_HEALTH = 1100;
+    private static final int ARCADE_HEALTH = 1100;
 
     private final Position position;
     private final List<Zombie> zombies;
@@ -46,10 +48,6 @@ public class Tile {
         return tileType;
     }
 
-    /**
-     * Returns the uppermost plant. Zombies attack and pluck/feed commands target
-     * this layer first.
-     */
     public Plant getCurrentPlant() {
         if (plants.isEmpty()) {
             return null;
@@ -97,10 +95,6 @@ public class Tile {
         return !zombies.isEmpty();
     }
 
-    /**
-     * General land plantability. WATER is handled by canPlacePlant because it
-     * depends on the plant type and on whether a Lily Pad is already present.
-     */
     public boolean isPlantable() {
         return tileType == TileType.NORMAL
                 || tileType == TileType.LOW_TIDE
@@ -108,7 +102,7 @@ public class Tile {
     }
 
     public boolean canPlacePlant(Plant plant) {
-        if (plant == null || plants.size() >= MAX_PLANT_LAYERS) {
+        if (plant == null || plants.size() >= maximumPlantLayers(plant)) {
             return false;
         }
 
@@ -143,7 +137,10 @@ public class Tile {
     }
 
     public boolean hasDamageableTerrain() {
-        return (tileType == TileType.GRAVE || tileType == TileType.ICE)
+        return (tileType == TileType.GRAVE
+                || tileType == TileType.ICE
+                || tileType == TileType.BARREL
+                || tileType == TileType.ARCADE)
                 && terrainHealth > 0;
     }
 
@@ -182,16 +179,12 @@ public class Tile {
         this.terrainHealth = initialTerrainHealth(tileType);
     }
 
-    /**
-     * Low-level placement used by the board and by level initialization. Player
-     * placement must be validated with canPlacePlant first.
-     */
     public void placePlant(Plant plant) {
         if (plant == null) {
             throw new IllegalArgumentException("Plant cannot be null.");
         }
-        if (plants.size() >= MAX_PLANT_LAYERS) {
-            throw new IllegalStateException("A tile cannot contain more than two plant layers.");
+        if (plants.size() >= maximumPlantLayers(plant)) {
+            throw new IllegalStateException("The tile has reached its plant layer limit.");
         }
         if (!plants.isEmpty() && !canStack(plants.get(plants.size() - 1), plant)) {
             throw new IllegalStateException("The plants cannot be stacked on this tile.");
@@ -200,7 +193,6 @@ public class Tile {
         plants.add(plant);
     }
 
-    /** Removes and returns the uppermost plant. */
     public Plant removePlant() {
         if (plants.isEmpty()) {
             return null;
@@ -208,15 +200,10 @@ public class Tile {
         return plants.remove(plants.size() - 1);
     }
 
-    /** Removes the exact plant instance, regardless of its layer. */
     public boolean removePlant(Plant plant) {
         return plant != null && plants.remove(plant);
     }
 
-    /**
-     * Removes plants that can no longer survive on water, for example when a
-     * Lily Pad is destroyed below a normal plant.
-     */
     public List<Plant> removeUnsupportedWaterPlants() {
         if (tileType != TileType.WATER || plants.isEmpty()) {
             return Collections.emptyList();
@@ -251,6 +238,18 @@ public class Tile {
         }
     }
 
+    private int maximumPlantLayers(Plant incomingPlant) {
+        if (incomingPlant != null && normalize(incomingPlant.getName()).equals("pea pod")) {
+            for (Plant existing : plants) {
+                if (!normalize(existing.getName()).equals("pea pod")) {
+                    return MAX_PLANT_LAYERS;
+                }
+            }
+            return 5;
+        }
+        return MAX_PLANT_LAYERS;
+    }
+
     private boolean canPlaceOnWater(Plant plant) {
         if (plants.isEmpty()) {
             return isDirectWaterPlant(plant);
@@ -282,8 +281,6 @@ public class Tile {
         String lowerName = normalize(lowerPlant.getName());
         String upperName = normalize(upperPlant.getName());
 
-        // Pumpkin is the protective upper layer. A normal plant cannot be put
-        // above a Pumpkin that is already covering the tile.
         if (lowerName.equals("pumpkin")) {
             return false;
         }
@@ -291,7 +288,6 @@ public class Tile {
             return true;
         }
 
-        // Pea Pod may only stack with another Pea Pod.
         if (lowerName.equals("pea pod") || upperName.equals("pea pod")) {
             return lowerName.equals("pea pod") && upperName.equals("pea pod");
         }
@@ -367,6 +363,12 @@ public class Tile {
         }
         if (type == TileType.ICE) {
             return ICE_HEALTH;
+        }
+        if (type == TileType.BARREL) {
+            return BARREL_HEALTH;
+        }
+        if (type == TileType.ARCADE) {
+            return ARCADE_HEALTH;
         }
         return 0;
     }

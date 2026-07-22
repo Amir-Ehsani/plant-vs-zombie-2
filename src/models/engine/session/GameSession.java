@@ -4,11 +4,13 @@ import models.core.plant.DefaultPlantRegistry;
 import models.core.plant.Plant;
 import models.core.plant.PlantFactory;
 import models.core.plant.PlantFood;
+import models.core.plant.PlantFoodContext;
 import models.core.plant.PlantRegistry;
 import models.core.plant.PlantType;
 import models.core.zombie.Zombie;
 import models.core.zombie.ZombieFactory;
 import models.engine.board.Board;
+import models.engine.board.BoardResourceHandler;
 import models.engine.board.Position;
 import models.engine.board.Tile;
 import models.engine.board.TileType;
@@ -60,6 +62,7 @@ public class GameSession {
     private Season currentSeason;
     private int totalSunAmount;
     private int plantFoodCount;
+    private int initialPlantFoodCount;
     private int totalSunProduced;
     private Level currentLevel;
     private Board board;
@@ -104,11 +107,32 @@ public class GameSession {
         }
 
         state = new GameState();
-        plantFoodCount = 0;
+        plantFoodCount = Math.max(0, Math.min(MAX_PLANT_FOOD, initialPlantFoodCount));
+        initialPlantFoodCount = 0;
         totalSunProduced = 0;
         board = new Board();
         tickManager = new TickManager();
         sunManager = new SunManager();
+        board.setResourceHandler(new BoardResourceHandler() {
+            @Override
+            public int stealStoredSun(int amount) {
+                int stolen = Math.max(0, Math.min(totalSunAmount, amount));
+                totalSunAmount -= stolen;
+                return stolen;
+            }
+
+            @Override
+            public int stealLooseSuns() {
+                return sunManager.stealLooseSuns();
+            }
+
+            @Override
+            public void restoreSun(int amount) {
+                if (amount > 0) {
+                    totalSunAmount += amount;
+                }
+            }
+        });
         plantFactory = new PlantFactory();
         zombieFactory = new ZombieFactory();
         nextSunProductionTick.clear();
@@ -223,11 +247,6 @@ public class GameSession {
         return placePreparedPlant(plant, type, type.getName(), position, cost);
     }
 
-    /**
-     * Places a copy through the Imitater seed packet. The copied plant supplies
-     * the battlefield behavior, while cost, recharge, conveyor consumption and
-     * level usage belong to Imitater itself.
-     */
     public boolean plantImitater(String copiedPlantName, Position position) {
         if (!isRunning() || copiedPlantName == null || position == null) {
             return false;
@@ -333,7 +352,14 @@ public class GameSession {
     }
 
     public boolean feedPlant(Position position) {
-        if (!isRunning() || plantFoodCount <= 0 || position == null) {
+        return activatePlantFood(position, true);
+    }
+
+    public boolean activatePlantFood(Position position, boolean consumeInventory) {
+        if (!isRunning() || position == null) {
+            return false;
+        }
+        if (consumeInventory && plantFoodCount <= 0) {
             return false;
         }
 
@@ -343,10 +369,21 @@ public class GameSession {
         }
 
         Plant plant = tile.getCurrentPlant();
+        if (plant == null || !plant.isAlive()) {
+            return false;
+        }
+        PlantFood previous = activePlantFoods.remove(plant);
+        if (previous != null) {
+            previous.expire();
+        }
         PlantFood plantFood = new PlantFood();
-        plant.usePlantFood(plantFood);
-        activePlantFoods.put(plant, plantFood);
-        plantFoodCount--;
+        plant.usePlantFood(plantFood, createPlantFoodContext());
+        if (plantFood.isActive()) {
+            activePlantFoods.put(plant, plantFood);
+        }
+        if (consumeInventory) {
+            plantFoodCount--;
+        }
         return true;
     }
 
@@ -668,6 +705,13 @@ public class GameSession {
         return totalSunAmount;
     }
 
+    public void setInitialPlantFoodCount(int count) {
+        if (isRunning()) {
+            throw new IllegalStateException("Cannot change initial Plant Food while the game is running.");
+        }
+        initialPlantFoodCount = Math.max(0, Math.min(MAX_PLANT_FOOD, count));
+    }
+
     public int getPlantFoodCount() {
         return plantFoodCount;
     }
@@ -730,6 +774,31 @@ public class GameSession {
         }
     }
 
+    private PlantFoodContext createPlantFoodContext() {
+        return new PlantFoodContext(
+                board,
+                plantFactory,
+                random,
+                amount -> {
+                    if (amount > 0) {
+                        totalSunAmount += amount;
+                        totalSunProduced += amount;
+                    }
+                },
+                this::recordBoardEvents,
+                plant -> {
+                    if (plant != null) {
+                        plantAgeTicks.put(plant, 0);
+                        scheduleSunProduction(plant);
+                    }
+                },
+                plant -> {
+                    if (plant != null) {
+                        plantAgeTicks.put(plant, 0);
+                    }
+                }
+        );
+    }
 
     private void updatePlantFoodEffects() {
         for (Map.Entry<Plant, PlantFood> entry : new ArrayList<>(activePlantFoods.entrySet())) {
@@ -1188,6 +1257,15 @@ public class GameSession {
                 && plantFoodCount < MAX_PLANT_FOOD) {
             plantFoodCount++;
             pendingEvents.add(GameEvent.plantFoodDropped(plantFoodCount));
+        }
+
+        String zombieName = normalizeName(zombie.getType() == null ? "" : zombie.getType().getName());
+        int stolenSun = zombie.takeStolenSun();
+        if (stolenSun > 0) {
+            int restored = zombieName.equals("turquoise") ? stolenSun / 2 : stolenSun;
+            if (restored > 0) {
+                totalSunAmount += restored;
+            }
         }
 
         if (zombie.hasDroppedReward()) {

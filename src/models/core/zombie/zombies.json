@@ -34,6 +34,11 @@
       "name": "Crown",
       "hp": 1600,
       "type": "metallic"
+    },
+    {
+      "name": "Barrel",
+      "hp": 1100,
+      "type": "normal"
     }
   ],
   "zombies": [
@@ -111,7 +116,9 @@
       "waveCost": 100,
       "id": "ZombieImp",
       "defaultArmor": null,
-      "tags": [],
+      "tags": [
+        "fast_eater"
+      ],
       "ability": "Moves and attacks faster than a normal zombie."
     },
     {
@@ -272,7 +279,8 @@
       "id": "ZombieDarkImpDragon",
       "defaultArmor": null,
       "tags": [
-        "fire_immune"
+        "fire_immune",
+        "fast_eater"
       ],
       "ability": "An Imp that is immune to fire damage."
     },
@@ -356,6 +364,19 @@
       "defaultArmor": "Newspaper",
       "tags": [],
       "ability": "Becomes much faster after its newspaper armor is destroyed."
+    },
+    {
+      "name": "Barrel Roller",
+      "eatDps": 100,
+      "baseHp": 190,
+      "speed": 0.185,
+      "waveCost": 450,
+      "id": "ZombieBarrelRoller",
+      "defaultArmor": "Barrel",
+      "tags": [
+        "barrel_roller"
+      ],
+      "ability": "Pushes a barrel that remains as an obstacle or releases two Imps when destroyed."
     }
   ]
 }
