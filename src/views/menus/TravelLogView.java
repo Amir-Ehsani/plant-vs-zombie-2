@@ -37,7 +37,7 @@ public class TravelLogView extends BaseView {
         super(viewName);
         this.menuManager = menuManager;
         this.controller = controller;
-        this.currentPageName = "adventure";
+        this.currentPageName = "all";
     }
 
     @Override
@@ -51,28 +51,17 @@ public class TravelLogView extends BaseView {
         String command = cleanInput(input);
 
         if (!controller.isLoggedIn()) {
-            printControllerMessage("ERROR: No user is logged in.");
+            controller.invalidCommand("travel log menu");
+            printControllerMessage(controller.getLastMessage());
             menuManager.enterLoginMenu();
             return;
         }
 
-        if (handleNavigation(command)) {
-            return;
-        }
-
-        if (handlePageCommand(command)) {
-            return;
-        }
-
-        if (handleCollectCommand(command)) {
-            return;
-        }
-
-        if (handleMiniGameListCommand(command)) {
-            return;
-        }
-
-        if (handleEnterMiniGameCommand(command)) {
+        if (handleNavigation(command)
+                || handlePageCommand(command)
+                || handleCollectCommand(command)
+                || handleMiniGameListCommand(command)
+                || handleEnterMiniGameCommand(command)) {
             return;
         }
 
@@ -172,15 +161,18 @@ public class TravelLogView extends BaseView {
         String stageText = matcher.group(2);
 
         boolean started;
+
         if (stageText == null) {
             started = controller.enterMiniGame(miniGameName);
         } else {
             Integer stage = parseInteger(stageText);
+
             if (stage == null) {
                 controller.invalidCommand("travel log menu");
                 printControllerMessage(controller.getLastMessage());
                 return true;
             }
+
             started = controller.enterMiniGame(miniGameName, stage);
         }
 
@@ -238,6 +230,20 @@ public class TravelLogView extends BaseView {
         for (Quest quest : quests) {
             builder.append(index).append(". ").append(quest.getQuestDescription()).append("\n");
             builder.append("   Page: ").append(quest.getType()).append("\n");
+            builder.append("   Priority: ").append(quest.getPriority()).append("\n");
+
+            if (!quest.getConditionDescription().isBlank()) {
+                builder.append("   Condition: ")
+                        .append(quest.getConditionDescription())
+                        .append("\n");
+            }
+
+            if (!quest.getVariables().isBlank()) {
+                builder.append("   Variables: ")
+                        .append(quest.getVariables())
+                        .append("\n");
+            }
+
             builder.append("   Progress: ")
                     .append(quest.getProgressAmount())
                     .append("/")
@@ -257,11 +263,20 @@ public class TravelLogView extends BaseView {
             }
 
             builder.append("\n");
-            builder.append("   Reward: ")
+            builder.append("   Reward: ").append(quest.rewardText()).append("\n");
+            builder.append("   Applied reward: ")
                     .append(quest.getCoinReward())
                     .append(" coins, ")
                     .append(quest.getGemReward())
-                    .append(" gems\n");
+                    .append(" gems, ")
+                    .append(quest.getSeedPacketReward())
+                    .append(" seed packets");
+
+            if (quest.hasRandomPlantReward()) {
+                builder.append(", random plant");
+            }
+
+            builder.append("\n");
 
             index++;
         }
