@@ -10,10 +10,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Lightweight JSON reader used for static game data. It intentionally has no
- * third-party dependency so the project can still be compiled with plain javac.
- */
+
 public final class JsonDataLoader {
     private JsonDataLoader() {
     }
