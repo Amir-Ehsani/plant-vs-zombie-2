@@ -2,8 +2,10 @@ package models.account;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 public class Collection {
     private static final int MAX_STORED_PLANT_FOOD = 3;
@@ -16,6 +18,7 @@ public class Collection {
     private String dailyOfferDate;
     private String dailyOfferPlantName;
     private boolean dailyOfferPurchased;
+    private Map<String, Integer> shopItemAmounts;
 
     public Collection() {
         ownedPlants = new ArrayList<>();
@@ -26,6 +29,7 @@ public class Collection {
         dailyOfferDate = "";
         dailyOfferPlantName = "";
         dailyOfferPurchased = false;
+        shopItemAmounts = new LinkedHashMap<>();
     }
 
     public List<PlantData> getOwnedPlants() {
@@ -254,6 +258,56 @@ public class Collection {
         return amount;
     }
 
+
+    public Map<String, Integer> getShopItemAmounts() {
+        ensureShopItemAmounts();
+        return new LinkedHashMap<>(shopItemAmounts);
+    }
+
+    public void setShopItemAmounts(Map<String, Integer> amounts) {
+        shopItemAmounts = new LinkedHashMap<>();
+        if (amounts == null) {
+            return;
+        }
+        for (Map.Entry<String, Integer> entry : amounts.entrySet()) {
+            String key = normalizeShopItemId(entry.getKey());
+            Integer value = entry.getValue();
+            if (!key.isBlank() && value != null) {
+                shopItemAmounts.put(key, Math.max(0, value));
+            }
+        }
+    }
+
+    public int getShopItemAmount(String itemId, int defaultAmount) {
+        ensureShopItemAmounts();
+        String key = normalizeShopItemId(itemId);
+        if (key.isBlank()) {
+            return 0;
+        }
+        int fallback = Math.max(0, defaultAmount);
+        return Math.max(0, shopItemAmounts.getOrDefault(key, fallback));
+    }
+
+    public boolean reduceShopItemAmount(String itemId, int amount, int defaultAmount) {
+        if (amount <= 0) {
+            return false;
+        }
+        int currentAmount = getShopItemAmount(itemId, defaultAmount);
+        if (currentAmount < amount) {
+            return false;
+        }
+        shopItemAmounts.put(normalizeShopItemId(itemId), currentAmount - amount);
+        return true;
+    }
+
+    public void restoreShopItemAmount(String itemId, int amount, int defaultAmount) {
+        if (amount <= 0) {
+            return;
+        }
+        int currentAmount = getShopItemAmount(itemId, defaultAmount);
+        shopItemAmounts.put(normalizeShopItemId(itemId), currentAmount + amount);
+    }
+
     public void refreshDailyOffer(String plantName, LocalDate date) {
         if (date == null) {
             return;
@@ -297,6 +351,13 @@ public class Collection {
         return null;
     }
 
+    private String normalizeShopItemId(String itemId) {
+        return normalizeDisplayName(itemId)
+                .toLowerCase(Locale.ROOT)
+                .replace('-', '_')
+                .replace(' ', '_');
+    }
+
     private String normalizeDisplayName(String name) {
         return name == null ? "" : name.trim();
     }
@@ -307,6 +368,12 @@ public class Collection {
                 .replace('-', ' ')
                 .replace('_', ' ')
                 .replaceAll("\\s+", " ");
+    }
+
+    private void ensureShopItemAmounts() {
+        if (shopItemAmounts == null) {
+            shopItemAmounts = new LinkedHashMap<>();
+        }
     }
 
     private void ensureLists() {
