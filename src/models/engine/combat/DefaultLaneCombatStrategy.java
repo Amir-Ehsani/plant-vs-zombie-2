@@ -27,6 +27,7 @@ import java.util.Set;
 
 public class DefaultLaneCombatStrategy implements LaneCombatStrategy {
     private static final double MELEE_RANGE = 1.0;
+    private static final double GLOBAL_ZOMBIE_SPEED_SCALE = 0.5;
     private static final int TICKS_PER_SECOND = 10;
     private static final int DEFAULT_CHILL_TICKS = 3 * TICKS_PER_SECOND;
     private static final int DEFAULT_FREEZE_TICKS = 5 * TICKS_PER_SECOND;
@@ -1276,7 +1277,7 @@ public class DefaultLaneCombatStrategy implements LaneCombatStrategy {
         } else if (zombieName.equals("allstar") && state.allstarCharging) {
             plant.kill();
             state.allstarCharging = false;
-            zombie.setCurrentSpeed(zombie.getType().getSpeed() * 0.25);
+            zombie.setCurrentSpeed(scaledBaseSpeed(zombie) * 0.25);
         } else if (zombieName.equals("wizard")) {
             plant.transformToCat(zombie);
         } else {
@@ -1324,7 +1325,7 @@ public class DefaultLaneCombatStrategy implements LaneCombatStrategy {
                     && Math.abs(other.getX() - zombie.getX()) <= MELEE_RANGE) {
                 other.kill();
                 state.allstarCharging = false;
-                zombie.setCurrentSpeed(zombie.getType().getSpeed() * 0.25);
+                zombie.setCurrentSpeed(scaledBaseSpeed(zombie) * 0.25);
                 return true;
             }
         }
@@ -1375,7 +1376,7 @@ public class DefaultLaneCombatStrategy implements LaneCombatStrategy {
 
     private double resolveAbilitySpeed(Zombie zombie, ZombieRuntimeState state) {
         String name = normalizeText(zombie.getName());
-        double base = zombie.getType().getSpeed();
+        double base = scaledBaseSpeed(zombie);
         if (name.equals("turquoise") && state.turquoiseChannelTicks > 0) {
             return 0;
         }
@@ -1392,6 +1393,13 @@ public class DefaultLaneCombatStrategy implements LaneCombatStrategy {
             return base * 1.5;
         }
         return base;
+    }
+
+    private double scaledBaseSpeed(Zombie zombie) {
+        if (zombie == null || zombie.getType() == null) {
+            return 0;
+        }
+        return zombie.getType().getSpeed() * GLOBAL_ZOMBIE_SPEED_SCALE;
     }
 
     private void spawnZombie(String zombieName, double x, int laneNumber) {
@@ -1564,7 +1572,7 @@ public class DefaultLaneCombatStrategy implements LaneCombatStrategy {
                 continue;
             }
             double signedDistance = zombie.getX() - plant.getX();
-            if (!canShootBehind && signedDistance < 0) {
+            if (!canShootBehind && signedDistance < 0 && !occupiesSameTile(plant, zombie)) {
                 continue;
             }
             double distance = Math.abs(signedDistance);
@@ -1580,6 +1588,17 @@ public class DefaultLaneCombatStrategy implements LaneCombatStrategy {
             }
         }
         return selected;
+    }
+
+    private boolean occupiesSameTile(Plant plant, Zombie zombie) {
+        if (plant == null || zombie == null) {
+            return false;
+        }
+        int plantColumn = (int) Math.round(plant.getX());
+        int zombieColumn = (int) Math.ceil(zombie.getX());
+        int plantRow = (int) Math.round(plant.getY());
+        int zombieRow = (int) Math.round(zombie.getY());
+        return plantColumn == zombieColumn && plantRow == zombieRow;
     }
 
     private Zombie nearestZombieBehind(List<Zombie> candidates, Plant plant) {
