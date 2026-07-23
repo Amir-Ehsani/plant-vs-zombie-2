@@ -114,8 +114,8 @@ public class ShopView extends BaseView {
         }
 
         builder.append(String.format(
-                "%-22s %-22s %-22s %-9s %-9s %-7s%n",
-                "ID", "Name", "Type", "Price", "Currency", "Amount"
+                "%-22s %-22s %-22s %-9s %-9s %-8s %-11s%n",
+                "ID", "Name", "Type", "Price", "Currency", "Amount", "Unit Amount"
         ));
         for (ShopController.ShopItem item : items) {
             if (item != null) {
@@ -138,6 +138,7 @@ public class ShopView extends BaseView {
         }
         builder.append("Price: ").append(item.getPrice()).append(" ").append(item.getCurrency()).append("\n");
         builder.append("Amount: ").append(item.getAmount()).append("\n");
+        builder.append("Unit Amount: ").append(item.getUnitAmount()).append("\n");
         builder.append("Daily: ").append(item.isDaily() ? "yes" : "no").append("\n");
         return builder.toString();
     }
@@ -189,8 +190,9 @@ public class ShopView extends BaseView {
 
     private void appendItemRow(StringBuilder builder, ShopController.ShopItem item) {
         builder.append(String.format(
-                "%-22s %-22s %-22s %-9d %-9s %-7d%n",
-                item.getId(), item.getName(), item.getType(), item.getPrice(), item.getCurrency(), item.getAmount()
+                "%-22s %-22s %-22s %-9d %-9s %-8d %-11d%n",
+                item.getId(), item.getName(), item.getType(), item.getPrice(), item.getCurrency(),
+                item.getAmount(), item.getUnitAmount()
         ));
         if (!item.getTargetName().isBlank()) {
             builder.append("  target: ").append(item.getTargetName()).append("\n");
