@@ -57,56 +57,40 @@ public class LoginView extends BaseView {
     }
 
     private boolean handleForgetPassword(String command) {
-        if (waitingForNewPassword) {
-            authController.resetForgottenPassword(command);
-            printControllerMessage(authController.getLastMessage());
-
-            if (authController.wasSuccessful()) {
-                waitingForNewPassword = false;
-                waitingForSecurityAnswer = false;
-            }
-
-            return true;
-        }
-
-        if (waitingForSecurityAnswer) {
-            Matcher answerMatcher = ANSWER_PATTERN.matcher(command);
-
-            if (!answerMatcher.matches()) {
-                authController.invalidCommand("login menu");
-                printControllerMessage(authController.getLastMessage());
-                return true;
-            }
-
-            authController.answerSecurityQuestion(answerMatcher.group(1));
-            printControllerMessage(authController.getLastMessage());
-
-            if (authController.wasSuccessful()) {
-                waitingForSecurityAnswer = false;
-                waitingForNewPassword = true;
-            } else {
-                waitingForSecurityAnswer = false;
-                waitingForNewPassword = false;
-            }
-
-            return true;
-        }
-
-        Matcher forgetMatcher = FORGET_PASSWORD_PATTERN.matcher(command);
-
-        if (!forgetMatcher.matches()) {
-            return false;
-        }
-
-        authController.forgetPassword(forgetMatcher.group(1), forgetMatcher.group(2));
+        if (waitingForNewPassword) return handleNewPassword(command);
+        if (waitingForSecurityAnswer) return handleSecurityAnswer(command);
+        Matcher matcher = FORGET_PASSWORD_PATTERN.matcher(command);
+        if (!matcher.matches()) return false;
+        authController.forgetPassword(matcher.group(1), matcher.group(2));
         printControllerMessage(authController.getLastMessage());
-
-        if (authController.wasSuccessful()) {
-            waitingForSecurityAnswer = true;
-        }
-
+        if (authController.wasSuccessful()) waitingForSecurityAnswer = true;
         return true;
     }
+
+    private boolean handleNewPassword(String command) {
+        authController.resetForgottenPassword(command);
+        printControllerMessage(authController.getLastMessage());
+        if (authController.wasSuccessful()) {
+            waitingForNewPassword = false;
+            waitingForSecurityAnswer = false;
+        }
+        return true;
+    }
+
+    private boolean handleSecurityAnswer(String command) {
+        Matcher matcher = ANSWER_PATTERN.matcher(command);
+        if (!matcher.matches()) {
+            authController.invalidCommand("login menu");
+            printControllerMessage(authController.getLastMessage());
+            return true;
+        }
+        authController.answerSecurityQuestion(matcher.group(1));
+        printControllerMessage(authController.getLastMessage());
+        waitingForNewPassword = authController.wasSuccessful();
+        waitingForSecurityAnswer = false;
+        return true;
+    }
+
 
     private boolean handleMenuCommand(String command) {
         if ("menu show current".equals(command)) {

@@ -273,72 +273,57 @@ public class LockedPlantsRule extends AbstractLevelRule {
         return copiedNames;
     }
 
-    private Map<String, Set<String>> copyPlantFamilies(
-            Map<String, List<String>> source
-    ) {
+    private Map<String, Set<String>> copyPlantFamilies(Map<String, List<String>> source) {
         Map<String, Set<String>> copiedFamilies = new LinkedHashMap<>();
         Set<String> registeredPlants = new LinkedHashSet<>();
-
         for (Map.Entry<String, List<String>> entry : source.entrySet()) {
-            String familyName = entry.getKey();
-            List<String> familyPlants = entry.getValue();
-
-            if (!isValidName(familyName)) {
-                throw new IllegalArgumentException(
-                        "Plant family name cannot be null or empty."
-                );
-            }
-
-            if (familyPlants == null || familyPlants.isEmpty()) {
-                throw new IllegalArgumentException(
-                        "Plant family cannot be null or empty."
-                );
-            }
-
-            String normalizedFamilyName = familyName.trim();
-
-            if (containsIgnoreCase(
-                    copiedFamilies.keySet(),
-                    normalizedFamilyName
-            )) {
-                throw new IllegalArgumentException(
-                        "Duplicate plant family: " + normalizedFamilyName
-                );
-            }
-
-            Set<String> copiedFamilyPlants = new LinkedHashSet<>();
-
-            for (String plantName : familyPlants) {
-                if (!isValidName(plantName)) {
-                    throw new IllegalArgumentException(
-                            "Plant family cannot contain null or empty names."
-                    );
-                }
-
-                String normalizedPlantName = plantName.trim();
-
-                if (containsIgnoreCase(
-                        registeredPlants,
-                        normalizedPlantName
-                )) {
-                    throw new IllegalArgumentException(
-                            "A plant cannot belong to multiple families: "
-                                    + normalizedPlantName
-                    );
-                }
-
-                registeredPlants.add(normalizedPlantName);
-                copiedFamilyPlants.add(normalizedPlantName);
-            }
-
-            copiedFamilies.put(
-                    normalizedFamilyName,
-                    copiedFamilyPlants
-            );
+            copyPlantFamily(entry, copiedFamilies, registeredPlants);
         }
-
         return copiedFamilies;
     }
+
+    private void copyPlantFamily(
+            Map.Entry<String, List<String>> entry,
+            Map<String, Set<String>> copiedFamilies,
+            Set<String> registeredPlants
+    ) {
+        String familyName = entry.getKey();
+        List<String> familyPlants = entry.getValue();
+        validateFamily(familyName, familyPlants);
+        String normalizedFamilyName = familyName.trim();
+        if (containsIgnoreCase(copiedFamilies.keySet(), normalizedFamilyName)) {
+            throw new IllegalArgumentException("Duplicate plant family: " + normalizedFamilyName);
+        }
+        Set<String> copiedPlants = new LinkedHashSet<>();
+        for (String plantName : familyPlants) {
+            copiedPlants.add(registerFamilyPlant(plantName, registeredPlants));
+        }
+        copiedFamilies.put(normalizedFamilyName, copiedPlants);
+    }
+
+    private void validateFamily(String familyName, List<String> familyPlants) {
+        if (!isValidName(familyName)) {
+            throw new IllegalArgumentException("Plant family name cannot be null or empty.");
+        }
+        if (familyPlants == null || familyPlants.isEmpty()) {
+            throw new IllegalArgumentException("Plant family cannot be null or empty.");
+        }
+    }
+
+    private String registerFamilyPlant(String plantName, Set<String> registeredPlants) {
+        if (!isValidName(plantName)) {
+            throw new IllegalArgumentException("Plant family cannot contain null or empty names.");
+        }
+        String normalizedName = plantName.trim();
+        if (containsIgnoreCase(registeredPlants, normalizedName)) {
+            throw new IllegalArgumentException(
+                    "A plant cannot belong to multiple families: " + normalizedName
+            );
+        }
+        registeredPlants.add(normalizedName);
+        return normalizedName;
+    }
+
 
     private String findSelectedName(String plantName) {
         for (String selectedPlant : selectedPlants) {

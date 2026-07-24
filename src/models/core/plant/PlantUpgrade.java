@@ -116,208 +116,82 @@ public class PlantUpgrade {
     }
 
     private void applyEffect(Plant plant, String rawEffect) {
-        String effectText = rawEffect.trim();
-        String normalized = normalizeForMatching(effectText);
-        int value = extractFirstNumber(effectText);
+        String normalized = normalizeForMatching(rawEffect);
+        int value = extractFirstNumber(rawEffect);
+        if (applyDamageOrHealthEffect(plant, normalized, value)) return;
+        if (applyCombatStatEffect(plant, normalized, value)) return;
+        if (applyTimingEffect(plant, normalized, value)) return;
+        if (applyProductionEffect(plant, normalized, value)) return;
+        applyBooleanEffect(plant, normalized);
+    }
 
-        if (normalized.startsWith("dmg tick")) {
-            plant.increaseDamagePerTick(value);
-            return;
-        }
+    private boolean applyDamageOrHealthEffect(Plant plant, String effect, int value) {
+        if (effect.startsWith("dmg tick")) plant.increaseDamagePerTick(value);
+        else if (effect.startsWith("aoe dmg")) plant.increaseAreaDamage(value);
+        else if (effect.startsWith("explode dmg")) plant.increaseExplodeDamage(value);
+        else if (effect.startsWith("reflect dmg")) plant.increaseReflectDamage(value);
+        else if (effect.startsWith("dmg")) plant.increaseAttackDamage(value);
+        else if (effect.startsWith("hp")) plant.increaseMaxHp(value);
+        else return false;
+        return true;
+    }
 
-        if (normalized.startsWith("aoe dmg")) {
-            plant.increaseAreaDamage(value);
-            return;
-        }
+    private boolean applyCombatStatEffect(Plant plant, String effect, int value) {
+        if (effect.startsWith("cost")) plant.decreaseSunCost(value);
+        else if (effect.startsWith("cooldown")) {
+            int ticks = secondsToTicks(value);
+            plant.decreaseAttackIntervalByTicks(ticks);
+            plant.reduceCooldown(ticks);
+        } else if (effect.startsWith("atk speed")) plant.decreaseAttackIntervalByPercent(value);
+        else if (effect.startsWith("range")) plant.increaseRange(value);
+        else if (effect.startsWith("targets")) plant.increaseTargetCount(value);
+        else if (effect.startsWith("pierce")) plant.increasePierceCount(value);
+        else if (effect.startsWith("bounces")) plant.increaseBounces(value);
+        else return false;
+        return true;
+    }
 
-        if (normalized.startsWith("explode dmg")) {
-            plant.increaseExplodeDamage(value);
-            return;
-        }
+    private boolean applyTimingEffect(Plant plant, String effect, int value) {
+        int ticks = secondsToTicks(value);
+        if (effect.startsWith("freeze time")) plant.increaseFreezeDuration(ticks);
+        else if (effect.startsWith("chill time")) plant.increaseChillDuration(ticks);
+        else if (effect.startsWith("duration")) plant.increaseDuration(ticks);
+        else if (effect.startsWith("lifespan")) plant.increaseLifespan(ticks);
+        else if (effect.startsWith("grow time")) plant.decreaseGrowTime(ticks);
+        else if (effect.startsWith("prod time")) plant.decreaseProductionTime(ticks);
+        else if (effect.startsWith("charge time")) plant.decreaseChargeTime(ticks);
+        else if (effect.startsWith("arm time")) plant.decreaseArmTime(ticks);
+        else if (effect.startsWith("digest")) plant.decreaseDigestTime(ticks);
+        else if (effect.startsWith("eat time")) plant.decreaseEatTime(ticks);
+        else if (effect.startsWith("regen")) plant.decreaseRegenTime(ticks);
+        else return false;
+        return true;
+    }
 
-        if (normalized.startsWith("reflect dmg")) {
-            plant.increaseReflectDamage(value);
-            return;
-        }
+    private boolean applyProductionEffect(Plant plant, String effect, int value) {
+        if (effect.startsWith("warmth radius")) plant.increaseWarmthRadius(value);
+        else if (effect.startsWith("max size")) plant.increaseMaxSize(value);
+        else if (effect.startsWith("plant food chance")) plant.increasePlantFoodChance(value);
+        else if (effect.startsWith("butter")) plant.increaseButterChance(value);
+        else if (effect.startsWith("sun drop")) plant.increaseSunDropBonus(value);
+        else if (effect.startsWith("sun")) plant.increaseSunProductionBonus(value);
+        else return false;
+        return true;
+    }
 
-        if (normalized.startsWith("dmg")) {
-            plant.increaseAttackDamage(value);
-            return;
-        }
-
-        if (normalized.startsWith("hp")) {
-            plant.increaseMaxHp(value);
-            return;
-        }
-
-        if (normalized.startsWith("cost")) {
-            plant.decreaseSunCost(value);
-            return;
-        }
-
-        if (normalized.startsWith("cooldown")) {
-            plant.decreaseAttackIntervalByTicks(secondsToTicks(value));
-            plant.reduceCooldown(secondsToTicks(value));
-            return;
-        }
-
-        if (normalized.startsWith("atk speed")) {
-            plant.decreaseAttackIntervalByPercent(value);
-            return;
-        }
-
-        if (normalized.startsWith("range")) {
-            plant.increaseRange(value);
-            return;
-        }
-
-        if (normalized.startsWith("targets")) {
-            plant.increaseTargetCount(value);
-            return;
-        }
-
-        if (normalized.startsWith("pierce")) {
-            plant.increasePierceCount(value);
-            return;
-        }
-
-        if (normalized.startsWith("bounces")) {
-            plant.increaseBounces(value);
-            return;
-        }
-
-        if (normalized.startsWith("freeze time")) {
-            plant.increaseFreezeDuration(secondsToTicks(value));
-            return;
-        }
-
-        if (normalized.startsWith("chill time")) {
-            plant.increaseChillDuration(secondsToTicks(value));
-            return;
-        }
-
-        if (normalized.startsWith("duration")) {
-            plant.increaseDuration(secondsToTicks(value));
-            return;
-        }
-
-        if (normalized.startsWith("lifespan")) {
-            plant.increaseLifespan(secondsToTicks(value));
-            return;
-        }
-
-        if (normalized.startsWith("grow time")) {
-            plant.decreaseGrowTime(secondsToTicks(value));
-            return;
-        }
-
-        if (normalized.startsWith("prod time")) {
-            plant.decreaseProductionTime(secondsToTicks(value));
-            return;
-        }
-
-        if (normalized.startsWith("charge time")) {
-            plant.decreaseChargeTime(secondsToTicks(value));
-            return;
-        }
-
-        if (normalized.startsWith("arm time")) {
-            plant.decreaseArmTime(secondsToTicks(value));
-            return;
-        }
-
-        if (normalized.startsWith("digest")) {
-            plant.decreaseDigestTime(secondsToTicks(value));
-            return;
-        }
-
-        if (normalized.startsWith("eat time")) {
-            plant.decreaseEatTime(secondsToTicks(value));
-            return;
-        }
-
-        if (normalized.startsWith("regen")) {
-            plant.decreaseRegenTime(secondsToTicks(value));
-            return;
-        }
-
-        if (normalized.startsWith("warmth radius")) {
-            plant.increaseWarmthRadius(value);
-            return;
-        }
-
-        if (normalized.startsWith("max size")) {
-            plant.increaseMaxSize(value);
-            return;
-        }
-
-        if (normalized.startsWith("plant food chance")) {
-            plant.increasePlantFoodChance(value);
-            return;
-        }
-
-        if (normalized.startsWith("butter")) {
-            plant.increaseButterChance(value);
-            return;
-        }
-
-        if (normalized.startsWith("sun drop")) {
-            plant.increaseSunDropBonus(value);
-            return;
-        }
-
-        if (normalized.startsWith("sun")) {
-            plant.increaseSunProductionBonus(value);
-            return;
-        }
-
-        if (normalized.equals("double sun chance")) {
-            plant.enableDoubleSunChance();
-            return;
-        }
-
-        if (normalized.equals("target priority up")) {
-            plant.enableTargetPriorityUp();
-            return;
-        }
-
-        if (normalized.equals("can crush 2x")) {
-            plant.enableCanCrushTwice();
-            return;
-        }
-
-        if (normalized.equals("aoe on death")) {
-            plant.enableAoeOnDeath();
-            return;
-        }
-
-        if (normalized.equals("zombie hp buff")) {
-            plant.enableZombieHpBuff();
-            return;
-        }
-
-        if (normalized.equals("zombie dmg buff")) {
-            plant.enableZombieDamageBuff();
-            return;
-        }
-
-        if (normalized.equals("plant food on enterance") || normalized.equals("plant food on entrance")) {
-            plant.enablePlantFoodOnEntrance();
-            return;
-        }
-
-        if (normalized.equals("explode on finish")) {
-            plant.enableExplodeOnFinish();
-            return;
-        }
-
-        if (normalized.equals("reset family cooldowns")) {
-            plant.enableResetFamilyCooldowns();
-            return;
-        }
-
-        if (normalized.equals("melt area 3x3")) {
-            plant.enableMeltAreaThreeByThree();
+    private void applyBooleanEffect(Plant plant, String effect) {
+        switch (effect) {
+            case "double sun chance" -> plant.enableDoubleSunChance();
+            case "target priority up" -> plant.enableTargetPriorityUp();
+            case "can crush 2x" -> plant.enableCanCrushTwice();
+            case "aoe on death" -> plant.enableAoeOnDeath();
+            case "zombie hp buff" -> plant.enableZombieHpBuff();
+            case "zombie dmg buff" -> plant.enableZombieDamageBuff();
+            case "plant food on enterance", "plant food on entrance" -> plant.enablePlantFoodOnEntrance();
+            case "explode on finish" -> plant.enableExplodeOnFinish();
+            case "reset family cooldowns" -> plant.enableResetFamilyCooldowns();
+            case "melt area 3x3" -> plant.enableMeltAreaThreeByThree();
+            default -> { }
         }
     }
 

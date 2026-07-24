@@ -86,7 +86,4 @@ public class Season {
         }
     }
 
-    private static SeasonType resolveSeasonType(String name) {
-        return SeasonType.fromName(name);
-    }
 }

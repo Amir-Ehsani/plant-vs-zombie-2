@@ -21,30 +21,8 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
-public class Level {
-    private static final int DEFAULT_INITIAL_SUN = 50;
 
-    private final int levelId;
-    private final WaveManager waveManager;
-    private final LevelType levelType;
-    private final List<String> allowedPlants;
-    private final List<String> allowedZombieNames;
-    private final LevelRule levelRule;
-    private final int initialSunAmount;
-    private final Map<Position, TileType> terrainLayout;
-    private final Map<Integer, Map<Position, TileType>> terrainChangesByTick;
-    private final Map<Integer, Map<Position, TileType>> terrainChangesByWave;
-    private final Map<Integer, Map<Position, String>> necromancySpawnsByWave;
-    private final List<Zombie> terrainSpawnedZombies;
-    private final Set<Integer> appliedTerrainTicks;
-    private final Set<Integer> appliedTerrainWaves;
-    private final Set<Position> lowTidePositions;
-    private final ZombieFactory zombieFactory;
-
-    private LevelStatus status;
-    private Board board;
-    private SeasonType seasonType;
-
+public class Level extends LevelState {
     public Level(
             int levelId,
             WaveManager waveManager,
@@ -53,15 +31,7 @@ public class Level {
             List<String> allowedZombieNames,
             LevelRule levelRule
     ) {
-        this(
-                levelId,
-                waveManager,
-                levelType,
-                allowedPlants,
-                allowedZombieNames,
-                levelRule,
-                DEFAULT_INITIAL_SUN
-        );
+        super(levelId, waveManager, levelType, allowedPlants, allowedZombieNames, levelRule);
     }
 
     public Level(
@@ -73,40 +43,7 @@ public class Level {
             LevelRule levelRule,
             int initialSunAmount
     ) {
-        if (levelId <= 0) {
-            throw new IllegalArgumentException("Level id must be greater than 0.");
-        }
-        if (waveManager == null) {
-            throw new IllegalArgumentException("Wave manager cannot be null.");
-        }
-        if (levelType == null) {
-            throw new IllegalArgumentException("Level type cannot be null.");
-        }
-        if (initialSunAmount < 0) {
-            throw new IllegalArgumentException("Initial sun amount cannot be negative.");
-        }
-
-        this.levelId = levelId;
-        this.waveManager = waveManager;
-        this.levelType = levelType;
-        this.allowedPlants = copyNames(allowedPlants, "Allowed plants");
-        this.allowedZombieNames = copyNames(allowedZombieNames, "Allowed zombies");
-        this.levelRule = resolveRule(levelType, levelRule);
-        this.initialSunAmount = initialSunAmount;
-        this.terrainLayout = new LinkedHashMap<>();
-        this.terrainChangesByTick = new LinkedHashMap<>();
-        this.terrainChangesByWave = new LinkedHashMap<>();
-        this.necromancySpawnsByWave = new LinkedHashMap<>();
-        this.terrainSpawnedZombies = new ArrayList<>();
-        this.appliedTerrainTicks = new LinkedHashSet<>();
-        this.appliedTerrainWaves = new LinkedHashSet<>();
-        this.lowTidePositions = new LinkedHashSet<>();
-        this.zombieFactory = new ZombieFactory();
-        this.status = LevelStatus.NOT_STARTED;
-        this.board = null;
-        this.seasonType = null;
-
-        validateWaveZombies();
+        super(levelId, waveManager, levelType, allowedPlants, allowedZombieNames, levelRule, initialSunAmount);
     }
 
     public void startLevel(Board board, LevelRuntimeContext context) {
@@ -538,86 +475,4 @@ public class Level {
         return "Default";
     }
 
-    private Map<Integer, Map<Position, TileType>> readOnlyNestedMap(
-            Map<Integer, Map<Position, TileType>> source
-    ) {
-        Map<Integer, Map<Position, TileType>> copy = new LinkedHashMap<>();
-        for (Map.Entry<Integer, Map<Position, TileType>> entry : source.entrySet()) {
-            copy.put(entry.getKey(), Collections.unmodifiableMap(
-                    new LinkedHashMap<>(entry.getValue())));
-        }
-        return Collections.unmodifiableMap(copy);
-    }
-
-    private void applyTerrainLayout(Board board) {
-        for (Map.Entry<Position, TileType> entry : terrainLayout.entrySet()) {
-            if (!board.setTileType(entry.getKey(), entry.getValue())) {
-                throw new IllegalStateException(
-                        "Terrain position is outside the board: " + entry.getKey()
-                );
-            }
-        }
-    }
-
-    private LevelRule resolveRule(LevelType type, LevelRule rule) {
-        if (type == LevelType.SPECIAL && rule == null) {
-            throw new IllegalArgumentException("A special level requires a level rule.");
-        }
-        return rule == null ? new NoSpecialRule() : rule;
-    }
-
-    private List<String> copyNames(List<String> source, String listName) {
-        List<String> copy = new ArrayList<>();
-        if (source == null) {
-            return copy;
-        }
-
-        for (String value : source) {
-            if (value == null || value.isBlank()) {
-                throw new IllegalArgumentException(listName + " cannot contain empty values.");
-            }
-            if (!containsIgnoreCase(copy, value)) {
-                copy.add(value.trim());
-            }
-        }
-        return copy;
-    }
-
-    private void validateWaveZombies() {
-        if (allowedZombieNames.isEmpty()) {
-            return;
-        }
-
-        for (Wave wave : waveManager.getWaves()) {
-            for (Zombie zombie : wave.getZombiesList()) {
-                if (zombie != null && !isZombieAllowed(zombie.getName())) {
-                    throw new IllegalArgumentException(
-                            "Zombie " + zombie.getName() + " is not allowed in level " + levelId + "."
-                    );
-                }
-            }
-        }
-    }
-
-    private boolean containsIgnoreCase(List<String> values, String target) {
-        String normalizedTarget = normalize(target);
-        for (String value : values) {
-            if (normalize(value).equals(normalizedTarget)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private String normalize(String value) {
-        if (value == null) {
-            return "";
-        }
-        return value
-                .trim()
-                .toLowerCase(Locale.ROOT)
-                .replace('-', ' ')
-                .replace('_', ' ')
-                .replaceAll("\\s+", " ");
-    }
 }

@@ -36,7 +36,14 @@ public class AuthController {
         this.lastMessage = "";
     }
 
-    public void register(String username, String password, String passwordConfirm, String nickname, String email, String gender) {
+    public void register(
+            String username,
+            String password,
+            String passwordConfirm,
+            String nickname,
+            String email,
+            String gender
+    ) {
         if (pendingUser != null) {
             fail("Finish the current registration first.");
             return;

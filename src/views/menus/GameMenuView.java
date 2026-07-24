@@ -8,8 +8,13 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class GameMenuView extends BaseView {
-    private static final Pattern MENU_ENTER_CHAPTER_PATTERN = Pattern.compile("^menu\\s+enter\\s+chapter\\s+-c\\s+(.+)\\s*$");
-    private static final Pattern CHEAT_CURRENCY_PATTERN = Pattern.compile("^menu\\s+cheat\\s+add\\s+(\\d+)\\s+(coin|coins|diamond|diamonds|gem|gems)\\s*$");
+    private static final Pattern MENU_ENTER_CHAPTER_PATTERN = Pattern.compile(
+            "^menu\\s+enter\\s+chapter\\s+-c\\s+(.+)\\s*$"
+    );
+    private static final Pattern CHEAT_CURRENCY_PATTERN = Pattern.compile(
+            "^menu\\s+cheat\\s+add\\s+(\\d+)\\s+"
+                    + "(coin|coins|diamond|diamonds|gem|gems)\\s*$"
+    );
     private static final Pattern MENU_ENTER_PATTERN = Pattern.compile("^menu\\s+enter\\s+(\\S+)\\s*$");
 
     private final MenuManager menuManager;
