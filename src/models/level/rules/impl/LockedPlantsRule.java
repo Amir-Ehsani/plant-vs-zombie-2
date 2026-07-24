@@ -174,7 +174,7 @@ public class LockedPlantsRule extends AbstractLevelRule {
 
     @Override
     public void onPlantUsed(String plantName) {
-        // Planting during the level must not modify the selected loadout.
+
     }
 
     public boolean isSelectionLocked() {

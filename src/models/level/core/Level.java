@@ -162,8 +162,6 @@ public class Level {
         if (spawnedWave != null) {
             int waveNumber = spawnedWave.getWaveNumber();
             applyAutomaticTideForWave(waveNumber);
-            // Explicit level configuration has priority over the automatic
-            // seasonal tide for the same wave.
             applyTerrainChangesForWave(waveNumber);
             spawnNecromancyZombies(waveNumber);
         }
@@ -459,8 +457,7 @@ public class Level {
         if (seasonType != SeasonType.BIG_WAVE_BEACH || lowTidePositions.isEmpty()) {
             return;
         }
-        // The board starts in low tide. Even waves raise the water and odd waves
-        // lower it again. Explicit scheduled changes are applied before this rule.
+
         TileType type = waveNumber % 2 == 0 ? TileType.WATER : TileType.LOW_TIDE;
         for (Position position : lowTidePositions) {
             board.setTileType(position, type);
@@ -518,8 +515,6 @@ public class Level {
             board.getTileAt(position).addZombie(zombie);
             terrainSpawnedZombies.add(zombie);
         } catch (IllegalArgumentException ignored) {
-            // Invalid external configuration is ignored at runtime; constructor
-            // validation still protects regular wave zombies.
         }
     }
 
@@ -531,7 +526,7 @@ public class Level {
                     zombieFactory.createZombie(name, 1, 1);
                     return name;
                 } catch (IllegalArgumentException ignored) {
-                    // Try the next allowed type.
+
                 }
             }
         }
