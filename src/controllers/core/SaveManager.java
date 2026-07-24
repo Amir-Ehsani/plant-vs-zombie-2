@@ -131,9 +131,33 @@ public class SaveManager {
         first = appendField(builder, "storedPlantFood", String.valueOf(collection.getStoredPlantFood()), first);
         first = appendField(builder, "dailyOfferDate", jsonString(collection.getDailyOfferDate()), first);
         first = appendField(builder, "dailyOfferPlantName", jsonString(collection.getDailyOfferPlantName()), first);
-        appendField(builder, "dailyOfferPurchased", String.valueOf(collection.isDailyOfferPurchased()), first);
+        first = appendField(builder, "dailyOfferPurchased", String.valueOf(collection.isDailyOfferPurchased()), first);
+        appendField(builder, "shopItemAmounts", intMapToJson(collection.getShopItemAmounts()), first);
         builder.append("\n}");
 
+        return builder.toString();
+    }
+
+
+    private String intMapToJson(Map<String, Integer> values) {
+        StringBuilder builder = new StringBuilder();
+        builder.append("{");
+        boolean first = true;
+        if (values != null) {
+            for (Map.Entry<String, Integer> entry : values.entrySet()) {
+                if (entry.getKey() == null || entry.getValue() == null) {
+                    continue;
+                }
+                if (!first) {
+                    builder.append(",");
+                }
+                builder.append(jsonString(entry.getKey()));
+                builder.append(":");
+                builder.append(Math.max(0, entry.getValue()));
+                first = false;
+            }
+        }
+        builder.append("}");
         return builder.toString();
     }
 
@@ -399,6 +423,7 @@ public class SaveManager {
         setPrivateField(collection, "dailyOfferDate", string(map, "dailyOfferDate"));
         setPrivateField(collection, "dailyOfferPlantName", string(map, "dailyOfferPlantName"));
         setPrivateField(collection, "dailyOfferPurchased", bool(map, "dailyOfferPurchased", false));
+        collection.setShopItemAmounts(integerMap(map.get("shopItemAmounts")));
 
         return collection;
     }
@@ -610,6 +635,27 @@ public class SaveManager {
         }
 
         return null;
+    }
+
+
+    private Map<String, Integer> integerMap(Object object) {
+        Map<String, Object> rawMap = asMap(object);
+        Map<String, Integer> values = new LinkedHashMap<>();
+        if (rawMap == null) {
+            return values;
+        }
+        for (Map.Entry<String, Object> entry : rawMap.entrySet()) {
+            Object value = entry.getValue();
+            if (value instanceof Number number) {
+                values.put(entry.getKey(), Math.max(0, number.intValue()));
+            } else if (value instanceof String text) {
+                try {
+                    values.put(entry.getKey(), Math.max(0, Integer.parseInt(text)));
+                } catch (NumberFormatException ignored) {
+                }
+            }
+        }
+        return values;
     }
 
     private List<?> asList(Object object) {
