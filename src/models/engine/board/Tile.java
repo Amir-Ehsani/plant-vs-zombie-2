@@ -295,17 +295,6 @@ public class Tile {
         return containsTag(lowerPlant, "stack") || containsTag(upperPlant, "stack");
     }
 
-    private boolean isStackPlant(Plant plant) {
-        if (plant == null || plant.getType() == null) {
-            return false;
-        }
-        if (containsTag(plant, "stack")) {
-            return true;
-        }
-        String name = normalize(plant.getName());
-        return name.equals("pea pod") || name.equals("pumpkin");
-    }
-
     private boolean isDirectWaterPlant(Plant plant) {
         if (plant == null || plant.getType() == null) {
             return false;

@@ -17,25 +17,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.Random;
 
-public class Board {
-    private static final int DEFAULT_WIDTH = 9;
-    private static final int DEFAULT_HEIGHT = 5;
-    private static final int TICKS_PER_SECOND = 10;
-    private static final int ADJACENT_FIRE_MELT_PER_SECOND = 60;
-    private static final int ADJACENT_FIRE_MELT_PER_TICK =
-            Math.max(1, ADJACENT_FIRE_MELT_PER_SECOND / TICKS_PER_SECOND);
 
-    private final int width;
-    private final int height;
-    private final List<Lane> lanes;
-    private final DefaultLaneCombatStrategy combatStrategy;
-    private final Map<Zombie, Position> lastSlipperyTileByZombie;
-    private BoardTickResult lastTickResult;
-    private int totalZombiesKilled;
-    private int totalPlantsDestroyed;
-    private boolean brainEaten;
-    private BoardResourceHandler resourceHandler;
-
+public class Board extends BoardSupport {
     public Board() {
         this(DEFAULT_WIDTH, DEFAULT_HEIGHT);
     }
@@ -62,7 +45,7 @@ public class Board {
         initializeLanes();
     }
 
-    private void initializeLanes() {
+    protected void initializeLanes() {
         for (int y = 1; y <= height; y++) {
             Lane lane = new Lane(y, width);
             lane.setCombatStrategy(combatStrategy);
@@ -162,142 +145,53 @@ public class Board {
     }
 
     private BoardTickResult removeDeadEntitiesInternal(boolean updateTotals) {
-        int zombiesKilled = 0;
-        int plantsDestroyed = 0;
         List<GameEvent> events = new ArrayList<>();
+        int plantsDestroyed = removeDeadPlants(events) + removeUnsupportedWaterPlants(events);
+        int zombiesKilled = removeDeadZombies(events);
+        if (updateTotals) {
+            totalZombiesKilled += zombiesKilled;
+            totalPlantsDestroyed += plantsDestroyed;
+        }
+        return new BoardTickResult(zombiesKilled, plantsDestroyed, 0, false, events);
+    }
 
+    private int removeDeadPlants(List<GameEvent> events) {
+        int removed = 0;
         for (Lane lane : lanes) {
             for (Tile tile : lane.getTiles()) {
                 for (Plant plant : new ArrayList<>(tile.getPlants())) {
-                    if (plant == null || plant.isAlive()) {
-                        continue;
-                    }
+                    if (plant == null || plant.isAlive()) continue;
                     combatStrategy.handleExternalPlantDeath(plant, tile.getPosition(), events);
                     if (tile.removePlant(plant)) {
-                        plantsDestroyed++;
-                        events.add(GameEvent.plantDestroyed(
-                                plant.getName(),
-                                tile.getPosition()
-                        ));
+                        removed++;
+                        events.add(GameEvent.plantDestroyed(plant.getName(), tile.getPosition()));
                     }
                 }
             }
         }
+        return removed;
+    }
 
-        Set<Zombie> removedZombies = Collections.newSetFromMap(new IdentityHashMap<>());
+    private int removeDeadZombies(List<GameEvent> events) {
+        int removed = 0;
+        Set<Zombie> seen = Collections.newSetFromMap(new IdentityHashMap<>());
         for (Lane lane : lanes) {
             for (Tile tile : lane.getTiles()) {
                 for (Zombie zombie : new ArrayList<>(tile.getZombies())) {
-                    if (zombie == null || zombie.isAlive()) {
-                        continue;
-                    }
+                    if (zombie == null || zombie.isAlive()) continue;
                     combatStrategy.handleExternalZombieDeath(zombie);
                     tile.removeZombie(zombie);
                     lastSlipperyTileByZombie.remove(zombie);
-                    if (removedZombies.add(zombie)) {
-                        zombiesKilled++;
+                    if (seen.add(zombie)) {
+                        removed++;
                         events.add(GameEvent.zombieKilled(zombie, false));
                     }
                 }
             }
         }
-
-        plantsDestroyed += removeUnsupportedWaterPlants(events);
-        if (updateTotals) {
-            totalZombiesKilled += zombiesKilled;
-            totalPlantsDestroyed += plantsDestroyed;
-        }
-
-        return new BoardTickResult(
-                zombiesKilled,
-                plantsDestroyed,
-                0,
-                false,
-                events
-        );
+        return removed;
     }
 
-    public int getWidth() {
-        return width;
-    }
-
-    public int getHeight() {
-        return height;
-    }
-
-    public List<Lane> getLanes() {
-        return Collections.unmodifiableList(lanes);
-    }
-
-    public Lane getLaneAt(int y) {
-        if (y <= 0 || y > height) {
-            return null;
-        }
-        return lanes.get(y - 1);
-    }
-
-    public Tile getTileAt(Position position) {
-        if (position == null) {
-            return null;
-        }
-
-        Lane lane = getLaneAt(position.getY());
-        if (lane == null) {
-            return null;
-        }
-        return lane.getTileAt(position.getX());
-    }
-
-    public boolean isValidPosition(Position position) {
-        return getTileAt(position) != null;
-    }
-
-    public boolean canPlacePlant(Position position) {
-        Tile tile = getTileAt(position);
-        return tile != null && tile.isPlantable() && !tile.hasPlant();
-    }
-
-    public boolean canPlacePlant(Plant plant, Position position) {
-        Tile tile = getTileAt(position);
-        return tile != null && tile.canPlacePlant(plant);
-    }
-
-    public boolean placePlant(Plant plant, Position position) {
-        if (plant == null || !canPlacePlant(plant, position)) {
-            return false;
-        }
-
-        Tile tile = getTileAt(position);
-        tile.placePlant(plant);
-        return true;
-    }
-
-    public Plant removePlant(Position position) {
-        Tile tile = getTileAt(position);
-        if (tile == null || !tile.hasPlant()) {
-            return null;
-        }
-        return tile.removePlant();
-    }
-
-    public boolean removePlant(Position position, Plant plant) {
-        Tile tile = getTileAt(position);
-        return tile != null && tile.removePlant(plant);
-    }
-
-    public boolean setTileType(Position position, TileType tileType) {
-        Tile tile = getTileAt(position);
-        if (tile == null || tileType == null) {
-            return false;
-        }
-        tile.setTileType(tileType);
-        return true;
-    }
-
-    public boolean damageTerrain(Position position, int damage, boolean fireDamage) {
-        Tile tile = getTileAt(position);
-        return tile != null && tile.damageTerrain(damage, fireDamage);
-    }
 
     public BoardTickResult damageZombiesInArea(
             Position center,
@@ -514,293 +408,4 @@ public class Board {
         return new BoardTickResult(0, removed, 0, false, events);
     }
 
-    public void setResourceHandler(BoardResourceHandler resourceHandler) {
-        this.resourceHandler = resourceHandler;
-    }
-
-    public int stealStoredSun(int amount) {
-        if (resourceHandler == null || amount <= 0) {
-            return 0;
-        }
-        return Math.max(0, resourceHandler.stealStoredSun(amount));
-    }
-
-    public int stealLooseSuns() {
-        return resourceHandler == null ? 0 : Math.max(0, resourceHandler.stealLooseSuns());
-    }
-
-    public void restoreSun(int amount) {
-        if (resourceHandler != null && amount > 0) {
-            resourceHandler.restoreSun(amount);
-        }
-    }
-
-    public boolean moveZombieToLane(Zombie zombie, int targetLaneNumber) {
-        if (zombie == null || !zombie.isAlive()) {
-            return false;
-        }
-        Lane targetLane = getLaneAt(targetLaneNumber);
-        Tile sourceTile = findTileContainingZombie(zombie);
-        if (targetLane == null || sourceTile == null) {
-            return false;
-        }
-        Tile targetTile = targetLane.getTileAt(Math.max(1, Math.min(width, (int) Math.ceil(zombie.getX()))));
-        if (targetTile == null) {
-            return false;
-        }
-        sourceTile.removeZombie(zombie);
-        zombie.moveBy(0, targetLaneNumber - zombie.getY());
-        targetTile.addZombie(zombie);
-        return true;
-    }
-
-    public boolean shiftZombieToAdjacentLane(Zombie zombie, Random random) {
-        if (zombie == null) {
-            return false;
-        }
-        int currentLane = Math.max(1, Math.min(height, (int) Math.round(zombie.getY())));
-        boolean up = getLaneAt(currentLane - 1) != null;
-        boolean down = getLaneAt(currentLane + 1) != null;
-        if (!up && !down) {
-            return false;
-        }
-        int target;
-        if (up && down) {
-            target = random != null && random.nextBoolean() ? currentLane - 1 : currentLane + 1;
-        } else {
-            target = up ? currentLane - 1 : currentLane + 1;
-        }
-        return moveZombieToLane(zombie, target);
-    }
-
-    public boolean movePlant(Position source, Position target, Plant plant) {
-        if (source == null || target == null || plant == null) {
-            return false;
-        }
-        Tile sourceTile = getTileAt(source);
-        Tile targetTile = getTileAt(target);
-        if (sourceTile == null || targetTile == null || !sourceTile.hasPlant(plant) || !targetTile.canPlacePlant(plant)) {
-            return false;
-        }
-        if (!sourceTile.removePlant(plant)) {
-            return false;
-        }
-        targetTile.placePlant(plant);
-        plant.moveTo(target.getX(), target.getY());
-        return true;
-    }
-
-    public Tile getTileContainingZombie(Zombie zombie) {
-        return findTileContainingZombie(zombie);
-    }
-
-    public List<Zombie> getAllZombies() {
-        List<Zombie> zombies = new ArrayList<>();
-        for (Lane lane : lanes) {
-            for (Zombie zombie : lane.getAllZombies()) {
-                if (!zombies.contains(zombie)) {
-                    zombies.add(zombie);
-                }
-            }
-        }
-        return Collections.unmodifiableList(zombies);
-    }
-
-    public List<Plant> getAllPlants() {
-        List<Plant> plants = new ArrayList<>();
-        for (Lane lane : lanes) {
-            for (Tile tile : lane.getTiles()) {
-                for (Plant plant : tile.getPlants()) {
-                    if (plant != null && plant.isAlive()) {
-                        plants.add(plant);
-                    }
-                }
-            }
-        }
-        return Collections.unmodifiableList(plants);
-    }
-
-    public int getActiveZombieCount() {
-        return getAllZombies().size();
-    }
-
-    public int getPlantCount() {
-        return getAllPlants().size();
-    }
-
-    public int getTotalZombiesKilled() {
-        return totalZombiesKilled;
-    }
-
-    public int getTotalPlantsDestroyed() {
-        return totalPlantsDestroyed;
-    }
-
-    public boolean hasBrainBeenEaten() {
-        return brainEaten;
-    }
-
-    public int destroyAllZombies() {
-        int destroyed = 0;
-        for (Lane lane : lanes) {
-            for (Tile tile : lane.getTiles()) {
-                for (Zombie zombie : new ArrayList<>(tile.getZombies())) {
-                    if (zombie != null && zombie.isAlive()) {
-                        zombie.kill();
-                        destroyed++;
-                    }
-                    lastSlipperyTileByZombie.remove(zombie);
-                }
-                tile.clearZombies();
-            }
-        }
-        totalZombiesKilled += destroyed;
-        return destroyed;
-    }
-
-    public BoardTickResult getLastTickResult() {
-        return lastTickResult;
-    }
-
-    private void applySlipperyTiles() {
-        for (Zombie zombie : new ArrayList<>(getAllZombies())) {
-            Tile currentTile = findTileContainingZombie(zombie);
-            if (currentTile == null || !zombie.isAlive()) {
-                lastSlipperyTileByZombie.remove(zombie);
-                continue;
-            }
-
-            TileType type = currentTile.getTileType();
-            if ((type != TileType.SLIPPERY_UP && type != TileType.SLIPPERY_DOWN)
-                    || ignoresSlipperyTile(zombie)) {
-                lastSlipperyTileByZombie.remove(zombie);
-                continue;
-            }
-
-            Position currentPosition = currentTile.getPosition();
-            Position previousTrigger = lastSlipperyTileByZombie.get(zombie);
-            if (currentPosition.equals(previousTrigger)) {
-                continue;
-            }
-
-            int laneDelta = type == TileType.SLIPPERY_UP ? -1 : 1;
-            int targetLaneNumber = currentPosition.getY() + laneDelta;
-            Lane targetLane = getLaneAt(targetLaneNumber);
-            if (targetLane == null) {
-                lastSlipperyTileByZombie.put(zombie, currentPosition);
-                continue;
-            }
-
-            int targetX = Math.max(1, Math.min(width, (int) Math.ceil(zombie.getX())));
-            Tile targetTile = targetLane.getTileAt(targetX);
-            if (targetTile == null) {
-                continue;
-            }
-
-            currentTile.removeZombie(zombie);
-            zombie.moveBy(0, laneDelta);
-            targetTile.addZombie(zombie);
-            lastSlipperyTileByZombie.put(zombie, currentPosition);
-        }
-    }
-
-    private Tile findTileContainingZombie(Zombie zombie) {
-        if (zombie == null) {
-            return null;
-        }
-        for (Lane lane : lanes) {
-            for (Tile tile : lane.getTiles()) {
-                if (tile.getZombies().contains(zombie)) {
-                    return tile;
-                }
-            }
-        }
-        return null;
-    }
-
-    private boolean ignoresSlipperyTile(Zombie zombie) {
-        String name = normalize(zombie == null ? null : zombie.getName());
-        String id = zombie == null || zombie.getType() == null
-                ? ""
-                : normalize(zombie.getType().getId());
-        return name.contains("dodo") || id.contains("dodo");
-    }
-
-    private void applyAdjacentFireToIce() {
-        for (Lane lane : lanes) {
-            for (Tile iceTile : lane.getTiles()) {
-                if (!iceTile.isFrozenTerrain()) {
-                    continue;
-                }
-                if (hasAdjacentFirePlant(iceTile.getPosition())) {
-                    iceTile.damageTerrain(ADJACENT_FIRE_MELT_PER_TICK, false);
-                }
-            }
-        }
-    }
-
-    private boolean hasAdjacentFirePlant(Position center) {
-        for (int y = Math.max(1, center.getY() - 1);
-             y <= Math.min(height, center.getY() + 1);
-             y++) {
-            for (int x = Math.max(1, center.getX() - 1);
-                 x <= Math.min(width, center.getX() + 1);
-                 x++) {
-                if (x == center.getX() && y == center.getY()) {
-                    continue;
-                }
-                Tile tile = getTileAt(new Position(x, y));
-                if (tile == null || tile.isFrozenTerrain()) {
-                    continue;
-                }
-                for (Plant plant : tile.getPlants()) {
-                    if (plant != null && plant.isAlive() && isFirePlant(plant)) {
-                        return true;
-                    }
-                }
-            }
-        }
-        return false;
-    }
-
-    private boolean isFirePlant(Plant plant) {
-        if (plant == null || plant.getType() == null) {
-            return false;
-        }
-        String tags = normalize(plant.getType().getTags());
-        if (tags.contains("fire")) {
-            return true;
-        }
-        String name = normalize(plant.getName());
-        return name.contains("fire")
-                || name.contains("pepper")
-                || name.contains("jalapeno")
-                || name.contains("torchwood")
-                || name.contains("wasabi")
-                || name.contains("hot potato");
-    }
-
-    private int removeUnsupportedWaterPlants(List<GameEvent> events) {
-        int removedCount = 0;
-        for (Lane lane : lanes) {
-            for (Tile tile : lane.getTiles()) {
-                for (Plant plant : tile.removeUnsupportedWaterPlants()) {
-                    removedCount++;
-                    events.add(GameEvent.plantDestroyed(plant.getName(), tile.getPosition()));
-                }
-            }
-        }
-        return removedCount;
-    }
-
-    private String normalize(String value) {
-        if (value == null) {
-            return "";
-        }
-        return value.trim()
-                .toLowerCase(Locale.ROOT)
-                .replace('-', ' ')
-                .replace('_', ' ')
-                .replaceAll("\\s+", " ");
-    }
 }

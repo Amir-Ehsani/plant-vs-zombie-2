@@ -215,74 +215,46 @@ public class TravelLogView extends BaseView {
     }
 
     private String renderQuests(List<Quest> quests) {
-        StringBuilder builder = new StringBuilder();
-
-        builder.append("Quests\n");
-        builder.append("------\n");
-
+        StringBuilder builder = new StringBuilder("Quests\n------\n");
         if (quests == null || quests.isEmpty()) {
-            builder.append("No quests on this page.\n");
-            return builder.toString();
+            return builder.append("No quests on this page.\n").toString();
         }
-
-        int index = 1;
-
-        for (Quest quest : quests) {
-            builder.append(index).append(". ").append(quest.getQuestDescription()).append("\n");
-            builder.append("   Page: ").append(quest.getType()).append("\n");
-            builder.append("   Priority: ").append(quest.getPriority()).append("\n");
-
-            if (!quest.getConditionDescription().isBlank()) {
-                builder.append("   Condition: ")
-                        .append(quest.getConditionDescription())
-                        .append("\n");
-            }
-
-            if (!quest.getVariables().isBlank()) {
-                builder.append("   Variables: ")
-                        .append(quest.getVariables())
-                        .append("\n");
-            }
-
-            builder.append("   Progress: ")
-                    .append(quest.getProgressAmount())
-                    .append("/")
-                    .append(quest.getTargetAmount())
-                    .append("\n");
-
-            builder.append("   Status: ");
-
-            if (quest.isRewardClaimed()) {
-                builder.append("reward collected");
-            } else if (quest.canClaimReward()) {
-                builder.append("done - reward available");
-            } else if (quest.isCompleted()) {
-                builder.append("done");
-            } else {
-                builder.append("not done");
-            }
-
-            builder.append("\n");
-            builder.append("   Reward: ").append(quest.rewardText()).append("\n");
-            builder.append("   Applied reward: ")
-                    .append(quest.getCoinReward())
-                    .append(" coins, ")
-                    .append(quest.getGemReward())
-                    .append(" gems, ")
-                    .append(quest.getSeedPacketReward())
-                    .append(" seed packets");
-
-            if (quest.hasRandomPlantReward()) {
-                builder.append(", random plant");
-            }
-
-            builder.append("\n");
-
-            index++;
+        for (int index = 0; index < quests.size(); index++) {
+            appendQuest(builder, quests.get(index), index + 1);
         }
-
         return builder.toString();
     }
+
+    private void appendQuest(StringBuilder builder, Quest quest, int index) {
+        builder.append(index).append(". ").append(quest.getQuestDescription()).append("\n");
+        builder.append("   Page: ").append(quest.getType()).append("\n");
+        builder.append("   Priority: ").append(quest.getPriority()).append("\n");
+        appendOptionalQuestLine(builder, "Condition", quest.getConditionDescription());
+        appendOptionalQuestLine(builder, "Variables", quest.getVariables());
+        builder.append("   Progress: ").append(quest.getProgressAmount())
+                .append("/").append(quest.getTargetAmount()).append("\n");
+        builder.append("   Status: ").append(questStatus(quest)).append("\n");
+        builder.append("   Reward: ").append(quest.rewardText()).append("\n");
+        builder.append("   Applied reward: ").append(quest.getCoinReward()).append(" coins, ")
+                .append(quest.getGemReward()).append(" gems, ")
+                .append(quest.getSeedPacketReward()).append(" seed packets");
+        if (quest.hasRandomPlantReward()) builder.append(", random plant");
+        builder.append("\n");
+    }
+
+    private void appendOptionalQuestLine(StringBuilder builder, String label, String value) {
+        if (value != null && !value.isBlank()) {
+            builder.append("   ").append(label).append(": ").append(value).append("\n");
+        }
+    }
+
+    private String questStatus(Quest quest) {
+        if (quest.isRewardClaimed()) return "reward collected";
+        if (quest.canClaimReward()) return "done - reward available";
+        if (quest.isCompleted()) return "done";
+        return "not done";
+    }
+
 
     private String renderMiniGames(List<TravelLogController.MiniGameInfo> miniGames) {
         StringBuilder builder = new StringBuilder();

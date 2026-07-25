@@ -14,12 +14,30 @@ public class GameView extends BaseView {
     private static final Pattern BOOST_PLANT_PATTERN = Pattern.compile("^boost\\s+plant\\s+-t\\s+(.+?)\\s*$");
     private static final Pattern ADVANCE_TIME_PATTERN = Pattern.compile("^advance\\s+time\\s+-t\\s+(\\d+)\\s*$");
     private static final Pattern CHEAT_ADD_SUN_PATTERN = Pattern.compile("^cheat\\s+add\\s+sun\\s+-a\\s+(\\d+)\\s*$");
-    private static final Pattern SHOW_TILE_PATTERN = Pattern.compile("^show\\s+tile\\s+-l\\s+<?\\s*(\\d+)\\s*,\\s*(\\d+)\\s*>?\\s*$");
-    private static final Pattern PLANT_PATTERN = Pattern.compile("^plant\\s+-t\\s+(.+?)\\s+-l\\s+<?\\s*(\\d+)\\s*,\\s*(\\d+)\\s*>?\\s*$");
-    private static final Pattern PLUCK_PATTERN = Pattern.compile("^pluck\\s+-l\\s+<?\\s*(\\d+)\\s*,\\s*(\\d+)\\s*>?\\s*$");
-    private static final Pattern FEED_PLANT_PATTERN = Pattern.compile("^feed\\s+plant\\s+-l\\s+<?\\s*(\\d+)\\s*,\\s*(\\d+)\\s*>?\\s*$");
-    private static final Pattern COLLECT_SUN_PATTERN = Pattern.compile("^collect\\s+sun\\s+-l\\s+<?\\s*(\\d+)\\s*,\\s*(\\d+)\\s*>?\\s*$");
-    private static final Pattern SPAWN_ZOMBIE_PATTERN = Pattern.compile("^cheat\\s+spawn-zombie\\s+-t\\s+(.+?)\\s+-l\\s+<?\\s*(\\d+)\\s*,\\s*(\\d+)\\s*>?\\s*$");
+    private static final Pattern SHOW_TILE_PATTERN = Pattern.compile(
+            "^show\\s+tile\\s+-l\\s+<?\\s*(\\d+)\\s*,"
+                    + "\\s*(\\d+)\\s*>?\\s*$"
+    );
+    private static final Pattern PLANT_PATTERN = Pattern.compile(
+            "^plant\\s+-t\\s+(.+?)\\s+-l\\s+<?\\s*(\\d+)\\s*,"
+                    + "\\s*(\\d+)\\s*>?\\s*$"
+    );
+    private static final Pattern PLUCK_PATTERN = Pattern.compile(
+            "^pluck\\s+-l\\s+<?\\s*(\\d+)\\s*,"
+                    + "\\s*(\\d+)\\s*>?\\s*$"
+    );
+    private static final Pattern FEED_PLANT_PATTERN = Pattern.compile(
+            "^feed\\s+plant\\s+-l\\s+<?\\s*(\\d+)\\s*,"
+                    + "\\s*(\\d+)\\s*>?\\s*$"
+    );
+    private static final Pattern COLLECT_SUN_PATTERN = Pattern.compile(
+            "^collect\\s+sun\\s+-l\\s+<?\\s*(\\d+)\\s*,"
+                    + "\\s*(\\d+)\\s*>?\\s*$"
+    );
+    private static final Pattern SPAWN_ZOMBIE_PATTERN = Pattern.compile(
+            "^cheat\\s+spawn-zombie\\s+-t\\s+(.+?)\\s+-l\\s+<?"
+                    + "\\s*(\\d+)\\s*,\\s*(\\d+)\\s*>?\\s*$"
+    );
 
     private final MenuManager menuManager;
     private final GameController gameController;
@@ -118,56 +136,23 @@ public class GameView extends BaseView {
     }
 
     private boolean handleSimpleCommands(String command) {
-        if ("start game".equals(command)) {
-            gameController.startGame();
-            printControllerMessage(gameController.getLastMessage());
-            return true;
+        switch (command) {
+            case "start game" -> gameController.startGame();
+            case "pause game" -> gameController.handlePause();
+            case "update game" -> gameController.update();
+            case "show map" -> gameController.showMap();
+            case "show sun" -> gameController.showSun();
+            case "show plants" -> gameController.showPlants();
+            case "zombies info" -> gameController.showZombies();
+            case "start zombie waves" -> gameController.startZombieWaves();
+            default -> {
+                return false;
+            }
         }
-
-        if ("pause game".equals(command)) {
-            gameController.handlePause();
-            printControllerMessage(gameController.getLastMessage());
-            return true;
-        }
-
-        if ("update game".equals(command)) {
-            gameController.update();
-            printControllerMessage(gameController.getLastMessage());
-            return true;
-        }
-
-        if ("show map".equals(command)) {
-            gameController.showMap();
-            printControllerMessage(gameController.getLastMessage());
-            return true;
-        }
-
-        if ("show sun".equals(command)) {
-            gameController.showSun();
-            printControllerMessage(gameController.getLastMessage());
-            return true;
-        }
-
-        if ("show plants".equals(command)) {
-            gameController.showPlants();
-            printControllerMessage(gameController.getLastMessage());
-            return true;
-        }
-
-        if ("zombies info".equals(command)) {
-            gameController.showZombies();
-            printControllerMessage(gameController.getLastMessage());
-            return true;
-        }
-
-        if ("start zombie waves".equals(command)) {
-            gameController.startZombieWaves();
-            printControllerMessage(gameController.getLastMessage());
-            return true;
-        }
-
-        return false;
+        printControllerMessage(gameController.getLastMessage());
+        return true;
     }
+
 
     private boolean handleAdvanceTime(String command) {
         Matcher matcher = ADVANCE_TIME_PATTERN.matcher(command);
