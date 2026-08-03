@@ -54,6 +54,9 @@ public final class AdventureLevelCatalog {
         if ("wildwest".equals(normalized)) {
             return "wild-west";
         }
+        if ("darkages".equals(normalized) || "dark-ages".equals(normalized)) {
+            return "wild-west";
+        }
 
         return normalized;
     }
@@ -63,7 +66,7 @@ public final class AdventureLevelCatalog {
             case "ancient-egypt" -> "Ancient Egypt";
             case "ice-cave" -> "Ice Cave";
             case "wave-beach" -> "Wave Beach";
-            case "wild-west" -> "Wild West";
+            case "wild-west" -> "Dark Ages";
             default -> chapterName == null ? "" : chapterName.trim();
         };
     }

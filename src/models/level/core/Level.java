@@ -4,7 +4,10 @@ import models.core.zombie.Zombie;
 import models.core.zombie.ZombieFactory;
 import models.engine.board.Board;
 import models.engine.board.Position;
+import models.engine.board.Tile;
 import models.engine.board.TileType;
+import models.core.plant.Plant;
+import models.engine.events.GameEvent;
 import models.level.rules.LevelRule;
 import models.level.rules.LevelRuntimeContext;
 import models.level.rules.NoSpecialRule;
@@ -21,30 +24,8 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
-public class Level {
-    private static final int DEFAULT_INITIAL_SUN = 50;
 
-    private final int levelId;
-    private final WaveManager waveManager;
-    private final LevelType levelType;
-    private final List<String> allowedPlants;
-    private final List<String> allowedZombieNames;
-    private final LevelRule levelRule;
-    private final int initialSunAmount;
-    private final Map<Position, TileType> terrainLayout;
-    private final Map<Integer, Map<Position, TileType>> terrainChangesByTick;
-    private final Map<Integer, Map<Position, TileType>> terrainChangesByWave;
-    private final Map<Integer, Map<Position, String>> necromancySpawnsByWave;
-    private final List<Zombie> terrainSpawnedZombies;
-    private final Set<Integer> appliedTerrainTicks;
-    private final Set<Integer> appliedTerrainWaves;
-    private final Set<Position> lowTidePositions;
-    private final ZombieFactory zombieFactory;
-
-    private LevelStatus status;
-    private Board board;
-    private SeasonType seasonType;
-
+public class Level extends LevelState {
     public Level(
             int levelId,
             WaveManager waveManager,
@@ -53,15 +34,7 @@ public class Level {
             List<String> allowedZombieNames,
             LevelRule levelRule
     ) {
-        this(
-                levelId,
-                waveManager,
-                levelType,
-                allowedPlants,
-                allowedZombieNames,
-                levelRule,
-                DEFAULT_INITIAL_SUN
-        );
+        super(levelId, waveManager, levelType, allowedPlants, allowedZombieNames, levelRule);
     }
 
     public Level(
@@ -73,40 +46,7 @@ public class Level {
             LevelRule levelRule,
             int initialSunAmount
     ) {
-        if (levelId <= 0) {
-            throw new IllegalArgumentException("Level id must be greater than 0.");
-        }
-        if (waveManager == null) {
-            throw new IllegalArgumentException("Wave manager cannot be null.");
-        }
-        if (levelType == null) {
-            throw new IllegalArgumentException("Level type cannot be null.");
-        }
-        if (initialSunAmount < 0) {
-            throw new IllegalArgumentException("Initial sun amount cannot be negative.");
-        }
-
-        this.levelId = levelId;
-        this.waveManager = waveManager;
-        this.levelType = levelType;
-        this.allowedPlants = copyNames(allowedPlants, "Allowed plants");
-        this.allowedZombieNames = copyNames(allowedZombieNames, "Allowed zombies");
-        this.levelRule = resolveRule(levelType, levelRule);
-        this.initialSunAmount = initialSunAmount;
-        this.terrainLayout = new LinkedHashMap<>();
-        this.terrainChangesByTick = new LinkedHashMap<>();
-        this.terrainChangesByWave = new LinkedHashMap<>();
-        this.necromancySpawnsByWave = new LinkedHashMap<>();
-        this.terrainSpawnedZombies = new ArrayList<>();
-        this.appliedTerrainTicks = new LinkedHashSet<>();
-        this.appliedTerrainWaves = new LinkedHashSet<>();
-        this.lowTidePositions = new LinkedHashSet<>();
-        this.zombieFactory = new ZombieFactory();
-        this.status = LevelStatus.NOT_STARTED;
-        this.board = null;
-        this.seasonType = null;
-
-        validateWaveZombies();
+        super(levelId, waveManager, levelType, allowedPlants, allowedZombieNames, levelRule, initialSunAmount);
     }
 
     public void startLevel(Board board, LevelRuntimeContext context) {
@@ -122,12 +62,14 @@ public class Level {
 
         this.board = board;
         terrainSpawnedZombies.clear();
+        chapterEvents.clear();
         appliedTerrainTicks.clear();
         appliedTerrainWaves.clear();
         applyTerrainLayout(board);
         applyTerrainChangesForTick(0);
         captureLowTidePositions();
         waveManager.bindBoard(board);
+        spawnInitialTerrainZombies();
         levelRule.onLevelStart(context);
         status = LevelStatus.RUNNING;
         evaluate(context);
@@ -161,9 +103,9 @@ public class Level {
         Wave spawnedWave = waveManager.updateTicks(context.getCurrentTick());
         if (spawnedWave != null) {
             int waveNumber = spawnedWave.getWaveNumber();
-            applyAutomaticTideForWave(waveNumber);
+            applySeasonalZombieTraits(spawnedWave);
+            applyChapterFeaturesForWave(waveNumber, spawnedWave);
             applyTerrainChangesForWave(waveNumber);
-            spawnNecromancyZombies(waveNumber);
         }
         return spawnedWave;
     }
@@ -186,7 +128,7 @@ public class Level {
             return;
         }
 
-        if (waveManager.areAllWavesCleared()) {
+        if (waveManager.areAllWavesCleared() && !hasLivingTerrainZombie()) {
             status = LevelStatus.WON;
         }
     }
@@ -239,7 +181,7 @@ public class Level {
     }
 
     public boolean allowsSkySun() {
-        return levelRule.allowsSkySun();
+        return seasonType != SeasonType.DARK_AGES && levelRule.allowsSkySun();
     }
 
     public boolean ignoresPlantRecharge() {
@@ -343,6 +285,19 @@ public class Level {
                 .put(position, zombieName.trim());
     }
 
+    public void scheduleInitialTerrainZombie(Position position, String zombieName) {
+        ensureConfigurable();
+        if (position == null || zombieName == null || zombieName.isBlank()) {
+            throw new IllegalArgumentException("Initial terrain zombie configuration is invalid.");
+        }
+        initialTerrainZombieSpawns.put(position, zombieName.trim());
+    }
+
+    public void setHighTideWaterColumns(int columns) {
+        ensureConfigurable();
+        highTideWaterColumns = Math.max(1, Math.min(4, columns));
+    }
+
     public Map<Integer, Map<Position, TileType>> getTerrainChangesByTick() {
         return readOnlyNestedMap(terrainChangesByTick);
     }
@@ -354,6 +309,12 @@ public class Level {
     public List<Zombie> drainTerrainSpawnedZombies() {
         List<Zombie> result = new ArrayList<>(terrainSpawnedZombies);
         terrainSpawnedZombies.clear();
+        return Collections.unmodifiableList(result);
+    }
+
+    public List<GameEvent> drainChapterEvents() {
+        List<GameEvent> result = new ArrayList<>(chapterEvents);
+        chapterEvents.clear();
         return Collections.unmodifiableList(result);
     }
 
@@ -453,22 +414,155 @@ public class Level {
         }
     }
 
-    private void applyAutomaticTideForWave(int waveNumber) {
-        if (seasonType != SeasonType.BIG_WAVE_BEACH || lowTidePositions.isEmpty()) {
+    private void applyChapterFeaturesForWave(int waveNumber, Wave wave) {
+        if (seasonType == SeasonType.ANCIENT_EGYPT
+                && waveNumber == waveManager.getTotalWaves()) {
+            applyFinalWaveSandstorm(wave);
+        } else if (seasonType == SeasonType.FROSTBITE_CAVES) {
+            applyFrostWind(waveNumber);
+        } else if (seasonType == SeasonType.BIG_WAVE_BEACH) {
+            applyAutomaticTideForWave(waveNumber);
+        } else if (seasonType == SeasonType.DARK_AGES) {
+            growDarkAgesGraves(waveNumber);
+        }
+        spawnNecromancyZombies(waveNumber);
+    }
+
+    private void applySeasonalZombieTraits(Wave wave) {
+        if (seasonType != SeasonType.FROSTBITE_CAVES || wave == null) {
             return;
         }
+        for (Zombie zombie : wave.getZombiesList()) {
+            if (zombie != null) {
+                zombie.setSeasonalIceImmune(true);
+            }
+        }
+    }
 
-        TileType type = waveNumber % 2 == 0 ? TileType.WATER : TileType.LOW_TIDE;
+    private void applyFinalWaveSandstorm(Wave wave) {
+        if (wave == null) {
+            return;
+        }
+        for (Zombie zombie : wave.getZombiesList()) {
+            if (zombie == null || !zombie.isAlive()) {
+                continue;
+            }
+            int advance = chapterRandom.nextInt(4) + 1;
+            Tile sourceTile = board.getTileContainingZombie(zombie);
+            zombie.moveBy(-advance, 0);
+            int targetX = Math.max(1, Math.min(board.getWidth(), (int) Math.ceil(zombie.getX())));
+            Tile targetTile = board.getTileAt(new Position(targetX, (int) zombie.getY()));
+            if (sourceTile != null && targetTile != null && sourceTile != targetTile) {
+                sourceTile.removeZombie(zombie);
+                targetTile.addZombie(zombie);
+            }
+            chapterEvents.add(GameEvent.chapterEffect(
+                    "A sandstorm carried " + zombie.getName() + " " + advance
+                            + " column(s) into lane " + (int) zombie.getY() + "."
+            ));
+        }
+    }
+
+    private void applyFrostWind(int waveNumber) {
+        int firstLane = chapterRandom.nextInt(board.getHeight()) + 1;
+        int secondLane = chapterRandom.nextInt(board.getHeight()) + 1;
+        freezePlantsInLane(firstLane);
+        if (waveNumber == waveManager.getTotalWaves() && secondLane != firstLane) {
+            freezePlantsInLane(secondLane);
+        }
+        String lanes = secondLane == firstLane || waveNumber != waveManager.getTotalWaves()
+                ? Integer.toString(firstLane) : firstLane + " and " + secondLane;
+        chapterEvents.add(GameEvent.chapterEffect(
+                "An icy wind increased the freeze level of plants in lane(s) " + lanes + "."
+        ));
+    }
+
+    private void freezePlantsInLane(int laneNumber) {
+        for (Plant plant : board.getAllPlants()) {
+            if (plant != null && plant.isAlive()
+                    && (int) Math.round(plant.getY()) == laneNumber
+                    && !normalize(plant.getType().getTags()).contains("fire")) {
+                plant.addIceHit();
+            }
+        }
+    }
+
+    private void applyAutomaticTideForWave(int waveNumber) {
+        if (lowTidePositions.isEmpty()) {
+            return;
+        }
+        boolean highTide = waveNumber % 2 == 1;
+        int firstFloodedColumn = board.getWidth() - 1 - highTideWaterColumns;
         for (Position position : lowTidePositions) {
+            TileType type = highTide && position.getX() >= firstFloodedColumn
+                    ? TileType.WATER : TileType.LOW_TIDE;
             board.setTileType(position, type);
         }
+        chapterEvents.add(GameEvent.chapterEffect(highTide
+                ? "The tide rose and flooded the marked beach columns."
+                : "The tide receded and exposed the low-tide tiles."));
+        if (highTide) {
+            spawnLowBeachZombie();
+        }
+    }
+
+    private void spawnLowBeachZombie() {
+        List<Position> flooded = new ArrayList<>();
+        for (Position position : lowTidePositions) {
+            Tile tile = board.getTileAt(position);
+            if (tile != null && tile.getTileType() == TileType.WATER && !tile.hasZombies()) {
+                flooded.add(position);
+            }
+        }
+        if (flooded.isEmpty()) {
+            return;
+        }
+        Position position = flooded.get(chapterRandom.nextInt(flooded.size()));
+        spawnTerrainZombie(position, resolveDefaultTerrainZombie());
+        chapterEvents.add(GameEvent.chapterEffect(
+                "A zombie emerged from the flooded low beach at " + position + "."
+        ));
+    }
+
+    private void growDarkAgesGraves(int waveNumber) {
+        List<Tile> candidates = new ArrayList<>();
+        for (int y = 1; y <= board.getHeight(); y++) {
+            for (int x = 2; x < board.getWidth(); x++) {
+                Tile tile = board.getTileAt(new Position(x, y));
+                if (tile != null && tile.getTileType() == TileType.NORMAL
+                        && !tile.hasPlant() && !tile.hasZombies()) {
+                    candidates.add(tile);
+                }
+            }
+        }
+        Collections.shuffle(candidates, chapterRandom);
+        int count = waveNumber == waveManager.getTotalWaves() ? 2 : 1;
+        for (int index = 0; index < Math.min(count, candidates.size()); index++) {
+            candidates.get(index).setTileType(randomDarkAgesGraveType());
+        }
+        if (!candidates.isEmpty()) {
+            chapterEvents.add(GameEvent.chapterEffect(
+                    Math.min(count, candidates.size()) + " new grave(s) rose from the dark ground."
+            ));
+        }
+    }
+
+    private TileType randomDarkAgesGraveType() {
+        int roll = chapterRandom.nextInt(10);
+        if (roll == 0) {
+            return TileType.PLANT_FOOD_GRAVE;
+        }
+        if (roll <= 2) {
+            return TileType.SUN_GRAVE;
+        }
+        return TileType.GRAVE;
     }
 
     private void spawnNecromancyZombies(int waveNumber) {
         Map<Position, String> configured = necromancySpawnsByWave.get(waveNumber);
         if (configured != null) {
             for (Map.Entry<Position, String> entry : configured.entrySet()) {
-                spawnNecromancyZombie(entry.getKey(), entry.getValue());
+                spawnTerrainZombie(entry.getKey(), entry.getValue());
             }
             return;
         }
@@ -476,9 +570,14 @@ public class Level {
         if (seasonType != SeasonType.DARK_AGES || board == null) {
             return;
         }
-        String zombieName = resolveDefaultNecromancyZombie();
+        String zombieName = resolveDefaultTerrainZombie();
         for (Position position : necromancyPositions()) {
-            spawnNecromancyZombie(position, zombieName);
+            spawnTerrainZombie(position, zombieName);
+        }
+        if (!necromancyPositions().isEmpty()) {
+            chapterEvents.add(GameEvent.chapterEffect(
+                    "Necromancy raised zombies from the marked ground."
+            ));
         }
     }
 
@@ -498,12 +597,22 @@ public class Level {
         return positions;
     }
 
-    private void spawnNecromancyZombie(Position position, String zombieName) {
+    private void spawnInitialTerrainZombies() {
+        for (Map.Entry<Position, String> entry : initialTerrainZombieSpawns.entrySet()) {
+            spawnTerrainZombie(entry.getKey(), entry.getValue());
+        }
+        if (!initialTerrainZombieSpawns.isEmpty()) {
+            chapterEvents.add(GameEvent.chapterEffect(
+                    "Frozen zombies are trapped inside the ice blocks."
+            ));
+        }
+    }
+
+    private void spawnTerrainZombie(Position position, String zombieName) {
         if (board == null || position == null || zombieName == null) {
             return;
         }
-        if (!board.isValidPosition(position)
-                || board.getTileAt(position).getTileType() != TileType.NECROMANCY) {
+        if (!board.isValidPosition(position)) {
             return;
         }
         try {
@@ -512,13 +621,16 @@ public class Level {
                     position.getX(),
                     position.getY()
             );
+            if (seasonType == SeasonType.FROSTBITE_CAVES) {
+                zombie.setSeasonalIceImmune(true);
+            }
             board.getTileAt(position).addZombie(zombie);
             terrainSpawnedZombies.add(zombie);
         } catch (IllegalArgumentException ignored) {
         }
     }
 
-    private String resolveDefaultNecromancyZombie() {
+    private String resolveDefaultTerrainZombie() {
         for (String name : allowedZombieNames) {
             String normalized = normalize(name);
             if (!normalized.contains("gargantuar") && !normalized.contains("king")) {
@@ -533,86 +645,16 @@ public class Level {
         return "Default";
     }
 
-    private Map<Integer, Map<Position, TileType>> readOnlyNestedMap(
-            Map<Integer, Map<Position, TileType>> source
-    ) {
-        Map<Integer, Map<Position, TileType>> copy = new LinkedHashMap<>();
-        for (Map.Entry<Integer, Map<Position, TileType>> entry : source.entrySet()) {
-            copy.put(entry.getKey(), Collections.unmodifiableMap(
-                    new LinkedHashMap<>(entry.getValue())));
+    private boolean hasLivingTerrainZombie() {
+        if (board == null) {
+            return false;
         }
-        return Collections.unmodifiableMap(copy);
-    }
-
-    private void applyTerrainLayout(Board board) {
-        for (Map.Entry<Position, TileType> entry : terrainLayout.entrySet()) {
-            if (!board.setTileType(entry.getKey(), entry.getValue())) {
-                throw new IllegalStateException(
-                        "Terrain position is outside the board: " + entry.getKey()
-                );
-            }
-        }
-    }
-
-    private LevelRule resolveRule(LevelType type, LevelRule rule) {
-        if (type == LevelType.SPECIAL && rule == null) {
-            throw new IllegalArgumentException("A special level requires a level rule.");
-        }
-        return rule == null ? new NoSpecialRule() : rule;
-    }
-
-    private List<String> copyNames(List<String> source, String listName) {
-        List<String> copy = new ArrayList<>();
-        if (source == null) {
-            return copy;
-        }
-
-        for (String value : source) {
-            if (value == null || value.isBlank()) {
-                throw new IllegalArgumentException(listName + " cannot contain empty values.");
-            }
-            if (!containsIgnoreCase(copy, value)) {
-                copy.add(value.trim());
-            }
-        }
-        return copy;
-    }
-
-    private void validateWaveZombies() {
-        if (allowedZombieNames.isEmpty()) {
-            return;
-        }
-
-        for (Wave wave : waveManager.getWaves()) {
-            for (Zombie zombie : wave.getZombiesList()) {
-                if (zombie != null && !isZombieAllowed(zombie.getName())) {
-                    throw new IllegalArgumentException(
-                            "Zombie " + zombie.getName() + " is not allowed in level " + levelId + "."
-                    );
-                }
-            }
-        }
-    }
-
-    private boolean containsIgnoreCase(List<String> values, String target) {
-        String normalizedTarget = normalize(target);
-        for (String value : values) {
-            if (normalize(value).equals(normalizedTarget)) {
+        for (Zombie zombie : board.getAllZombies()) {
+            if (zombie != null && zombie.isAlive()) {
                 return true;
             }
         }
         return false;
     }
 
-    private String normalize(String value) {
-        if (value == null) {
-            return "";
-        }
-        return value
-                .trim()
-                .toLowerCase(Locale.ROOT)
-                .replace('-', ' ')
-                .replace('_', ' ')
-                .replaceAll("\\s+", " ");
-    }
 }

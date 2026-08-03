@@ -279,11 +279,35 @@ public class Quest {
                 .replace(" ", "_");
 
         if (normalized.isEmpty()) return "general";
-        if ("daily".equals(normalized) || "challenge".equals(normalized) || "روزانه".equals(normalized)) return "challenges";
-        if ("main".equals(normalized) || "story".equals(normalized) || "اصلی".equals(normalized)) return "adventure";
-        if ("epic".equals(normalized) || "special_challenge".equals(normalized) || "چالش_(epic)".equals(normalized)) return "special";
+        if (isDailyType(normalized)) {
+            return "challenges";
+        }
+        if (isAdventureType(normalized)) {
+            return "adventure";
+        }
+        if (isSpecialType(normalized)) {
+            return "special";
+        }
 
         return normalized;
+    }
+
+    private boolean isDailyType(String normalized) {
+        return "daily".equals(normalized)
+                || "challenge".equals(normalized)
+                || "روزانه".equals(normalized);
+    }
+
+    private boolean isAdventureType(String normalized) {
+        return "main".equals(normalized)
+                || "story".equals(normalized)
+                || "اصلی".equals(normalized);
+    }
+
+    private boolean isSpecialType(String normalized) {
+        return "epic".equals(normalized)
+                || "special_challenge".equals(normalized)
+                || "چالش_(epic)".equals(normalized);
     }
 
     private String normalizePriority(String value) {

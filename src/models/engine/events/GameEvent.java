@@ -153,7 +153,17 @@ public final class GameEvent {
     }
 
     public static GameEvent rewardDropped(String rewardType) {
+        return rewardDropped(rewardType, 1);
+    }
+
+    public static GameEvent rewardDropped(String rewardType, int amount) {
         return new GameEvent(GameEventType.REWARD_DROPPED, rewardType, null, null, null,
+                0, 0, 0, 0, 0, Math.max(1, amount), 0, 0, false, false,
+                null, null, null);
+    }
+
+    public static GameEvent chapterEffect(String message) {
+        return new GameEvent(GameEventType.CHAPTER_EFFECT, message, null, null, null,
                 0, 0, 0, 0, 0, 0, 0, 0, false, false,
                 null, null, null);
     }
