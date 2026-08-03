@@ -106,7 +106,7 @@ public class Tile {
             return false;
         }
 
-        if (tileType == TileType.GRAVE) {
+        if (isGraveTerrain()) {
             return plants.isEmpty() && isNamedPlant(plant, "grave buster");
         }
         if (tileType == TileType.ICE) {
@@ -137,7 +137,7 @@ public class Tile {
     }
 
     public boolean hasDamageableTerrain() {
-        return (tileType == TileType.GRAVE
+        return (isGraveTerrain()
                 || tileType == TileType.ICE
                 || tileType == TileType.BARREL
                 || tileType == TileType.ARCADE)
@@ -146,6 +146,12 @@ public class Tile {
 
     public int getTerrainHealth() {
         return terrainHealth;
+    }
+
+    public boolean isGraveTerrain() {
+        return tileType == TileType.GRAVE
+                || tileType == TileType.SUN_GRAVE
+                || tileType == TileType.PLANT_FOOD_GRAVE;
     }
 
     public int getMaximumTerrainHealth() {
@@ -347,7 +353,9 @@ public class Tile {
     }
 
     private int initialTerrainHealth(TileType type) {
-        if (type == TileType.GRAVE) {
+        if (type == TileType.GRAVE
+                || type == TileType.SUN_GRAVE
+                || type == TileType.PLANT_FOOD_GRAVE) {
             return GRAVE_HEALTH;
         }
         if (type == TileType.ICE) {

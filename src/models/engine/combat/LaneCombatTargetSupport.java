@@ -186,7 +186,20 @@ abstract class LaneCombatTargetSupport extends LaneCombatTerrainSupport {
         if (!zombieName.contains("dodo")) {
             return false;
         }
-        return !normalizeText(plant == null ? null : plant.getName()).equals("tall nut");
+        String plantName = normalizeText(plant == null ? null : plant.getName());
+        if (plantName.equals("tall nut")) {
+            return false;
+        }
+        String category = normalizeCategory(plant);
+        String tags = plant == null || plant.getType() == null
+                ? "" : normalizeText(plant.getType().getTags());
+        return category.contains("wall")
+                || category.contains("defensive")
+                || category.equals("explosive")
+                || plant.getMaxHp() >= 1000
+                || tags.contains("trap")
+                || tags.contains("move zombie")
+                || tags.contains("explosive");
     }
 
     protected Zombie selectPrimaryTarget(Plant plant, List<Zombie> candidates) {

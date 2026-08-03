@@ -296,11 +296,30 @@ abstract class GameControllerStatusSupport extends GameControllerMapRenderSuppor
             case PLANT_DESTROYED, PLANT_SUN_PRODUCED -> formatPlantEvent(event);
             case LAWN_MOWER_TRIGGERED -> formatMowerEvent(event);
             case SKY_SUN_DROPPING, SKY_SUN_LANDED, RADIOACTIVE_SUN_EXPLODED -> formatSunEvent(event);
-            case PLANT_FOOD_DROPPED -> "The glowing zombie dropped a plant food; you have "
+            case PLANT_FOOD_DROPPED -> "A zombie dropped a plant food; you have "
                     + event.getCurrentCount() + " plant foods now.";
-            case REWARD_DROPPED -> "A zombie dropped a " + event.getEntityName() + ".";
+            case REWARD_DROPPED -> formatRewardEvent(event);
+            case CHAPTER_EFFECT -> event.getEntityName();
             default -> "";
         };
+    }
+
+    private String formatRewardEvent(GameEvent event) {
+        String type = event.getEntityName();
+        int amount = Math.max(1, event.getAmount());
+        if ("coin".equalsIgnoreCase(type)) {
+            return "A zombie dropped " + amount + " coins.";
+        }
+        if ("diamond".equalsIgnoreCase(type)) {
+            return "A zombie dropped " + amount + " diamond(s).";
+        }
+        if ("sun".equalsIgnoreCase(type)) {
+            return "A reward grave released " + amount + " sun.";
+        }
+        if ("plant_food".equalsIgnoreCase(type)) {
+            return "A reward grave released one plant food.";
+        }
+        return "A zombie dropped a greenhouse pot reward.";
     }
 
     private String formatZombieEvent(GameEvent event) {

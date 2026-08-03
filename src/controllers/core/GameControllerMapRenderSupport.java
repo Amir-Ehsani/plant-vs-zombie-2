@@ -105,7 +105,8 @@ abstract class GameControllerMapRenderSupport extends GameControllerQuestSupport
 
         builder.append("\nLegend: [terrain|P:plant names|Z:zombie names|sun], ")
                 .append("the final marker is *=sun and -=no sun; ")
-                .append("terrain .=normal, G=grave, W=water, F=ice, B=barrel, A=arcade, ")
+                .append("terrain .=normal, G=grave, S=sun-grave, P=plant-food-grave, ")
+                .append("W=water, F=ice, B=barrel, A=arcade, ")
                 .append("L=low-tide, N=necromancy, ^/v=slip; [LM]=active lawn mower.");
     }
 
@@ -238,6 +239,10 @@ abstract class GameControllerMapRenderSupport extends GameControllerQuestSupport
         switch (tileType) {
             case GRAVE:
                 return 'G';
+            case SUN_GRAVE:
+                return 'S';
+            case PLANT_FOOD_GRAVE:
+                return 'P';
             case WATER:
                 return 'W';
             case ICE:

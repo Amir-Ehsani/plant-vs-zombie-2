@@ -3,10 +3,10 @@ package models.engine.board;
 import models.core.plant.Plant;
 import models.core.projectile.Damage;
 import models.core.zombie.Zombie;
+import models.engine.events.GameEvent;
 import models.engine.combat.BoardTickResult;
 import models.engine.combat.DefaultLaneCombatStrategy;
 import models.engine.combat.LaneTickResult;
-import models.engine.events.GameEvent;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -36,6 +36,7 @@ abstract class BoardState {
     protected int totalPlantsDestroyed;
     protected boolean brainEaten;
     protected BoardResourceHandler resourceHandler;
+    protected List<GameEvent> terrainEvents;
 
 
     public int getWidth() {
@@ -117,6 +118,22 @@ abstract class BoardState {
 
     public boolean damageTerrain(Position position, int damage, boolean fireDamage) {
         Tile tile = getTileAt(position);
-        return tile != null && tile.damageTerrain(damage, fireDamage);
+        if (tile == null) {
+            return false;
+        }
+        TileType previousType = tile.getTileType();
+        boolean destroyed = tile.damageTerrain(damage, fireDamage);
+        if (destroyed) {
+            recordTerrainReward(previousType);
+        }
+        return destroyed;
+    }
+
+    protected void recordTerrainReward(TileType previousType) {
+        if (previousType == TileType.SUN_GRAVE) {
+            terrainEvents.add(GameEvent.rewardDropped("sun", 50));
+        } else if (previousType == TileType.PLANT_FOOD_GRAVE) {
+            terrainEvents.add(GameEvent.rewardDropped("plant_food", 1));
+        }
     }
 }

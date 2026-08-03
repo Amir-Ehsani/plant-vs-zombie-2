@@ -36,6 +36,7 @@ public class Board extends BoardSupport {
         this.lanes = new ArrayList<>();
         this.combatStrategy = new DefaultLaneCombatStrategy(this);
         this.lastSlipperyTileByZombie = new IdentityHashMap<>();
+        this.terrainEvents = new ArrayList<>();
         this.lastTickResult = BoardTickResult.empty();
         this.totalZombiesKilled = 0;
         this.totalPlantsDestroyed = 0;
@@ -80,6 +81,7 @@ public class Board extends BoardSupport {
         zombiesKilled += cleanup.getZombiesKilled();
         plantsDestroyed += cleanup.getPlantsDestroyed();
         events.addAll(cleanup.getEvents());
+        events.addAll(drainTerrainEvents());
 
         List<GameEvent> unsupportedPlantEvents = new ArrayList<>();
         int unsupportedPlants = removeUnsupportedWaterPlants(unsupportedPlantEvents);
@@ -392,16 +394,30 @@ public class Board extends BoardSupport {
 
     public boolean removeTerrain(Position position, TileType expectedType) {
         Tile tile = getTileAt(position);
-        if (tile == null || expectedType == null || tile.getTileType() != expectedType) {
+        if (tile == null || expectedType == null) {
+            return false;
+        }
+        TileType previousType = tile.getTileType();
+        boolean matches = previousType == expectedType
+                || expectedType == TileType.GRAVE && tile.isGraveTerrain();
+        if (!matches) {
             return false;
         }
         tile.setTileType(TileType.NORMAL);
+        recordTerrainReward(previousType);
         return true;
+    }
+
+    private List<GameEvent> drainTerrainEvents() {
+        List<GameEvent> events = new ArrayList<>(terrainEvents);
+        terrainEvents.clear();
+        return events;
     }
 
     public BoardTickResult stabilizeTerrain() {
         List<GameEvent> events = new ArrayList<>();
         int removed = removeUnsupportedWaterPlants(events);
+        events.addAll(drainTerrainEvents());
         if (removed > 0) {
             totalPlantsDestroyed += removed;
         }

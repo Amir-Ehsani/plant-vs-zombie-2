@@ -25,6 +25,7 @@ public class Zombie extends GameEntity {
     private String lastDamageType;
     private int damageRevision;
     private int stolenSun;
+    private boolean seasonalIceImmune;
 
     public Zombie() {
         this(new ZombieType(), 9, 1, null, null, null);
@@ -65,6 +66,7 @@ public class Zombie extends GameEntity {
         this.lastDamageType = "";
         this.damageRevision = 0;
         this.stolenSun = 0;
+        this.seasonalIceImmune = false;
         this.id = buildId();
     }
 
@@ -124,6 +126,11 @@ public class Zombie extends GameEntity {
             return;
         }
         if (type.hasTag("lobber_immune") && damageType.contains("lobber")) {
+            return;
+        }
+        String zombieName = normalizeDamageType(getName());
+        if ((zombieName.contains("parasol") || zombieName.contains("umbrella"))
+                && damageType.contains("lobber")) {
             return;
         }
         if (submerged && type.hasTag("submersible") && !damageType.contains("lobber")) {
@@ -247,6 +254,14 @@ public class Zombie extends GameEntity {
 
     public void setSubmerged(boolean submerged) {
         this.submerged = submerged;
+    }
+
+    public boolean isIceImmune() {
+        return seasonalIceImmune || type.hasTag("ice_immune");
+    }
+
+    public void setSeasonalIceImmune(boolean seasonalIceImmune) {
+        this.seasonalIceImmune = seasonalIceImmune;
     }
 
     public void executeAbility() {

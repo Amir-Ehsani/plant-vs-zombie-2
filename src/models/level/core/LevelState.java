@@ -5,6 +5,7 @@ import models.core.zombie.ZombieFactory;
 import models.engine.board.Board;
 import models.engine.board.Position;
 import models.engine.board.TileType;
+import models.engine.events.GameEvent;
 import models.level.rules.LevelRule;
 import models.level.rules.LevelRuntimeContext;
 import models.level.rules.NoSpecialRule;
@@ -20,6 +21,7 @@ import java.util.Map;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Set;
+import java.util.Random;
 
 
 abstract class LevelState {
@@ -36,11 +38,15 @@ abstract class LevelState {
     protected final Map<Integer, Map<Position, TileType>> terrainChangesByTick;
     protected final Map<Integer, Map<Position, TileType>> terrainChangesByWave;
     protected final Map<Integer, Map<Position, String>> necromancySpawnsByWave;
+    protected final Map<Position, String> initialTerrainZombieSpawns;
     protected final List<Zombie> terrainSpawnedZombies;
+    protected final List<GameEvent> chapterEvents;
     protected final Set<Integer> appliedTerrainTicks;
     protected final Set<Integer> appliedTerrainWaves;
     protected final Set<Position> lowTidePositions;
     protected final ZombieFactory zombieFactory;
+    protected final Random chapterRandom;
+    protected int highTideWaterColumns;
 
     protected LevelStatus status;
     protected Board board;
@@ -98,11 +104,15 @@ abstract class LevelState {
         this.terrainChangesByTick = new LinkedHashMap<>();
         this.terrainChangesByWave = new LinkedHashMap<>();
         this.necromancySpawnsByWave = new LinkedHashMap<>();
+        this.initialTerrainZombieSpawns = new LinkedHashMap<>();
         this.terrainSpawnedZombies = new ArrayList<>();
+        this.chapterEvents = new ArrayList<>();
         this.appliedTerrainTicks = new LinkedHashSet<>();
         this.appliedTerrainWaves = new LinkedHashSet<>();
         this.lowTidePositions = new LinkedHashSet<>();
         this.zombieFactory = new ZombieFactory();
+        this.chapterRandom = new Random(levelId * 1009L);
+        this.highTideWaterColumns = 2;
         this.status = LevelStatus.NOT_STARTED;
         this.board = null;
         this.seasonType = null;

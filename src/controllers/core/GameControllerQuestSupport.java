@@ -105,6 +105,7 @@ abstract class GameControllerQuestSupport extends GameControllerQuestRules {
         }
 
         ensureQuestList(user);
+        boolean rewardChanged = false;
 
         for (GameEvent event : events) {
             if (event == null || event.getType() == null) {
@@ -131,10 +132,37 @@ abstract class GameControllerQuestSupport extends GameControllerQuestRules {
                     }
                     break;
 
+                case REWARD_DROPPED:
+                    rewardChanged |= applyZombieReward(user, event);
+                    break;
+
                 default:
                     break;
             }
         }
+        if (rewardChanged) {
+            saveUsers();
+        }
+    }
+
+    private boolean applyZombieReward(User user, GameEvent event) {
+        String type = normalizeName(event.getEntityName());
+        int amount = Math.max(1, event.getAmount());
+        if (type.equals("coin")) {
+            user.addCoins(amount);
+            return true;
+        }
+        if (type.equals("diamond")) {
+            user.addGems(amount);
+            return true;
+        }
+        if (!type.equals("pot")) {
+            return false;
+        }
+        if (!user.getGreenhouse().unlockNextPot()) {
+            user.addCoins(50);
+        }
+        return true;
     }
 
     protected void processZombieKillQuestEvent(User user, GameEvent event) {

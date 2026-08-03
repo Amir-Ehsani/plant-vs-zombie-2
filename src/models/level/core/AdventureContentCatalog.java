@@ -160,8 +160,8 @@ public final class AdventureContentCatalog {
         if (containsAny(searchable, "beach", "water", "snorkel", "fisher", "octo", "surfer")) {
             return 7;
         }
-        if (containsAny(searchable, "dark", "wizard", "king", "juggler", "dragon", "medieval")) {
-            return 8;
+        if (containsAny(searchable, "dark", "wizard", "king", "juggler", "jester", "dragon", "medieval")) {
+            return 9;
         }
         if (containsAny(searchable, "west", "cowboy", "prospector", "piano", "bull", "chicken")) {
             return 9;
@@ -230,10 +230,10 @@ public final class AdventureContentCatalog {
         assign(stages, 4, "Troglobite", "Imp");
         assign(stages, 5, "Gargantuar", "knight");
         assign(stages, 6, "Fisherman", "Snorkel");
-        assign(stages, 7, "Octopus", "Octo", "Juggler");
-        assign(stages, 8, "Wizard", "King", "Imp Dragon");
-        assign(stages, 9, "Prospector", "Piano");
-        assign(stages, 10, "Allstar", "All-Star", "News Paper", "Newspaper", "Barrel Roller");
+        assign(stages, 7, "Octopus", "Octo");
+        assign(stages, 9, "Juggler", "Jester", "Wizard", "Imp Dragon");
+        assign(stages, 10, "King", "Prospector", "Piano");
+        assign(stages, 11, "Allstar", "All-Star", "News Paper", "Newspaper", "Barrel Roller");
         assign(stages, 11, "Arcade", "Umbrella", "Turquoise");
         return stages;
     }

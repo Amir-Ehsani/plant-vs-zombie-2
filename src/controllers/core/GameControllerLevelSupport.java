@@ -32,6 +32,7 @@ import models.engine.session.PlantRechargeStatus;
 import models.engine.sun.Sun;
 import models.level.core.AdventureContentCatalog;
 import models.level.core.AdventureLevelCatalog;
+import models.level.core.AdventureChapterConfigurator;
 import models.level.core.Level;
 import models.level.core.LevelType;
 import models.level.rules.LevelRule;
@@ -186,7 +187,7 @@ abstract class GameControllerLevelSupport extends GameControllerStatusSupport {
                 : createSpecialRule(chapterName, levelNumber, allowedPlants, difficulty);
         LevelType levelType = levelNumber == 1 ? LevelType.NORMAL : LevelType.SPECIAL;
 
-        return new Level(
+        Level level = new Level(
                 AdventureLevelCatalog.levelId(chapterName, levelNumber),
                 waveManager,
                 levelType,
@@ -195,6 +196,8 @@ abstract class GameControllerLevelSupport extends GameControllerStatusSupport {
                 rule,
                 initialSun
         );
+        AdventureChapterConfigurator.configure(level, chapterName, levelNumber);
+        return level;
     }
 
     protected LevelRule createSpecialRule(

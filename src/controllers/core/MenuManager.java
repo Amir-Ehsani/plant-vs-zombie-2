@@ -198,6 +198,7 @@ public class MenuManager extends MenuManagerBase {
     public void showTravelLogMenuText() {
         success("""
                 Travel Log Menu
+                travel log page all
                 travel log page adventure
                 travel log page special
                 travel log page minigames

@@ -134,7 +134,7 @@ abstract class LaneCombatState {
 
     public void applyFreeze(Zombie zombie, int ticks) {
         if (zombie == null || !zombie.isAlive() || ticks <= 0
-                || zombie.getType().hasTag("ice_immune")) {
+                || zombie.isIceImmune()) {
             return;
         }
         ZombieRuntimeState state = stateOf(zombie);
@@ -144,7 +144,7 @@ abstract class LaneCombatState {
 
     public void applyChill(Zombie zombie, int ticks) {
         if (zombie == null || !zombie.isAlive() || ticks <= 0
-                || zombie.getType().hasTag("ice_immune")) {
+                || zombie.isIceImmune()) {
             return;
         }
         ZombieRuntimeState state = stateOf(zombie);

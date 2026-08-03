@@ -105,7 +105,11 @@ abstract class LaneCombatAttackSupport extends LaneCombatAbilitySupport {
         boolean fireDamage = isFirePlant(plant) || hasTorchwoodBetween(plant, target, lane);
         Tile blockingTerrain = findBlockingTerrain(lane, plant, target);
         if (blockingTerrain != null) {
-            blockingTerrain.damageTerrain(damage, fireDamage);
+            if (board == null) {
+                blockingTerrain.damageTerrain(damage, fireDamage);
+            } else {
+                board.damageTerrain(blockingTerrain.getPosition(), damage, fireDamage);
+            }
             finishAttack(plant, state);
             return;
         }
@@ -349,8 +353,6 @@ abstract class LaneCombatAttackSupport extends LaneCombatAbilitySupport {
             int damage
     ) {
         String targetName = normalizeText(target.getName());
-        String sourceCategory = source == null ? "" : normalizeCategory(source);
-        if (targetName.equals("hunter") && !sourceCategory.equals("lobber")) return true;
         if (!targetName.equals("juggler") || !isReflectableProjectile(source, damageType)) return false;
         state.jugglerSpinTicks = 2 * TICKS_PER_SECOND;
         if (source != null) {
@@ -411,7 +413,7 @@ abstract class LaneCombatAttackSupport extends LaneCombatAbilitySupport {
             }
         }
         Tile tile = tileForZombie(lane, zombie);
-        if (tile != null && tile.isFrozenTerrain() && !zombie.getType().hasTag("ice_immune")) {
+        if (tile != null && tile.isFrozenTerrain() && !zombie.isIceImmune()) {
             zombie.setCurrentSpeed(0);
             return false;
         }
