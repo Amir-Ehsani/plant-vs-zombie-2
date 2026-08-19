@@ -3,15 +3,15 @@ package ui;
 import com.badlogic.gdx.scenes.scene2d.ui.Skin;
 import com.badlogic.gdx.scenes.scene2d.ui.Table;
 import models.account.User;
-import pvz.skin.BorderedTable;
 
-public class ResourceBar extends BorderedTable {
+public class ResourceBar extends Table {
     private final Skin skin;
     private final CurrencyActor coinsActor;
     private final CurrencyActor diamondsActor;
 
     public ResourceBar(Skin skin) {
         this.skin = skin;
+        setBackground(skin.getDrawable("image_ui_mainmenu_name_field_10"));
         pad(12f, 18f, 12f, 18f);
         coinsActor = new CurrencyActor(skin, "Coins");
         diamondsActor = new CurrencyActor(skin, "Diamonds");
