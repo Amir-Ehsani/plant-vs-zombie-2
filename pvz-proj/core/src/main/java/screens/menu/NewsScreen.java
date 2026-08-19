@@ -89,9 +89,10 @@ public class NewsScreen extends BaseMenuScreen {
         Label dateLabel = createLabel(news.getCreatedAt() == null ? "" : DATE_FORMAT.format(news.getCreatedAt()));
         Label contentLabel = createLabel(news.getContent());
         contentLabel.setWrap(true);
-        window.add(dateLabel).left().padBottom(10f).row();
-        window.add(contentLabel).width(620f).padBottom(16f).row();
-        window.add(new MenuButton("Close", skin, window::close)).width(180f).height(46f);
+        Table content = window.getContentTable();
+        content.add(dateLabel).left().padBottom(10f).row();
+        content.add(contentLabel).width(620f).padBottom(16f).row();
+        content.add(new MenuButton("Close", skin, "brown", window::close)).width(180f).height(46f);
         window.show(stage);
     }
 
