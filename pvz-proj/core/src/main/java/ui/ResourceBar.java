@@ -12,6 +12,7 @@ public class ResourceBar extends BorderedTable {
 
     public ResourceBar(Skin skin) {
         this.skin = skin;
+        pad(12f, 18f, 12f, 18f);
         coinsActor = new CurrencyActor(skin, "Coins");
         diamondsActor = new CurrencyActor(skin, "Diamonds");
         rebuild(false, null, null);
@@ -34,12 +35,13 @@ public class ResourceBar extends BorderedTable {
     private void rebuild(boolean debugVisible, Runnable addCoin, Runnable addDiamond) {
         clearChildren();
         Table content = new Table();
-        content.defaults().padRight(16f);
-        content.add(coinsActor);
+        content.add(coinsActor).padRight(14f);
         content.add(diamondsActor);
         if (debugVisible) {
-            content.add(new MenuButton("+Coin", skin, "green_small", addCoin)).width(100f).height(36f).padLeft(8f);
-            content.add(new MenuButton("+Diamond", skin, "green_small", addDiamond)).width(120f).height(36f);
+            content.add(new MenuButton("+Coin", skin, "green_small", addCoin))
+                    .width(92f).height(34f).padLeft(10f);
+            content.add(new MenuButton("+Diamond", skin, "green_small", addDiamond))
+                    .width(110f).height(34f).padLeft(6f);
         }
         add(content);
     }
