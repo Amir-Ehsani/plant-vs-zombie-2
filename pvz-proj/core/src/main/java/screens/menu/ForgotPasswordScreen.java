@@ -27,6 +27,7 @@ public class ForgotPasswordScreen extends BaseMenuScreen {
     }
 
     private void buildUi() {
+        addMenuBackground();
         Table root = createRoot();
         Table panel = createPanel();
         createFields();
