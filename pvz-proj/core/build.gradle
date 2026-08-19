@@ -8,6 +8,7 @@ dependencies {
 
   api "com.github.pizpizi:pvz-skin:v0.1.1"
   implementation 'com.github.pizpizi:libPVZ:v0.1.6'
+  api "com.twelvemonkeys.imageio:imageio-webp:3.13.1"
 
   if(enableGraalNative == 'true') {
     implementation "io.github.berstanio:gdx-svmhelper-annotations:$graalHelperVersion"
