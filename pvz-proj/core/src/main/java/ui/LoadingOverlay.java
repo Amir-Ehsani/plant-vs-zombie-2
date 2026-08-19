@@ -3,16 +3,20 @@ package ui;
 import com.badlogic.gdx.scenes.scene2d.ui.Label;
 import com.badlogic.gdx.scenes.scene2d.ui.Skin;
 import com.badlogic.gdx.scenes.scene2d.ui.Table;
+import pvz.skin.BorderedTable;
 
 public class LoadingOverlay extends Table {
     private final Label messageLabel;
 
     public LoadingOverlay(Skin skin) {
-        messageLabel = new Label("Loading...", skin);
         setFillParent(true);
         setVisible(false);
         center();
-        add(messageLabel);
+        BorderedTable panel = new BorderedTable();
+        panel.pad(24f);
+        messageLabel = new Label("Loading...", skin, "medium_outline");
+        panel.add(messageLabel);
+        add(panel);
     }
 
     public void show(String message) {
