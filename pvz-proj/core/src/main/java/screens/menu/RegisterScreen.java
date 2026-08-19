@@ -40,7 +40,7 @@ public class RegisterScreen extends BaseMenuScreen {
         fillForm(form);
         ScrollPane scrollPane = new ScrollPane(form, skin);
         scrollPane.setFadeScrollBars(false);
-        root.add(scrollPane).width(800f).height(660f);
+        root.add(scrollPane).width(760f).height(610f);
     }
 
     private void createFields() {
