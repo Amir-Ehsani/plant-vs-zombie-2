@@ -34,6 +34,7 @@ public class RegisterScreen extends BaseMenuScreen {
     }
 
     private void buildUi() {
+        addMenuBackground();
         Table root = createRoot();
         Table form = createPanel();
         createFields();
