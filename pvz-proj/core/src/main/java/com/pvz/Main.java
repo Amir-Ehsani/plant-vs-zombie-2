@@ -1,32 +1,76 @@
 package com.pvz;
 
-import com.badlogic.gdx.ApplicationAdapter;
-import com.badlogic.gdx.graphics.Texture;
-import com.badlogic.gdx.graphics.g2d.SpriteBatch;
-import com.badlogic.gdx.utils.ScreenUtils;
+import com.badlogic.gdx.Game;
+import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.Screen;
+import com.badlogic.gdx.scenes.scene2d.ui.Skin;
+import controllers.auth.AuthController;
+import controllers.features.LeaderboardController;
+import controllers.features.MainMenuController;
+import controllers.features.NewsController;
+import controllers.features.ProfileController;
+import navigation.ScreenManager;
 
-/** {@link com.badlogic.gdx.ApplicationListener} implementation shared by all platforms. */
-public class Main extends ApplicationAdapter {
-    private SpriteBatch batch;
-    private Texture image;
+public class Main extends Game {
+    private Skin skin;
+    private AuthController authController;
+    private MainMenuController mainMenuController;
+    private ProfileController profileController;
+    private NewsController newsController;
+    private LeaderboardController leaderboardController;
+    private ScreenManager screenManager;
 
     @Override
     public void create() {
-        batch = new SpriteBatch();
-        image = new Texture("libgdx.png");
-    }
-
-    @Override
-    public void render() {
-        ScreenUtils.clear(0.15f, 0.15f, 0.2f, 1f);
-        batch.begin();
-        batch.draw(image, 140, 210);
-        batch.end();
+        skin = new Skin(Gdx.files.internal("ui/uiskin.json"));
+        authController = new AuthController();
+        mainMenuController = new MainMenuController(authController);
+        profileController = new ProfileController(authController);
+        newsController = new NewsController(authController);
+        leaderboardController = new LeaderboardController(authController);
+        screenManager = new ScreenManager(this);
+        screenManager.showInitialScreen();
     }
 
     @Override
     public void dispose() {
-        batch.dispose();
-        image.dispose();
+        Screen currentScreen = getScreen();
+        if (currentScreen != null) {
+            currentScreen.dispose();
+        }
+        if (authController != null) {
+            authController.saveUsers();
+        }
+        if (skin != null) {
+            skin.dispose();
+        }
+    }
+
+    public Skin getSkin() {
+        return skin;
+    }
+
+    public AuthController getAuthController() {
+        return authController;
+    }
+
+    public MainMenuController getMainMenuController() {
+        return mainMenuController;
+    }
+
+    public ProfileController getProfileController() {
+        return profileController;
+    }
+
+    public NewsController getNewsController() {
+        return newsController;
+    }
+
+    public LeaderboardController getLeaderboardController() {
+        return leaderboardController;
+    }
+
+    public ScreenManager getScreenManager() {
+        return screenManager;
     }
 }
