@@ -4,11 +4,11 @@ import com.badlogic.gdx.scenes.scene2d.InputEvent;
 import com.badlogic.gdx.scenes.scene2d.ui.Image;
 import com.badlogic.gdx.scenes.scene2d.ui.Label;
 import com.badlogic.gdx.scenes.scene2d.ui.Skin;
-import com.badlogic.gdx.scenes.scene2d.ui.Table;
 import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
 import com.badlogic.gdx.scenes.scene2d.utils.Drawable;
+import pvz.skin.BorderedTable;
 
-public class PlantCard extends Table {
+public class PlantCard extends BorderedTable {
     private final Image image;
     private final Label nameLabel;
     private final Label costLabel;
@@ -22,13 +22,13 @@ public class PlantCard extends Table {
 
     public PlantCard(Skin skin) {
         image = new Image();
-        nameLabel = new Label("Plant", skin);
-        costLabel = new Label("Cost: 0", skin);
-        levelLabel = new Label("Level: 1", skin);
-        stateLabel = new Label("", skin);
-        cooldownLabel = new Label("Ready", skin);
+        nameLabel = new Label("Plant", skin, "medium_outline");
+        costLabel = new Label("Cost: 0", skin, "secondary");
+        levelLabel = new Label("Level: 1", skin, "secondary");
+        stateLabel = new Label("", skin, "secondary");
+        cooldownLabel = new Label("Ready", skin, "secondary");
         seedProgress = new ProgressBarActor(skin, 0f, 1f);
-        pad(10f);
+        pad(12f);
         add(image).size(88f).colspan(2).row();
         add(nameLabel).colspan(2).padTop(6f).row();
         add(costLabel).left();
