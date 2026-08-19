@@ -30,6 +30,7 @@ public class LoginScreen extends BaseMenuScreen {
     }
 
     private void buildUi() {
+        addMenuBackground();
         Table root = createRoot();
         Table panel = createPanel();
         usernameField = createField("Username");
