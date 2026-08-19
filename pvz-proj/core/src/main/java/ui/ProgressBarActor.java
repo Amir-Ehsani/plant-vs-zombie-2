@@ -14,8 +14,8 @@ public class ProgressBarActor extends Table {
     public ProgressBarActor(Skin skin, float minimum, float maximum) {
         this.minimum = minimum;
         this.maximum = Math.max(minimum + 1f, maximum);
-        progressBar = new ProgressBar(this.minimum, this.maximum, 1f, false, skin);
-        valueLabel = new Label("", skin);
+        progressBar = new ProgressBar(this.minimum, this.maximum, 1f, false, skin, "xp_green");
+        valueLabel = new Label("", skin, "secondary");
         add(progressBar).width(170f).padRight(8f);
         add(valueLabel).width(90f);
         setValue(this.minimum);
