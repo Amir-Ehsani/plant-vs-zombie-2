@@ -17,13 +17,12 @@ public class GameNotification extends BorderedTable {
 
     public GameNotification(Skin skin, String message, NotificationType type, float duration) {
         Table content = new Table();
-        content.pad(8f, 18f, 10f, 18f);
         messageLabel = new Label(message == null ? "" : message, skin, "medium_outline");
         messageLabel.setWrap(true);
         messageLabel.setColor(colorFor(type));
         remainingTime = Math.max(0.5f, duration);
-        content.add(messageLabel).width(520f);
-        add(content).minWidth(620f);
+        content.add(messageLabel).width(480f).center();
+        add(content);
     }
 
     @Override
