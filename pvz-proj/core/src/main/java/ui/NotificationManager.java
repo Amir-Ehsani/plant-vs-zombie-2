@@ -14,7 +14,7 @@ public class NotificationManager {
         this.skin = skin;
         host = new Table();
         host.setFillParent(true);
-        host.top().padTop(18f);
+        host.top().padTop(32f);
         host.setTouchable(Touchable.disabled);
         stage.addActor(host);
     }
@@ -33,7 +33,7 @@ public class NotificationManager {
         GameNotification notification = type == NotificationType.ERROR
                 ? new ErrorToast(skin, message)
                 : new GameNotification(skin, message, type);
-        host.add(notification).padBottom(8f).row();
+        host.add(notification).padBottom(10f).row();
         host.toFront();
     }
 
