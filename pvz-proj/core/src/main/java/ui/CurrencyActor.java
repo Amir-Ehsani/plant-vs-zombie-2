@@ -10,8 +10,8 @@ public class CurrencyActor extends Table {
 
     public CurrencyActor(Skin skin, String name) {
         this.name = name == null ? "" : name;
-        Label nameLabel = new Label(this.name + ":", skin);
-        valueLabel = new Label("0", skin);
+        Label nameLabel = new Label(this.name + ":", skin, "secondary");
+        valueLabel = new Label("0", skin, "medium_outline");
         add(nameLabel).padRight(6f);
         add(valueLabel);
     }
