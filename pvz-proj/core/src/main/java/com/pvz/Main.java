@@ -1,7 +1,6 @@
 package com.pvz;
 
 import com.badlogic.gdx.Game;
-import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Screen;
 import com.badlogic.gdx.scenes.scene2d.ui.Skin;
 import controllers.auth.AuthController;
@@ -10,6 +9,7 @@ import controllers.features.MainMenuController;
 import controllers.features.NewsController;
 import controllers.features.ProfileController;
 import navigation.ScreenManager;
+import pvz.skin.PvzSkin;
 
 public class Main extends Game {
     private Skin skin;
@@ -22,7 +22,7 @@ public class Main extends Game {
 
     @Override
     public void create() {
-        skin = new Skin(Gdx.files.internal("ui/uiskin.json"));
+        skin = PvzSkin.get();
         authController = new AuthController();
         mainMenuController = new MainMenuController(authController);
         profileController = new ProfileController(authController);
