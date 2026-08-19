@@ -1,6 +1,5 @@
 package screens.menu;
 
-import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.scenes.scene2d.Actor;
 import com.badlogic.gdx.scenes.scene2d.InputEvent;
@@ -15,6 +14,7 @@ import com.pvz.Main;
 import controllers.features.MainMenuController;
 import ui.ConfirmDialog;
 import ui.MenuButton;
+import ui.TextureAssetLoader;
 
 public class MainMenuScreen extends BaseMenuScreen {
     private final MainMenuController controller;
@@ -24,7 +24,8 @@ public class MainMenuScreen extends BaseMenuScreen {
     public MainMenuScreen(Main game) {
         super(game);
         controller = game.getMainMenuController();
-        loadAssets();
+        backgroundTexture = TextureAssetLoader.load("menu-bg.webp");
+        bannerTexture = TextureAssetLoader.load("pvz2-enter-adventure.webp");
         buildUi();
     }
 
@@ -35,19 +36,6 @@ public class MainMenuScreen extends BaseMenuScreen {
             return;
         }
         refreshResourceBar();
-    }
-
-    private void loadAssets() {
-        backgroundTexture = loadTexture("menu-bg.webp");
-        bannerTexture = loadTexture("pvz2-enter-adventure.webp");
-    }
-
-    private Texture loadTexture(String path) {
-        try {
-            return new Texture(Gdx.files.internal(path));
-        } catch (Exception ignored) {
-            return null;
-        }
     }
 
     private void buildUi() {
@@ -64,7 +52,7 @@ public class MainMenuScreen extends BaseMenuScreen {
             return;
         }
         Image background = new Image(backgroundTexture);
-        background.setFillParent(true);
+        background.setBounds(0f, 0f, WORLD_WIDTH, WORLD_HEIGHT);
         background.setScaling(Scaling.fill);
         stage.addActor(background);
     }
@@ -72,12 +60,11 @@ public class MainMenuScreen extends BaseMenuScreen {
     private void addTopLeftCluster() {
         Table table = createRoot();
         table.top().left();
-        table.defaults().left();
         Label playerLabel = new Label(loggedInName(), skin, "medium_outline");
         playerLabel.setAlignment(Align.left);
-        table.add(playerLabel).padBottom(10f).row();
-        table.add(new MenuButton("Profile", skin, "green_small", game.getScreenManager()::showProfile)).width(170f).height(46f).padBottom(8f).row();
-        table.add(new MenuButton("Logout", skin, "brown", this::confirmLogout)).width(170f).height(46f);
+        table.add(playerLabel).left().padBottom(10f).row();
+        table.add(new MenuButton("Profile", skin, "green_small", game.getScreenManager()::showProfile)).width(170f).height(46f).left().padBottom(8f).row();
+        table.add(new MenuButton("Logout", skin, "brown", this::confirmLogout)).width(170f).height(46f).left();
     }
 
     private void addTopRightCluster() {
@@ -85,21 +72,18 @@ public class MainMenuScreen extends BaseMenuScreen {
         table.top().right();
         addResourceBar(table);
         Table quickLinks = new Table();
-        quickLinks.defaults().width(180f).height(46f).padLeft(8f).padTop(8f);
-        quickLinks.add(new MenuButton("Shop", skin, "green_small", game.getScreenManager()::showShop));
-        quickLinks.add(new MenuButton("Greenhouse", skin, "green_small", game.getScreenManager()::showGreenhouse));
-        quickLinks.add(new MenuButton("Leaderboard", skin, "purple", game.getScreenManager()::showLeaderboard));
-        table.add(quickLinks).right().row();
+        quickLinks.add(new MenuButton("Shop", skin, "green_small", game.getScreenManager()::showShop)).width(160f).height(44f).padLeft(8f);
+        quickLinks.add(new MenuButton("Greenhouse", skin, "green_small", game.getScreenManager()::showGreenhouse)).width(190f).height(44f).padLeft(8f);
+        quickLinks.add(new MenuButton("Leaderboard", skin, "purple", game.getScreenManager()::showLeaderboard)).width(170f).height(44f).padLeft(8f);
+        table.add(quickLinks).right().padTop(8f).row();
     }
 
     private void addCenterCluster() {
         Table table = createRoot();
         table.center();
-        table.defaults().center();
         table.add(createTitle("Plants vs. Zombies 2")).padBottom(18f).row();
-        Actor banner = createBannerActor();
-        table.add(banner).width(780f).height(320f).padBottom(26f).row();
-        table.add(new MenuButton("Play", skin, "green", game.getScreenManager()::showAdventure)).width(260f).height(78f);
+        table.add(createBannerActor()).width(780f).height(300f).padBottom(24f).row();
+        table.add(new MenuButton("Play", skin, "green", game.getScreenManager()::showAdventure)).width(260f).height(74f);
     }
 
     private Actor createBannerActor() {
@@ -124,17 +108,15 @@ public class MainMenuScreen extends BaseMenuScreen {
     private void addBottomLeftCluster() {
         Table table = createRoot();
         table.bottom().left();
-        table.defaults().padRight(18f);
-        table.add(createShortcut("Collection", "almanac", game.getScreenManager()::showCollection));
+        table.add(createShortcut("Collection", "almanac", game.getScreenManager()::showCollection)).padRight(20f);
         table.add(createShortcut(newsText(), "hud_zg", game.getScreenManager()::showNews));
     }
 
     private void addBottomRightCluster() {
         Table table = createRoot();
         table.bottom().right();
-        table.defaults().padLeft(18f);
-        table.add(createShortcut("Quests", "hud_quests", game.getScreenManager()::showQuests));
-        table.add(createShortcut("Settings", "settings", game.getScreenManager()::showSettings));
+        table.add(createShortcut("Quests", "hud_quests", game.getScreenManager()::showQuests)).padLeft(20f);
+        table.add(createShortcut("Settings", "settings", game.getScreenManager()::showSettings)).padLeft(20f);
     }
 
     private Table createShortcut(String title, String styleName, Runnable action) {
