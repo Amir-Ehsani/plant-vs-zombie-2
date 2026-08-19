@@ -48,7 +48,7 @@ public class ProfileScreen extends BaseMenuScreen {
                 .colspan(3).width(220f).height(48f).padTop(12f);
         ScrollPane scrollPane = new ScrollPane(content, skin);
         scrollPane.setFadeScrollBars(false);
-        root.add(scrollPane).width(940f).height(620f);
+        root.add(scrollPane).width(900f).height(520f);
     }
 
     private void addInfoRows(Table table) {
