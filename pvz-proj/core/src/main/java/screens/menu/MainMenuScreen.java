@@ -40,11 +40,11 @@ public class MainMenuScreen extends BaseMenuScreen {
         panel.add(new MenuButton("Greenhouse", skin, game.getScreenManager()::showGreenhouse));
         panel.add(new MenuButton("Shop", skin, game.getScreenManager()::showShop)).row();
         panel.add(new MenuButton("Profile", skin, game.getScreenManager()::showProfile));
-        panel.add(new MenuButton(newsText(), skin, game.getScreenManager()::showNews)).row();
+        panel.add(new MenuButton(newsText(), skin, "purple", game.getScreenManager()::showNews)).row();
         panel.add(new MenuButton("Leaderboard", skin, game.getScreenManager()::showLeaderboard));
         panel.add(new MenuButton("Settings", skin, game.getScreenManager()::showSettings)).row();
         panel.add(new MenuButton("Quests", skin, game.getScreenManager()::showQuests));
-        panel.add(new MenuButton("Logout", skin, this::confirmLogout)).row();
+        panel.add(new MenuButton("Logout", skin, "brown", this::confirmLogout)).row();
     }
 
     private String newsText() {
