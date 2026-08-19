@@ -4,11 +4,11 @@ import com.badlogic.gdx.scenes.scene2d.InputEvent;
 import com.badlogic.gdx.scenes.scene2d.ui.Image;
 import com.badlogic.gdx.scenes.scene2d.ui.Label;
 import com.badlogic.gdx.scenes.scene2d.ui.Skin;
-import com.badlogic.gdx.scenes.scene2d.ui.Table;
 import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
 import com.badlogic.gdx.scenes.scene2d.utils.Drawable;
+import pvz.skin.BorderedTable;
 
-public class ZombieCard extends Table {
+public class ZombieCard extends BorderedTable {
     private final Image image;
     private final Label nameLabel;
     private final Label stateLabel;
@@ -16,10 +16,10 @@ public class ZombieCard extends Table {
 
     public ZombieCard(Skin skin) {
         image = new Image();
-        nameLabel = new Label("Unknown Zombie", skin);
-        stateLabel = new Label("?", skin);
+        nameLabel = new Label("Unknown Zombie", skin, "medium_outline");
+        stateLabel = new Label("?", skin, "secondary");
         discovered = false;
-        pad(10f);
+        pad(12f);
         add(image).size(88f).row();
         add(nameLabel).padTop(6f).row();
         add(stateLabel).padTop(4f);
