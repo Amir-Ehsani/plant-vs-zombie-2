@@ -42,9 +42,9 @@ public class LeaderboardScreen extends BaseMenuScreen {
         rowsTable = new Table();
         ScrollPane scrollPane = new ScrollPane(rowsTable, skin);
         scrollPane.setFadeScrollBars(false);
-        panel.add(scrollPane).width(1080f).height(500f).row();
+        panel.add(scrollPane).width(1000f).height(350f).row();
         panel.add(new BackButton(skin, game.getScreenManager()::showMainMenu))
-                .width(220f).height(48f).padTop(12f);
+                .width(190f).height(44f).padTop(10f);
         root.add(panel).expand().center();
     }
 
