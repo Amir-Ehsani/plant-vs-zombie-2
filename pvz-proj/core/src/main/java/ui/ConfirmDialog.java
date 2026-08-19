@@ -1,9 +1,11 @@
 package ui;
 
-import com.badlogic.gdx.scenes.scene2d.ui.Dialog;
+import com.badlogic.gdx.scenes.scene2d.Stage;
+import com.badlogic.gdx.scenes.scene2d.ui.Label;
 import com.badlogic.gdx.scenes.scene2d.ui.Skin;
+import com.badlogic.gdx.scenes.scene2d.ui.Table;
 
-public class ConfirmDialog extends Dialog {
+public class ConfirmDialog extends ModalWindow {
     private final Runnable onConfirmed;
     private final Runnable onCancelled;
 
@@ -21,19 +23,34 @@ public class ConfirmDialog extends Dialog {
         super(title == null ? "Confirm" : title, skin);
         this.onConfirmed = onConfirmed;
         this.onCancelled = onCancelled;
-        text(message == null ? "" : message);
-        button("Cancel", Boolean.FALSE);
-        button("Confirm", Boolean.TRUE);
+        buildContent(message, skin);
+    }
+
+    private void buildContent(String message, Skin skin) {
+        Table content = getContentTable();
+        Label label = new Label(message == null ? "" : message, skin, "medium");
+        label.setWrap(true);
+        content.add(label).width(500f).padBottom(18f).colspan(2).row();
+        content.add(new MenuButton("Cancel", skin, "brown", this::cancel)).width(180f).height(48f).padRight(8f);
+        content.add(new MenuButton("Confirm", skin, "green", this::confirm)).width(180f).height(48f);
+    }
+
+    private void confirm() {
+        close();
+        if (onConfirmed != null) {
+            onConfirmed.run();
+        }
+    }
+
+    private void cancel() {
+        close();
+        if (onCancelled != null) {
+            onCancelled.run();
+        }
     }
 
     @Override
-    protected void result(Object object) {
-        boolean confirmed = Boolean.TRUE.equals(object);
-        if (confirmed && onConfirmed != null) {
-            onConfirmed.run();
-        }
-        if (!confirmed && onCancelled != null) {
-            onCancelled.run();
-        }
+    public void show(Stage stage) {
+        super.show(stage);
     }
 }
