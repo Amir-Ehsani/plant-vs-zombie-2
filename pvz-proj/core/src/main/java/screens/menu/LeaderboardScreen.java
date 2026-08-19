@@ -72,7 +72,7 @@ public class LeaderboardScreen extends BaseMenuScreen {
 
     private void addHeader(String text, String column, float width) {
         String marker = sortColumn.equals(column) ? ascending ? " ^" : " v" : "";
-        rowsTable.add(new MenuButton(text + marker, skin, () -> sortBy(column))).width(width).height(44f);
+        rowsTable.add(new MenuButton(text + marker, skin, "brown", () -> sortBy(column))).width(width).height(44f);
     }
 
     private void addUserRow(int rank, User user) {
