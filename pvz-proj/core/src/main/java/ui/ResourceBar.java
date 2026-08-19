@@ -1,10 +1,10 @@
 package ui;
 
 import com.badlogic.gdx.scenes.scene2d.ui.Skin;
-import com.badlogic.gdx.scenes.scene2d.ui.Table;
 import models.account.User;
+import pvz.skin.BorderedTable;
 
-public class ResourceBar extends Table {
+public class ResourceBar extends BorderedTable {
     private final Skin skin;
     private final CurrencyActor coinsActor;
     private final CurrencyActor diamondsActor;
@@ -13,6 +13,7 @@ public class ResourceBar extends Table {
 
     public ResourceBar(Skin skin) {
         this.skin = skin;
+        pad(12f);
         coinsActor = new CurrencyActor(skin, "Coins");
         diamondsActor = new CurrencyActor(skin, "Diamonds");
         rebuild(false, null, null);
@@ -39,8 +40,8 @@ public class ResourceBar extends Table {
         if (!debugVisible) {
             return;
         }
-        addCoinButton = new MenuButton("+Coin", skin, addCoin);
-        addDiamondButton = new MenuButton("+Diamond", skin, addDiamond);
+        addCoinButton = new MenuButton("+Coin", skin, "green_small", addCoin);
+        addDiamondButton = new MenuButton("+Diamond", skin, "green_small", addDiamond);
         add(addCoinButton).width(100f).height(36f).padRight(8f);
         add(addDiamondButton).width(120f).height(36f);
     }
