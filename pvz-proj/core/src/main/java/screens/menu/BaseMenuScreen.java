@@ -1,11 +1,15 @@
 package screens.menu;
 
+import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.graphics.Texture;
+import com.badlogic.gdx.scenes.scene2d.ui.Image;
 import com.badlogic.gdx.scenes.scene2d.ui.Label;
 import com.badlogic.gdx.scenes.scene2d.ui.Skin;
 import com.badlogic.gdx.scenes.scene2d.ui.Table;
 import com.badlogic.gdx.scenes.scene2d.ui.TextButton;
 import com.badlogic.gdx.scenes.scene2d.ui.TextField;
 import com.badlogic.gdx.utils.Align;
+import com.badlogic.gdx.utils.Scaling;
 import com.pvz.Main;
 import models.account.User;
 import pvz.skin.BorderedTable;
@@ -17,10 +21,23 @@ import ui.ResourceBar;
 public abstract class BaseMenuScreen extends BaseScreen {
     protected final Skin skin;
     protected ResourceBar resourceBar;
+    private Texture menuBackgroundTexture;
 
     protected BaseMenuScreen(Main game) {
         super(game);
         skin = game.getSkin();
+    }
+
+    protected void addMenuBackground() {
+        try {
+            menuBackgroundTexture = new Texture(Gdx.files.internal("menu-bg.png"));
+            Image background = new Image(menuBackgroundTexture);
+            background.setBounds(0f, 0f, WORLD_WIDTH, WORLD_HEIGHT);
+            background.setScaling(Scaling.fill);
+            stage.addActor(background);
+        } catch (Exception ignored) {
+            menuBackgroundTexture = null;
+        }
     }
 
     protected Table createRoot() {
@@ -108,5 +125,13 @@ public abstract class BaseMenuScreen extends BaseScreen {
             return message.substring(7);
         }
         return message;
+    }
+
+    @Override
+    public void dispose() {
+        if (menuBackgroundTexture != null) {
+            menuBackgroundTexture.dispose();
+        }
+        super.dispose();
     }
 }
