@@ -34,7 +34,7 @@ public class LoginScreen extends BaseMenuScreen {
         Table panel = createPanel();
         usernameField = createField("Username");
         passwordField = createPasswordField();
-        stayLoggedInBox = new CheckBox(" Stay logged in", skin);
+        stayLoggedInBox = new CheckBox(" Stay logged in", skin, "default");
         addForm(panel);
         root.add(panel).width(560f);
     }
