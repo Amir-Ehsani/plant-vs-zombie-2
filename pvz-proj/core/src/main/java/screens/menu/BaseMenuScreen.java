@@ -8,7 +8,9 @@ import com.badlogic.gdx.scenes.scene2d.ui.TextField;
 import com.badlogic.gdx.utils.Align;
 import com.pvz.Main;
 import models.account.User;
+import pvz.skin.BorderedTable;
 import screens.BaseScreen;
+import ui.MenuButton;
 import ui.NotificationManager;
 import ui.ResourceBar;
 
@@ -30,28 +32,31 @@ public abstract class BaseMenuScreen extends BaseScreen {
     }
 
     protected Table createPanel() {
-        Table panel = new Table();
-        panel.pad(24f);
+        BorderedTable panel = new BorderedTable();
+        panel.pad(30f);
         return panel;
     }
 
     protected Label createTitle(String text) {
-        Label label = new Label(text == null ? "" : text, skin);
-        label.setFontScale(1.8f);
+        Label label = new Label(text == null ? "" : text, skin, "big_outline");
         label.setAlignment(Align.center);
         return label;
     }
 
     protected Label createLabel(String text) {
-        return new Label(text == null ? "" : text, skin);
+        return new Label(text == null ? "" : text, skin, "default");
+    }
+
+    protected Label createSecondaryLabel(String text) {
+        return new Label(text == null ? "" : text, skin, "secondary");
     }
 
     protected TextButton createButton(String text) {
-        return new TextButton(text == null ? "" : text, skin);
+        return new MenuButton(text, skin, "green", null);
     }
 
     protected TextField createField(String messageText) {
-        TextField field = new TextField("", skin);
+        TextField field = new TextField("", skin, "default");
         field.setMessageText(messageText == null ? "" : messageText);
         return field;
     }
@@ -59,7 +64,7 @@ public abstract class BaseMenuScreen extends BaseScreen {
     protected ResourceBar addResourceBar(Table root) {
         resourceBar = new ResourceBar(skin);
         refreshResourceBar();
-        root.add(resourceBar).growX().right().padBottom(12f).row();
+        root.add(resourceBar).right().padBottom(12f).row();
         return resourceBar;
     }
 
