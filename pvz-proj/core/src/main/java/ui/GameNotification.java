@@ -3,9 +3,9 @@ package ui;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.scenes.scene2d.ui.Label;
 import com.badlogic.gdx.scenes.scene2d.ui.Skin;
-import pvz.skin.BorderedTable;
+import com.badlogic.gdx.scenes.scene2d.ui.Table;
 
-public class GameNotification extends BorderedTable {
+public class GameNotification extends Table {
     private static final float DEFAULT_DURATION = 3.5f;
     private final Label messageLabel;
     private float remainingTime;
@@ -15,7 +15,8 @@ public class GameNotification extends BorderedTable {
     }
 
     public GameNotification(Skin skin, String message, NotificationType type, float duration) {
-        pad(14f, 22f, 14f, 22f);
+        setBackground(safeDrawable(skin));
+        pad(10f, 16f, 10f, 16f);
         messageLabel = new Label(message == null ? "" : message, skin, "medium_outline");
         messageLabel.setWrap(true);
         messageLabel.setColor(colorFor(type));
@@ -34,6 +35,14 @@ public class GameNotification extends BorderedTable {
 
     public void setMessage(String message) {
         messageLabel.setText(message == null ? "" : message);
+    }
+
+    private com.badlogic.gdx.scenes.scene2d.utils.Drawable safeDrawable(Skin skin) {
+        try {
+            return skin.getDrawable("image_ui_quests_panel_edge_to_edge_ten");
+        } catch (Exception ignored) {
+            return null;
+        }
     }
 
     private Color colorFor(NotificationType type) {
