@@ -1,9 +1,14 @@
 package screens.menu;
 
+import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.graphics.Color;
+import com.badlogic.gdx.graphics.Texture;
+import com.badlogic.gdx.scenes.scene2d.ui.Image;
 import com.badlogic.gdx.scenes.scene2d.ui.Label;
 import com.badlogic.gdx.scenes.scene2d.ui.ScrollPane;
 import com.badlogic.gdx.scenes.scene2d.ui.Table;
 import com.badlogic.gdx.scenes.scene2d.ui.TextField;
+import com.badlogic.gdx.utils.Scaling;
 import com.pvz.Main;
 import controllers.features.ProfileController;
 import models.account.User;
@@ -12,7 +17,9 @@ import ui.MenuButton;
 import ui.NotificationManager;
 
 public class ProfileScreen extends BaseMenuScreen {
+    private static final Color PROFILE_TEXT_COLOR = new Color(0.24f, 0.15f, 0.07f, 1f);
     private final ProfileController controller;
+    private Texture backgroundTexture;
     private Label usernameValue;
     private Label nicknameValue;
     private Label gamesValue;
@@ -24,6 +31,7 @@ public class ProfileScreen extends BaseMenuScreen {
     public ProfileScreen(Main game) {
         super(game);
         controller = game.getProfileController();
+        backgroundTexture = loadBackgroundTexture();
         buildUi();
     }
 
@@ -36,7 +44,16 @@ public class ProfileScreen extends BaseMenuScreen {
         refreshProfile();
     }
 
+    private Texture loadBackgroundTexture() {
+        try {
+            return new Texture(Gdx.files.internal("menu-bg.png"));
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
     private void buildUi() {
+        addBackground();
         Table root = createRoot();
         addResourceBar(root);
         Table content = createPanel();
@@ -51,6 +68,16 @@ public class ProfileScreen extends BaseMenuScreen {
         root.add(scrollPane).width(900f).height(520f);
     }
 
+    private void addBackground() {
+        if (backgroundTexture == null) {
+            return;
+        }
+        Image background = new Image(backgroundTexture);
+        background.setBounds(0f, 0f, WORLD_WIDTH, WORLD_HEIGHT);
+        background.setScaling(Scaling.fill);
+        stage.addActor(background);
+    }
+
     private void addInfoRows(Table table) {
         usernameValue = addInfoRow(table, "Username");
         nicknameValue = addInfoRow(table, "Nickname");
@@ -62,10 +89,16 @@ public class ProfileScreen extends BaseMenuScreen {
     }
 
     private Label addInfoRow(Table table, String name) {
-        Label value = createLabel("-");
-        table.add(createLabel(name)).left().width(220f);
+        Label value = createProfileLabel("-");
+        table.add(createProfileLabel(name)).left().width(220f);
         table.add(value).left().colspan(2).width(580f).row();
         return value;
+    }
+
+    private Label createProfileLabel(String text) {
+        Label label = createLabel(text);
+        label.setColor(PROFILE_TEXT_COLOR);
+        return label;
     }
 
     private void addEditors(Table table) {
@@ -77,7 +110,7 @@ public class ProfileScreen extends BaseMenuScreen {
 
     private void addTextEditor(Table table, String label, String hint, TextAction action) {
         TextField field = createField(hint);
-        table.add(createLabel(label)).left().width(220f);
+        table.add(createProfileLabel(label)).left().width(220f);
         table.add(field).width(420f).height(46f);
         table.add(new MenuButton("Save", skin, () -> action.run(field.getText().trim())))
                 .width(150f).height(46f).row();
@@ -92,7 +125,7 @@ public class ProfileScreen extends BaseMenuScreen {
         fields.add(oldField).width(420f).height(46f).row();
         fields.add(newField).width(420f).height(46f).row();
         fields.add(confirmField).width(420f).height(46f);
-        table.add(createLabel("Change Password")).left().width(220f);
+        table.add(createProfileLabel("Change Password")).left().width(220f);
         table.add(fields).width(440f);
         table.add(new MenuButton("Save", skin, () -> changePassword(oldField, newField, confirmField)))
                 .width(150f).height(46f).row();
@@ -154,6 +187,14 @@ public class ProfileScreen extends BaseMenuScreen {
         levelsValue.setText(String.valueOf(user.getPassedLevels()));
         mioValue.setText(String.valueOf(user.getBestMioPoint()));
         refreshResourceBar();
+    }
+
+    @Override
+    public void dispose() {
+        super.dispose();
+        if (backgroundTexture != null) {
+            backgroundTexture.dispose();
+        }
     }
 
     private interface TextAction {
