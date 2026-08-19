@@ -42,9 +42,9 @@ public class NewsScreen extends BaseMenuScreen {
         newsTable = new Table();
         ScrollPane scrollPane = new ScrollPane(newsTable, skin);
         scrollPane.setFadeScrollBars(false);
-        panel.add(scrollPane).colspan(2).width(920f).height(470f).row();
-        panel.add(new MenuButton("Mark All Read", skin, this::markAllRead)).width(220f).height(48f).padTop(12f);
-        panel.add(new BackButton(skin, game.getScreenManager()::showMainMenu)).width(220f).height(48f).padTop(12f);
+        panel.add(scrollPane).colspan(2).width(860f).height(370f).row();
+        panel.add(new MenuButton("Mark All Read", skin, this::markAllRead)).width(190f).height(44f).padTop(10f);
+        panel.add(new BackButton(skin, game.getScreenManager()::showMainMenu)).width(190f).height(44f).padTop(10f);
         root.add(panel).expand().center();
     }
 
