@@ -2,16 +2,16 @@ package ui;
 
 import com.badlogic.gdx.scenes.scene2d.ui.Label;
 import com.badlogic.gdx.scenes.scene2d.ui.Skin;
-import com.badlogic.gdx.scenes.scene2d.ui.Table;
+import pvz.skin.BorderedTable;
 
-public class LockedCard extends Table {
+public class LockedCard extends BorderedTable {
     private final Label priceLabel;
     private final MenuButton purchaseButton;
 
     public LockedCard(Skin skin, Runnable purchaseAction) {
-        Label lockLabel = new Label("LOCKED", skin);
-        priceLabel = new Label("Price: 0", skin);
-        purchaseButton = new MenuButton("Purchase", skin, purchaseAction);
+        Label lockLabel = new Label("LOCKED", skin, "medium_outline");
+        priceLabel = new Label("Price: 0", skin, "secondary");
+        purchaseButton = new MenuButton("Purchase", skin, "green_small", purchaseAction);
         pad(12f);
         add(lockLabel).row();
         add(priceLabel).padTop(6f).row();
