@@ -6,7 +6,7 @@ dependencies {
   api "com.badlogicgames.gdx:gdx:$gdxVersion"
   api "com.github.raeleus.TenPatch:tenpatch:$tenPatchVersion"
 
-  implementation 'com.github.pizpizi:pvz-skin:v0.1.0'
+  api "com.github.pizpizi:pvz-skin:v0.1.1"
   implementation 'com.github.pizpizi:libPVZ:v0.1.6'
 
   if(enableGraalNative == 'true') {
