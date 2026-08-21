@@ -5,6 +5,7 @@ import models.account.Greenhouse;
 import models.account.News;
 import models.account.PlantData;
 import models.account.Quest;
+import models.account.Settings;
 import models.account.User;
 
 import java.io.IOException;
@@ -74,6 +75,7 @@ abstract class SaveManagerWriter extends SaveManagerReader {
         first = appendField(builder, "passedLevels", String.valueOf(user.getPassedLevels()), first);
         first = appendField(builder, "bestMioPoint", String.valueOf(user.getBestMioPoint()), first);
         first = appendField(builder, "difficultyLevel", String.valueOf(user.getDifficultyLevel()), first);
+        first = appendField(builder, "settings", settingsToJson(user.getSettings()), first);
         first = appendField(builder, "currentChapterName", jsonString(user.getCurrentChapterName()), first);
         first = appendField(builder, "unlockedChapters", stringListToJson(user.getUnlockedChapters()), first);
         first = appendField(
@@ -95,6 +97,22 @@ abstract class SaveManagerWriter extends SaveManagerReader {
                 String.valueOf(user.isAllAdventureLevelsUnlocked()),
                 first
         );
+    }
+
+    protected String settingsToJson(Settings settings) {
+        Settings value = settings == null ? new Settings() : settings;
+        StringBuilder builder = new StringBuilder();
+        builder.append("{");
+        boolean first = true;
+        first = appendField(builder, "difficulty", String.valueOf(value.getDifficulty()), first);
+        first = appendField(builder, "gameSpeed", String.valueOf(value.getGameSpeed()), first);
+        first = appendField(builder, "showGrid", String.valueOf(value.isGridVisible()), first);
+        first = appendField(builder, "debugMode", String.valueOf(value.isDebugMode()), first);
+        first = appendField(builder, "musicVolume", String.valueOf(value.getMusicVolume()), first);
+        first = appendField(builder, "soundVolume", String.valueOf(value.getSoundVolume()), first);
+        appendField(builder, "musicEnabled", String.valueOf(value.isMusicEnabled()), first);
+        builder.append("\n}");
+        return builder.toString();
     }
 
     private void appendAccountContentFields(StringBuilder builder, User user, boolean first) {
