@@ -25,6 +25,7 @@ public class CollectionZombiePanel extends Table {
     private final PvzAnimationService animations;
     private final Table cardsTable;
     private final Table detailsTable;
+    private final ScrollPane cardsScroll;
     private String selectedZombieName;
 
     public CollectionZombiePanel(
@@ -37,7 +38,10 @@ public class CollectionZombiePanel extends Table {
         zombieRegistry = DefaultZombieRegistry.getInstance();
         this.animations = animations;
         cardsTable = new Table();
+        cardsTable.top();
         detailsTable = new Table();
+        detailsTable.top();
+        cardsScroll = new ScrollPane(cardsTable, skin);
         selectedZombieName = "";
         buildUi();
         refresh();
@@ -51,13 +55,12 @@ public class CollectionZombiePanel extends Table {
     }
 
     private void buildUi() {
-        defaults().pad(5f);
-        ScrollPane cardsScroll = new ScrollPane(cardsTable, skin);
+        defaults().pad(4f);
         cardsScroll.setFadeScrollBars(false);
-        ScrollPane detailsScroll = new ScrollPane(detailsTable, skin);
-        detailsScroll.setFadeScrollBars(false);
-        add(cardsScroll).width(700f).height(475f).top();
-        add(detailsScroll).width(405f).height(475f).top();
+        cardsScroll.setScrollingDisabled(true, false);
+        cardsScroll.setOverscroll(false, false);
+        add(cardsScroll).width(700f).height(500f).top().left().padRight(10f);
+        add(detailsTable).width(420f).height(500f).top().left();
     }
 
     private void ensureSelection(List<ZombieType> types) {
@@ -69,22 +72,25 @@ public class CollectionZombiePanel extends Table {
 
     private void refreshCards(List<ZombieType> types) {
         cardsTable.clearChildren();
+        cardsTable.defaults().pad(8f).top();
         int column = 0;
         for (ZombieType type : types) {
             boolean discovered = isZombieDiscovered(type.getName());
             ZombieCard card = createCard(type, discovered);
-            cardsTable.add(card).width(210f).pad(6f).top();
+            cardsTable.add(card).width(210f).top();
             column++;
             if (column % 3 == 0) {
                 cardsTable.row();
             }
         }
+        cardsScroll.layout();
     }
 
     private ZombieCard createCard(ZombieType type, boolean discovered) {
         ZombieCard card = new ZombieCard(skin);
         card.setDiscovered(discovered);
         card.setName(type.getName());
+        card.setSelected(type.getName().equalsIgnoreCase(selectedZombieName));
         if (discovered) {
             card.setZombieActor(animations.createZombieActor(type.getName()));
         }
@@ -94,14 +100,16 @@ public class CollectionZombiePanel extends Table {
 
     private void selectZombie(String zombieName) {
         selectedZombieName = zombieName;
+        refreshCards(zombieRegistry.getAllZombieTypes());
         refreshDetails();
     }
 
     private void refreshDetails() {
         detailsTable.clearChildren();
+        detailsTable.top();
         ZombieType type = zombieRegistry.getZombieTypeByName(selectedZombieName);
         if (type == null) {
-            detailsTable.add(panelLabel("Select a zombie to view details."));
+            detailsTable.add(panelLabel("Select a zombie to view details.")).padTop(16f);
             return;
         }
         boolean discovered = isZombieDiscovered(type.getName());
@@ -115,39 +123,70 @@ public class CollectionZombiePanel extends Table {
     private void buildUnknownDetails() {
         BorderedTable panel = new BorderedTable();
         panel.pad(20f);
-        panel.add(new Label("?", skin, "big_outline")).padBottom(14f).row();
-        panel.add(panelLabel("Unknown Zombie")).row();
-        panel.add(panelLabel("Discover this zombie during gameplay to reveal its information."))
-                .width(320f).padTop(8f).row();
-        detailsTable.add(panel).width(380f).top();
+        panel.add(new Label("?", skin, "big_outline")).padBottom(12f).row();
+        panel.add(panelLabel("Unknown Zombie")).padBottom(4f).row();
+        Label hint = panelLabel("Discover this zombie during gameplay to reveal its information.");
+        hint.setWrap(true);
+        hint.setAlignment(Align.center);
+        panel.add(hint).width(300f).padTop(6f).row();
+        detailsTable.add(panel).width(410f).top();
     }
 
     private void buildDiscoveredDetails(ZombieType type) {
         BorderedTable panel = new BorderedTable();
         panel.pad(18f);
-        panel.add(new Label(type.getName(), skin, "medium_outline")).padBottom(8f).row();
-        panel.add(animations.createZombieActor(type.getName())).size(190f).padBottom(8f).row();
-        addDetail(panel, "Health", String.valueOf(type.getBaseHp()));
-        addDetail(panel, "Speed", formatSpeed(type.getSpeed()));
-        addDetail(panel, "Armor", safeText(type.getDefaultArmorName()));
-        addDetail(panel, "Damage / Tick", String.valueOf(type.getDamagePerTick()));
-        addDetail(panel, "Wave Cost", String.valueOf(type.getWaveCost()));
-        addDetail(panel, "Tags", type.getTags().isEmpty() ? "-" : String.join(", ", type.getTags()));
-        addDetail(panel, "Ability", safeText(type.getAbility()));
-        detailsTable.add(panel).width(380f).top();
+        panel.defaults().pad(2f);
+        Label title = new Label(type.getName(), skin, "medium_outline");
+        title.setAlignment(Align.center);
+        title.setWrap(true);
+        panel.add(title).width(330f).padBottom(8f).row();
+        panel.add(animations.createZombieActor(type.getName())).size(148f).padBottom(10f).row();
+        addPair(panel, "Health", String.valueOf(type.getBaseHp()), "Speed", formatSpeed(type.getSpeed()));
+        addPair(panel, "Wave Cost", String.valueOf(type.getWaveCost()), "Damage/Tick", String.valueOf(type.getDamagePerTick()));
+        addWide(panel, "Armor", safeText(type.getDefaultArmorName()));
+        addWide(panel, "Tags", type.getTags().isEmpty() ? "-" : String.join(", ", type.getTags()));
+        addWide(panel, "Ability", safeText(type.getAbility()));
+        detailsTable.add(panel).width(410f).top();
     }
 
-    private void addDetail(Table panel, String title, String value) {
-        Label label = panelLabel(title + ": " + safeText(value));
+    private void addPair(Table panel, String leftTitle, String leftValue, String rightTitle, String rightValue) {
+        Table row = new Table();
+        row.defaults().pad(2f);
+        row.add(detailTitle(leftTitle)).width(84f).right();
+        row.add(detailValue(leftValue)).width(70f).left().padRight(8f);
+        row.add(detailTitle(rightTitle)).width(92f).right();
+        row.add(detailValue(rightValue)).width(76f).left();
+        panel.add(row).width(330f).left().row();
+    }
+
+    private void addWide(Table panel, String title, String value) {
+        Table row = new Table();
+        row.defaults().pad(2f);
+        row.add(detailTitle(title)).width(92f).top().right().padRight(4f);
+        row.add(detailValue(value)).width(234f).left();
+        panel.add(row).width(330f).left().row();
+    }
+
+    private Label detailTitle(String text) {
+        Label label = new Label(text + ":", skin, "secondary");
+        label.setColor(PANEL_TEXT_COLOR);
+        label.setAlignment(Align.right);
+        return label;
+    }
+
+    private Label detailValue(String text) {
+        Label label = new Label(safeText(text), skin, "secondary");
+        label.setColor(PANEL_TEXT_COLOR);
         label.setWrap(true);
         label.setAlignment(Align.left);
-        panel.add(label).width(330f).left().padTop(4f).row();
+        return label;
     }
 
     private Label panelLabel(String text) {
         Label label = new Label(text, skin, "secondary");
         label.setColor(PANEL_TEXT_COLOR);
         label.setWrap(true);
+        label.setAlignment(Align.center);
         return label;
     }
 
