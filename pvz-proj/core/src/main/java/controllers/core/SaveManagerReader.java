@@ -5,6 +5,7 @@ import models.account.Greenhouse;
 import models.account.News;
 import models.account.PlantData;
 import models.account.Quest;
+import models.account.Settings;
 import models.account.User;
 
 import java.io.IOException;
@@ -44,7 +45,7 @@ abstract class SaveManagerReader extends SaveManagerJsonSupport {
         user.setGamesPlayed(integer(map, "gamesPlayed", 0));
         user.setPassedLevels(integer(map, "passedLevels", 0));
         user.setBestMioPoint(integer(map, "bestMioPoint", 0));
-        user.setDifficultyLevel(integer(map, "difficultyLevel", 3));
+        user.setSettings(mapToSettings(map.get("settings"), integer(map, "difficultyLevel", 3)));
         user.setProfileImage(string(map, "profileImage"));
         user.setCurrentChapterName(string(map, "currentChapterName"));
         user.setStayLoggedIn(bool(map, "stayLoggedIn", false));
@@ -59,6 +60,23 @@ abstract class SaveManagerReader extends SaveManagerJsonSupport {
         user.setNewsList(mapToNewsList(map.get("newsList")));
 
         return user;
+    }
+
+    protected Settings mapToSettings(Object object, int legacyDifficulty) {
+        Settings settings = new Settings();
+        Map<String, Object> map = asMap(object);
+        if (map == null) {
+            settings.setDifficulty(legacyDifficulty);
+            return settings;
+        }
+        settings.setDifficulty(integer(map, "difficulty", legacyDifficulty));
+        settings.setGameSpeed(integer(map, "gameSpeed", 1));
+        settings.setGridVisible(bool(map, "showGrid", false));
+        settings.setDebugMode(bool(map, "debugMode", false));
+        settings.setMusicVolume(decimal(map, "musicVolume", 1f));
+        settings.setSoundVolume(decimal(map, "soundVolume", 1f));
+        settings.setMusicEnabled(bool(map, "musicEnabled", true));
+        return settings;
     }
 
     protected Collection mapToCollection(Object object) {
