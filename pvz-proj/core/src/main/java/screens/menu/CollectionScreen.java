@@ -50,20 +50,21 @@ public class CollectionScreen extends BaseMenuScreen {
     private void buildUi() {
         addMenuBackground();
         Table root = createRoot();
-        root.pad(10f);
+        root.pad(8f, 10f, 8f, 10f);
         addResourceBar(root);
         Table panel = createPanel();
-        panel.pad(22f);
+        panel.pad(20f, 22f, 18f, 22f);
         panel.defaults().pad(4f);
-        panel.add(createTitle("Collection")).colspan(3).padTop(6f).padBottom(12f).row();
-        panel.add(new MenuButton("Plants", skin, "green", this::showPlants))
-                .width(170f).height(44f).left();
+        panel.add().height(6f).colspan(3).row();
+        panel.add(createTitle("Collection")).colspan(3).padTop(4f).padBottom(12f).row();
         panel.add(new MenuButton("Zombies", skin, "purple", this::showZombies))
+                .width(170f).height(44f).left();
+        panel.add(new MenuButton("Plants", skin, "green", this::showPlants))
                 .width(170f).height(44f).center();
         panel.add(new BackButton(skin, game.getScreenManager()::showMainMenu))
                 .width(170f).height(44f).right().row();
-        panel.add(contentContainer).colspan(3).width(1140f).height(530f).padTop(10f);
-        root.add(panel).width(1215f).height(635f);
+        panel.add(contentContainer).colspan(3).width(1125f).height(495f).padTop(8f);
+        root.add(panel).width(1200f).height(610f);
     }
 
     private void showPlants() {
