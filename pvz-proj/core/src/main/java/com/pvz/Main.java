@@ -8,6 +8,7 @@ import controllers.features.LeaderboardController;
 import controllers.features.MainMenuController;
 import controllers.features.NewsController;
 import controllers.features.ProfileController;
+import controllers.features.SettingsController;
 import navigation.ScreenManager;
 import pvz.skin.PvzSkin;
 
@@ -18,6 +19,7 @@ public class Main extends Game {
     private ProfileController profileController;
     private NewsController newsController;
     private LeaderboardController leaderboardController;
+    private SettingsController settingsController;
     private ScreenManager screenManager;
 
     @Override
@@ -28,6 +30,7 @@ public class Main extends Game {
         profileController = new ProfileController(authController);
         newsController = new NewsController(authController);
         leaderboardController = new LeaderboardController(authController);
+        settingsController = new SettingsController(authController);
         screenManager = new ScreenManager(this);
         screenManager.showInitialScreen();
     }
@@ -68,6 +71,10 @@ public class Main extends Game {
 
     public LeaderboardController getLeaderboardController() {
         return leaderboardController;
+    }
+
+    public SettingsController getSettingsController() {
+        return settingsController;
     }
 
     public ScreenManager getScreenManager() {
