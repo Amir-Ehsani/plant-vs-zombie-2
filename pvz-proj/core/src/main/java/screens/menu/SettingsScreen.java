@@ -1,5 +1,6 @@
 package screens.menu;
 
+import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.scenes.scene2d.ui.CheckBox;
 import com.badlogic.gdx.scenes.scene2d.ui.Label;
 import com.badlogic.gdx.scenes.scene2d.ui.ScrollPane;
@@ -13,6 +14,7 @@ import ui.BackButton;
 import ui.MenuButton;
 
 public class SettingsScreen extends BaseMenuScreen {
+    private static final Color PANEL_TEXT_COLOR = Color.valueOf("4A3A1F");
     private final SettingsController controller;
     private final Label difficultyValue;
     private final Label gameSpeedValue;
@@ -38,6 +40,7 @@ public class SettingsScreen extends BaseMenuScreen {
         musicVolumeSlider = new Slider(0f, 1f, 0.1f, false, skin, "default-horizontal");
         soundVolumeSlider = new Slider(0f, 1f, 0.1f, false, skin, "default-horizontal");
         refreshing = false;
+        applyTextColors();
         buildUi();
         bindListeners();
         refreshValues();
@@ -50,6 +53,16 @@ public class SettingsScreen extends BaseMenuScreen {
             return;
         }
         refreshValues();
+    }
+
+    private void applyTextColors() {
+        difficultyValue.setColor(PANEL_TEXT_COLOR);
+        gameSpeedValue.setColor(PANEL_TEXT_COLOR);
+        musicVolumeValue.setColor(PANEL_TEXT_COLOR);
+        soundVolumeValue.setColor(PANEL_TEXT_COLOR);
+        gridBox.getLabel().setColor(PANEL_TEXT_COLOR);
+        debugBox.getLabel().setColor(PANEL_TEXT_COLOR);
+        musicEnabledBox.getLabel().setColor(PANEL_TEXT_COLOR);
     }
 
     private void buildUi() {
@@ -71,7 +84,7 @@ public class SettingsScreen extends BaseMenuScreen {
     }
 
     private void addDifficultyControls(Table panel) {
-        panel.add(createLabel("Difficulty")).left().width(220f);
+        panel.add(createPanelLabel("Difficulty")).left().width(220f);
         panel.add(difficultyValue).width(90f);
         Table buttons = new Table();
         for (int value = Settings.MIN_DIFFICULTY; value <= Settings.MAX_DIFFICULTY; value++) {
@@ -83,7 +96,7 @@ public class SettingsScreen extends BaseMenuScreen {
     }
 
     private void addGameSpeedControls(Table panel) {
-        panel.add(createLabel("Game Speed")).left().width(220f);
+        panel.add(createPanelLabel("Game Speed")).left().width(220f);
         panel.add(gameSpeedValue).width(90f);
         Table buttons = new Table();
         for (int value = Settings.MIN_GAME_SPEED; value <= Settings.MAX_GAME_SPEED; value++) {
@@ -95,21 +108,27 @@ public class SettingsScreen extends BaseMenuScreen {
     }
 
     private void addToggleControls(Table panel) {
-        panel.add(createLabel("Grid")).left().width(220f);
+        panel.add(createPanelLabel("Grid")).left().width(220f);
         panel.add(gridBox).colspan(2).left().row();
-        panel.add(createLabel("Debug")).left().width(220f);
+        panel.add(createPanelLabel("Debug")).left().width(220f);
         panel.add(debugBox).colspan(2).left().row();
-        panel.add(createLabel("Music")).left().width(220f);
+        panel.add(createPanelLabel("Music")).left().width(220f);
         panel.add(musicEnabledBox).colspan(2).left().row();
     }
 
     private void addVolumeControls(Table panel) {
-        panel.add(createLabel("Music Volume")).left().width(220f);
+        panel.add(createPanelLabel("Music Volume")).left().width(220f);
         panel.add(musicVolumeValue).width(90f);
         panel.add(musicVolumeSlider).width(360f).row();
-        panel.add(createLabel("Sound Volume")).left().width(220f);
+        panel.add(createPanelLabel("Sound Volume")).left().width(220f);
         panel.add(soundVolumeValue).width(90f);
         panel.add(soundVolumeSlider).width(360f).row();
+    }
+
+    private Label createPanelLabel(String text) {
+        Label label = createLabel(text);
+        label.setColor(PANEL_TEXT_COLOR);
+        return label;
     }
 
     private void bindListeners() {
