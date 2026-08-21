@@ -10,6 +10,7 @@ import screens.menu.NewsScreen;
 import screens.menu.PlaceholderMenuScreen;
 import screens.menu.ProfileScreen;
 import screens.menu.RegisterScreen;
+import screens.game.GameScreen;
 
 public class ScreenManager {
     private final Main game;
@@ -59,7 +60,7 @@ public class ScreenManager {
     }
 
     public void showAdventure() {
-        showPlaceholder("Adventure");
+        show(new GameScreen(game));
     }
 
     public void showCollection() {
