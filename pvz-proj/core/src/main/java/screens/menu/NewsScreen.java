@@ -1,5 +1,6 @@
 package screens.menu;
 
+import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.scenes.scene2d.ui.Label;
 import com.badlogic.gdx.scenes.scene2d.ui.ScrollPane;
 import com.badlogic.gdx.scenes.scene2d.ui.Table;
@@ -62,18 +63,18 @@ public class NewsScreen extends BaseMenuScreen {
     }
 
     private void addHeader() {
-        newsTable.add(createLabel("Status")).width(90f).left();
-        newsTable.add(createLabel("Title")).width(360f).left();
-        newsTable.add(createLabel("Date")).width(210f).left();
-        newsTable.add(createLabel("Action")).width(150f).row();
+        newsTable.add(createNewsLabel("Status")).width(90f).left();
+        newsTable.add(createNewsLabel("Title")).width(360f).left();
+        newsTable.add(createNewsLabel("Date")).width(210f).left();
+        newsTable.add(createNewsLabel("Action")).width(150f).row();
     }
 
     private void addNewsRow(News news) {
         String status = news.isUnread() ? "NEW" : "READ";
         String date = news.getCreatedAt() == null ? "-" : DATE_FORMAT.format(news.getCreatedAt());
-        newsTable.add(createLabel(status)).left().padTop(8f);
-        newsTable.add(createLabel(news.getTitle())).left().padTop(8f);
-        newsTable.add(createLabel(date)).left().padTop(8f);
+        newsTable.add(createNewsLabel(status)).left().padTop(8f);
+        newsTable.add(createNewsLabel(news.getTitle())).left().padTop(8f);
+        newsTable.add(createNewsLabel(date)).left().padTop(8f);
         newsTable.add(new MenuButton("Open", skin, () -> openNews(news)))
                 .width(120f).height(42f).padTop(8f).row();
     }
@@ -94,6 +95,12 @@ public class NewsScreen extends BaseMenuScreen {
         content.add(contentLabel).width(620f).padBottom(16f).row();
         content.add(new MenuButton("Close", skin, "brown", window::close)).width(180f).height(46f);
         window.show(stage);
+    }
+
+    private Label createNewsLabel(String text) {
+        Label label = createLabel(text);
+        label.setColor(Color.BLACK);
+        return label;
     }
 
     private void markAllRead() {
