@@ -1,0 +1,131 @@
+package game.render.entity;
+
+import com.badlogic.gdx.graphics.g2d.Batch;
+import game.animation.core.EntityAnimationProfile;
+import game.animation.core.EntityAnimationRegistry;
+import game.animation.core.PvzAnimationService;
+import game.render.BoardGeometry;
+import models.core.plant.Plant;
+import models.core.zombie.Zombie;
+import models.engine.board.Board;
+import models.engine.board.Lane;
+import models.engine.board.Tile;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.IdentityHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+public final class EntityRenderSystem {
+    private final BoardGeometry geometry;
+    private final PvzAnimationService animations;
+    private final EntityAnimationRegistry registry;
+    private final Map<Plant, PlantView> plantViews = new IdentityHashMap<>();
+    private final Map<Zombie, ZombieView> zombieViews = new IdentityHashMap<>();
+
+    public EntityRenderSystem(BoardGeometry geometry, PvzAnimationService animations) {
+        if (geometry == null || animations == null || animations.getCatalog() == null) {
+            throw new IllegalArgumentException("Entity renderer requires board geometry and animation catalog.");
+        }
+        this.geometry = geometry;
+        this.animations = animations;
+        registry = new EntityAnimationRegistry(animations.getCatalog());
+    }
+
+    public void update(float delta, Board board) {
+        if (board == null) {
+            return;
+        }
+        Set<Plant> activePlants = Collections.newSetFromMap(new IdentityHashMap<>());
+        Set<Zombie> activeZombies = Collections.newSetFromMap(new IdentityHashMap<>());
+
+        for (Plant plant : board.getAllPlants()) {
+            activePlants.add(plant);
+            PlantView view = plantViews.computeIfAbsent(plant, this::createPlantView);
+            if (view != null) {
+                view.update(delta, board);
+            }
+        }
+
+        for (Zombie zombie : board.getAllZombies()) {
+            activeZombies.add(zombie);
+            ZombieView view = zombieViews.computeIfAbsent(zombie, this::createZombieView);
+            if (view != null) {
+                view.update(delta, board);
+            }
+        }
+
+        plantViews.keySet().removeIf(plant -> !activePlants.contains(plant));
+        zombieViews.keySet().removeIf(zombie -> !activeZombies.contains(zombie));
+    }
+
+    public void render(Batch batch, Board board) {
+        if (batch == null || board == null) {
+            return;
+        }
+        batch.begin();
+        for (int row = 1; row <= board.getHeight(); row++) {
+            Lane lane = board.getLaneAt(row);
+            if (lane == null) {
+                continue;
+            }
+            renderPlantsInLane(batch, board, lane);
+            renderZombiesInLane(batch, board, lane);
+        }
+        batch.end();
+    }
+
+    private void renderPlantsInLane(Batch batch, Board board, Lane lane) {
+        for (Tile tile : lane.getTiles()) {
+            List<Plant> plants = new ArrayList<>(tile.getPlants());
+            plants.sort(Comparator.comparingInt(this::plantLayerOrder));
+            for (Plant plant : plants) {
+                PlantView view = plantViews.get(plant);
+                if (view != null) {
+                    view.render(batch, geometry, animations, board);
+                }
+            }
+        }
+    }
+
+    private void renderZombiesInLane(Batch batch, Board board, Lane lane) {
+        for (Zombie zombie : lane.getAllZombies()) {
+            ZombieView view = zombieViews.get(zombie);
+            if (view != null) {
+                view.render(batch, geometry, animations, board);
+            }
+        }
+    }
+
+    private PlantView createPlantView(Plant plant) {
+        EntityAnimationProfile profile = registry.forPlant(plant);
+        if (profile == null) {
+            return null;
+        }
+        animations.preload(profile.getPath());
+        return new PlantView(plant, profile);
+    }
+
+    private ZombieView createZombieView(Zombie zombie) {
+        EntityAnimationProfile profile = registry.forZombie(zombie);
+        if (profile == null) {
+            return null;
+        }
+        animations.preload(profile.getPath());
+        return new ZombieView(zombie, profile);
+    }
+
+    private int plantLayerOrder(Plant plant) {
+        String name = plant == null ? "" : plant.getName().toLowerCase();
+        if (name.equals("lily pad")) {
+            return 0;
+        }
+        if (name.equals("pumpkin")) {
+            return 2;
+        }
+        return 1;
+    }
+}
