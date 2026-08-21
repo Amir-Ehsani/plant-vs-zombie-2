@@ -42,6 +42,7 @@ public class PlantCard extends BorderedTable {
         visualContainer.center();
         image = new Image();
         fallbackLabel = new Label("", skin, "medium_outline");
+        fallbackLabel.setVisible(false);
         lockLabel = new Label("LOCKED", skin, "medium_outline");
         lockOverlay = new Table();
         nameLabel = new Label("Plant", skin, "medium_outline");
@@ -63,7 +64,7 @@ public class PlantCard extends BorderedTable {
 
     public void setPlantActor(Actor actor) {
         if (actor != null) {
-            actor.setSize(96f, 96f);
+            actor.setSize(86f, 86f);
         }
         visualContainer.setActor(actor);
     }
@@ -128,12 +129,12 @@ public class PlantCard extends BorderedTable {
     public void setPurchaseAction(int price, Runnable action) {
         actionTable.clearChildren();
         actionTable.add(new MenuButton("Buy " + Math.max(0, price), skin, "green_small", action))
-                .width(140f).height(34f);
+                .width(132f).height(32f);
     }
 
     public void setUpgradeAction(Runnable action) {
         actionTable.clearChildren();
-        actionTable.add(new MenuButton("Upgrade", skin, "purple", action)).width(140f).height(34f);
+        actionTable.add(new MenuButton("Upgrade", skin, "purple", action)).width(132f).height(32f);
     }
 
     public void clearAction() {
@@ -154,7 +155,7 @@ public class PlantCard extends BorderedTable {
     }
 
     private void buildLayout() {
-        pad(12f);
+        pad(10f);
         defaults().center();
         seedProgress.setTextColor(PANEL_TEXT_COLOR);
         fallbackLabel.setAlignment(Align.center);
@@ -174,17 +175,17 @@ public class PlantCard extends BorderedTable {
         visualStack.add(fallbackLabel);
         visualStack.add(visualContainer);
         visualStack.add(lockOverlay);
-        add(visualStack).size(108f).padTop(2f).row();
-        add(nameLabel).width(255f).padTop(4f).row();
+        add(visualStack).size(98f).padTop(2f).row();
+        add(nameLabel).width(235f).padTop(3f).row();
         Table statRow = new Table();
-        statRow.add(costLabel).width(112f).center();
-        statRow.add(levelLabel).width(112f).center();
+        statRow.add(costLabel).width(102f).center();
+        statRow.add(levelLabel).width(102f).center();
         add(statRow).row();
-        add(seedLabel).width(255f).padTop(3f).row();
-        add(seedProgress).width(220f).padTop(1f).center().row();
-        add(familyLabel).width(255f).padTop(3f).row();
-        add(healthLabel).width(255f).padTop(1f).row();
-        add(stateLabel).width(255f).padTop(3f).row();
+        add(seedLabel).width(235f).padTop(2f).row();
+        add(seedProgress).width(190f).padTop(1f).center().row();
+        add(familyLabel).width(235f).padTop(2f).row();
+        add(healthLabel).width(235f).padTop(1f).row();
+        add(stateLabel).width(235f).padTop(2f).row();
         add(actionTable).padTop(6f).padBottom(1f).row();
     }
 
