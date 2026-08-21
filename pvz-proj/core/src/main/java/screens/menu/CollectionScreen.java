@@ -58,17 +58,20 @@ public class CollectionScreen extends BaseMenuScreen {
         panel.defaults().pad(4f);
         panel.add().height(6f).colspan(3).row();
         panel.add(createTitle("Collection")).colspan(3).padTop(4f).padBottom(12f).row();
+        Table navigationRow = new Table();
         Table tabsTable = new Table();
-        tabsTable.defaults().padRight(8f);
+        tabsTable.defaults().padRight(0f);
         tabsTable.add(new MenuButton("Plants", skin, "green", this::showPlants))
-                .width(170f).height(44f);
+                .width(162f).height(44f);
         tabsTable.add(new MenuButton("Zombies", skin, "purple", this::showZombies))
-                .width(170f).height(44f);
-        panel.add(tabsTable).colspan(2).left();
-        panel.add(new BackButton(skin, game.getScreenManager()::showMainMenu))
-                .width(170f).height(44f).right().row();
-        panel.add(contentContainer).colspan(3).width(1110f).height(470f).padTop(6f);
-        root.add(panel).width(1185f).height(590f);
+                .width(162f).height(44f);
+        navigationRow.add(tabsTable).left();
+        navigationRow.add().expandX().fillX();
+        navigationRow.add(new BackButton(skin, game.getScreenManager()::showMainMenu))
+                .width(162f).height(44f).right();
+        panel.add(navigationRow).colspan(3).width(1070f).fillX().row();
+        panel.add(contentContainer).colspan(3).width(1070f).height(432f).padTop(6f);
+        root.add(panel).width(1185f).height(600f);
     }
 
     private void showPlants() {
