@@ -6,6 +6,7 @@ import com.badlogic.gdx.scenes.scene2d.ui.ScrollPane;
 import com.badlogic.gdx.scenes.scene2d.ui.SelectBox;
 import com.badlogic.gdx.scenes.scene2d.ui.Skin;
 import com.badlogic.gdx.scenes.scene2d.ui.Table;
+import com.badlogic.gdx.scenes.scene2d.ui.TextButton;
 import com.badlogic.gdx.scenes.scene2d.utils.ChangeListener;
 import com.badlogic.gdx.utils.Align;
 import controllers.auth.AuthController;
@@ -82,19 +83,19 @@ public class CollectionPlantPanel extends Table {
     }
 
     private void buildUi() {
-        defaults().pad(4f);
+        defaults().pad(3f);
         Table filters = new Table();
-        filters.defaults().padRight(10f).center();
+        filters.defaults().padRight(8f).center();
         filters.add(panelLabel("Family"));
-        filters.add(familyFilter).width(190f).padRight(22f);
+        filters.add(familyFilter).width(170f).padRight(18f);
         filters.add(panelLabel("State"));
-        filters.add(stateFilter).width(155f);
-        add(filters).colspan(2).left().padBottom(6f).row();
+        filters.add(stateFilter).width(150f);
+        add(filters).colspan(2).left().padBottom(4f).row();
         cardsScroll.setFadeScrollBars(false);
         cardsScroll.setScrollingDisabled(true, false);
         cardsScroll.setOverscroll(false, false);
-        add(cardsScroll).width(700f).height(500f).top().left().padRight(10f);
-        add(detailsTable).width(420f).height(500f).top().left();
+        add(cardsScroll).width(720f).height(452f).top().left().padRight(8f);
+        add(detailsTable).width(385f).height(452f).top().left();
         stateFilter.setItems(ALL_STATES, UNLOCKED, LOCKED, UPGRADEABLE);
     }
 
@@ -142,7 +143,7 @@ public class CollectionPlantPanel extends Table {
 
     private void refreshCards(List<PlantType> types) {
         cardsTable.clearChildren();
-        cardsTable.defaults().pad(8f).top();
+        cardsTable.defaults().pad(7f).top();
         int column = 0;
         for (PlantType type : types) {
             PlantData data = plantData(type.getName());
@@ -150,7 +151,7 @@ public class CollectionPlantPanel extends Table {
                 continue;
             }
             PlantCard card = createCard(type, data);
-            cardsTable.add(card).width(320f).top();
+            cardsTable.add(card).width(335f).top();
             column++;
             if (column % 2 == 0) {
                 cardsTable.row();
@@ -243,18 +244,18 @@ public class CollectionPlantPanel extends Table {
             return;
         }
         BorderedTable panel = new BorderedTable();
-        panel.pad(18f);
-        panel.defaults().pad(2f);
+        panel.pad(14f);
+        panel.defaults().pad(1f);
         Label title = new Label(type.getName(), skin, "medium_outline");
         title.setAlignment(Align.center);
         title.setWrap(true);
-        panel.add(title).width(330f).center().padBottom(8f).row();
-        panel.add(animations.createPlantActor(type.getName())).size(148f).center().padBottom(10f).row();
+        panel.add(title).width(305f).center().padBottom(6f).row();
+        panel.add(animations.createPlantActor(type.getName())).size(112f).center().padBottom(6f).row();
         addSectionTitle(panel, "Overview");
         addPair(panel, "Status", data.isUnlocked() ? "Unlocked" : "Locked", "Level", String.valueOf(data.getLevel()));
         addPair(panel, "Seeds", seedText(data), "Boosts", String.valueOf(data.getBoostCount()));
         addPair(panel, "Family", type.getCategory(), "Sun Cost", String.valueOf(type.getSunCost()));
-        addPair(panel, "Health", String.valueOf(type.getBaseHp()), "Damage", safeText(type.getDamage()));
+        addPair(panel, "Health", String.valueOf(type.getBaseHp()), "Damage", safeNumberText(type.getDamage()));
         addWide(panel, "Tags", safeText(type.getTags()));
         addWide(panel, "Ability", safeText(type.getBaseAbility()));
         addWide(panel, "Plant Food", safeText(type.getPlantFoodEffect()));
@@ -267,19 +268,19 @@ public class CollectionPlantPanel extends Table {
             addWide(panel, "Upgrade State", canUpgradePlant(data.getName()) ? "Ready" : "Not ready");
         }
         addDetailAction(panel, type, data);
-        detailsTable.add(panel).width(410f).top();
+        detailsTable.add(panel).width(370f).top();
     }
 
     private void addDetailAction(Table panel, PlantType type, PlantData data) {
         if (!data.isUnlocked()) {
-            String text = "Buy for " + CollectionController.PLANT_PURCHASE_PRICE + " Coins";
-            panel.add(new MenuButton(text, skin, "green", () -> purchase(type.getName())))
-                    .width(270f).height(44f).padTop(10f).center().row();
+            TextButton button = new MenuButton("Buy for " + CollectionController.PLANT_PURCHASE_PRICE + " Coins",
+                    skin, "green", () -> purchase(type.getName()));
+            panel.add(button).width(230f).height(42f).padTop(8f).center().row();
             return;
         }
         if (data.getLevel() < 4) {
             panel.add(new MenuButton("Upgrade", skin, "purple", () -> upgrade(type.getName())))
-                    .width(220f).height(44f).padTop(10f).center().row();
+                    .width(200f).height(42f).padTop(8f).center().row();
         }
     }
 
@@ -287,25 +288,25 @@ public class CollectionPlantPanel extends Table {
         Label label = new Label(text, skin, "secondary");
         label.setAlignment(Align.center);
         label.setColor(PANEL_TEXT_COLOR);
-        panel.add(label).width(330f).center().padTop(4f).padBottom(2f).row();
+        panel.add(label).width(305f).center().padTop(2f).padBottom(1f).row();
     }
 
     private void addPair(Table panel, String leftTitle, String leftValue, String rightTitle, String rightValue) {
         Table row = new Table();
-        row.defaults().pad(2f);
-        row.add(detailTitle(leftTitle)).width(78f).right();
-        row.add(detailValue(leftValue)).width(82f).left().padRight(8f);
-        row.add(detailTitle(rightTitle)).width(82f).right();
-        row.add(detailValue(rightValue)).width(100f).left();
-        panel.add(row).width(330f).left().row();
+        row.defaults().pad(1f);
+        row.add(detailTitle(leftTitle)).width(70f).right();
+        row.add(detailValue(leftValue)).width(74f).left().padRight(4f);
+        row.add(detailTitle(rightTitle)).width(76f).right();
+        row.add(detailValue(rightValue)).width(80f).left();
+        panel.add(row).width(305f).left().row();
     }
 
     private void addWide(Table panel, String title, String value) {
         Table row = new Table();
-        row.defaults().pad(2f);
-        row.add(detailTitle(title)).width(92f).top().right().padRight(4f);
-        row.add(detailValue(value)).width(234f).left();
-        panel.add(row).width(330f).left().row();
+        row.defaults().pad(1f);
+        row.add(detailTitle(title)).width(84f).top().right().padRight(3f);
+        row.add(detailValue(value)).width(214f).left();
+        panel.add(row).width(305f).left().row();
     }
 
     private Label detailTitle(String text) {
@@ -357,6 +358,11 @@ public class CollectionPlantPanel extends Table {
 
     private String safeText(String value) {
         return value == null || value.isBlank() ? "-" : value.trim();
+    }
+
+    private String safeNumberText(String value) {
+        String text = safeText(value);
+        return "-".equals(text) ? "0" : text;
     }
 
     private PlantType findType(List<PlantType> types, String name) {
