@@ -4,17 +4,31 @@ import com.badlogic.gdx.files.FileHandle;
 import com.badlogic.gdx.utils.JsonReader;
 import com.badlogic.gdx.utils.JsonValue;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
 public final class AnimationCatalog {
     private final Map<String, AnimationDefinition> byPath;
+    private final Map<String, List<AnimationDefinition>> byNormalizedName;
 
     private AnimationCatalog(Map<String, AnimationDefinition> byPath) {
         this.byPath = Collections.unmodifiableMap(new LinkedHashMap<>(byPath));
+        Map<String, List<AnimationDefinition>> names = new LinkedHashMap<>();
+        for (AnimationDefinition definition : byPath.values()) {
+            String key = normalize(definition.getName());
+            names.computeIfAbsent(key, ignored -> new ArrayList<>()).add(definition);
+        }
+        Map<String, List<AnimationDefinition>> immutable = new LinkedHashMap<>();
+        for (Map.Entry<String, List<AnimationDefinition>> entry : names.entrySet()) {
+            immutable.put(entry.getKey(), Collections.unmodifiableList(new ArrayList<>(entry.getValue())));
+        }
+        byNormalizedName = Collections.unmodifiableMap(immutable);
     }
 
     public static AnimationCatalog load(FileHandle file) {
@@ -40,6 +54,23 @@ public final class AnimationCatalog {
 
     public AnimationDefinition findByPath(String path) {
         return byPath.get(path);
+    }
+
+    public AnimationDefinition findByName(String name, String requiredPathPart) {
+        List<AnimationDefinition> definitions = byNormalizedName.get(normalize(name));
+        if (definitions == null || definitions.isEmpty()) {
+            return null;
+        }
+        if (requiredPathPart == null || requiredPathPart.isBlank()) {
+            return definitions.get(0);
+        }
+        String required = requiredPathPart.toUpperCase(Locale.ROOT);
+        for (AnimationDefinition definition : definitions) {
+            if (definition.getPath().toUpperCase(Locale.ROOT).contains(required)) {
+                return definition;
+            }
+        }
+        return null;
     }
 
     public int size() {
@@ -79,5 +110,12 @@ public final class AnimationCatalog {
             clips.add(clip.name);
         }
         return clips;
+    }
+
+    private static String normalize(String value) {
+        if (value == null) {
+            return "";
+        }
+        return value.toUpperCase(Locale.ROOT).replaceAll("[^A-Z0-9]", "");
     }
 }
