@@ -43,6 +43,7 @@ public class CollectionZombiePanel extends Table {
         detailsTable.top();
         cardsScroll = new ScrollPane(cardsTable, skin);
         selectedZombieName = "";
+        setClip(true);
         buildUi();
         refresh();
     }
@@ -59,8 +60,8 @@ public class CollectionZombiePanel extends Table {
         cardsScroll.setFadeScrollBars(false);
         cardsScroll.setScrollingDisabled(true, false);
         cardsScroll.setOverscroll(false, false);
-        add(cardsScroll).width(720f).height(452f).top().left().padRight(8f);
-        add(detailsTable).width(385f).height(452f).top().left();
+        add(cardsScroll).width(700f).height(430f).top().left().padRight(8f);
+        add(detailsTable).width(390f).height(430f).top().left();
     }
 
     private void ensureSelection(List<ZombieType> types) {
@@ -72,12 +73,12 @@ public class CollectionZombiePanel extends Table {
 
     private void refreshCards(List<ZombieType> types) {
         cardsTable.clearChildren();
-        cardsTable.defaults().pad(7f).top();
+        cardsTable.defaults().pad(5f).top();
         int column = 0;
         for (ZombieType type : types) {
             boolean discovered = isZombieDiscovered(type.getName());
             ZombieCard card = createCard(type, discovered);
-            cardsTable.add(card).width(216f).top();
+            cardsTable.add(card).width(210f).top();
             column++;
             if (column % 3 == 0) {
                 cardsTable.row();
@@ -129,7 +130,7 @@ public class CollectionZombiePanel extends Table {
         hint.setWrap(true);
         hint.setAlignment(Align.center);
         panel.add(hint).width(280f).padTop(4f).row();
-        detailsTable.add(panel).width(370f).top();
+        detailsTable.add(panel).width(360f).top();
     }
 
     private void buildDiscoveredDetails(ZombieType type) {
@@ -146,7 +147,7 @@ public class CollectionZombiePanel extends Table {
         addWide(panel, "Armor", safeText(type.getDefaultArmorName()));
         addWide(panel, "Tags", type.getTags().isEmpty() ? "-" : String.join(", ", type.getTags()));
         addWide(panel, "Ability", safeText(type.getAbility()));
-        detailsTable.add(panel).width(370f).top();
+        detailsTable.add(panel).width(360f).top();
     }
 
     private void addPair(Table panel, String leftTitle, String leftValue, String rightTitle, String rightValue) {
