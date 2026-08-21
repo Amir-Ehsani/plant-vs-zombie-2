@@ -60,8 +60,8 @@ public class CollectionZombiePanel extends Table {
         cardsScroll.setFadeScrollBars(false);
         cardsScroll.setScrollingDisabled(true, false);
         cardsScroll.setOverscroll(false, false);
-        add(cardsScroll).width(700f).height(430f).top().left().padRight(8f);
-        add(detailsTable).width(390f).height(430f).top().left();
+        add(cardsScroll).width(708f).height(394f).top().left().padRight(8f);
+        add(detailsTable).width(346f).height(394f).top().left();
     }
 
     private void ensureSelection(List<ZombieType> types) {
@@ -130,7 +130,7 @@ public class CollectionZombiePanel extends Table {
         hint.setWrap(true);
         hint.setAlignment(Align.center);
         panel.add(hint).width(280f).padTop(4f).row();
-        detailsTable.add(panel).width(360f).top();
+        detailsTable.add(panel).width(330f).top();
     }
 
     private void buildDiscoveredDetails(ZombieType type) {
@@ -140,14 +140,14 @@ public class CollectionZombiePanel extends Table {
         Label title = new Label(type.getName(), skin, "medium_outline");
         title.setAlignment(Align.center);
         title.setWrap(true);
-        panel.add(title).width(305f).padBottom(6f).row();
-        panel.add(animations.createZombieActor(type.getName())).size(112f).padBottom(6f).row();
+        panel.add(title).width(280f).padBottom(4f).row();
+        panel.add(animations.createZombieActor(type.getName())).size(84f).padBottom(4f).row();
         addPair(panel, "Health", String.valueOf(type.getBaseHp()), "Speed", formatSpeed(type.getSpeed()));
         addPair(panel, "Wave Cost", String.valueOf(type.getWaveCost()), "Damage", String.valueOf(type.getDamagePerTick()));
         addWide(panel, "Armor", safeText(type.getDefaultArmorName()));
         addWide(panel, "Tags", type.getTags().isEmpty() ? "-" : String.join(", ", type.getTags()));
         addWide(panel, "Ability", safeText(type.getAbility()));
-        detailsTable.add(panel).width(360f).top();
+        detailsTable.add(panel).width(330f).top();
     }
 
     private void addPair(Table panel, String leftTitle, String leftValue, String rightTitle, String rightValue) {
