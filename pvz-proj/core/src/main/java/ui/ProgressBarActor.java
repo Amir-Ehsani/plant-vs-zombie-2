@@ -1,5 +1,6 @@
 package ui;
 
+import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.scenes.scene2d.ui.Label;
 import com.badlogic.gdx.scenes.scene2d.ui.ProgressBar;
 import com.badlogic.gdx.scenes.scene2d.ui.Skin;
@@ -26,6 +27,16 @@ public class ProgressBarActor extends Table {
         this.maximum = Math.max(minimum + 1f, maximum);
         progressBar.setRange(this.minimum, this.maximum);
         setValue(progressBar.getValue());
+    }
+
+    public void setTextColor(Color color) {
+        if (color != null) {
+            valueLabel.setColor(color);
+        }
+    }
+
+    public void setValueText(String text) {
+        valueLabel.setText(text == null ? "" : text);
     }
 
     public void setValue(float value) {
