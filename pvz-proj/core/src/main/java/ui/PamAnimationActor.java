@@ -151,7 +151,7 @@ public class PamAnimationActor extends Actor {
     private float calculateScale() {
         float widthScale = getWidth() / bounds.width;
         float heightScale = getHeight() / bounds.height;
-        return Math.max(0.01f, Math.min(widthScale, heightScale) * 0.9f);
+        return Math.max(0.01f, Math.min(widthScale, heightScale) * 0.76f);
     }
 
     private boolean canLoad() {
