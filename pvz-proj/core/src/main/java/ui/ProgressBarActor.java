@@ -5,6 +5,7 @@ import com.badlogic.gdx.scenes.scene2d.ui.Label;
 import com.badlogic.gdx.scenes.scene2d.ui.ProgressBar;
 import com.badlogic.gdx.scenes.scene2d.ui.Skin;
 import com.badlogic.gdx.scenes.scene2d.ui.Table;
+import com.badlogic.gdx.utils.Align;
 
 public class ProgressBarActor extends Table {
     private final ProgressBar progressBar;
@@ -17,8 +18,9 @@ public class ProgressBarActor extends Table {
         this.maximum = Math.max(minimum + 1f, maximum);
         progressBar = new ProgressBar(this.minimum, this.maximum, 1f, false, skin, "xp_green");
         valueLabel = new Label("", skin, "secondary");
-        add(progressBar).width(170f).padRight(8f);
-        add(valueLabel).width(90f);
+        valueLabel.setAlignment(Align.center);
+        add(progressBar).width(150f).center().row();
+        add(valueLabel).width(90f).center().padTop(2f);
         setValue(this.minimum);
     }
 
