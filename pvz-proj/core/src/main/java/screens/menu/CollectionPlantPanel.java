@@ -43,6 +43,7 @@ public class CollectionPlantPanel extends Table {
     private final SelectBox<String> stateFilter;
     private final Table cardsTable;
     private final Table detailsTable;
+    private final ScrollPane detailsScroll;
     private final ScrollPane cardsScroll;
     private String selectedPlantName;
 
@@ -67,6 +68,9 @@ public class CollectionPlantPanel extends Table {
         cardsTable.top();
         detailsTable = new Table();
         detailsTable.top();
+        detailsScroll = new ScrollPane(detailsTable, skin);
+        detailsScroll.setFadeScrollBars(false);
+        detailsScroll.setOverscroll(false, false);
         cardsScroll = new ScrollPane(cardsTable, skin);
         selectedPlantName = "";
         setClip(true);
@@ -96,7 +100,7 @@ public class CollectionPlantPanel extends Table {
         cardsScroll.setScrollingDisabled(true, false);
         cardsScroll.setOverscroll(false, false);
         add(cardsScroll).width(708f).height(394f).top().left().padRight(8f);
-        add(detailsTable).width(346f).height(394f).top().left();
+        add(detailsScroll).width(346f).height(394f).top().left();
         stateFilter.setItems(ALL_STATES, UNLOCKED, LOCKED, UPGRADEABLE);
     }
 
@@ -241,7 +245,7 @@ public class CollectionPlantPanel extends Table {
         PlantType type = plantRegistry.getByName(selectedPlantName);
         PlantData data = plantData(selectedPlantName);
         if (type == null || data == null) {
-            detailsTable.add(panelLabel("Select a plant to view details.")).padTop(16f);
+            detailsTable.add(panelLabel("Select a plant to view details.")).padTop(16f).center();
             return;
         }
         BorderedTable panel = new BorderedTable();
@@ -269,7 +273,7 @@ public class CollectionPlantPanel extends Table {
             addWide(panel, "Upgrade State", canUpgradePlant(data.getName()) ? "Ready" : "Not ready");
         }
         addDetailAction(panel, type, data);
-        detailsTable.add(panel).width(330f).top();
+        detailsTable.add(panel).width(330f).top().center();
     }
 
     private void addDetailAction(Table panel, PlantType type, PlantData data) {
