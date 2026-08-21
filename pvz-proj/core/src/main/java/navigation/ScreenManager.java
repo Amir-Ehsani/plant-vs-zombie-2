@@ -2,6 +2,7 @@ package navigation;
 
 import com.badlogic.gdx.Screen;
 import com.pvz.Main;
+import screens.menu.CollectionScreen;
 import screens.menu.ForgotPasswordScreen;
 import screens.menu.LeaderboardScreen;
 import screens.menu.LoginScreen;
@@ -64,7 +65,7 @@ public class ScreenManager {
     }
 
     public void showCollection() {
-        showPlaceholder("Collection");
+        show(new CollectionScreen(game));
     }
 
     public void showGreenhouse() {
