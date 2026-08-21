@@ -107,16 +107,7 @@ public final class JsonDataLoader {
             throw new IllegalStateException("Could not read JSON resource: " + cleaned, exception);
         }
 
-        String configuredDirectory = System.getProperty("pvz.data.dir", "").trim();
-        List<Path> candidates = new ArrayList<>();
-        if (!configuredDirectory.isEmpty()) {
-            candidates.add(Path.of(configuredDirectory, Path.of(cleaned).getFileName().toString()));
-        }
-        candidates.add(Path.of(cleaned));
-        candidates.add(Path.of("src", cleaned));
-        candidates.add(Path.of("..", "src", cleaned));
-        candidates.add(Path.of(System.getProperty("user.dir", "."), cleaned));
-        candidates.add(Path.of(System.getProperty("user.dir", "."), "src", cleaned));
+        List<Path> candidates = buildCandidates(cleaned);
 
         for (Path candidate : candidates) {
             if (!Files.isRegularFile(candidate)) {
@@ -133,6 +124,25 @@ public final class JsonDataLoader {
                 "Game data file was not found: " + cleaned
                         + ". Keep the data directory beside the source tree or set -Dpvz.data.dir=<path>."
         );
+    }
+
+    private static List<Path> buildCandidates(String cleaned) {
+        List<Path> candidates = new ArrayList<>();
+        String configuredDirectory = System.getProperty("pvz.data.dir", "").trim();
+        if (!configuredDirectory.isEmpty()) {
+            Path configuredRoot = Path.of(configuredDirectory);
+            candidates.add(configuredRoot.resolve(cleaned));
+            candidates.add(configuredRoot.resolve(Path.of(cleaned).getFileName()));
+        }
+
+        Path current = Path.of(System.getProperty("user.dir", ".")).toAbsolutePath().normalize();
+        while (current != null) {
+            candidates.add(current.resolve(cleaned));
+            candidates.add(current.resolve("src").resolve(cleaned));
+            candidates.add(current.resolve("core").resolve("src").resolve("main").resolve("java").resolve(cleaned));
+            current = current.getParent();
+        }
+        return candidates;
     }
 
     private static final class Parser {
