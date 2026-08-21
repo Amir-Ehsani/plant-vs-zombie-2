@@ -8,6 +8,7 @@ import com.badlogic.gdx.scenes.scene2d.ui.Image;
 import com.badlogic.gdx.scenes.scene2d.ui.Label;
 import com.badlogic.gdx.scenes.scene2d.ui.Skin;
 import com.badlogic.gdx.scenes.scene2d.ui.Stack;
+import com.badlogic.gdx.scenes.scene2d.ui.Table;
 import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
 import com.badlogic.gdx.scenes.scene2d.utils.Drawable;
 import com.badlogic.gdx.utils.Align;
@@ -21,6 +22,7 @@ public class ZombieCard extends BorderedTable {
     private final Label unknownLabel;
     private final Label nameLabel;
     private final Label stateLabel;
+    private final Table unknownOverlay;
     private boolean discovered;
     private boolean selected;
 
@@ -29,10 +31,11 @@ public class ZombieCard extends BorderedTable {
         visualContainer.fill(false);
         visualContainer.center();
         image = new Image();
-        fallbackLabel = new Label("ZOMBIE", skin, "medium_outline");
+        fallbackLabel = new Label("", skin, "medium_outline");
         unknownLabel = new Label("?", skin, "big_outline");
         nameLabel = new Label("Unknown Zombie", skin, "medium_outline");
         stateLabel = new Label("?", skin, "secondary");
+        unknownOverlay = new Table();
         stateLabel.setColor(PANEL_TEXT_COLOR);
         discovered = false;
         selected = false;
@@ -46,7 +49,7 @@ public class ZombieCard extends BorderedTable {
 
     public void setZombieActor(Actor actor) {
         if (actor != null) {
-            actor.setSize(102f, 102f);
+            actor.setSize(94f, 94f);
         }
         visualContainer.setActor(actor);
     }
@@ -57,7 +60,7 @@ public class ZombieCard extends BorderedTable {
 
     public void setDiscovered(boolean discovered) {
         this.discovered = discovered;
-        unknownLabel.setVisible(!discovered);
+        unknownOverlay.setVisible(!discovered);
         refreshState();
         if (!discovered) {
             nameLabel.setText("Unknown Zombie");
@@ -84,20 +87,22 @@ public class ZombieCard extends BorderedTable {
     }
 
     private void buildLayout() {
-        pad(14f);
+        pad(12f);
         fallbackLabel.setAlignment(Align.center);
-        fallbackLabel.setWrap(true);
-        unknownLabel.setAlignment(Align.center);
         nameLabel.setAlignment(Align.center);
         nameLabel.setWrap(true);
         stateLabel.setAlignment(Align.center);
+        unknownLabel.setAlignment(Align.center);
+        unknownOverlay.setTransform(true);
+        unknownOverlay.add(unknownLabel).center();
+        unknownOverlay.setRotation(-18f);
         Stack visualStack = new Stack();
         visualStack.add(fallbackLabel);
         visualStack.add(visualContainer);
-        visualStack.add(unknownLabel);
-        add(visualStack).size(110f).row();
-        add(nameLabel).width(180f).padTop(8f).row();
-        add(stateLabel).width(180f).padTop(6f).row();
+        visualStack.add(unknownOverlay);
+        add(visualStack).size(104f).row();
+        add(nameLabel).width(180f).padTop(6f).row();
+        add(stateLabel).width(180f).padTop(4f).row();
     }
 
     private void refreshState() {
