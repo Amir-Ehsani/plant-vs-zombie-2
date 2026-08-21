@@ -21,15 +21,14 @@ public class PlantCard extends BorderedTable {
     private final Image image;
     private final Label fallbackLabel;
     private final Label lockLabel;
+    private final Table lockOverlay;
     private final Label nameLabel;
     private final Label costLabel;
     private final Label levelLabel;
     private final Label seedLabel;
     private final Label familyLabel;
-    private final Label tagsLabel;
     private final Label healthLabel;
     private final Label stateLabel;
-    private final Label cooldownLabel;
     private final ProgressBarActor seedProgress;
     private final Table actionTable;
     private boolean locked;
@@ -42,17 +41,16 @@ public class PlantCard extends BorderedTable {
         visualContainer.fill(false);
         visualContainer.center();
         image = new Image();
-        fallbackLabel = new Label("PLANT", skin, "medium_outline");
+        fallbackLabel = new Label("", skin, "medium_outline");
         lockLabel = new Label("LOCKED", skin, "medium_outline");
+        lockOverlay = new Table();
         nameLabel = new Label("Plant", skin, "medium_outline");
         costLabel = panelLabel("Cost: 0");
         levelLabel = panelLabel("Level: 1");
         seedLabel = panelLabel("Seeds: 0 / 1");
         familyLabel = panelLabel("Family: -");
-        tagsLabel = panelLabel("Tags: -");
         healthLabel = panelLabel("Health: 0");
         stateLabel = panelLabel("");
-        cooldownLabel = panelLabel("Ready");
         seedProgress = new ProgressBarActor(skin, 0f, 1f);
         actionTable = new Table();
         buildLayout();
@@ -65,7 +63,7 @@ public class PlantCard extends BorderedTable {
 
     public void setPlantActor(Actor actor) {
         if (actor != null) {
-            actor.setSize(110f, 110f);
+            actor.setSize(96f, 96f);
         }
         visualContainer.setActor(actor);
     }
@@ -102,7 +100,6 @@ public class PlantCard extends BorderedTable {
     }
 
     public void setTags(String tags) {
-        tagsLabel.setText("Tags: " + shorten(safeText(tags), 28));
     }
 
     public void setHealth(int health) {
@@ -111,7 +108,7 @@ public class PlantCard extends BorderedTable {
 
     public void setLocked(boolean locked) {
         this.locked = locked;
-        lockLabel.setVisible(locked);
+        lockOverlay.setVisible(locked);
         refreshState();
     }
 
@@ -126,20 +123,17 @@ public class PlantCard extends BorderedTable {
     }
 
     public void setCooldown(float cooldown) {
-        float bounded = Math.max(0f, Math.min(1f, cooldown));
-        int percent = Math.round(bounded * 100f);
-        cooldownLabel.setText(percent >= 100 ? "Ready" : "Cooldown: " + percent + "%");
     }
 
     public void setPurchaseAction(int price, Runnable action) {
         actionTable.clearChildren();
         actionTable.add(new MenuButton("Buy " + Math.max(0, price), skin, "green_small", action))
-                .width(140f).height(36f);
+                .width(140f).height(34f);
     }
 
     public void setUpgradeAction(Runnable action) {
         actionTable.clearChildren();
-        actionTable.add(new MenuButton("Upgrade", skin, "purple", action)).width(140f).height(36f);
+        actionTable.add(new MenuButton("Upgrade", skin, "purple", action)).width(140f).height(34f);
     }
 
     public void clearAction() {
@@ -160,11 +154,10 @@ public class PlantCard extends BorderedTable {
     }
 
     private void buildLayout() {
-        pad(14f);
+        pad(12f);
         defaults().center();
         seedProgress.setTextColor(PANEL_TEXT_COLOR);
         fallbackLabel.setAlignment(Align.center);
-        fallbackLabel.setWrap(true);
         lockLabel.setAlignment(Align.center);
         nameLabel.setAlignment(Align.center);
         nameLabel.setWrap(true);
@@ -174,24 +167,25 @@ public class PlantCard extends BorderedTable {
         familyLabel.setAlignment(Align.center);
         healthLabel.setAlignment(Align.center);
         stateLabel.setAlignment(Align.center);
-        cooldownLabel.setAlignment(Align.center);
+        lockOverlay.setTransform(true);
+        lockOverlay.add(lockLabel).center();
+        lockOverlay.setRotation(-18f);
         Stack visualStack = new Stack();
         visualStack.add(fallbackLabel);
         visualStack.add(visualContainer);
-        visualStack.add(lockLabel);
-        add(visualStack).size(118f).row();
-        add(nameLabel).width(245f).padTop(6f).row();
+        visualStack.add(lockOverlay);
+        add(visualStack).size(108f).padTop(2f).row();
+        add(nameLabel).width(255f).padTop(4f).row();
         Table statRow = new Table();
-        statRow.add(costLabel).width(110f).center();
-        statRow.add(levelLabel).width(110f).center();
-        add(statRow).padTop(2f).row();
-        add(seedLabel).width(245f).padTop(4f).row();
-        add(seedProgress).width(230f).padTop(2f).row();
-        add(familyLabel).width(245f).padTop(4f).row();
-        add(healthLabel).width(245f).padTop(2f).row();
-        add(stateLabel).width(245f).padTop(4f).row();
-        add(cooldownLabel).width(245f).padTop(2f).row();
-        add(actionTable).padTop(8f).row();
+        statRow.add(costLabel).width(112f).center();
+        statRow.add(levelLabel).width(112f).center();
+        add(statRow).row();
+        add(seedLabel).width(255f).padTop(3f).row();
+        add(seedProgress).width(220f).padTop(1f).center().row();
+        add(familyLabel).width(255f).padTop(3f).row();
+        add(healthLabel).width(255f).padTop(1f).row();
+        add(stateLabel).width(255f).padTop(3f).row();
+        add(actionTable).padTop(6f).padBottom(1f).row();
     }
 
     private Label panelLabel(String text) {
@@ -218,12 +212,5 @@ public class PlantCard extends BorderedTable {
 
     private String safeText(String value) {
         return value == null || value.isBlank() ? "-" : value.trim();
-    }
-
-    private String shorten(String value, int maximumLength) {
-        if (value.length() <= maximumLength) {
-            return value;
-        }
-        return value.substring(0, Math.max(1, maximumLength - 3)) + "...";
     }
 }
