@@ -4,7 +4,6 @@ import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.math.Vector2;
 import models.engine.board.Position;
 
-
 public final class BoardGeometry {
     public static final int ROWS = 5;
     public static final int COLUMNS = 9;
@@ -26,6 +25,13 @@ public final class BoardGeometry {
         validateCell(row, column);
         Rectangle tile = getTileBounds(row, column);
         return new Vector2(tile.x + tile.width / 2f, tile.y + tile.height / 2f);
+    }
+
+
+    public Vector2 entityToScreen(double x, double y) {
+        float screenX = boardBounds.x + ((float) x - 0.5f) * tileWidth;
+        float screenY = boardBounds.y + (ROWS - (float) y + 0.5f) * tileHeight;
+        return new Vector2(screenX, screenY);
     }
 
     public Position screenToBoard(float x, float y) {
