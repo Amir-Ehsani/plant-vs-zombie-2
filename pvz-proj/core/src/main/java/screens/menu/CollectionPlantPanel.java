@@ -95,8 +95,8 @@ public class CollectionPlantPanel extends Table {
         cardsScroll.setFadeScrollBars(false);
         cardsScroll.setScrollingDisabled(true, false);
         cardsScroll.setOverscroll(false, false);
-        add(cardsScroll).width(700f).height(430f).top().left().padRight(8f);
-        add(detailsTable).width(390f).height(430f).top().left();
+        add(cardsScroll).width(708f).height(394f).top().left().padRight(8f);
+        add(detailsTable).width(346f).height(394f).top().left();
         stateFilter.setItems(ALL_STATES, UNLOCKED, LOCKED, UPGRADEABLE);
     }
 
@@ -250,8 +250,8 @@ public class CollectionPlantPanel extends Table {
         Label title = new Label(type.getName(), skin, "medium_outline");
         title.setAlignment(Align.center);
         title.setWrap(true);
-        panel.add(title).width(300f).center().padBottom(4f).row();
-        panel.add(animations.createPlantActor(type.getName())).size(98f).center().padBottom(4f).row();
+        panel.add(title).width(280f).center().padBottom(4f).row();
+        panel.add(animations.createPlantActor(type.getName())).size(84f).center().padBottom(4f).row();
         addSectionTitle(panel, "Overview");
         addPair(panel, "Status", data.isUnlocked() ? "Unlocked" : "Locked", "Level", String.valueOf(data.getLevel()));
         addPair(panel, "Seeds", seedText(data), "Boosts", String.valueOf(data.getBoostCount()));
@@ -269,19 +269,19 @@ public class CollectionPlantPanel extends Table {
             addWide(panel, "Upgrade State", canUpgradePlant(data.getName()) ? "Ready" : "Not ready");
         }
         addDetailAction(panel, type, data);
-        detailsTable.add(panel).width(360f).top();
+        detailsTable.add(panel).width(330f).top();
     }
 
     private void addDetailAction(Table panel, PlantType type, PlantData data) {
         if (!data.isUnlocked()) {
             TextButton button = new MenuButton("Buy for " + CollectionController.PLANT_PURCHASE_PRICE + " Coins",
                     skin, "green", () -> purchase(type.getName()));
-            panel.add(button).width(220f).height(40f).padTop(6f).center().row();
+            panel.add(button).width(210f).height(40f).padTop(6f).center().row();
             return;
         }
         if (data.getLevel() < 4) {
             panel.add(new MenuButton("Upgrade", skin, "purple", () -> upgrade(type.getName())))
-                    .width(190f).height(40f).padTop(6f).center().row();
+                    .width(180f).height(40f).padTop(6f).center().row();
         }
     }
 
