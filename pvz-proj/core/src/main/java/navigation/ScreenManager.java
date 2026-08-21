@@ -10,6 +10,7 @@ import screens.menu.NewsScreen;
 import screens.menu.PlaceholderMenuScreen;
 import screens.menu.ProfileScreen;
 import screens.menu.RegisterScreen;
+import screens.menu.SettingsScreen;
 
 public class ScreenManager {
     private final Main game;
@@ -75,7 +76,7 @@ public class ScreenManager {
     }
 
     public void showSettings() {
-        showPlaceholder("Settings");
+        show(new SettingsScreen(game));
     }
 
     public void showQuests() {
