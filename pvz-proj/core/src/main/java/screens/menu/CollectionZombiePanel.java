@@ -55,12 +55,12 @@ public class CollectionZombiePanel extends Table {
     }
 
     private void buildUi() {
-        defaults().pad(4f);
+        defaults().pad(3f);
         cardsScroll.setFadeScrollBars(false);
         cardsScroll.setScrollingDisabled(true, false);
         cardsScroll.setOverscroll(false, false);
-        add(cardsScroll).width(700f).height(500f).top().left().padRight(10f);
-        add(detailsTable).width(420f).height(500f).top().left();
+        add(cardsScroll).width(720f).height(452f).top().left().padRight(8f);
+        add(detailsTable).width(385f).height(452f).top().left();
     }
 
     private void ensureSelection(List<ZombieType> types) {
@@ -72,12 +72,12 @@ public class CollectionZombiePanel extends Table {
 
     private void refreshCards(List<ZombieType> types) {
         cardsTable.clearChildren();
-        cardsTable.defaults().pad(8f).top();
+        cardsTable.defaults().pad(7f).top();
         int column = 0;
         for (ZombieType type : types) {
             boolean discovered = isZombieDiscovered(type.getName());
             ZombieCard card = createCard(type, discovered);
-            cardsTable.add(card).width(210f).top();
+            cardsTable.add(card).width(216f).top();
             column++;
             if (column % 3 == 0) {
                 cardsTable.row();
@@ -122,49 +122,49 @@ public class CollectionZombiePanel extends Table {
 
     private void buildUnknownDetails() {
         BorderedTable panel = new BorderedTable();
-        panel.pad(20f);
-        panel.add(new Label("?", skin, "big_outline")).padBottom(12f).row();
+        panel.pad(16f);
+        panel.add(new Label("?", skin, "big_outline")).padBottom(10f).row();
         panel.add(panelLabel("Unknown Zombie")).padBottom(4f).row();
         Label hint = panelLabel("Discover this zombie during gameplay to reveal its information.");
         hint.setWrap(true);
         hint.setAlignment(Align.center);
-        panel.add(hint).width(300f).padTop(6f).row();
-        detailsTable.add(panel).width(410f).top();
+        panel.add(hint).width(280f).padTop(4f).row();
+        detailsTable.add(panel).width(370f).top();
     }
 
     private void buildDiscoveredDetails(ZombieType type) {
         BorderedTable panel = new BorderedTable();
-        panel.pad(18f);
-        panel.defaults().pad(2f);
+        panel.pad(14f);
+        panel.defaults().pad(1f);
         Label title = new Label(type.getName(), skin, "medium_outline");
         title.setAlignment(Align.center);
         title.setWrap(true);
-        panel.add(title).width(330f).padBottom(8f).row();
-        panel.add(animations.createZombieActor(type.getName())).size(148f).padBottom(10f).row();
+        panel.add(title).width(305f).padBottom(6f).row();
+        panel.add(animations.createZombieActor(type.getName())).size(112f).padBottom(6f).row();
         addPair(panel, "Health", String.valueOf(type.getBaseHp()), "Speed", formatSpeed(type.getSpeed()));
-        addPair(panel, "Wave Cost", String.valueOf(type.getWaveCost()), "Damage/Tick", String.valueOf(type.getDamagePerTick()));
+        addPair(panel, "Wave Cost", String.valueOf(type.getWaveCost()), "Damage", String.valueOf(type.getDamagePerTick()));
         addWide(panel, "Armor", safeText(type.getDefaultArmorName()));
         addWide(panel, "Tags", type.getTags().isEmpty() ? "-" : String.join(", ", type.getTags()));
         addWide(panel, "Ability", safeText(type.getAbility()));
-        detailsTable.add(panel).width(410f).top();
+        detailsTable.add(panel).width(370f).top();
     }
 
     private void addPair(Table panel, String leftTitle, String leftValue, String rightTitle, String rightValue) {
         Table row = new Table();
-        row.defaults().pad(2f);
-        row.add(detailTitle(leftTitle)).width(84f).right();
-        row.add(detailValue(leftValue)).width(70f).left().padRight(8f);
-        row.add(detailTitle(rightTitle)).width(92f).right();
-        row.add(detailValue(rightValue)).width(76f).left();
-        panel.add(row).width(330f).left().row();
+        row.defaults().pad(1f);
+        row.add(detailTitle(leftTitle)).width(78f).right();
+        row.add(detailValue(leftValue)).width(68f).left().padRight(4f);
+        row.add(detailTitle(rightTitle)).width(78f).right();
+        row.add(detailValue(rightValue)).width(74f).left();
+        panel.add(row).width(305f).left().row();
     }
 
     private void addWide(Table panel, String title, String value) {
         Table row = new Table();
-        row.defaults().pad(2f);
-        row.add(detailTitle(title)).width(92f).top().right().padRight(4f);
-        row.add(detailValue(value)).width(234f).left();
-        panel.add(row).width(330f).left().row();
+        row.defaults().pad(1f);
+        row.add(detailTitle(title)).width(84f).top().right().padRight(3f);
+        row.add(detailValue(value)).width(214f).left();
+        panel.add(row).width(305f).left().row();
     }
 
     private Label detailTitle(String text) {
