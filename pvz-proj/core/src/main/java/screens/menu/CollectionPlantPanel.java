@@ -69,6 +69,7 @@ public class CollectionPlantPanel extends Table {
         detailsTable.top();
         cardsScroll = new ScrollPane(cardsTable, skin);
         selectedPlantName = "";
+        setClip(true);
         buildUi();
         bindFilters();
         refresh();
@@ -87,15 +88,15 @@ public class CollectionPlantPanel extends Table {
         Table filters = new Table();
         filters.defaults().padRight(8f).center();
         filters.add(panelLabel("Family"));
-        filters.add(familyFilter).width(170f).padRight(18f);
+        filters.add(familyFilter).width(168f).padRight(16f);
         filters.add(panelLabel("State"));
-        filters.add(stateFilter).width(150f);
+        filters.add(stateFilter).width(146f);
         add(filters).colspan(2).left().padBottom(4f).row();
         cardsScroll.setFadeScrollBars(false);
         cardsScroll.setScrollingDisabled(true, false);
         cardsScroll.setOverscroll(false, false);
-        add(cardsScroll).width(720f).height(452f).top().left().padRight(8f);
-        add(detailsTable).width(385f).height(452f).top().left();
+        add(cardsScroll).width(700f).height(430f).top().left().padRight(8f);
+        add(detailsTable).width(390f).height(430f).top().left();
         stateFilter.setItems(ALL_STATES, UNLOCKED, LOCKED, UPGRADEABLE);
     }
 
@@ -143,7 +144,7 @@ public class CollectionPlantPanel extends Table {
 
     private void refreshCards(List<PlantType> types) {
         cardsTable.clearChildren();
-        cardsTable.defaults().pad(7f).top();
+        cardsTable.defaults().pad(5f).top();
         int column = 0;
         for (PlantType type : types) {
             PlantData data = plantData(type.getName());
@@ -151,7 +152,7 @@ public class CollectionPlantPanel extends Table {
                 continue;
             }
             PlantCard card = createCard(type, data);
-            cardsTable.add(card).width(335f).top();
+            cardsTable.add(card).width(325f).top();
             column++;
             if (column % 2 == 0) {
                 cardsTable.row();
@@ -249,8 +250,8 @@ public class CollectionPlantPanel extends Table {
         Label title = new Label(type.getName(), skin, "medium_outline");
         title.setAlignment(Align.center);
         title.setWrap(true);
-        panel.add(title).width(305f).center().padBottom(6f).row();
-        panel.add(animations.createPlantActor(type.getName())).size(112f).center().padBottom(6f).row();
+        panel.add(title).width(300f).center().padBottom(4f).row();
+        panel.add(animations.createPlantActor(type.getName())).size(98f).center().padBottom(4f).row();
         addSectionTitle(panel, "Overview");
         addPair(panel, "Status", data.isUnlocked() ? "Unlocked" : "Locked", "Level", String.valueOf(data.getLevel()));
         addPair(panel, "Seeds", seedText(data), "Boosts", String.valueOf(data.getBoostCount()));
@@ -268,19 +269,19 @@ public class CollectionPlantPanel extends Table {
             addWide(panel, "Upgrade State", canUpgradePlant(data.getName()) ? "Ready" : "Not ready");
         }
         addDetailAction(panel, type, data);
-        detailsTable.add(panel).width(370f).top();
+        detailsTable.add(panel).width(360f).top();
     }
 
     private void addDetailAction(Table panel, PlantType type, PlantData data) {
         if (!data.isUnlocked()) {
             TextButton button = new MenuButton("Buy for " + CollectionController.PLANT_PURCHASE_PRICE + " Coins",
                     skin, "green", () -> purchase(type.getName()));
-            panel.add(button).width(230f).height(42f).padTop(8f).center().row();
+            panel.add(button).width(220f).height(40f).padTop(6f).center().row();
             return;
         }
         if (data.getLevel() < 4) {
             panel.add(new MenuButton("Upgrade", skin, "purple", () -> upgrade(type.getName())))
-                    .width(200f).height(42f).padTop(8f).center().row();
+                    .width(190f).height(40f).padTop(6f).center().row();
         }
     }
 
