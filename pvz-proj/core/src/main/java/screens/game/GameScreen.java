@@ -20,10 +20,10 @@ import models.engine.session.GameSession;
 import screens.BaseScreen;
 
 public final class GameScreen extends BaseScreen {
-    private static final float BOARD_X = 205f;
-    private static final float BOARD_Y = 92f;
-    private static final float BOARD_WIDTH = 930f;
-    private static final float BOARD_HEIGHT = 505f;
+    private static final float BOARD_X = 315f;
+    private static final float BOARD_Y = 74f;
+    private static final float BOARD_WIDTH = 920f;
+    private static final float BOARD_HEIGHT = 457f;
 
     private static final String EGYPT_BACKGROUND = "IMAGE_BACKGROUNDS_EGYPT_TEXTURE";
     private static final String SUNFLOWER_PAM = "768/INITIAL/PLANT/SUNFLOWER/SUNFLOWER.PAM";
