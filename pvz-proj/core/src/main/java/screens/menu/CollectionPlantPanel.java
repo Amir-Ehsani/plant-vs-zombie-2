@@ -42,6 +42,7 @@ public class CollectionPlantPanel extends Table {
     private final SelectBox<String> stateFilter;
     private final Table cardsTable;
     private final Table detailsTable;
+    private final ScrollPane cardsScroll;
     private String selectedPlantName;
 
     public CollectionPlantPanel(
@@ -62,7 +63,10 @@ public class CollectionPlantPanel extends Table {
         familyFilter = new SelectBox<>(skin, "default");
         stateFilter = new SelectBox<>(skin, "default");
         cardsTable = new Table();
+        cardsTable.top();
         detailsTable = new Table();
+        detailsTable.top();
+        cardsScroll = new ScrollPane(cardsTable, skin);
         selectedPlantName = "";
         buildUi();
         bindFilters();
@@ -78,19 +82,19 @@ public class CollectionPlantPanel extends Table {
     }
 
     private void buildUi() {
-        defaults().pad(5f);
+        defaults().pad(4f);
         Table filters = new Table();
-        filters.add(panelLabel("Family")).padRight(6f);
-        filters.add(familyFilter).width(185f).padRight(18f);
-        filters.add(panelLabel("State")).padRight(6f);
-        filters.add(stateFilter).width(165f);
-        add(filters).colspan(2).left().row();
-        ScrollPane cardsScroll = new ScrollPane(cardsTable, skin);
+        filters.defaults().padRight(10f).center();
+        filters.add(panelLabel("Family"));
+        filters.add(familyFilter).width(190f).padRight(22f);
+        filters.add(panelLabel("State"));
+        filters.add(stateFilter).width(155f);
+        add(filters).colspan(2).left().padBottom(6f).row();
         cardsScroll.setFadeScrollBars(false);
-        ScrollPane detailsScroll = new ScrollPane(detailsTable, skin);
-        detailsScroll.setFadeScrollBars(false);
-        add(cardsScroll).width(700f).height(430f).top();
-        add(detailsScroll).width(405f).height(430f).top();
+        cardsScroll.setScrollingDisabled(true, false);
+        cardsScroll.setOverscroll(false, false);
+        add(cardsScroll).width(700f).height(500f).top().left().padRight(10f);
+        add(detailsTable).width(420f).height(500f).top().left();
         stateFilter.setItems(ALL_STATES, UNLOCKED, LOCKED, UPGRADEABLE);
     }
 
@@ -118,9 +122,15 @@ public class CollectionPlantPanel extends Table {
             items[index++] = family;
         }
         familyFilter.setItems(items);
-        if (previous != null && families.contains(previous)) {
-            familyFilter.setSelected(previous);
+        if (previous == null || previous.isBlank()) {
+            familyFilter.setSelected(ALL_FAMILIES);
+            return;
         }
+        if (families.contains(previous)) {
+            familyFilter.setSelected(previous);
+            return;
+        }
+        familyFilter.setSelected(ALL_FAMILIES);
     }
 
     private void ensureSelection(List<PlantType> types) {
@@ -132,6 +142,7 @@ public class CollectionPlantPanel extends Table {
 
     private void refreshCards(List<PlantType> types) {
         cardsTable.clearChildren();
+        cardsTable.defaults().pad(8f).top();
         int column = 0;
         for (PlantType type : types) {
             PlantData data = plantData(type.getName());
@@ -139,7 +150,7 @@ public class CollectionPlantPanel extends Table {
                 continue;
             }
             PlantCard card = createCard(type, data);
-            cardsTable.add(card).width(325f).pad(6f).top();
+            cardsTable.add(card).width(320f).top();
             column++;
             if (column % 2 == 0) {
                 cardsTable.row();
@@ -148,6 +159,7 @@ public class CollectionPlantPanel extends Table {
         if (column == 0) {
             cardsTable.add(panelLabel("No plants match these filters.")).pad(24f);
         }
+        cardsScroll.layout();
     }
 
     private PlantCard createCard(PlantType type, PlantData data) {
@@ -223,64 +235,92 @@ public class CollectionPlantPanel extends Table {
 
     private void refreshDetails() {
         detailsTable.clearChildren();
+        detailsTable.top();
         PlantType type = plantRegistry.getByName(selectedPlantName);
         PlantData data = plantData(selectedPlantName);
         if (type == null || data == null) {
-            detailsTable.add(panelLabel("Select a plant to view details."));
+            detailsTable.add(panelLabel("Select a plant to view details.")).padTop(16f);
             return;
         }
         BorderedTable panel = new BorderedTable();
         panel.pad(18f);
-        panel.add(new Label(type.getName(), skin, "medium_outline")).padBottom(8f).row();
-        panel.add(animations.createPlantActor(type.getName())).size(190f).padBottom(8f).row();
-        addPlantDetails(panel, type, data);
-        addDetailAction(panel, type, data);
-        detailsTable.add(panel).width(380f).top();
-    }
-
-    private void addPlantDetails(Table panel, PlantType type, PlantData data) {
-        addDetail(panel, "Status", data.isUnlocked() ? "Unlocked" : "Locked");
-        addDetail(panel, "Level", String.valueOf(data.getLevel()));
-        addDetail(panel, "Seeds", seedText(data));
-        addDetail(panel, "Family", type.getCategory());
-        addDetail(panel, "Tags", safeText(type.getTags()));
-        addDetail(panel, "Sun Cost", String.valueOf(type.getSunCost()));
-        addDetail(panel, "Health", String.valueOf(type.getBaseHp()));
-        addDetail(panel, "Damage", safeText(type.getDamage()));
-        addDetail(panel, "Ability", safeText(type.getBaseAbility()));
-        addDetail(panel, "Plant Food", safeText(type.getPlantFoodEffect()));
-        addDetail(panel, "Stored Boosts", String.valueOf(data.getBoostCount()));
-        addUpgradeDetails(panel, data);
-    }
-
-    private void addUpgradeDetails(Table panel, PlantData data) {
+        panel.defaults().pad(2f);
+        Label title = new Label(type.getName(), skin, "medium_outline");
+        title.setAlignment(Align.center);
+        title.setWrap(true);
+        panel.add(title).width(330f).center().padBottom(8f).row();
+        panel.add(animations.createPlantActor(type.getName())).size(148f).center().padBottom(10f).row();
+        addSectionTitle(panel, "Overview");
+        addPair(panel, "Status", data.isUnlocked() ? "Unlocked" : "Locked", "Level", String.valueOf(data.getLevel()));
+        addPair(panel, "Seeds", seedText(data), "Boosts", String.valueOf(data.getBoostCount()));
+        addPair(panel, "Family", type.getCategory(), "Sun Cost", String.valueOf(type.getSunCost()));
+        addPair(panel, "Health", String.valueOf(type.getBaseHp()), "Damage", safeText(type.getDamage()));
+        addWide(panel, "Tags", safeText(type.getTags()));
+        addWide(panel, "Ability", safeText(type.getBaseAbility()));
+        addWide(panel, "Plant Food", safeText(type.getPlantFoodEffect()));
+        addSectionTitle(panel, "Upgrade");
         if (data.getLevel() >= 4) {
-            addDetail(panel, "Next Upgrade", "Maximum level");
-            return;
+            addWide(panel, "Next Upgrade", "Maximum level");
+        } else {
+            addPair(panel, "Need Seeds", String.valueOf(data.getRequiredSeedPacketsForNextLevel()),
+                    "Need Coins", String.valueOf(data.getUpgradePrice()));
+            addWide(panel, "Upgrade State", canUpgradePlant(data.getName()) ? "Ready" : "Not ready");
         }
-        addDetail(panel, "Upgrade Seeds", String.valueOf(data.getRequiredSeedPacketsForNextLevel()));
-        addDetail(panel, "Upgrade Coins", String.valueOf(data.getUpgradePrice()));
-        addDetail(panel, "Upgrade State", canUpgradePlant(data.getName()) ? "Ready" : "Not ready");
+        addDetailAction(panel, type, data);
+        detailsTable.add(panel).width(410f).top();
     }
 
     private void addDetailAction(Table panel, PlantType type, PlantData data) {
         if (!data.isUnlocked()) {
             String text = "Buy for " + CollectionController.PLANT_PURCHASE_PRICE + " Coins";
             panel.add(new MenuButton(text, skin, "green", () -> purchase(type.getName())))
-                    .width(255f).height(46f).padTop(10f).row();
+                    .width(270f).height(44f).padTop(10f).center().row();
             return;
         }
         if (data.getLevel() < 4) {
             panel.add(new MenuButton("Upgrade", skin, "purple", () -> upgrade(type.getName())))
-                    .width(220f).height(46f).padTop(10f).row();
+                    .width(220f).height(44f).padTop(10f).center().row();
         }
     }
 
-    private void addDetail(Table panel, String title, String value) {
-        Label label = panelLabel(title + ": " + safeText(value));
+    private void addSectionTitle(Table panel, String text) {
+        Label label = new Label(text, skin, "secondary");
+        label.setAlignment(Align.center);
+        label.setColor(PANEL_TEXT_COLOR);
+        panel.add(label).width(330f).center().padTop(4f).padBottom(2f).row();
+    }
+
+    private void addPair(Table panel, String leftTitle, String leftValue, String rightTitle, String rightValue) {
+        Table row = new Table();
+        row.defaults().pad(2f);
+        row.add(detailTitle(leftTitle)).width(78f).right();
+        row.add(detailValue(leftValue)).width(82f).left().padRight(8f);
+        row.add(detailTitle(rightTitle)).width(82f).right();
+        row.add(detailValue(rightValue)).width(100f).left();
+        panel.add(row).width(330f).left().row();
+    }
+
+    private void addWide(Table panel, String title, String value) {
+        Table row = new Table();
+        row.defaults().pad(2f);
+        row.add(detailTitle(title)).width(92f).top().right().padRight(4f);
+        row.add(detailValue(value)).width(234f).left();
+        panel.add(row).width(330f).left().row();
+    }
+
+    private Label detailTitle(String text) {
+        Label label = new Label(text + ":", skin, "secondary");
+        label.setColor(PANEL_TEXT_COLOR);
+        label.setAlignment(Align.right);
+        return label;
+    }
+
+    private Label detailValue(String text) {
+        Label label = new Label(safeText(text), skin, "secondary");
+        label.setColor(PANEL_TEXT_COLOR);
         label.setWrap(true);
         label.setAlignment(Align.left);
-        panel.add(label).width(330f).left().padTop(3f).row();
+        return label;
     }
 
     private Label panelLabel(String text) {
