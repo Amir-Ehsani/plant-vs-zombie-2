@@ -66,7 +66,7 @@ public class CollectionZombiePanel extends Table {
         cardsScroll.setScrollingDisabled(true, false);
         cardsScroll.setOverscroll(false, false);
         add(cardsScroll).width(708f).height(394f).top().left().padRight(8f);
-        add(detailsScroll).width(346f).height(394f).top().left;
+        add(detailsScroll).width(346f).height(394f).top().left();
     }
 
     private void ensureSelection(List<ZombieType> types) {
