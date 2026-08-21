@@ -4,6 +4,7 @@ import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.scenes.scene2d.ui.Label;
 import com.badlogic.gdx.scenes.scene2d.ui.ScrollPane;
 import com.badlogic.gdx.scenes.scene2d.ui.Skin;
+import com.badlogic.gdx.scenes.scene2d.ui.ScrollPane;
 import com.badlogic.gdx.scenes.scene2d.ui.Table;
 import com.badlogic.gdx.utils.Align;
 import controllers.auth.AuthController;
@@ -25,6 +26,7 @@ public class CollectionZombiePanel extends Table {
     private final PvzAnimationService animations;
     private final Table cardsTable;
     private final Table detailsTable;
+    private final ScrollPane detailsScroll;
     private final ScrollPane cardsScroll;
     private String selectedZombieName;
 
@@ -41,6 +43,9 @@ public class CollectionZombiePanel extends Table {
         cardsTable.top();
         detailsTable = new Table();
         detailsTable.top();
+        detailsScroll = new ScrollPane(detailsTable, skin);
+        detailsScroll.setFadeScrollBars(false);
+        detailsScroll.setOverscroll(false, false);
         cardsScroll = new ScrollPane(cardsTable, skin);
         selectedZombieName = "";
         setClip(true);
@@ -61,7 +66,7 @@ public class CollectionZombiePanel extends Table {
         cardsScroll.setScrollingDisabled(true, false);
         cardsScroll.setOverscroll(false, false);
         add(cardsScroll).width(708f).height(394f).top().left().padRight(8f);
-        add(detailsTable).width(346f).height(394f).top().left();
+        add(detailsScroll).width(346f).height(394f).top().left;
     }
 
     private void ensureSelection(List<ZombieType> types) {
@@ -110,7 +115,7 @@ public class CollectionZombiePanel extends Table {
         detailsTable.top();
         ZombieType type = zombieRegistry.getZombieTypeByName(selectedZombieName);
         if (type == null) {
-            detailsTable.add(panelLabel("Select a zombie to view details.")).padTop(16f);
+            detailsTable.add(panelLabel("Select a zombie to view details.")).padTop(16f).center();
             return;
         }
         boolean discovered = isZombieDiscovered(type.getName());
@@ -130,7 +135,7 @@ public class CollectionZombiePanel extends Table {
         hint.setWrap(true);
         hint.setAlignment(Align.center);
         panel.add(hint).width(280f).padTop(4f).row();
-        detailsTable.add(panel).width(330f).top();
+        detailsTable.add(panel).width(330f).top().center();
     }
 
     private void buildDiscoveredDetails(ZombieType type) {
@@ -147,7 +152,7 @@ public class CollectionZombiePanel extends Table {
         addWide(panel, "Armor", safeText(type.getDefaultArmorName()));
         addWide(panel, "Tags", type.getTags().isEmpty() ? "-" : String.join(", ", type.getTags()));
         addWide(panel, "Ability", safeText(type.getAbility()));
-        detailsTable.add(panel).width(330f).top();
+        detailsTable.add(panel).width(330f).top().center();
     }
 
     private void addPair(Table panel, String leftTitle, String leftValue, String rightTitle, String rightValue) {
