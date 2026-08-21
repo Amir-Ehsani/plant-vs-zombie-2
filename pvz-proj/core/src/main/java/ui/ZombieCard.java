@@ -22,10 +22,12 @@ public class ZombieCard extends BorderedTable {
     private final Label nameLabel;
     private final Label stateLabel;
     private boolean discovered;
+    private boolean selected;
 
     public ZombieCard(Skin skin) {
         visualContainer = new Container<>();
-        visualContainer.fill();
+        visualContainer.fill(false);
+        visualContainer.center();
         image = new Image();
         fallbackLabel = new Label("ZOMBIE", skin, "medium_outline");
         unknownLabel = new Label("?", skin, "big_outline");
@@ -33,6 +35,7 @@ public class ZombieCard extends BorderedTable {
         stateLabel = new Label("?", skin, "secondary");
         stateLabel.setColor(PANEL_TEXT_COLOR);
         discovered = false;
+        selected = false;
         buildLayout();
     }
 
@@ -42,6 +45,9 @@ public class ZombieCard extends BorderedTable {
     }
 
     public void setZombieActor(Actor actor) {
+        if (actor != null) {
+            actor.setSize(102f, 102f);
+        }
         visualContainer.setActor(actor);
     }
 
@@ -52,11 +58,16 @@ public class ZombieCard extends BorderedTable {
     public void setDiscovered(boolean discovered) {
         this.discovered = discovered;
         unknownLabel.setVisible(!discovered);
-        stateLabel.setText(discovered ? "DISCOVERED" : "UNKNOWN");
+        refreshState();
         if (!discovered) {
             nameLabel.setText("Unknown Zombie");
             visualContainer.setActor(null);
         }
+    }
+
+    public void setSelected(boolean selected) {
+        this.selected = selected;
+        refreshState();
     }
 
     public void setOnClick(Runnable action) {
@@ -73,15 +84,27 @@ public class ZombieCard extends BorderedTable {
     }
 
     private void buildLayout() {
-        pad(12f);
+        pad(14f);
         fallbackLabel.setAlignment(Align.center);
+        fallbackLabel.setWrap(true);
         unknownLabel.setAlignment(Align.center);
+        nameLabel.setAlignment(Align.center);
+        nameLabel.setWrap(true);
+        stateLabel.setAlignment(Align.center);
         Stack visualStack = new Stack();
         visualStack.add(fallbackLabel);
         visualStack.add(visualContainer);
         visualStack.add(unknownLabel);
-        add(visualStack).size(118f).row();
-        add(nameLabel).width(185f).padTop(6f).row();
-        add(stateLabel).padTop(4f);
+        add(visualStack).size(110f).row();
+        add(nameLabel).width(180f).padTop(8f).row();
+        add(stateLabel).width(180f).padTop(6f).row();
+    }
+
+    private void refreshState() {
+        if (!discovered) {
+            stateLabel.setText("UNKNOWN");
+            return;
+        }
+        stateLabel.setText(selected ? "DISCOVERED | SELECTED" : "DISCOVERED");
     }
 }
