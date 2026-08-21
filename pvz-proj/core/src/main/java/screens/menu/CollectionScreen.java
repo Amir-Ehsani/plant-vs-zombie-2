@@ -31,6 +31,7 @@ public class CollectionScreen extends BaseMenuScreen {
         zombiePanel = new CollectionZombiePanel(skin, game.getAuthController(), animations);
         contentContainer = new Container<>();
         contentContainer.fill();
+        contentContainer.setClip(true);
         plantsVisible = true;
         buildUi();
         showPlants();
@@ -53,18 +54,21 @@ public class CollectionScreen extends BaseMenuScreen {
         root.pad(8f, 10f, 8f, 10f);
         addResourceBar(root);
         Table panel = createPanel();
-        panel.pad(20f, 22f, 18f, 22f);
+        panel.pad(18f, 20f, 16f, 20f);
         panel.defaults().pad(4f);
         panel.add().height(6f).colspan(3).row();
         panel.add(createTitle("Collection")).colspan(3).padTop(4f).padBottom(12f).row();
-        panel.add(new MenuButton("Zombies", skin, "purple", this::showZombies))
-                .width(170f).height(44f).left();
-        panel.add(new MenuButton("Plants", skin, "green", this::showPlants))
-                .width(170f).height(44f).center();
+        Table tabsTable = new Table();
+        tabsTable.defaults().padRight(8f);
+        tabsTable.add(new MenuButton("Plants", skin, "green", this::showPlants))
+                .width(170f).height(44f);
+        tabsTable.add(new MenuButton("Zombies", skin, "purple", this::showZombies))
+                .width(170f).height(44f);
+        panel.add(tabsTable).colspan(2).left();
         panel.add(new BackButton(skin, game.getScreenManager()::showMainMenu))
                 .width(170f).height(44f).right().row();
-        panel.add(contentContainer).colspan(3).width(1125f).height(495f).padTop(8f);
-        root.add(panel).width(1200f).height(610f);
+        panel.add(contentContainer).colspan(3).width(1110f).height(470f).padTop(6f);
+        root.add(panel).width(1185f).height(590f);
     }
 
     private void showPlants() {
