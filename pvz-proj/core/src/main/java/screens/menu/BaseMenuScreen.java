@@ -91,6 +91,20 @@ public abstract class BaseMenuScreen extends BaseScreen {
         }
         User user = game.getAuthController().getLoggedInUser();
         resourceBar.refresh(user);
+        boolean debugMode = user != null && user.getSettings().isDebugMode();
+        resourceBar.setDebugControls(debugMode, this::addDebugCoins, this::addDebugDiamonds);
+    }
+
+    private void addDebugCoins() {
+        game.getSettingsController().addDebugCoins(1000);
+        showControllerMessage(game.getSettingsController().getLastMessage());
+        refreshResourceBar();
+    }
+
+    private void addDebugDiamonds() {
+        game.getSettingsController().addDebugDiamonds(10);
+        showControllerMessage(game.getSettingsController().getLastMessage());
+        refreshResourceBar();
     }
 
     protected boolean requireLoggedIn() {

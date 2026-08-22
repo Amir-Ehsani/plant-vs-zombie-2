@@ -20,7 +20,7 @@ abstract class UserIdentity {
     protected int gamesPlayed;
     protected int passedLevels;
     protected int bestMioPoint;
-    protected int difficultyLevel;
+    protected Settings settings;
     protected String profileImage;
     protected String currentChapterName;
     protected List<String> unlockedChapters;
@@ -54,7 +54,7 @@ abstract class UserIdentity {
         this.gamesPlayed = 0;
         this.passedLevels = 0;
         this.bestMioPoint = 0;
-        this.difficultyLevel = 3;
+        this.settings = new Settings();
         this.stayLoggedIn = false;
         this.collection = new Collection();
         unlockStarterPlants();
@@ -229,21 +229,22 @@ abstract class UserIdentity {
     }
 
     public int getDifficultyLevel() {
-        return difficultyLevel;
+        return getSettings().getDifficulty();
     }
 
     public void setDifficultyLevel(int difficultyLevel) {
-        if (difficultyLevel < 1) {
-            this.difficultyLevel = 1;
-            return;
-        }
+        getSettings().setDifficulty(difficultyLevel);
+    }
 
-        if (difficultyLevel > 5) {
-            this.difficultyLevel = 5;
-            return;
+    public Settings getSettings() {
+        if (settings == null) {
+            settings = new Settings();
         }
+        return settings;
+    }
 
-        this.difficultyLevel = difficultyLevel;
+    public void setSettings(Settings settings) {
+        this.settings = settings == null ? new Settings() : settings;
     }
 
     public boolean isStayLoggedIn() {

@@ -4,12 +4,15 @@ import com.badlogic.gdx.Game;
 import com.badlogic.gdx.Screen;
 import com.badlogic.gdx.scenes.scene2d.ui.Skin;
 import controllers.auth.AuthController;
+import controllers.features.CollectionController;
 import controllers.features.LeaderboardController;
 import controllers.features.MainMenuController;
 import controllers.features.NewsController;
 import controllers.features.ProfileController;
+import controllers.features.SettingsController;
 import navigation.ScreenManager;
 import pvz.skin.PvzSkin;
+import ui.PvzAnimationService;
 
 public class Main extends Game {
     private Skin skin;
@@ -18,6 +21,9 @@ public class Main extends Game {
     private ProfileController profileController;
     private NewsController newsController;
     private LeaderboardController leaderboardController;
+    private CollectionController collectionController;
+    private SettingsController settingsController;
+    private PvzAnimationService animationService;
     private ScreenManager screenManager;
 
     @Override
@@ -28,8 +34,18 @@ public class Main extends Game {
         profileController = new ProfileController(authController);
         newsController = new NewsController(authController);
         leaderboardController = new LeaderboardController(authController);
+        collectionController = new CollectionController(authController);
+        settingsController = new SettingsController(authController);
         screenManager = new ScreenManager(this);
         screenManager.showInitialScreen();
+    }
+
+    @Override
+    public void render() {
+        if (animationService != null) {
+            animationService.update();
+        }
+        super.render();
     }
 
     @Override
@@ -40,6 +56,9 @@ public class Main extends Game {
         }
         if (authController != null) {
             authController.saveUsers();
+        }
+        if (animationService != null) {
+            animationService.dispose();
         }
         if (skin != null) {
             skin.dispose();
@@ -68,6 +87,21 @@ public class Main extends Game {
 
     public LeaderboardController getLeaderboardController() {
         return leaderboardController;
+    }
+
+    public CollectionController getCollectionController() {
+        return collectionController;
+    }
+
+    public SettingsController getSettingsController() {
+        return settingsController;
+    }
+
+    public PvzAnimationService getAnimationService() {
+        if (animationService == null) {
+            animationService = new PvzAnimationService();
+        }
+        return animationService;
     }
 
     public ScreenManager getScreenManager() {

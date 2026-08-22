@@ -2,6 +2,7 @@ package navigation;
 
 import com.badlogic.gdx.Screen;
 import com.pvz.Main;
+import screens.menu.CollectionScreen;
 import screens.menu.ForgotPasswordScreen;
 import screens.menu.LeaderboardScreen;
 import screens.menu.LoginScreen;
@@ -10,6 +11,7 @@ import screens.menu.NewsScreen;
 import screens.menu.PlaceholderMenuScreen;
 import screens.menu.ProfileScreen;
 import screens.menu.RegisterScreen;
+import screens.menu.SettingsScreen;
 import screens.game.GameScreen;
 
 public class ScreenManager {
@@ -64,7 +66,7 @@ public class ScreenManager {
     }
 
     public void showCollection() {
-        showPlaceholder("Collection");
+        show(new CollectionScreen(game));
     }
 
     public void showGreenhouse() {
@@ -76,7 +78,7 @@ public class ScreenManager {
     }
 
     public void showSettings() {
-        showPlaceholder("Settings");
+        show(new SettingsScreen(game));
     }
 
     public void showQuests() {

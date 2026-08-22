@@ -181,6 +181,20 @@ abstract class SaveManagerJsonSupport {
         return defaultValue;
     }
 
+    protected float decimal(Map<String, Object> map, String key, float defaultValue) {
+        Object value = map.get(key);
+        if (value instanceof Number number) {
+            return number.floatValue();
+        }
+        if (value instanceof String text) {
+            try {
+                return Float.parseFloat(text);
+            } catch (NumberFormatException ignored) {
+            }
+        }
+        return defaultValue;
+    }
+
     protected boolean bool(Map<String, Object> map, String key, boolean defaultValue) {
         Object value = map.get(key);
 

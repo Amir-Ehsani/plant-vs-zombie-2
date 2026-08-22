@@ -15,7 +15,7 @@ public class ResourceBar extends Table {
         pad(12f, 18f, 12f, 18f);
         coinsActor = new CurrencyActor(skin, "Coins");
         diamondsActor = new CurrencyActor(skin, "Diamonds");
-        rebuild(false, null, null);
+        rebuild(false, null, null, null, null);
     }
 
     public void refresh(User user) {
@@ -29,20 +29,47 @@ public class ResourceBar extends Table {
     }
 
     public void setDebugControls(boolean visible, Runnable addCoin, Runnable addDiamond) {
-        rebuild(visible, addCoin, addDiamond);
+        rebuild(visible, addCoin, addDiamond, null, null);
     }
 
-    private void rebuild(boolean debugVisible, Runnable addCoin, Runnable addDiamond) {
+    public void setGameDebugControls(
+            boolean visible,
+            Runnable addCoin,
+            Runnable addDiamond,
+            Runnable addSun,
+            Runnable addPlantFood
+    ) {
+        rebuild(visible, addCoin, addDiamond, addSun, addPlantFood);
+    }
+
+    private void rebuild(
+            boolean debugVisible,
+            Runnable addCoin,
+            Runnable addDiamond,
+            Runnable addSun,
+            Runnable addPlantFood
+    ) {
         clearChildren();
         Table content = new Table();
         content.add(coinsActor).padRight(14f);
         content.add(diamondsActor);
         if (debugVisible) {
-            content.add(new MenuButton("+Coin", skin, "green_small", addCoin))
-                    .width(92f).height(34f).padLeft(10f);
-            content.add(new MenuButton("+Diamond", skin, "green_small", addDiamond))
-                    .width(110f).height(34f).padLeft(6f);
+            addDebugButton(content, "+Coin", 92f, addCoin);
+            addDebugButton(content, "+Diamond", 110f, addDiamond);
+            addOptionalGameDebugButton(content, "+Sun", 84f, addSun);
+            addOptionalGameDebugButton(content, "+Plant Food", 124f, addPlantFood);
         }
         add(content);
+    }
+
+    private void addDebugButton(Table content, String text, float width, Runnable action) {
+        content.add(new MenuButton(text, skin, "green_small", action))
+                .width(width).height(34f).padLeft(6f);
+    }
+
+    private void addOptionalGameDebugButton(Table content, String text, float width, Runnable action) {
+        if (action != null) {
+            addDebugButton(content, text, width, action);
+        }
     }
 }
