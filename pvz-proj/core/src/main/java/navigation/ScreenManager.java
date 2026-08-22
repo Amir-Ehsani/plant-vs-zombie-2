@@ -12,6 +12,7 @@ import screens.menu.PlaceholderMenuScreen;
 import screens.menu.ProfileScreen;
 import screens.menu.RegisterScreen;
 import screens.menu.SettingsScreen;
+import screens.game.GameScreen;
 
 public class ScreenManager {
     private final Main game;
