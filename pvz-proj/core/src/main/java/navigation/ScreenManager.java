@@ -62,7 +62,7 @@ public class ScreenManager {
     }
 
     public void showAdventure() {
-        showPlaceholder("Adventure");
+        show(new GameScreen(game));
     }
 
     public void showCollection() {
