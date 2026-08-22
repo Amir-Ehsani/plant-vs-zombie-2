@@ -27,8 +27,8 @@ import java.util.Set;
 
 
 abstract class LaneCombatState {
-    protected static final double MELEE_RANGE = 1.0;
-    protected static final double GLOBAL_ZOMBIE_SPEED_SCALE = 0.5;
+    protected static final double MELEE_RANGE = 1.35;
+    protected static final double GLOBAL_ZOMBIE_SPEED_SCALE = 0.08;
     protected static final int TICKS_PER_SECOND = 10;
     protected static final int DEFAULT_CHILL_TICKS = 3 * TICKS_PER_SECOND;
     protected static final int DEFAULT_FREEZE_TICKS = 5 * TICKS_PER_SECOND;
@@ -117,8 +117,8 @@ abstract class LaneCombatState {
                 if (name.equals("snorkel")) {
                     Tile tile = board.getTileContainingZombie(zombie);
                     zombie.setSubmerged(tile != null
-                            && tile.getTileType() == TileType.WATER
-                            && !tile.hasPlant());
+                        && tile.getTileType() == TileType.WATER
+                        && !tile.hasPlant());
                 }
             }
         }
@@ -134,7 +134,7 @@ abstract class LaneCombatState {
 
     public void applyFreeze(Zombie zombie, int ticks) {
         if (zombie == null || !zombie.isAlive() || ticks <= 0
-                || zombie.isIceImmune()) {
+            || zombie.isIceImmune()) {
             return;
         }
         ZombieRuntimeState state = stateOf(zombie);
@@ -144,7 +144,7 @@ abstract class LaneCombatState {
 
     public void applyChill(Zombie zombie, int ticks) {
         if (zombie == null || !zombie.isAlive() || ticks <= 0
-                || zombie.isIceImmune()) {
+            || zombie.isIceImmune()) {
             return;
         }
         ZombieRuntimeState state = stateOf(zombie);
@@ -205,7 +205,7 @@ abstract class LaneCombatState {
         }
         if (state.poisonTicks > 0) {
             effects.add("poisoned(" + state.poisonTicks + " ticks, "
-                    + state.poisonDamage + " damage/tick)");
+                + state.poisonDamage + " damage/tick)");
         }
         if (state.butterTicks > 0) {
             effects.add("buttered(" + state.butterTicks + " ticks)");
@@ -222,7 +222,7 @@ abstract class LaneCombatState {
             return;
         }
         familyBoostTicks.put(normalized,
-                Math.max(familyBoostTicks.getOrDefault(normalized, 0), ticks));
+            Math.max(familyBoostTicks.getOrDefault(normalized, 0), ticks));
     }
 
     public boolean isFamilyBoosted(String category) {
@@ -274,11 +274,11 @@ abstract class LaneCombatState {
         }
         String name = normalizeText(plant.getName());
         return name.contains("fire")
-                || name.contains("pepper")
-                || name.contains("jalapeno")
-                || name.contains("torchwood")
-                || name.contains("wasabi")
-                || name.contains("hot potato");
+            || name.contains("pepper")
+            || name.contains("jalapeno")
+            || name.contains("torchwood")
+            || name.contains("wasabi")
+            || name.contains("hot potato");
     }
 
     protected String resolveDamageType(Plant plant) {
@@ -318,25 +318,25 @@ abstract class LaneCombatState {
             return "";
         }
         return value.trim()
-                .toLowerCase(Locale.ROOT)
-                .replace('-', ' ')
-                .replace('_', ' ')
-                .replaceAll("\\s+", " ");
+            .toLowerCase(Locale.ROOT)
+            .replace('-', ' ')
+            .replace('_', ' ')
+            .replaceAll("\\s+", " ");
     }
 
     protected abstract void handleSpecialZombieDeath(
-            Zombie zombie,
-            ZombieRuntimeState state
+        Zombie zombie,
+        ZombieRuntimeState state
     );
 
     protected abstract void damageArea(
-            Position center,
-            int xRadius,
-            int yRadius,
-            int damage,
-            String damageType,
-            Plant source,
-            Zombie excluded
+        Position center,
+        int xRadius,
+        int yRadius,
+        int damage,
+        String damageType,
+        Plant source,
+        Zombie excluded
     );
 
 }

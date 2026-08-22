@@ -1,6 +1,15 @@
 [compileJava, compileTestJava]*.options*.encoding = 'UTF-8'
 eclipse.project.name = appName + '-core'
 
+sourceSets {
+  main {
+    resources {
+      srcDir 'src/main/java'
+      include '**/*.json'
+    }
+  }
+}
+
 dependencies {
   api "com.badlogicgames.gdx:gdx-freetype:$gdxVersion"
   api "com.badlogicgames.gdx:gdx:$gdxVersion"
