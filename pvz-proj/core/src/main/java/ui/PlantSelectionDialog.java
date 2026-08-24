@@ -2,12 +2,14 @@ package ui;
 
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.scenes.scene2d.Actor;
+import com.badlogic.gdx.scenes.scene2d.InputEvent;
 import com.badlogic.gdx.scenes.scene2d.ui.Image;
 import com.badlogic.gdx.scenes.scene2d.ui.Label;
 import com.badlogic.gdx.scenes.scene2d.ui.ScrollPane;
 import com.badlogic.gdx.scenes.scene2d.ui.Skin;
-import com.badlogic.gdx.scenes.scene2d.ui.Stack;
 import com.badlogic.gdx.scenes.scene2d.ui.Table;
+import com.badlogic.gdx.scenes.scene2d.ui.TextButton;
+import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
 import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable;
 import com.badlogic.gdx.utils.Align;
 import com.badlogic.gdx.utils.Scaling;
@@ -40,10 +42,10 @@ public class PlantSelectionDialog extends ModalWindow {
     ) {
         Table grid = new Table();
         grid.top();
-        grid.defaults().pad(6f);
+        grid.defaults().pad(8f);
         int column = 0;
         if (includeMarigold) {
-            grid.add(createPlantChoice("Marigold", skin, animations, onSelected)).width(180f).height(214f);
+            grid.add(createPlantChoice("Marigold", skin, animations, onSelected)).width(168f).height(132f);
             column++;
         }
         if (plants != null) {
@@ -51,8 +53,7 @@ public class PlantSelectionDialog extends ModalWindow {
                 if (plant == null || !plant.isUnlocked()) {
                     continue;
                 }
-                grid.add(createPlantChoice(plant.getName(), skin, animations, onSelected))
-                        .width(180f).height(214f);
+                grid.add(createPlantChoice(plant.getName(), skin, animations, onSelected)).width(168f).height(132f);
                 column++;
                 if (column % COLUMN_COUNT == 0) {
                     grid.row();
@@ -67,7 +68,7 @@ public class PlantSelectionDialog extends ModalWindow {
         scrollPane.setOverscroll(false, false);
         scrollPane.setScrollingDisabled(true, false);
         Table content = getContentTable();
-        content.add(scrollPane).width(770f).height(430f).colspan(2).row();
+        content.add(scrollPane).width(760f).height(360f).colspan(2).row();
         content.add(new MenuButton("Close", skin, "brown", this::close))
                 .width(180f).height(44f).colspan(2).padTop(12f);
     }
@@ -79,19 +80,23 @@ public class PlantSelectionDialog extends ModalWindow {
             Consumer<String> onSelected
     ) {
         Table card = new Table();
-        card.pad(8f);
         TextureRegion boost = animations == null ? null : animations.region("IMAGE_UI_PACKETS_BOOST");
         if (boost != null) {
             card.setBackground(new TextureRegionDrawable(boost));
         }
+        card.pad(4f, 8f, 4f, 8f);
+        card.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                select(plantName, onSelected);
+            }
+        });
         Actor packetActor = createPacketActor(plantName, skin, animations);
-        card.add(packetActor).size(122f, 110f).padTop(6f).padBottom(2f).row();
-        Label label = new Label(plantName, skin, "medium_outline");
+        card.add(packetActor).size(112f, 54f).padTop(6f).row();
+        Label label = new Label(plantName, skin, "secondary");
         label.setAlignment(Align.center);
         label.setWrap(true);
-        card.add(label).width(150f).height(44f).row();
-        card.add(new MenuButton("Select", skin, "green_small", () -> select(plantName, onSelected)))
-                .width(126f).height(34f).padTop(6f).padBottom(4f);
+        card.add(label).width(144f).height(40f).padTop(4f);
         return card;
     }
 
@@ -100,16 +105,14 @@ public class PlantSelectionDialog extends ModalWindow {
         if (packet != null) {
             Image image = new Image(packet);
             image.setScaling(Scaling.fit);
-            Stack stack = new Stack();
-            Table center = new Table();
-            center.add(image).size(80f, 96f).center();
-            stack.add(center);
-            return stack;
+            Table holder = new Table();
+            holder.add(image).size(94f, 46f).center();
+            return holder;
         }
         if (animations != null) {
             Actor actor = animations.createPlantActor(plantName);
             if (actor != null) {
-                actor.setSize(96f, 96f);
+                actor.setSize(68f, 68f);
                 return actor;
             }
         }
