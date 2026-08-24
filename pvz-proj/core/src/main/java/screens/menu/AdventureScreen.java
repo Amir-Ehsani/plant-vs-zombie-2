@@ -6,7 +6,6 @@ import com.badlogic.gdx.scenes.scene2d.InputEvent;
 import com.badlogic.gdx.scenes.scene2d.ui.Image;
 import com.badlogic.gdx.scenes.scene2d.ui.ImageButton;
 import com.badlogic.gdx.scenes.scene2d.ui.Label;
-import com.badlogic.gdx.scenes.scene2d.ui.ScrollPane;
 import com.badlogic.gdx.scenes.scene2d.ui.Table;
 import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
 import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable;
@@ -23,16 +22,14 @@ public class AdventureScreen extends BaseMenuScreen {
     private static final Color TITLE_COLOR = Color.WHITE;
     private static final Color TEXT_COLOR = Color.valueOf("F6F0CF");
     private static final Color LOCKED_COLOR = Color.valueOf("FFD35A");
-    private static final float WORLD_WIDTH_CARD = 300f;
-    private static final float WORLD_HEIGHT_CARD = 470f;
+    private static final float CARD_WIDTH = 245f;
+    private static final float CARD_HEIGHT = 430f;
 
-    private final Table worldRow;
-    private final ScrollPane worldScroll;
+    private final Table chapterTable;
 
     public AdventureScreen(Main game) {
         super(game);
-        worldRow = new Table();
-        worldScroll = new ScrollPane(worldRow, skin);
+        chapterTable = new Table();
         buildUi();
     }
 
@@ -50,7 +47,7 @@ public class AdventureScreen extends BaseMenuScreen {
         addMenuBackground();
         buildTopLeftNavigation();
         buildTopRightCluster();
-        buildWorldCarousel();
+        buildWorldSelection();
     }
 
     private void buildTopLeftNavigation() {
@@ -77,54 +74,45 @@ public class AdventureScreen extends BaseMenuScreen {
         root.add(cluster).top().right();
     }
 
-    private void buildWorldCarousel() {
+    private void buildWorldSelection() {
         Table root = createRoot();
         root.center();
-
-        worldRow.defaults().padLeft(18f).padRight(18f);
-        worldScroll.setFadeScrollBars(false);
-        worldScroll.setScrollingDisabled(false, true);
-        worldScroll.setForceScroll(false, false);
-        worldScroll.setOverscroll(false, false);
-        worldScroll.setSmoothScrolling(true);
-        worldScroll.setScrollbarsOnTop(true);
 
         Table panel = new Table();
         Label title = createTitle("Choose Your Chapter");
         title.setColor(TITLE_COLOR);
-        panel.add(title).padBottom(14f).row();
-        panel.add(worldScroll).width(1120f).height(520f);
+        panel.add(title).padBottom(12f).row();
 
+        chapterTable.defaults().width(CARD_WIDTH).height(CARD_HEIGHT).padLeft(12f).padRight(12f);
+        panel.add(chapterTable).width(1180f).height(460f);
         root.add(panel).center();
     }
 
     private void refreshChapters() {
-        worldRow.clearChildren();
+        chapterTable.clearChildren();
         User user = game.getAuthController().getLoggedInUser();
         if (user == null) {
             return;
         }
         for (String chapterName : AdventureLevelCatalog.getChapterNames()) {
-            worldRow.add(createChapterCard(user, chapterName)).width(WORLD_WIDTH_CARD).height(WORLD_HEIGHT_CARD);
+            chapterTable.add(createChapterCard(user, chapterName));
         }
     }
 
     private Table createChapterCard(User user, String chapterName) {
         Table card = new Table();
-        card.pad(10f);
         boolean unlocked = user.isChapterUnlocked(chapterName);
 
-        Image worldImage = createWorldImage(chapterName);
-        card.add(worldImage).width(250f).height(310f).padBottom(6f).row();
+        card.add(createWorldImage(chapterName)).width(200f).height(270f).padBottom(6f).row();
 
         Label name = new Label(worldDisplayName(chapterName), skin, "big_outline");
         name.setColor(TITLE_COLOR);
+        name.setFontScale(0.9f);
         name.setAlignment(Align.center);
-        card.add(name).width(260f).padBottom(8f).row();
+        name.setWrap(true);
+        card.add(name).width(210f).height(70f).padBottom(2f).row();
 
-        Label progress = createSecondaryLabel(
-                completedLevelCount(user, chapterName) + "/" + AdventureLevelCatalog.LAST_PLAYABLE_LEVEL
-        );
+        Label progress = createSecondaryLabel(completedLevelCount(user, chapterName) + "/" + AdventureLevelCatalog.BOSS_LEVEL);
         progress.setColor(TEXT_COLOR);
         progress.setAlignment(Align.center);
         card.add(progress).padBottom(4f).row();
@@ -147,16 +135,7 @@ public class AdventureScreen extends BaseMenuScreen {
 
     private Image createWorldImage(String chapterName) {
         TextureRegion region = game.getAnimationService().region(worldRegionId(chapterName));
-        if (region == null) {
-            Label fallback = createSecondaryLabel(worldDisplayName(chapterName));
-            fallback.setColor(TITLE_COLOR);
-            Table fallbackHolder = new Table();
-            fallbackHolder.add(fallback).center();
-            Image image = new Image();
-            image.setScaling(Scaling.fit);
-            return image;
-        }
-        Image image = new Image(region);
+        Image image = region == null ? new Image() : new Image(region);
         image.setScaling(Scaling.fit);
         return image;
     }
@@ -189,9 +168,7 @@ public class AdventureScreen extends BaseMenuScreen {
 
     private int completedLevelCount(User user, String chapterName) {
         int completed = 0;
-        for (int level = AdventureLevelCatalog.FIRST_PLAYABLE_LEVEL;
-             level <= AdventureLevelCatalog.LAST_PLAYABLE_LEVEL;
-             level++) {
+        for (int level = AdventureLevelCatalog.FIRST_PLAYABLE_LEVEL; level <= AdventureLevelCatalog.BOSS_LEVEL; level++) {
             if (user.isChapterLevelCompleted(chapterName, level)) {
                 completed++;
             }
