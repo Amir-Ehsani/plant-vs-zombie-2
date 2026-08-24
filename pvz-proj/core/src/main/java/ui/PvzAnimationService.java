@@ -2,6 +2,7 @@ package ui;
 
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.files.FileHandle;
+import models.core.zombie.ZombieType;
 import pvz.libpvz.pam.PamPlayer;
 import pvz.libpvz.textures.TextureBank;
 
@@ -40,6 +41,13 @@ public class PvzAnimationService {
 
     public PamAnimationActor createZombieActor(String zombieName) {
         return new PamAnimationActor(this, PvzAnimationCatalog.zombiePath(zombieName));
+    }
+
+    public PamAnimationActor createZombieActor(ZombieType zombieType) {
+        if (zombieType == null) {
+            return new PamAnimationActor(this, PvzAnimationCatalog.zombiePath(null));
+        }
+        return new PamAnimationActor(this, PvzAnimationCatalog.zombiePath(zombieType.getName(), zombieType.getId()));
     }
 
     public boolean isAvailable() {
