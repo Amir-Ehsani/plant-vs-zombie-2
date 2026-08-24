@@ -11,7 +11,7 @@ import com.badlogic.gdx.utils.Align;
 import com.badlogic.gdx.utils.Scaling;
 
 public class CurrencyActor extends Table {
-    private static final Color RESOURCE_TEXT_COLOR = Color.valueOf("FFFBEA");
+    private static final Color RESOURCE_TEXT_COLOR = Color.WHITE;
     private final String name;
     private final Label valueLabel;
 
