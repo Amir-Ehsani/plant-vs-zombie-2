@@ -63,8 +63,7 @@ public class MainMenuScreen extends BaseMenuScreen {
         addTopLeftCluster();
         addTopRightCluster();
         addCenterCluster();
-        addBottomLeftCluster();
-        addBottomCenterCluster();
+        addBottomNavigation();
         addBottomRightCluster();
     }
 
@@ -171,51 +170,44 @@ public class MainMenuScreen extends BaseMenuScreen {
         }
     }
 
-    private void addBottomLeftCluster() {
+    private void addBottomNavigation() {
         Table table = createRoot();
-        table.bottom().left();
+        table.bottom().center();
+        table.pad(24f, 24f, 0f, 24f);
         table.add(createSkinShortcut("Collection", "almanac", game.getScreenManager()::showCollection))
-                .padRight(12f);
+                .padRight(10f);
         table.add(createAssetShortcut(
                 newsText(),
                 "IMAGE_UI_HUD_NEWSBUTTON_BUTTONS_HUD_NEWS_NORMAL",
                 null,
                 game.getScreenManager()::showNews
-        ));
-    }
-
-    private void addBottomCenterCluster() {
-        Table table = createRoot();
-        table.bottom().center();
-        table.padBottom(2f);
+        )).padRight(10f);
         table.add(new MenuButton("Leaderboard", skin, "brown", game.getScreenManager()::showLeaderboard))
-                .width(170f).height(44f);
+                .width(160f).height(44f).padRight(10f);
+        table.add(createSkinShortcut("Quests", "hud_quests", game.getScreenManager()::showQuests))
+                .padRight(10f);
+        table.add(createSkinShortcut("Settings", "settings", game.getScreenManager()::showSettings));
     }
 
     private void addBottomRightCluster() {
         Table table = createRoot();
         table.bottom().right();
+        table.padBottom(102f);
         Table shortcuts = new Table();
-        shortcuts.add().width(106f);
         shortcuts.add(createAssetShortcut(
                 "Shop",
                 "IMAGE_UI_HUD_WORLDMAP_BUTTONS_HUD_STORE_NORMAL",
                 "IMAGE_UI_HUD_WORLDMAP_BUTTONS_HUD_STORE_SELECTED",
                 80f,
                 game.getScreenManager()::showShop
-        )).padLeft(12f).row();
-        shortcuts.add().width(106f);
+        )).row();
         shortcuts.add(createAssetShortcut(
                 "Greenhouse",
                 "IMAGE_UI_GENERIC_BUTTONS_HUD_ZG_NORMAL",
                 "IMAGE_UI_GENERIC_BUTTONS_HUD_ZG_SELECTED",
                 72f,
                 game.getScreenManager()::showGreenhouse
-        )).padLeft(12f).padTop(4f).row();
-        shortcuts.add(createSkinShortcut("Quests", "hud_quests", game.getScreenManager()::showQuests))
-                .padLeft(12f).padTop(4f);
-        shortcuts.add(createSkinShortcut("Settings", "settings", game.getScreenManager()::showSettings))
-                .padLeft(12f).padTop(4f);
+        )).padTop(4f);
         table.add(shortcuts);
     }
 

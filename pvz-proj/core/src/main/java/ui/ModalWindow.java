@@ -1,5 +1,6 @@
 package ui;
 
+import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.scenes.scene2d.InputEvent;
 import com.badlogic.gdx.scenes.scene2d.Stage;
 import com.badlogic.gdx.scenes.scene2d.ui.Label;
@@ -23,6 +24,7 @@ public class ModalWindow extends Table {
         panel.pad(28f);
         content = new Table();
         Label titleLabel = new Label(title == null ? "" : title, skin, "big_outline");
+        titleLabel.setColor(Color.valueOf("FFFBEA"));
         panel.add(titleLabel).growX().padBottom(16f).row();
         panel.add(content).grow();
         add(panel);
