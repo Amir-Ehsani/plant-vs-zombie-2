@@ -27,7 +27,9 @@ public class ShopItemCard extends Table implements Disposable {
     ) {
         pad(12f, 8f, 8f, 8f);
         setClip(true);
-        TextureRegion background = animations == null ? null : animations.region("IMAGE_UI_STORE_GACHA_PINATA_GENERAL_CARD");
+        TextureRegion background = animations == null
+                ? null
+                : animations.region("IMAGE_UI_STORE_GACHA_PINATA_GENERAL_CARD");
         if (background != null) {
             setBackground(new TextureRegionDrawable(background));
         }
@@ -125,15 +127,7 @@ public class ShopItemCard extends Table implements Disposable {
     }
 
     private TextureRegion packetRegion(PvzAnimationService animations, String plantName) {
-        if (animations == null || plantName == null || plantName.isBlank()) {
-            return null;
-        }
-        String token = plantName.trim().toUpperCase().replaceAll("[^A-Z0-9]+", "_");
-        TextureRegion region = animations.region("IMAGE_UI_PACKETS_" + token);
-        if (region != null) {
-            return region;
-        }
-        return animations.region("IMAGE_UI_PACKETS_READY");
+        return SeedPacketCatalog.region(animations, plantName);
     }
 
     private TextureRegion currencyRegion(PvzAnimationService animations, String currency) {
