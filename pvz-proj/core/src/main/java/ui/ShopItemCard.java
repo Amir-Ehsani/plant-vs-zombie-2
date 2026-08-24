@@ -114,14 +114,14 @@ public class ShopItemCard extends Table implements Disposable {
             return animations.region("IMAGE_UI_STOREMULTI_SEEDPACKETICON");
         }
         if ("selected_seed_packet".equals(type)) {
-            return animations.region("IMAGE_UI_PACKETS_READY");
+            return animations.region("IMAGE_GRAVESTONES_DARK_PLANTFOOD_DARK_PLANTFOOD_132X160");
         }
         if ("daily_seed_packet".equals(type)) {
             TextureRegion packet = packetRegion(animations, item.getTargetName());
             return packet != null ? packet : animations.region("IMAGE_UI_PACKETS_READY");
         }
         if ("currency_exchange".equals(type)) {
-            return animations.region("IMAGE_UI_STOREMULTI_SEEDPACKETICON");
+            return animations.region("IMAGE_EFFECTS_PRIZE_GEMS_LARGE_PRIZE_GEMS_LARGE_511X558");
         }
         return null;
     }
