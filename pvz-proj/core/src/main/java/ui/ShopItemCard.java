@@ -11,10 +11,10 @@ import com.badlogic.gdx.scenes.scene2d.ui.Table;
 import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable;
 import com.badlogic.gdx.utils.Align;
 import com.badlogic.gdx.utils.Disposable;
-import controllers.features.ShopController;
-import pvz.skin.BorderedTable;
 
-public class ShopItemCard extends BorderedTable implements Disposable {
+import controllers.features.ShopController;
+
+public class ShopItemCard extends Table implements Disposable {
     private final MenuButton buyButton;
 
     public ShopItemCard(
@@ -24,7 +24,7 @@ public class ShopItemCard extends BorderedTable implements Disposable {
             String remainingText,
             Runnable buyAction
     ) {
-        pad(10f);
+        pad(10f, 8f, 10f, 8f);
         setClip(true);
         TextureRegion background = animations == null ? null : animations.region("IMAGE_UI_STORE_GACHA_PINATA_GENERAL_CARD");
         if (background != null) {
@@ -43,12 +43,12 @@ public class ShopItemCard extends BorderedTable implements Disposable {
         remainingLabel.setWrap(true);
         buyButton = new MenuButton(item != null && item.isDaily() ? "Claim" : "Buy", skin, "green_small", buyAction);
         Actor icon = createIconActor(skin, animations, item);
-        add(icon).size(110f, 96f).padTop(4f).padBottom(2f).row();
-        add(title).width(198f).height(40f).padTop(2f).row();
-        add(priceLabel).width(198f).padTop(1f).row();
-        add(amountLabel).width(198f).height(34f).padTop(2f).row();
-        add(remainingLabel).width(198f).height(30f).padTop(2f).row();
-        add(buyButton).width(140f).height(36f).padTop(6f).padBottom(2f);
+        add(icon).size(116f, 114f).padTop(8f).padBottom(2f).row();
+        add(title).width(176f).height(50f).padTop(4f).row();
+        add(priceLabel).width(176f).padTop(3f).row();
+        add(amountLabel).width(176f).height(46f).padTop(4f).row();
+        add(remainingLabel).width(176f).height(40f).padTop(4f).row();
+        add(buyButton).width(132f).height(36f).padTop(10f).padBottom(10f);
     }
 
     public void setBuyEnabled(boolean enabled) {
@@ -76,7 +76,7 @@ public class ShopItemCard extends BorderedTable implements Disposable {
                 Image background = new Image(boost);
                 background.setScaling(com.badlogic.gdx.utils.Scaling.fit);
                 Table overlay = new Table();
-                overlay.add(icon).size(74f, 90f).padTop(10f);
+                overlay.add(icon).size(76f, 96f).padTop(10f);
                 stack.add(background);
                 stack.add(overlay);
                 return stack;
