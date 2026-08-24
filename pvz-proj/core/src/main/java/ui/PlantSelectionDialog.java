@@ -8,7 +8,6 @@ import com.badlogic.gdx.scenes.scene2d.ui.Label;
 import com.badlogic.gdx.scenes.scene2d.ui.ScrollPane;
 import com.badlogic.gdx.scenes.scene2d.ui.Skin;
 import com.badlogic.gdx.scenes.scene2d.ui.Table;
-import com.badlogic.gdx.scenes.scene2d.ui.TextButton;
 import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
 import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable;
 import com.badlogic.gdx.utils.Align;
@@ -122,15 +121,7 @@ public class PlantSelectionDialog extends ModalWindow {
     }
 
     private TextureRegion packetRegion(PvzAnimationService animations, String plantName) {
-        if (animations == null || plantName == null || plantName.isBlank()) {
-            return null;
-        }
-        String token = plantName.trim().toUpperCase().replaceAll("[^A-Z0-9]+", "_");
-        TextureRegion region = animations.region("IMAGE_UI_PACKETS_" + token);
-        if (region != null) {
-            return region;
-        }
-        return animations.region("IMAGE_UI_PACKETS_READY");
+        return SeedPacketCatalog.region(animations, plantName);
     }
 
     private void select(String plantName, Consumer<String> onSelected) {
