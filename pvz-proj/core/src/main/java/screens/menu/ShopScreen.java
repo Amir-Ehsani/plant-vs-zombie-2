@@ -4,9 +4,7 @@ import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.scenes.scene2d.ui.Image;
 import com.badlogic.gdx.scenes.scene2d.ui.Label;
 import com.badlogic.gdx.scenes.scene2d.ui.ScrollPane;
-import com.badlogic.gdx.scenes.scene2d.ui.Stack;
 import com.badlogic.gdx.scenes.scene2d.ui.Table;
-import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable;
 import com.badlogic.gdx.utils.Align;
 import com.badlogic.gdx.utils.Scaling;
 import com.pvz.Main;
@@ -27,25 +25,24 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class ShopScreen extends BaseMenuScreen {
-    private static final int PERMANENT_COLUMNS = 4;
-    private static final int DAILY_COLUMNS = 3;
     private final ShopController controller;
     private final Runnable backAction;
     private final PvzAnimationService animations;
-    private final Table permanentGrid;
-    private final Table dailyGrid;
+    private final Table contentGrid;
+    private final Table modeButtons;
     private final List<ShopItemCard> itemCards;
+    private boolean showingDaily;
 
     public ShopScreen(Main game, Runnable backAction) {
         super(game);
         controller = game.getShopController();
         this.backAction = backAction == null ? game.getScreenManager()::showMainMenu : backAction;
         animations = game.getAnimationService();
-        permanentGrid = new Table();
-        dailyGrid = new Table();
-        permanentGrid.top();
-        dailyGrid.top();
+        contentGrid = new Table();
+        modeButtons = new Table();
+        contentGrid.top().left();
         itemCards = new ArrayList<>();
+        showingDaily = false;
         buildUi();
     }
 
@@ -72,28 +69,23 @@ public class ShopScreen extends BaseMenuScreen {
         root.pad(8f, 10f, 8f, 10f);
         addResourceBar(root);
         Table panel = createPanel();
-        panel.pad(16f, 20f, 16f, 20f);
-        panel.add(createTitle("Shop")).colspan(2).padBottom(4f).row();
-        panel.add(createHeaderNote()).colspan(2).padBottom(8f).row();
+        panel.pad(18f, 20f, 16f, 20f);
+        panel.add(createTitle("Shop")).padTop(22f).padBottom(4f).row();
+        panel.add(createHeaderNote()).padBottom(12f).row();
         Table navigation = new Table();
         navigation.add(new MenuButton("Greenhouse", skin, "green", game.getScreenManager()::showGreenhouse))
                 .width(170f).height(44f);
         navigation.add().expandX().fillX();
         navigation.add(new BackButton(skin, backAction)).width(160f).height(44f);
-        panel.add(navigation).colspan(2).width(1070f).fillX().padBottom(8f).row();
-        panel.add(createStoreTab("Permanent Store")).left().padBottom(4f).row();
-        ScrollPane permanentScroll = new ScrollPane(permanentGrid, skin);
-        permanentScroll.setFadeScrollBars(false);
-        permanentScroll.setOverscroll(false, false);
-        permanentScroll.setScrollingDisabled(true, false);
-        panel.add(permanentScroll).width(1070f).height(276f).top().padBottom(8f).row();
-        panel.add(createStoreTab("Daily Offer")).left().padBottom(4f).row();
-        ScrollPane dailyScroll = new ScrollPane(dailyGrid, skin);
-        dailyScroll.setFadeScrollBars(false);
-        dailyScroll.setOverscroll(false, false);
-        dailyScroll.setScrollingDisabled(true, false);
-        panel.add(dailyScroll).width(1070f).height(166f).top();
+        panel.add(navigation).width(1070f).fillX().padBottom(10f).row();
+        panel.add(modeButtons).width(1070f).fillX().padBottom(10f).row();
+        ScrollPane scrollPane = new ScrollPane(contentGrid, skin);
+        scrollPane.setFadeScrollBars(false);
+        scrollPane.setOverscroll(false, false);
+        scrollPane.setScrollingDisabled(false, true);
+        panel.add(scrollPane).width(1070f).height(360f).top().row();
         root.add(panel).width(1185f).height(648f);
+        rebuildModeButtons();
     }
 
     private void addShopBackground() {
@@ -114,34 +106,44 @@ public class ShopScreen extends BaseMenuScreen {
         return label;
     }
 
-    private Stack createStoreTab(String title) {
-        TextureRegion region = animations.region("IMAGE_UI_STORE_PLANTSTAB_ACTIVE");
-        Stack stack = new Stack();
-        if (region != null) {
-            Image background = new Image(region);
-            background.setScaling(Scaling.stretch);
-            stack.add(background);
-        }
-        Label label = new Label(title, skin, "medium_outline");
-        label.setAlignment(Align.center);
-        Table overlay = new Table();
-        overlay.add(label).expand().fill();
-        stack.add(overlay);
-        stack.setSize(252f, 54f);
-        return stack;
+    private void rebuildModeButtons() {
+        modeButtons.clearChildren();
+        modeButtons.defaults().padRight(10f);
+        modeButtons.add(new MenuButton("Permanent Store", skin, showingDaily ? "brown" : "green", this::showPermanentItems))
+                .width(220f).height(44f);
+        modeButtons.add(new MenuButton("Daily Offer", skin, showingDaily ? "green" : "brown", this::showDailyItems))
+                .width(220f).height(44f);
     }
 
     private void refreshAll() {
-        disposeItemCards();
-        rebuildGrid(permanentGrid, controller.getPermanentItems(), PERMANENT_COLUMNS);
-        rebuildGrid(dailyGrid, controller.getDailyItems(), DAILY_COLUMNS);
+        rebuildModeButtons();
+        rebuildGrid(showingDaily ? controller.getDailyItems() : controller.getPermanentItems());
         refreshResourceBar();
     }
 
-    private void rebuildGrid(Table grid, List<ShopController.ShopItem> items, int columnCount) {
-        grid.clearChildren();
-        grid.defaults().pad(8f).top();
-        int column = 0;
+    private void showPermanentItems() {
+        if (!showingDaily) {
+            return;
+        }
+        showingDaily = false;
+        refreshAll();
+    }
+
+    private void showDailyItems() {
+        if (showingDaily) {
+            return;
+        }
+        showingDaily = true;
+        refreshAll();
+    }
+
+    private void rebuildGrid(List<ShopController.ShopItem> items) {
+        disposeItemCards();
+        contentGrid.clearChildren();
+        contentGrid.defaults().padRight(12f).top();
+        Table row = new Table();
+        row.top().left();
+        row.defaults().padRight(12f).top();
         for (ShopController.ShopItem item : items) {
             ShopItemCard card = new ShopItemCard(
                     skin,
@@ -152,15 +154,12 @@ public class ShopScreen extends BaseMenuScreen {
             );
             card.setBuyEnabled(item.getAmount() > 0);
             itemCards.add(card);
-            grid.add(card).width(236f).height(248f).top();
-            column++;
-            if (column % columnCount == 0) {
-                grid.row();
-            }
+            row.add(card).width(206f).height(318f).top();
         }
-        if (column == 0) {
-            grid.add(new Label("No items available.", skin, "medium_outline")).pad(12f);
+        if (items == null || items.isEmpty()) {
+            row.add(new Label("No items available.", skin, "medium_outline")).pad(12f);
         }
+        contentGrid.add(row).left().top();
     }
 
     private void handleBuy(ShopController.ShopItem item) {
