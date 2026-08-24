@@ -94,7 +94,7 @@ public final class GameScreen extends BaseScreen {
         gameplayClock = new GameplayClock(controller);
         gameplayClock.setGameSpeed(resolveInitialGameSpeed());
         statusLabel = new Label("", game.getSkin());
-        resourceBar = new ResourceBar(game.getSkin());
+        resourceBar = new ResourceBar(game.getSkin(), game.getAnimationService());
         plantCardsTable = new Table();
         gameplayPlantCards = new LinkedHashMap<>();
         if (animations.isAvailable()) {

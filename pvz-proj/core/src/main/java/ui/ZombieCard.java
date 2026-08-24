@@ -30,6 +30,7 @@ public class ZombieCard extends BorderedTable {
         visualContainer = new Container<>();
         visualContainer.fill(false);
         visualContainer.center();
+        visualContainer.padTop(110f);
         image = new Image();
         fallbackLabel = new Label("", skin, "medium_outline");
         unknownLabel = new Label("?", skin, "big_outline");
@@ -39,6 +40,7 @@ public class ZombieCard extends BorderedTable {
         stateLabel.setColor(PANEL_TEXT_COLOR);
         discovered = false;
         selected = false;
+        setClip(true);
         buildLayout();
     }
 
@@ -49,7 +51,7 @@ public class ZombieCard extends BorderedTable {
 
     public void setZombieActor(Actor actor) {
         if (actor != null) {
-            actor.setSize(94f, 94f);
+            actor.setSize(114f, 114f);
         }
         visualContainer.setActor(actor);
     }
@@ -100,9 +102,9 @@ public class ZombieCard extends BorderedTable {
         visualStack.add(fallbackLabel);
         visualStack.add(visualContainer);
         visualStack.add(unknownOverlay);
-        add(visualStack).size(104f).row();
-        add(nameLabel).width(180f).padTop(6f).row();
-        add(stateLabel).width(180f).padTop(4f).row();
+        add(visualStack).size(132f).padTop(4f).row();
+        add(nameLabel).width(190f).height(54f).padTop(8f).row();
+        add(stateLabel).width(190f).height(24f).padTop(5f).padBottom(6f).row();
     }
 
     private void refreshState() {

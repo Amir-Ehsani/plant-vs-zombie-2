@@ -69,7 +69,7 @@ public class PlantCard extends BorderedTable {
 
     public void setPlantActor(Actor actor) {
         if (actor != null) {
-            actor.setSize(86f, 86f);
+            actor.setSize(110f, 110f);
         }
         visualContainer.setActor(actor);
     }
@@ -202,7 +202,7 @@ public class PlantCard extends BorderedTable {
         visualStack.add(fallbackLabel);
         visualStack.add(visualContainer);
         visualStack.add(lockOverlay);
-        add(visualStack).size(98f).padTop(2f).row();
+        add(visualStack).size(122f).padTop(2f).row();
         add(nameLabel).width(235f).padTop(3f).row();
         Table statRow = new Table();
         statRow.add(costLabel).width(102f).center();
@@ -215,7 +215,7 @@ public class PlantCard extends BorderedTable {
         add(healthLabel).width(235f).padTop(1f).row();
         add(cooldownLabel).width(235f).padTop(1f).row();
         add(stateLabel).width(235f).padTop(2f).row();
-        add(actionTable).padTop(6f).padBottom(1f).row();
+        add(actionTable).padTop(10f).padBottom(8f).row();
     }
 
     private Label panelLabel(String text) {

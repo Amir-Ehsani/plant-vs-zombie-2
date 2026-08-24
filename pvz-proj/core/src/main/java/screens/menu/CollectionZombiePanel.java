@@ -77,12 +77,12 @@ public class CollectionZombiePanel extends Table {
 
     private void refreshCards(List<ZombieType> types) {
         cardsTable.clearChildren();
-        cardsTable.defaults().pad(5f).top();
+        cardsTable.defaults().pad(6f).top();
         int column = 0;
         for (ZombieType type : types) {
             boolean discovered = isZombieDiscovered(type.getName());
             ZombieCard card = createCard(type, discovered);
-            cardsTable.add(card).width(210f).top();
+            cardsTable.add(card).width(220f).height(252f).top();
             column++;
             if (column % 3 == 0) {
                 cardsTable.row();
@@ -97,7 +97,7 @@ public class CollectionZombiePanel extends Table {
         card.setName(type.getName());
         card.setSelected(type.getName().equalsIgnoreCase(selectedZombieName));
         if (discovered) {
-            card.setZombieActor(animations.createZombieActor(type.getName()));
+            card.setZombieActor(animations.createZombieActor(type));
         }
         card.setOnClick(() -> selectZombie(type.getName()));
         return card;
@@ -145,7 +145,7 @@ public class CollectionZombiePanel extends Table {
         title.setAlignment(Align.center);
         title.setWrap(true);
         panel.add(title).width(280f).padBottom(4f).row();
-        panel.add(animations.createZombieActor(type.getName())).size(84f).padBottom(4f).row();
+        panel.add(animations.createZombieActor(type)).size(112f).padTop(14f).padBottom(6f).row();
         addPair(panel, "Health", String.valueOf(type.getBaseHp()), "Speed", formatSpeed(type.getSpeed()));
         addPair(panel, "Wave Cost", String.valueOf(type.getWaveCost()),
                 "Damage", String.valueOf(type.getDamagePerTick()));

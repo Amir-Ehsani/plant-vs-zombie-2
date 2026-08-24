@@ -1,5 +1,6 @@
 package screens.menu;
 
+import com.badlogic.gdx.scenes.scene2d.ui.Label;
 import com.badlogic.gdx.scenes.scene2d.ui.ScrollPane;
 import com.badlogic.gdx.scenes.scene2d.ui.Table;
 import com.pvz.Main;
@@ -60,7 +61,7 @@ public class LeaderboardScreen extends BaseMenuScreen {
     }
 
     private void addHeaders() {
-        rowsTable.add(createLabel("#")).width(45f);
+        rowsTable.add(createRowLabel("#")).width(45f);
         addHeader("Username", "username", 180f);
         addHeader("Progress", "progress", 220f);
         addHeader("Minigames", "minigames", 130f);
@@ -76,16 +77,20 @@ public class LeaderboardScreen extends BaseMenuScreen {
     }
 
     private void addUserRow(int rank, User user) {
-        rowsTable.add(createLabel(String.valueOf(rank))).width(45f).padTop(8f);
-        rowsTable.add(createLabel(user.getUsername())).width(180f).left().padTop(8f);
-        rowsTable.add(createLabel(controller.getLastProgress(user))).width(220f).left().padTop(8f);
-        rowsTable.add(createLabel(String.valueOf(controller.getCompletedMiniGameCount(user))))
+        rowsTable.add(createRowLabel(String.valueOf(rank))).width(45f).padTop(8f);
+        rowsTable.add(createRowLabel(user.getUsername())).width(180f).left().padTop(8f);
+        rowsTable.add(createRowLabel(controller.getLastProgress(user))).width(220f).left().padTop(8f);
+        rowsTable.add(createRowLabel(String.valueOf(controller.getCompletedMiniGameCount(user))))
                 .width(130f).padTop(8f);
-        rowsTable.add(createLabel(String.valueOf(controller.getDailyQuestCount(user))))
+        rowsTable.add(createRowLabel(String.valueOf(controller.getDailyQuestCount(user))))
                 .width(145f).padTop(8f);
-        rowsTable.add(createLabel(String.valueOf(controller.getNonDailyQuestCount(user))))
+        rowsTable.add(createRowLabel(String.valueOf(controller.getNonDailyQuestCount(user))))
                 .width(145f).padTop(8f);
-        rowsTable.add(createLabel(String.valueOf(user.getBestMioPoint()))).width(150f).padTop(8f).row();
+        rowsTable.add(createRowLabel(String.valueOf(user.getBestMioPoint()))).width(150f).padTop(8f).row();
+    }
+
+    private Label createRowLabel(String text) {
+        return new Label(text == null ? "" : text, skin, "secondary");
     }
 
     private void sortBy(String column) {

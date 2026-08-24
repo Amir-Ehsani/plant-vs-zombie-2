@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.Random;
 
 public class GreenhouseController {
+    public static final int POT_PURCHASE_PRICE = 2000;
     private final AuthController authController;
     private final Random random;
     private String lastMessage;
@@ -36,6 +37,94 @@ public class GreenhouseController {
     public Greenhouse getCurrentGreenhouse() {
         User user = getLoggedInUserOrFail();
         return user == null ? null : user.getGreenhouse();
+    }
+
+
+    public void buyPot(int x, int y) {
+        User user = getLoggedInUserOrFail();
+        if (user == null) {
+            return;
+        }
+        Greenhouse greenhouse = user.getGreenhouse();
+        Greenhouse.Pot pot = greenhouse.getPot(x, y);
+        if (pot == null) {
+            fail("Invalid greenhouse position.");
+            return;
+        }
+        if (!pot.isLocked()) {
+            fail("This pot is already unlocked.");
+            return;
+        }
+        if (!user.spendCoins(POT_PURCHASE_PRICE)) {
+            fail("Not enough coins. Required: " + POT_PURCHASE_PRICE + ".");
+            return;
+        }
+        if (!greenhouse.unlockPot(x, y)) {
+            user.addCoins(POT_PURCHASE_PRICE);
+            fail("Pot could not be unlocked.");
+            return;
+        }
+        saveUsers();
+        success("Pot at (" + x + ", " + y + ") unlocked.");
+    }
+
+    public void plantAt(String plantName, int x, int y) {
+        User user = getLoggedInUserOrFail();
+        if (user == null) {
+            return;
+        }
+        Greenhouse greenhouse = user.getGreenhouse();
+        Greenhouse.Pot pot = greenhouse.getPot(x, y);
+        if (!validateEmptyPot(pot, x, y)) {
+            return;
+        }
+        String selectedName = plantName == null ? "" : plantName.trim();
+        boolean planted;
+        if ("marigold".equalsIgnoreCase(selectedName)) {
+            planted = greenhouse.plantMarigold(x, y);
+        } else {
+            PlantData data = user.getCollection().findOwnedPlant(selectedName);
+            PlantType type = DefaultPlantRegistry.getInstance().getByName(selectedName);
+            if (data == null || type == null || !type.hasPlantFoodEffect()) {
+                fail("The selected plant is not available for the greenhouse.");
+                return;
+            }
+            planted = greenhouse.plantSeed(data, x, y);
+        }
+        if (!planted) {
+            fail("Plant could not be placed in this pot.");
+            return;
+        }
+        saveUsers();
+        success(selectedName + " planted at (" + x + ", " + y + ").");
+    }
+
+    public List<PlantData> getAvailablePlants() {
+        User user = authController == null ? null : authController.getLoggedInUser();
+        List<PlantData> result = new ArrayList<>();
+        if (user == null) {
+            return result;
+        }
+        for (PlantData plant : user.getCollection().getOwnedPlants()) {
+            PlantType type = DefaultPlantRegistry.getInstance().getByName(plant.getName());
+            if (type != null && type.hasPlantFoodEffect()) {
+                result.add(plant);
+            }
+        }
+        result.sort((first, second) -> first.getName().compareToIgnoreCase(second.getName()));
+        return result;
+    }
+
+    public int getSpeedUpCost(int x, int y) {
+        Greenhouse greenhouse = getCurrentGreenhouse();
+        if (greenhouse == null) {
+            return 0;
+        }
+        Greenhouse.Pot pot = greenhouse.getPot(x, y);
+        if (pot == null || !pot.isGrowing()) {
+            return 0;
+        }
+        return Math.max(1, pot.getRemainingHoursRoundedUp());
     }
 
     public void plantRandomAt(int x, int y) {

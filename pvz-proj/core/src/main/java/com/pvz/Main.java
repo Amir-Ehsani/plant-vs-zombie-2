@@ -6,10 +6,12 @@ import com.badlogic.gdx.scenes.scene2d.ui.Skin;
 import controllers.auth.AuthController;
 import controllers.core.GameController;
 import controllers.features.CollectionController;
+import controllers.features.GreenhouseController;
 import controllers.features.LeaderboardController;
 import controllers.features.MainMenuController;
 import controllers.features.NewsController;
 import controllers.features.ProfileController;
+import controllers.features.ShopController;
 import controllers.features.SettingsController;
 import navigation.ScreenManager;
 import pvz.skin.PvzSkin;
@@ -24,6 +26,8 @@ public class Main extends Game {
     private NewsController newsController;
     private LeaderboardController leaderboardController;
     private CollectionController collectionController;
+    private GreenhouseController greenhouseController;
+    private ShopController shopController;
     private SettingsController settingsController;
     private PvzAnimationService animationService;
     private ScreenManager screenManager;
@@ -38,6 +42,8 @@ public class Main extends Game {
         newsController = new NewsController(authController);
         leaderboardController = new LeaderboardController(authController);
         collectionController = new CollectionController(authController);
+        greenhouseController = new GreenhouseController(authController);
+        shopController = new ShopController(authController);
         settingsController = new SettingsController(authController);
         screenManager = new ScreenManager(this);
         screenManager.showInitialScreen();
@@ -102,6 +108,14 @@ public class Main extends Game {
 
     public SettingsController getSettingsController() {
         return settingsController;
+    }
+
+    public GreenhouseController getGreenhouseController() {
+        return greenhouseController;
+    }
+
+    public ShopController getShopController() {
+        return shopController;
     }
 
     public PvzAnimationService getAnimationService() {
