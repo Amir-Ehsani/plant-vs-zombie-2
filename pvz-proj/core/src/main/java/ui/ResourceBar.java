@@ -14,11 +14,16 @@ public class ResourceBar extends Table {
 
     public ResourceBar(Skin skin, PvzAnimationService animations) {
         this.skin = skin;
-        setBackground(skin.getDrawable("image_ui_mainmenu_name_field_10"));
-        pad(10f, 14f, 10f, 14f);
-        TextureRegion barBackground = animations == null ? null : animations.region("IMAGE_UI_GENERIC_PURPLEBUTTON_DOWN");
-        TextureRegion coinIcon = animations == null ? null : animations.region("IMAGE_UI_THYMED_EVENTS_ECS_CONVRT_COIN");
-        TextureRegion diamondIcon = animations == null ? null : animations.region("IMAGE_EFFECTS_COIN_DIAMOND_COIN_DIAMOND_141X146");
+        pad(0f);
+        TextureRegion barBackground = animations == null
+                ? null
+                : animations.region("IMAGE_UI_GENERIC_PURPLEBUTTON_DOWN");
+        TextureRegion coinIcon = animations == null
+                ? null
+                : animations.region("IMAGE_UI_THYMED_EVENTS_ECS_CONVRT_COIN");
+        TextureRegion diamondIcon = animations == null
+                ? null
+                : animations.region("IMAGE_EFFECTS_COIN_DIAMOND_COIN_DIAMOND_141X146");
         coinsActor = new CurrencyActor(skin, "Coins", barBackground, coinIcon);
         diamondsActor = new CurrencyActor(skin, "Diamonds", barBackground, diamondIcon);
         sunActor = new CurrencyActor(skin, "Sun");
@@ -66,10 +71,10 @@ public class ResourceBar extends Table {
     ) {
         clearChildren();
         Table content = new Table();
-        content.add(coinsActor).padRight(10f).height(32f);
-        content.add(diamondsActor).padRight(gameResourcesVisible ? 10f : 0f).height(32f);
+        content.add(coinsActor).width(112f).height(46f).padRight(8f);
+        content.add(diamondsActor).width(112f).height(46f);
         if (gameResourcesVisible) {
-            content.add(sunActor).padLeft(4f).padRight(8f);
+            content.add(sunActor).padLeft(10f).padRight(8f);
             content.add(plantFoodActor).padLeft(4f).padRight(8f);
         }
         if (debugVisible) {
