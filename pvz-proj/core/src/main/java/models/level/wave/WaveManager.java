@@ -12,7 +12,11 @@ import java.util.List;
 import java.util.Random;
 
 public class WaveManager {
-    private static final double ZOMBIE_SPAWN_X_OFFSET = 0.75;
+    private static final double MIN_ZOMBIE_SPAWN_X_OFFSET = 0.65;
+    private static final double ZOMBIE_SPAWN_X_SPREAD = 0.04;
+    private static final double SPAWN_TRAILING_X_STEP = 0.08;
+    private static final int MAX_TRAILING_STEPS = 6;
+    private static final int ZOMBIE_SPAWN_INTERVAL_TICKS = 10;
     private static final int NEXT_WAVE_GAP_TICKS = 50;
 
     private final List<Wave> waves;
@@ -22,6 +26,7 @@ public class WaveManager {
     private int nextWaveIndex;
     private int roundRobinLane;
     private int nextWaveThresholdReachedTick;
+    private WaveSpawnSchedule activeSpawnSchedule;
 
     public WaveManager(List<Wave> waves) {
         this(waves, null, AttackPattern.RANDOM_LANES, new Random());
@@ -56,6 +61,7 @@ public class WaveManager {
         this.nextWaveIndex = 0;
         this.roundRobinLane = 1;
         this.nextWaveThresholdReachedTick = -1;
+        this.activeSpawnSchedule = null;
     }
 
     public void bindBoard(Board board) {
@@ -70,6 +76,7 @@ public class WaveManager {
 
     public Wave updateTicks(int currentTick) {
         validateTick(currentTick);
+        spawnDueZombie(currentTick);
         return spawnNextWave(currentTick);
     }
 
@@ -77,7 +84,7 @@ public class WaveManager {
         validateTick(currentTick);
         ensureBoardIsBound();
 
-        if (areAllWavesSpawned()) {
+        if (activeSpawnSchedule != null || areAllWavesSpawned()) {
             return false;
         }
 
@@ -105,15 +112,16 @@ public class WaveManager {
         }
 
         Wave wave = waves.get(nextWaveIndex);
-
-        for (Zombie zombie : wave.getZombiesList()) {
-            int laneNumber = chooseLane();
-            spawnZombie(zombie, laneNumber);
-        }
-
+        prepareWavePositions(wave);
         wave.markAsSpawned();
         nextWaveIndex++;
         nextWaveThresholdReachedTick = -1;
+        activeSpawnSchedule = new WaveSpawnSchedule(
+            wave,
+            currentTick,
+            ZOMBIE_SPAWN_INTERVAL_TICKS
+        );
+        spawnDueZombie(currentTick);
         return wave;
     }
 
@@ -179,30 +187,52 @@ public class WaveManager {
         return Collections.unmodifiableList(waves);
     }
 
-    private void spawnZombie(Zombie zombie, int laneNumber) {
-        if (zombie == null) {
+    private void prepareWavePositions(Wave wave) {
+        int spawnIndex = 0;
+        for (Zombie zombie : wave.getZombiesList()) {
+            if (zombie == null) {
+                continue;
+            }
+            int laneNumber = chooseLane();
+            double spawnX = resolveSpawnX(zombie, spawnIndex);
+            zombie.moveBy(spawnX - zombie.getX(), laneNumber - zombie.getY());
+            spawnIndex++;
+        }
+    }
+
+    private void spawnDueZombie(int currentTick) {
+        if (activeSpawnSchedule == null) {
             return;
         }
+        Zombie zombie = activeSpawnSchedule.pollDueZombie(currentTick);
+        if (zombie != null) {
+            addPreparedZombieToBoard(zombie);
+        }
+        if (!activeSpawnSchedule.hasPendingZombies()) {
+            activeSpawnSchedule = null;
+        }
+    }
 
-        double targetX = resolveSpawnX(zombie);
-        double targetY = laneNumber;
-        zombie.moveBy(targetX - zombie.getX(), targetY - zombie.getY());
-
-        Position position = new Position(board.getWidth(), laneNumber);
-        Tile tile = board.getTileAt(position);
+    private void addPreparedZombieToBoard(Zombie zombie) {
+        int laneNumber = Math.max(1, Math.min(board.getHeight(), (int) Math.round(zombie.getY())));
+        int tileX = Math.max(1, Math.min(board.getWidth(), (int) Math.ceil(zombie.getX())));
+        Tile tile = board.getTileAt(new Position(tileX, laneNumber));
         if (tile == null) {
             throw new IllegalStateException("Zombie spawn tile does not exist.");
         }
         tile.addZombie(zombie);
     }
 
-
-    private double resolveSpawnX(Zombie zombie) {
+    private double resolveSpawnX(Zombie zombie, int spawnIndex) {
         String name = zombie.getName();
         if ("fisherman".equalsIgnoreCase(name) || "king".equalsIgnoreCase(name)) {
             return board.getWidth();
         }
-        return board.getWidth() + ZOMBIE_SPAWN_X_OFFSET;
+        int trailingSteps = Math.min(spawnIndex, MAX_TRAILING_STEPS);
+        return board.getWidth()
+            + MIN_ZOMBIE_SPAWN_X_OFFSET
+            + random.nextDouble() * ZOMBIE_SPAWN_X_SPREAD
+            + trailingSteps * SPAWN_TRAILING_X_STEP;
     }
 
     private int chooseLane() {
