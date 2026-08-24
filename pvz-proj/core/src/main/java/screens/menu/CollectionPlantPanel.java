@@ -180,7 +180,6 @@ public class CollectionPlantPanel extends Table {
         card.setLocked(!data.isUnlocked());
         card.setBoosted(data.getBoostCount() > 0);
         card.setSelected(type.getName().equalsIgnoreCase(selectedPlantName));
-        card.setCooldown(1f);
         card.setPlantActor(animations.createPlantActor(type.getName()));
         card.setOnClick(() -> selectPlant(type.getName()));
         configureCardAction(card, type, data);
@@ -193,7 +192,7 @@ public class CollectionPlantPanel extends Table {
             return;
         }
         if (data.getLevel() < 4) {
-            card.setUpgradeAction(() -> upgrade(type.getName()));
+            card.setUpgradeAction(canUpgradePlant(type.getName()), () -> upgrade(type.getName()));
             return;
         }
         card.clearAction();
@@ -284,7 +283,10 @@ public class CollectionPlantPanel extends Table {
             return;
         }
         if (data.getLevel() < 4) {
-            panel.add(new MenuButton("Upgrade", skin, "purple", () -> upgrade(type.getName())))
+            boolean available = canUpgradePlant(type.getName());
+            String text = available ? "Upgrade" : "Need Resources";
+            String style = available ? "purple" : "brown";
+            panel.add(new MenuButton(text, skin, style, () -> upgrade(type.getName())))
                     .width(180f).height(40f).padTop(6f).center().row();
         }
     }
