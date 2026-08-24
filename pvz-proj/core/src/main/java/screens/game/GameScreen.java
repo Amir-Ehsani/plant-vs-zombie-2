@@ -15,14 +15,19 @@ import com.badlogic.gdx.scenes.scene2d.ui.Table;
 import com.pvz.Main;
 import controllers.core.GameController;
 import game.animation.core.PvzAnimationService;
+import game.hud.GameplayEventFeedback;
 import game.render.BoardBackgroundCatalog;
 import game.render.BoardGeometry;
 import game.render.BoardRenderer;
 import game.render.entity.EntityRenderSystem;
+import game.render.mower.LawnMowerRenderSystem;
+import game.render.projectile.ProjectileRenderSystem;
+import game.render.sun.SunRenderSystem;
 import models.account.Settings;
 import models.engine.board.Board;
 import models.engine.board.Position;
 import models.engine.session.GameSession;
+import models.engine.sun.Sun;
 import screens.BaseScreen;
 
 public final class GameScreen extends BaseScreen {
@@ -42,12 +47,17 @@ public final class GameScreen extends BaseScreen {
     private final GameplayClock gameplayClock;
     private final Label statusLabel;
     private final EntityRenderSystem entityRenderSystem;
+    private final ProjectileRenderSystem projectileRenderSystem;
+    private final SunRenderSystem sunRenderSystem;
+    private final LawnMowerRenderSystem lawnMowerRenderSystem;
+    private final GameplayEventFeedback eventFeedback;
 
     private TextureRegion background;
     private Position hoveredTile;
     private float hudRefreshAccumulator;
     private String debugMessage;
     private boolean pausedByLifecycle;
+    private float visualStateTime;
 
     public GameScreen(Main game) {
         this(game, prepareController(game));
@@ -67,9 +77,22 @@ public final class GameScreen extends BaseScreen {
         gameplayClock = new GameplayClock(controller);
         gameplayClock.setGameSpeed(resolveInitialGameSpeed());
         statusLabel = new Label("", game.getSkin());
-        entityRenderSystem = animations.isAvailable()
-            ? new EntityRenderSystem(boardGeometry, animations)
-            : null;
+        if (animations.isAvailable()) {
+            entityRenderSystem = new EntityRenderSystem(boardGeometry, animations);
+            projectileRenderSystem = new ProjectileRenderSystem(boardGeometry, animations);
+            sunRenderSystem = new SunRenderSystem(boardGeometry, animations);
+            lawnMowerRenderSystem = new LawnMowerRenderSystem(
+                boardGeometry,
+                animations,
+                session.getCurrentLevel() == null ? null : session.getCurrentLevel().getSeasonType()
+            );
+        } else {
+            entityRenderSystem = null;
+            projectileRenderSystem = null;
+            sunRenderSystem = null;
+            lawnMowerRenderSystem = null;
+        }
+        eventFeedback = new GameplayEventFeedback(notificationManager);
         buildDebugHud();
         loadStageAssets();
         debugMessage = "Adventure session connected";
@@ -92,7 +115,10 @@ public final class GameScreen extends BaseScreen {
         shapes.setProjectionMatrix(stage.getCamera().combined);
         drawBackground();
         drawGrid();
+        drawLawnMowers();
         drawEntities();
+        drawProjectiles();
+        drawSuns();
         drawHover();
         stage.act(Math.min(delta, 1f / 15f));
         stage.draw();
@@ -177,11 +203,34 @@ public final class GameScreen extends BaseScreen {
 
     private void updateRuntime(float delta) {
         animations.update();
+        int previousTick = gameplayClock.getCurrentTick();
         gameplayClock.update(delta);
+        int currentTick = gameplayClock.getCurrentTick();
         float visualDelta = gameplayClock.isPaused() ? 0f : delta * gameplayClock.getGameSpeed();
-        if (entityRenderSystem != null) {
-            entityRenderSystem.update(visualDelta, session.getBoard());
+        visualStateTime += visualDelta;
+        updateRenderSystems(visualDelta, currentTick);
+        if (currentTick != previousTick) {
+            eventFeedback.acceptTickMessage(currentTick, controller.getLastMessage());
         }
+        collectSunUnderPointer();
+        refreshDebugHud(delta);
+    }
+
+    private void updateRenderSystems(float visualDelta, int currentTick) {
+        Board board = session.getBoard();
+        if (entityRenderSystem != null) {
+            entityRenderSystem.update(visualDelta, board);
+        }
+        if (projectileRenderSystem != null) {
+            projectileRenderSystem.observe(board, currentTick);
+            projectileRenderSystem.update(visualDelta);
+        }
+        if (lawnMowerRenderSystem != null) {
+            lawnMowerRenderSystem.update(visualDelta, board);
+        }
+    }
+
+    private void refreshDebugHud(float delta) {
         hudRefreshAccumulator += delta;
         if (hudRefreshAccumulator >= 0.1f) {
             hudRefreshAccumulator = 0f;
@@ -217,6 +266,24 @@ public final class GameScreen extends BaseScreen {
         }
     }
 
+    private void drawProjectiles() {
+        if (projectileRenderSystem != null) {
+            projectileRenderSystem.render(batch);
+        }
+    }
+
+    private void drawSuns() {
+        if (sunRenderSystem != null) {
+            sunRenderSystem.render(batch, session.getSunManager(), visualStateTime);
+        }
+    }
+
+    private void drawLawnMowers() {
+        if (lawnMowerRenderSystem != null) {
+            lawnMowerRenderSystem.render(batch, session.getBoard());
+        }
+    }
+
     private void drawHover() {
         if (!isDebugMode() || hoveredTile == null) {
             return;
@@ -226,6 +293,22 @@ public final class GameScreen extends BaseScreen {
         boardRenderer.drawHover(shapes, hoveredTile);
         shapes.end();
         disableAlphaBlending();
+    }
+
+    private void collectSunUnderPointer() {
+        if (sunRenderSystem == null || gameplayClock.isPaused() || !session.isRunning()) {
+            return;
+        }
+        Vector2 world = new Vector2(Gdx.input.getX(), Gdx.input.getY());
+        stage.getViewport().unproject(world);
+        Sun sun = sunRenderSystem.findHoveredSun(world.x, world.y, session.getSunManager());
+        if (sun == null) {
+            return;
+        }
+        controller.collectSun(sun.getPosition());
+        if (controller.wasSuccessful()) {
+            eventFeedback.showSunCollection(controller.getLastMessage());
+        }
     }
 
     private void enableAlphaBlending() {
