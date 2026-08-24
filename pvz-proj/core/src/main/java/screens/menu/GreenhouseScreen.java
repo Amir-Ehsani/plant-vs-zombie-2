@@ -1,10 +1,11 @@
 package screens.menu;
 
+import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.scenes.scene2d.Actor;
 import com.badlogic.gdx.scenes.scene2d.ui.Image;
 import com.badlogic.gdx.scenes.scene2d.ui.Label;
-import com.badlogic.gdx.scenes.scene2d.ui.ScrollPane;
+import com.badlogic.gdx.scenes.scene2d.ui.Stack;
 import com.badlogic.gdx.scenes.scene2d.ui.Table;
 import com.badlogic.gdx.utils.Align;
 import com.badlogic.gdx.utils.Scaling;
@@ -13,7 +14,6 @@ import controllers.features.GreenhouseController;
 import models.account.Greenhouse;
 import models.account.PlantData;
 import models.account.User;
-import pvz.skin.BorderedTable;
 import ui.BackButton;
 import ui.ConfirmDialog;
 import ui.DialogActor;
@@ -22,6 +22,10 @@ import ui.PlantSelectionDialog;
 import ui.PvzAnimationService;
 
 public class GreenhouseScreen extends BaseMenuScreen {
+    private static final Color POT_TEXT_COLOR = Color.valueOf("4A3A1F");
+    private static final float POT_WIDTH = 158f;
+    private static final float POT_HEIGHT = 132f;
+
     private final GreenhouseController controller;
     private final PvzAnimationService animations;
     private final Table potGrid;
@@ -60,28 +64,35 @@ public class GreenhouseScreen extends BaseMenuScreen {
 
     private void buildUi() {
         addGreenhouseBackground();
-        Table root = createRoot();
-        root.pad(8f, 10f, 8f, 10f);
-        addResourceBar(root);
-        Table panel = createPanel();
-        panel.pad(16f, 20f, 16f, 20f);
-        panel.add(createTitle("Greenhouse")).colspan(3).padBottom(8f).row();
+
+        Table topLeft = createRoot();
+        topLeft.top().left();
+        topLeft.add(createTitle("Greenhouse")).left().padBottom(2f).row();
+        Label subtitle = new Label("Grow Your Plant Heroes", skin, "secondary");
+        subtitle.setColor(POT_TEXT_COLOR);
+        topLeft.add(subtitle).left().padBottom(8f).row();
         Table navigation = new Table();
         navigation.add(new MenuButton("Shop", skin, "green", game.getScreenManager()::showShopFromGreenhouse))
-                .width(160f).height(44f);
-        navigation.add().expandX().fillX();
-        navigation.add(new BackButton(skin, game.getScreenManager()::showMainMenu)).width(160f).height(44f);
-        panel.add(navigation).colspan(3).width(1070f).fillX().padBottom(8f).row();
-        ScrollPane scrollPane = new ScrollPane(potGrid, skin);
-        scrollPane.setFadeScrollBars(false);
-        scrollPane.setOverscroll(false, false);
-        scrollPane.setScrollingDisabled(true, false);
-        panel.add(scrollPane).colspan(3).width(1070f).height(446f).top();
-        root.add(panel).width(1185f).height(610f);
+                .width(150f).height(42f).padRight(8f);
+        navigation.add(new BackButton(skin, game.getScreenManager()::showMainMenu))
+                .width(150f).height(42f);
+        topLeft.add(navigation).left();
+
+        Table topRight = createRoot();
+        topRight.top().right();
+        addResourceBar(topRight);
+
+        Table board = createRoot();
+        board.center();
+        board.padTop(68f);
+        board.add(potGrid).center();
     }
 
     private void addGreenhouseBackground() {
-        TextureRegion region = animations.region("IMAGE_BACKGROUNDS_ZEN_TEXTURE");
+        TextureRegion region = animations.region("IMAGE_BACKGROUNDS_ZEN_GARDEN");
+        if (region == null) {
+            region = animations.region("IMAGE_BACKGROUNDS_ZEN_TEXTURE");
+        }
         if (region == null) {
             addMenuBackground();
             return;
@@ -112,84 +123,116 @@ public class GreenhouseScreen extends BaseMenuScreen {
         String signature = greenhouseSignature(greenhouse);
         if (!signature.equals(lastSignature)) {
             rebuildGrid(greenhouse);
+            refreshResourceBar();
             lastSignature = signature;
         }
     }
 
     private void rebuildGrid(Greenhouse greenhouse) {
         potGrid.clearChildren();
-        potGrid.defaults().pad(6f).top();
-        int column = 0;
-        for (Greenhouse.Pot pot : greenhouse.getAllPots()) {
-            potGrid.add(createPotCard(pot)).width(198f).height(224f).top();
-            column++;
-            if (column % Greenhouse.WIDTH == 0) {
-                potGrid.row();
+        potGrid.defaults().pad(4f);
+        for (int y = 1; y <= Greenhouse.HEIGHT; y++) {
+            for (int x = 1; x <= Greenhouse.WIDTH; x++) {
+                potGrid.add(createPotCard(greenhouse.getPot(x, y))).width(POT_WIDTH).height(POT_HEIGHT);
             }
+            potGrid.row();
         }
     }
 
     private Table createPotCard(Greenhouse.Pot pot) {
-        BorderedTable card = new BorderedTable();
-        card.pad(9f);
-        card.setClip(true);
-        Label coordinate = new Label("Pot " + pot.getX() + "," + pot.getY(), skin, "secondary");
-        coordinate.setAlignment(Align.center);
-        card.add(coordinate).width(164f).padBottom(3f).row();
-        if (pot.isLocked()) {
-            buildLockedPot(card, pot);
-        } else if (pot.isEmpty()) {
-            buildEmptyPot(card, pot);
-        } else if (pot.isReady()) {
-            buildReadyPot(card, pot);
-        } else {
-            buildGrowingPot(card, pot);
+        Stack stack = new Stack();
+        Image potImage = createPotImage();
+        if (potImage != null) {
+            if (pot.isLocked()) {
+                potImage.setColor(0.62f, 0.62f, 0.62f, 1f);
+            }
+            stack.add(potImage);
         }
+
+        Table content = new Table();
+        content.pad(5f, 7f, 5f, 7f);
+        if (pot.isLocked()) {
+            buildLockedPot(content, pot);
+        } else if (pot.isEmpty()) {
+            buildEmptyPot(content, pot);
+        } else if (pot.isReady()) {
+            buildReadyPot(content, pot);
+        } else {
+            buildGrowingPot(content, pot);
+        }
+        stack.add(content);
+
+        Table card = new Table();
+        card.add(stack).grow();
         return card;
     }
 
-    private void buildLockedPot(Table card, Greenhouse.Pot pot) {
+    private Image createPotImage() {
+        TextureRegion region = animations.region(
+                "IMAGE_ZEN_GARDEN_GROWING_PLANT_SLOT_GROWING_PLANT_SLOT_184X161"
+        );
+        if (region == null) {
+            region = animations.region(
+                    "IMAGE_ZEN_GARDEN_GROWING_PLANT_SLOT_GROWING_PLANT_SLOT_184X161_2"
+            );
+        }
+        if (region == null) {
+            return null;
+        }
+        Image image = new Image(region);
+        image.setScaling(Scaling.fill);
+        return image;
+    }
+
+    private void buildLockedPot(Table content, Greenhouse.Pot pot) {
+        content.add().expandY().row();
         Label state = new Label("LOCKED", skin, "medium_outline");
         state.setAlignment(Align.center);
-        card.add(state).width(164f).height(70f).padTop(18f).row();
-        card.add(new Label(GreenhouseController.POT_PURCHASE_PRICE + " Coins", skin, "secondary"))
-                .padTop(4f).row();
-        card.add(new MenuButton("Buy Pot", skin, "green_small", () -> confirmPotPurchase(pot)))
-                .width(132f).height(36f).padTop(10f).padBottom(8f);
+        content.add(state).width(136f).padBottom(1f).row();
+        Label price = potLabel(GreenhouseController.POT_PURCHASE_PRICE + " Coins");
+        price.setAlignment(Align.center);
+        content.add(price).width(136f).padBottom(3f).row();
+        content.add(new MenuButton("Buy Pot", skin, "green_small", () -> confirmPotPurchase(pot)))
+                .width(108f).height(28f).padBottom(3f);
     }
 
-    private void buildEmptyPot(Table card, Greenhouse.Pot pot) {
-        Label state = new Label("EMPTY", skin, "medium_outline");
+    private void buildEmptyPot(Table content, Greenhouse.Pot pot) {
+        content.add().expandY().row();
+        Label state = potLabel("EMPTY");
         state.setAlignment(Align.center);
-        card.add(state).width(164f).height(92f).padTop(18f).row();
-        card.add(new Label("Ready for planting", skin, "secondary")).padTop(4f).row();
-        card.add(new MenuButton("Plant", skin, "green_small", () -> showPlantSelection(pot)))
-                .width(132f).height(36f).padTop(10f).padBottom(8f);
+        content.add(state).width(136f).padBottom(3f).row();
+        content.add(new MenuButton("Plant", skin, "green_small", () -> showPlantSelection(pot)))
+                .width(108f).height(28f).padBottom(3f);
     }
 
-    private void buildGrowingPot(Table card, Greenhouse.Pot pot) {
+    private void buildGrowingPot(Table content, Greenhouse.Pot pot) {
         Actor actor = animations.createPlantActor(pot.getPlantName());
-        actor.setSize(92f, 92f);
-        card.add(actor).size(96f).padTop(2f).row();
-        Label name = new Label(pot.getPlantName(), skin, "secondary");
+        actor.setSize(76f, 66f);
+        content.add(actor).size(82f, 68f).expandY().bottom().padTop(5f).row();
+        Label name = potLabel(pot.getPlantName());
         name.setAlignment(Align.center);
-        card.add(name).width(164f).row();
-        card.add(new Label(remainingTime(pot), skin, "secondary")).padTop(2f).row();
+        name.setWrap(true);
+        content.add(name).width(136f).height(24f).row();
+        Label remaining = potLabel(remainingTime(pot));
+        remaining.setAlignment(Align.center);
+        content.add(remaining).width(136f).row();
         int cost = Math.max(1, pot.getRemainingHoursRoundedUp());
-        card.add(new MenuButton("Speed Up " + cost, skin, "purple", () -> confirmSpeedUp(pot, cost)))
-                .width(144f).height(34f).padTop(6f).padBottom(6f);
+        content.add(new MenuButton("Speed Up " + cost, skin, "purple", () -> confirmSpeedUp(pot, cost)))
+                .width(114f).height(26f).padTop(2f).padBottom(2f);
     }
 
-    private void buildReadyPot(Table card, Greenhouse.Pot pot) {
+    private void buildReadyPot(Table content, Greenhouse.Pot pot) {
         Actor actor = animations.createPlantActor(pot.getPlantName());
-        actor.setSize(92f, 92f);
-        card.add(actor).size(96f).padTop(2f).row();
+        actor.setSize(76f, 66f);
+        content.add(actor).size(82f, 68f).expandY().bottom().padTop(5f).row();
         Label state = new Label("READY", skin, "medium_outline");
         state.setAlignment(Align.center);
-        card.add(state).width(164f).row();
-        card.add(new Label(pot.getPlantName(), skin, "secondary")).padTop(1f).row();
-        card.add(new MenuButton("Collect", skin, "green_small", () -> collectReward(pot)))
-                .width(132f).height(34f).padTop(6f).padBottom(6f);
+        content.add(state).width(136f).row();
+        Label name = potLabel(pot.getPlantName());
+        name.setAlignment(Align.center);
+        content.add(name).width(136f).row();
+        content.add(new MenuButton("Collect", skin, "green_small", () -> collectReward(pot)))
+                .width(108f).height(26f).padTop(2f).padBottom(2f);
     }
 
     private void confirmPotPurchase(Greenhouse.Pot pot) {
@@ -278,7 +321,13 @@ public class GreenhouseScreen extends BaseMenuScreen {
         long minutes = Math.max(0L, pot.getRemainingMinutes());
         long hours = minutes / 60L;
         long remainder = minutes % 60L;
-        return "Remaining: " + hours + "h " + remainder + "m";
+        return hours + "h " + remainder + "m";
+    }
+
+    private Label potLabel(String text) {
+        Label label = new Label(text == null ? "" : text, skin, "secondary");
+        label.setColor(POT_TEXT_COLOR);
+        return label;
     }
 
     private String greenhouseSignature(Greenhouse greenhouse) {
