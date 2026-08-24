@@ -80,10 +80,15 @@ public class SunManager {
 
     public List<Sun> update() {
         List<Sun> landedSuns = new ArrayList<>();
+        Iterator<Sun> iterator = suns.iterator();
 
-        for (Sun sun : suns) {
+        while (iterator.hasNext()) {
+            Sun sun = iterator.next();
             if (sun.tick()) {
                 landedSuns.add(sun);
+            }
+            if (sun.isExpired()) {
+                iterator.remove();
             }
         }
 

@@ -1,23 +1,26 @@
 package screens.game;
 
+import controllers.core.GameController;
+import models.account.Settings;
 import models.engine.session.GameSession;
-
 
 public final class GameplayClock {
     private static final float TICK_SECONDS = 0.1f;
     private static final float MAX_FRAME_DELTA = 0.25f;
 
+    private final GameController controller;
     private final GameSession session;
     private float accumulator;
     private int gameSpeed;
 
-    public GameplayClock(GameSession session) {
-        if (session == null) {
-            throw new IllegalArgumentException("Game session cannot be null.");
+    public GameplayClock(GameController controller) {
+        if (controller == null || controller.getGameSession() == null) {
+            throw new IllegalArgumentException("A prepared game controller is required.");
         }
-        this.session = session;
-        this.accumulator = 0f;
-        this.gameSpeed = 1;
+        this.controller = controller;
+        session = controller.getGameSession();
+        accumulator = 0f;
+        gameSpeed = Settings.MIN_GAME_SPEED;
     }
 
     public void update(float delta) {
@@ -25,27 +28,27 @@ public final class GameplayClock {
             return;
         }
 
-        accumulator += Math.min(delta, MAX_FRAME_DELTA);
-        while (accumulator >= TICK_SECONDS) {
-            session.advanceTicks(gameSpeed);
+        accumulator += Math.min(Math.max(delta, 0f), MAX_FRAME_DELTA);
+        while (accumulator >= TICK_SECONDS && session.isRunning()) {
+            controller.advanceTime(gameSpeed);
             accumulator -= TICK_SECONDS;
-            if (!session.isRunning()) {
+            if (!controller.wasSuccessful()) {
+                accumulator = 0f;
                 break;
             }
         }
     }
 
     public void togglePause() {
-        if (isPaused()) {
-            session.getTickManager().resume();
-        } else {
-            session.getTickManager().pause();
+        if (!session.isRunning()) {
+            return;
         }
+        controller.handlePause();
     }
 
     public void setGameSpeed(int gameSpeed) {
-        if (gameSpeed <= 0) {
-            throw new IllegalArgumentException("Game speed must be positive.");
+        if (gameSpeed < Settings.MIN_GAME_SPEED || gameSpeed > Settings.MAX_GAME_SPEED) {
+            throw new IllegalArgumentException("Game speed must be between 1 and 3.");
         }
         this.gameSpeed = gameSpeed;
     }
@@ -55,10 +58,10 @@ public final class GameplayClock {
     }
 
     public boolean isPaused() {
-        return session.getTickManager().isPaused();
+        return session.getTickManager() != null && session.getTickManager().isPaused();
     }
 
     public int getCurrentTick() {
-        return session.getTickManager().getCurrentTick();
+        return session.getTickManager() == null ? 0 : session.getTickManager().getCurrentTick();
     }
 }

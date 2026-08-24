@@ -4,6 +4,7 @@ import com.badlogic.gdx.Game;
 import com.badlogic.gdx.Screen;
 import com.badlogic.gdx.scenes.scene2d.ui.Skin;
 import controllers.auth.AuthController;
+import controllers.core.GameController;
 import controllers.features.CollectionController;
 import controllers.features.LeaderboardController;
 import controllers.features.MainMenuController;
@@ -18,6 +19,7 @@ public class Main extends Game {
     private Skin skin;
     private AuthController authController;
     private MainMenuController mainMenuController;
+    private GameController gameController;
     private ProfileController profileController;
     private NewsController newsController;
     private LeaderboardController leaderboardController;
@@ -31,6 +33,7 @@ public class Main extends Game {
         skin = PvzSkin.get();
         authController = new AuthController();
         mainMenuController = new MainMenuController(authController);
+        gameController = new GameController(authController);
         profileController = new ProfileController(authController);
         newsController = new NewsController(authController);
         leaderboardController = new LeaderboardController(authController);
@@ -71,6 +74,10 @@ public class Main extends Game {
 
     public AuthController getAuthController() {
         return authController;
+    }
+
+    public GameController getGameController() {
+        return gameController;
     }
 
     public MainMenuController getMainMenuController() {

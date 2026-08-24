@@ -235,6 +235,9 @@ abstract class LaneCombatState {
     }
 
     protected Tile tileForZombie(Lane lane, Zombie zombie) {
+        if (lane == null || zombie == null || zombie.getX() > lane.getWidth()) {
+            return null;
+        }
         return lane.getTileAt(clampX(lane, zombie));
     }
 
