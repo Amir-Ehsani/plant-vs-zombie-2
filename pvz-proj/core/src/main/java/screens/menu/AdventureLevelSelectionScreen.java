@@ -26,7 +26,7 @@ public class AdventureLevelSelectionScreen extends BaseMenuScreen {
     private static final Color TITLE_COLOR = Color.WHITE;
     private static final Color TEXT_COLOR = Color.valueOf("F6F0CF");
     private static final Color LOCKED_COLOR = Color.valueOf("C8C8C8");
-    private static final String LEVEL_NODE_REGION = "IMAGE_WORLDMAP_LEVEL_NODE_LEVEL_NODE_97X71_2";
+    private static final String LEVEL_NODE_REGION = "IMAGE_WORLDMAP_DANGER_NODE_DARK_DANGER_NODE_DARK_471X471";
 
     private final String chapterName;
 
@@ -79,6 +79,7 @@ public class AdventureLevelSelectionScreen extends BaseMenuScreen {
     private void buildChapterMap() {
         Group group = new Group();
         group.setSize(WORLD_WIDTH, WORLD_HEIGHT);
+        group.setTouchable(Touchable.childrenOnly);
         stage.addActor(group);
 
         Label title = createTitle(AdventureLevelCatalog.displayChapterName(chapterName));
@@ -87,6 +88,7 @@ public class AdventureLevelSelectionScreen extends BaseMenuScreen {
         title.setSize(600f, 60f);
         title.setPosition((WORLD_WIDTH - title.getWidth()) / 2f, 615f);
         title.setAlignment(Align.center);
+        title.setTouchable(Touchable.disabled);
         group.addActor(title);
 
         Label subtitle = createSecondaryLabel("Choose a level");
@@ -94,6 +96,7 @@ public class AdventureLevelSelectionScreen extends BaseMenuScreen {
         subtitle.setSize(320f, 32f);
         subtitle.setPosition((WORLD_WIDTH - subtitle.getWidth()) / 2f, 585f);
         subtitle.setAlignment(Align.center);
+        subtitle.setTouchable(Touchable.disabled);
         group.addActor(subtitle);
 
         ChapterVisualConfig config = ChapterVisualConfig.forChapter(chapterName);
@@ -124,14 +127,16 @@ public class AdventureLevelSelectionScreen extends BaseMenuScreen {
     }
 
     private void addLevelNode(Group group, User user, int levelNumber, float x, float y) {
-        boolean unlocked = levelNumber == 1
+        boolean debugMode = user.getSettings().isDebugMode();
+        boolean unlocked = debugMode || (levelNumber == 1
                 ? user.isChapterUnlocked(chapterName)
-                : user.isChapterLevelUnlocked(chapterName, levelNumber);
+                : user.isChapterLevelUnlocked(chapterName, levelNumber));
         boolean completed = user.isChapterLevelCompleted(chapterName, levelNumber);
 
         Stack stack = new Stack();
-        stack.setSize(92f, 72f);
-        stack.setPosition(x, y);
+        stack.setTouchable(Touchable.childrenOnly);
+        stack.setSize(66f, 66f);
+        stack.setPosition(x + 13f, y + 3f);
 
         ImageButton nodeButton = createNodeButton(unlocked, levelNumber);
         stack.add(nodeButton);
@@ -139,6 +144,7 @@ public class AdventureLevelSelectionScreen extends BaseMenuScreen {
         Label number = new Label(String.valueOf(levelNumber), skin, "medium_outline");
         number.setColor(TITLE_COLOR);
         number.setAlignment(Align.center);
+        number.setTouchable(Touchable.disabled);
         stack.add(number);
 
         if (completed) {
@@ -146,6 +152,7 @@ public class AdventureLevelSelectionScreen extends BaseMenuScreen {
             completedLabel.setColor(TEXT_COLOR);
             completedLabel.setFontScale(0.8f);
             completedLabel.setAlignment(Align.bottom);
+            completedLabel.setTouchable(Touchable.disabled);
             stack.add(completedLabel);
         }
 
@@ -157,6 +164,7 @@ public class AdventureLevelSelectionScreen extends BaseMenuScreen {
             locked.setAlignment(Align.center);
             locked.setSize(120f, 24f);
             locked.setPosition(x - 14f, y - 24f);
+            locked.setTouchable(Touchable.disabled);
             group.addActor(locked);
         }
     }
@@ -172,7 +180,7 @@ public class AdventureLevelSelectionScreen extends BaseMenuScreen {
             style.checked = drawable;
         }
         ImageButton button = new ImageButton(style);
-        button.getColor().a = unlocked ? 1f : 0.45f;
+        button.getColor().a = unlocked ? 1f : 0.4f;
         button.setDisabled(!unlocked);
         button.setTouchable(unlocked ? Touchable.enabled : Touchable.disabled);
         button.addListener(new ClickListener() {
@@ -192,6 +200,7 @@ public class AdventureLevelSelectionScreen extends BaseMenuScreen {
         }
         Actor actor = createRegionActor(regionId, width, height);
         actor.setPosition(x, y);
+        actor.setTouchable(Touchable.disabled);
         group.addActor(actor);
     }
 
