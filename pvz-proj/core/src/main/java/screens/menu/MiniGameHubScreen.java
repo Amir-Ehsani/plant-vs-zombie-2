@@ -36,7 +36,7 @@ public class MiniGameHubScreen extends BaseMenuScreen {
         Table root = createRoot();
         Table panel = createPanel();
         Label screenTitle = createTitle("Minigames");
-        screenTitle.setColor(TEXT_COLOR);
+        screenTitle.setColor(Color.WHITE);
         panel.add(screenTitle).padBottom(12f).row();
         panel.add(gameList).row();
         panel.add(new BackButton(skin, game.getScreenManager()::showQuests))
@@ -56,7 +56,7 @@ public class MiniGameHubScreen extends BaseMenuScreen {
         Table card = createPanel();
         card.pad(14f);
         Label name = new Label(gameInfo.getDisplayName(), skin, "medium_outline");
-        name.setColor(TEXT_COLOR);
+        name.setColor(Color.WHITE);
         name.setAlignment(Align.center);
         card.add(name).width(210f).padBottom(10f).row();
         for (TravelLogController.MiniGameStageInfo stageInfo : gameInfo.getStages()) {
