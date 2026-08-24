@@ -154,7 +154,7 @@ public class ShopScreen extends BaseMenuScreen {
             );
             card.setBuyEnabled(item.getAmount() > 0);
             itemCards.add(card);
-            row.add(card).width(206f).height(318f).top();
+            row.add(card).width(206f).height(334f).top();
         }
         if (items == null || items.isEmpty()) {
             row.add(new Label("No items available.", skin, "medium_outline")).pad(12f);
