@@ -8,43 +8,40 @@ import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
+import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.scenes.scene2d.ui.Label;
 import com.badlogic.gdx.scenes.scene2d.ui.Table;
 import com.pvz.Main;
+import controllers.core.GameController;
 import game.animation.core.PvzAnimationService;
+import game.render.BoardBackgroundCatalog;
 import game.render.BoardGeometry;
 import game.render.BoardRenderer;
-import game.render.entity.EntityOverlayRenderer;
 import game.render.entity.EntityRenderSystem;
-import models.core.plant.Plant;
-import models.core.zombie.Zombie;
+import models.account.Settings;
 import models.engine.board.Board;
 import models.engine.board.Position;
-import models.engine.board.Tile;
-import models.engine.board.TileType;
 import models.engine.session.GameSession;
 import screens.BaseScreen;
-
-import java.util.List;
 
 public final class GameScreen extends BaseScreen {
     private static final float BOARD_X = 315f;
     private static final float BOARD_Y = 74f;
     private static final float BOARD_WIDTH = 920f;
     private static final float BOARD_HEIGHT = 457f;
-    private static final String EGYPT_BACKGROUND = "IMAGE_BACKGROUNDS_EGYPT_TEXTURE";
 
+    private final GameController controller;
+    private final GameSession session;
+    private final Settings settings;
     private final SpriteBatch batch;
     private final ShapeRenderer shapes;
     private final BoardGeometry boardGeometry;
     private final BoardRenderer boardRenderer;
     private final PvzAnimationService animations;
-    private final GameSession sandboxSession;
     private final GameplayClock gameplayClock;
     private final Label statusLabel;
     private final EntityRenderSystem entityRenderSystem;
-    private final EntityOverlayRenderer entityOverlayRenderer;
 
     private TextureRegion background;
     private Position hoveredTile;
@@ -53,29 +50,36 @@ public final class GameScreen extends BaseScreen {
     private boolean pausedByLifecycle;
 
     public GameScreen(Main game) {
+        this(game, prepareController(game));
+    }
+
+    public GameScreen(Main game, GameController controller) {
         super(game);
+        requireRunningController(controller);
+        this.controller = controller;
+        session = controller.getGameSession();
+        settings = game.getSettingsController().getSettings();
         batch = new SpriteBatch();
         shapes = new ShapeRenderer();
         boardGeometry = new BoardGeometry(BOARD_X, BOARD_Y, BOARD_WIDTH, BOARD_HEIGHT);
         boardRenderer = new BoardRenderer(boardGeometry);
         animations = new PvzAnimationService();
-        sandboxSession = createSandboxSession();
-        gameplayClock = new GameplayClock(sandboxSession);
+        gameplayClock = new GameplayClock(controller);
+        gameplayClock.setGameSpeed(resolveInitialGameSpeed());
         statusLabel = new Label("", game.getSkin());
         entityRenderSystem = animations.isAvailable()
             ? new EntityRenderSystem(boardGeometry, animations)
             : null;
-        entityOverlayRenderer = new EntityOverlayRenderer(boardGeometry);
         buildDebugHud();
         loadStageAssets();
-        debugMessage = "Stage 2 ready";
+        debugMessage = "Adventure session connected";
         refreshStatus(debugMessage);
     }
 
     @Override
     public void show() {
         super.show();
-        Gdx.input.setInputProcessor(new InputMultiplexer(createDebugInput(), stage));
+        Gdx.input.setInputProcessor(new InputMultiplexer(createInput(), stage));
     }
 
     @Override
@@ -87,22 +91,16 @@ public final class GameScreen extends BaseScreen {
         batch.setProjectionMatrix(stage.getCamera().combined);
         shapes.setProjectionMatrix(stage.getCamera().combined);
         drawBackground();
-        drawBoardDebug();
+        drawGrid();
         drawEntities();
-        drawEntityOverlays();
         drawHover();
         stage.act(Math.min(delta, 1f / 15f));
         stage.draw();
     }
 
     @Override
-    public void resize(int width, int height) {
-        super.resize(width, height);
-    }
-
-    @Override
     public void pause() {
-        pausedByLifecycle = !gameplayClock.isPaused();
+        pausedByLifecycle = session.isRunning() && !gameplayClock.isPaused();
         if (pausedByLifecycle) {
             gameplayClock.togglePause();
             refreshStatus("Application paused");
@@ -111,7 +109,7 @@ public final class GameScreen extends BaseScreen {
 
     @Override
     public void resume() {
-        if (pausedByLifecycle && gameplayClock.isPaused()) {
+        if (pausedByLifecycle && session.isRunning() && gameplayClock.isPaused()) {
             gameplayClock.togglePause();
             refreshStatus("Application resumed");
         }
@@ -126,41 +124,37 @@ public final class GameScreen extends BaseScreen {
         shapes.dispose();
     }
 
-    private GameSession createSandboxSession() {
-        GameSession session = new GameSession();
-        session.setSelectedPlantNames(List.of("Sunflower", "Wall-nut", "Pumpkin", "Lily Pad", "Tall-nut", "Peashooter"));
-        session.initSession();
-        session.addSun(5000);
-        Board board = session.getBoard();
-        board.setTileType(new Position(3, 4), TileType.WATER);
-        session.plant("Sunflower", new Position(3, 1));
-        session.plant("Wall-nut", new Position(4, 3));
-        session.plant("Pumpkin", new Position(4, 3));
-        session.plant("Lily Pad", new Position(3, 4));
-        session.plant("Tall-nut", new Position(3, 4));
-        session.plant("Peashooter", new Position(3, 5));
-        Tile frozenTile = board.getTileAt(new Position(3, 5));
-        if (frozenTile != null && frozenTile.getCurrentPlant() != null) {
-            frozenTile.getCurrentPlant().addIceHit();
-            frozenTile.getCurrentPlant().addIceHit();
-            frozenTile.getCurrentPlant().addIceHit();
+    public Vector2 boardToScreen(int row, int column) {
+        return boardGeometry.boardToScreen(row, column);
+    }
+
+    public Position screenToBoard(float x, float y) {
+        return boardGeometry.screenToBoard(x, y);
+    }
+
+    public Rectangle getTileBounds(int row, int column) {
+        return boardGeometry.getTileBounds(row, column);
+    }
+
+    private static GameController prepareController(Main game) {
+        AdventureSessionBootstrap.prepareAndStart(game);
+        return game.getGameController();
+    }
+
+    private void requireRunningController(GameController value) {
+        if (value == null || value.getGameSession() == null || !value.getGameSession().isRunning()) {
+            throw new IllegalArgumentException("GameScreen requires a running Adventure session.");
         }
-        session.spawnZombie("Default", new Position(9, 1));
-        session.spawnZombie("cone head", new Position(9, 3));
-        session.spawnZombie("bucket head", new Position(9, 4));
-        Tile bucketTile = board.getTileAt(new Position(9, 4));
-        if (bucketTile != null && !bucketTile.getZombies().isEmpty()) {
-            Zombie bucket = bucketTile.getZombies().get(0);
-            board.applyChill(bucket, 1000);
+        if (value.getGameSession().getBoard() == null) {
+            throw new IllegalArgumentException("GameScreen requires an initialized board.");
         }
-        Tile octopusTile = board.getTileAt(new Position(3, 1));
-        if (octopusTile != null) {
-            Plant plant = octopusTile.getCurrentPlant();
-            if (plant != null) {
-                plant.addOctopus();
-            }
+    }
+
+    private int resolveInitialGameSpeed() {
+        if (settings == null) {
+            return Settings.MIN_GAME_SPEED;
         }
-        return session;
+        return Math.max(Settings.MIN_GAME_SPEED, Math.min(Settings.MAX_GAME_SPEED, settings.getGameSpeed()));
     }
 
     private void buildDebugHud() {
@@ -168,14 +162,17 @@ public final class GameScreen extends BaseScreen {
         hud.setFillParent(true);
         hud.top().left().pad(14f);
         statusLabel.setWrap(true);
-        hud.add(statusLabel).width(850f).left();
+        statusLabel.setVisible(isDebugMode());
+        hud.add(statusLabel).width(900f).left();
         stage.addActor(hud);
     }
 
     private void loadStageAssets() {
-        if (animations.isAvailable()) {
-            background = animations.region(EGYPT_BACKGROUND);
+        if (!animations.isAvailable()) {
+            return;
         }
+        String resourceId = BoardBackgroundCatalog.resourceId(session.getCurrentLevel());
+        background = animations.region(resourceId);
     }
 
     private void updateRuntime(float delta) {
@@ -183,7 +180,7 @@ public final class GameScreen extends BaseScreen {
         gameplayClock.update(delta);
         float visualDelta = gameplayClock.isPaused() ? 0f : delta * gameplayClock.getGameSpeed();
         if (entityRenderSystem != null) {
-            entityRenderSystem.update(visualDelta, sandboxSession.getBoard());
+            entityRenderSystem.update(visualDelta, session.getBoard());
         }
         hudRefreshAccumulator += delta;
         if (hudRefreshAccumulator >= 0.1f) {
@@ -203,7 +200,10 @@ public final class GameScreen extends BaseScreen {
         disableAlphaBlending();
     }
 
-    private void drawBoardDebug() {
+    private void drawGrid() {
+        if (settings == null || !settings.isGridVisible()) {
+            return;
+        }
         enableAlphaBlending();
         shapes.begin(ShapeRenderer.ShapeType.Line);
         boardRenderer.drawGrid(shapes);
@@ -213,18 +213,12 @@ public final class GameScreen extends BaseScreen {
 
     private void drawEntities() {
         if (entityRenderSystem != null) {
-            entityRenderSystem.render(batch, sandboxSession.getBoard());
+            entityRenderSystem.render(batch, session.getBoard());
         }
     }
 
-    private void drawEntityOverlays() {
-        enableAlphaBlending();
-        entityOverlayRenderer.render(shapes, sandboxSession.getBoard());
-        disableAlphaBlending();
-    }
-
     private void drawHover() {
-        if (hoveredTile == null) {
+        if (!isDebugMode() || hoveredTile == null) {
             return;
         }
         enableAlphaBlending();
@@ -243,7 +237,7 @@ public final class GameScreen extends BaseScreen {
         Gdx.gl.glDisable(GL20.GL_BLEND);
     }
 
-    private InputAdapter createDebugInput() {
+    private InputAdapter createInput() {
         return new InputAdapter() {
             @Override
             public boolean mouseMoved(int screenX, int screenY) {
@@ -254,44 +248,44 @@ public final class GameScreen extends BaseScreen {
             @Override
             public boolean touchDown(int screenX, int screenY, int pointer, int button) {
                 updateHoveredTile(screenX, screenY);
-                if (button == Input.Buttons.LEFT && hoveredTile != null) {
-                    String tile = "Clicked tile row=" + hoveredTile.getY() + ", column=" + hoveredTile.getX();
-                    Gdx.app.log("GameScreen", tile);
-                    refreshStatus(tile);
-                    return true;
-                }
-                return false;
+                return handleBoardClick(button);
             }
 
             @Override
             public boolean keyDown(int keycode) {
-                return handleDebugKey(keycode);
+                return handleKey(keycode);
             }
         };
+    }
+
+    private boolean handleBoardClick(int button) {
+        if (button != Input.Buttons.LEFT || hoveredTile == null) {
+            return false;
+        }
+        controller.handleUserClick(hoveredTile);
+        String tile = "Clicked tile row=" + hoveredTile.getY() + ", column=" + hoveredTile.getX();
+        Gdx.app.log("GameScreen", tile);
+        if (isDebugMode()) {
+            refreshStatus(controller.getLastMessage());
+        }
+        return true;
     }
 
     private void updateHoveredTile(int screenX, int screenY) {
         Vector2 world = new Vector2(screenX, screenY);
         stage.getViewport().unproject(world);
-        hoveredTile = boardGeometry.screenToBoard(world.x, world.y);
+        hoveredTile = screenToBoard(world.x, world.y);
     }
 
-    private boolean handleDebugKey(int keycode) {
+    private boolean handleKey(int keycode) {
         if (keycode == Input.Keys.P || keycode == Input.Keys.SPACE) {
             gameplayClock.togglePause();
             refreshStatus(gameplayClock.isPaused() ? "Paused" : "Resumed");
             return true;
         }
-        if (keycode == Input.Keys.NUM_1) {
-            setSpeed(1);
-            return true;
-        }
-        if (keycode == Input.Keys.NUM_2) {
-            setSpeed(2);
-            return true;
-        }
-        if (keycode == Input.Keys.NUM_4) {
-            setSpeed(4);
+        if (keycode == Input.Keys.NUM_1 || keycode == Input.Keys.NUM_2 || keycode == Input.Keys.NUM_3) {
+            int speed = keycode == Input.Keys.NUM_1 ? 1 : keycode == Input.Keys.NUM_2 ? 2 : 3;
+            setSpeed(speed);
             return true;
         }
         if (keycode == Input.Keys.ESCAPE) {
@@ -302,19 +296,32 @@ public final class GameScreen extends BaseScreen {
     }
 
     private void setSpeed(int speed) {
+        game.getSettingsController().changeGameSpeed(speed);
+        if (!game.getSettingsController().wasSuccessful()) {
+            refreshStatus(game.getSettingsController().getLastMessage());
+            return;
+        }
         gameplayClock.setGameSpeed(speed);
         refreshStatus("Game speed x" + speed);
+    }
+
+    private boolean isDebugMode() {
+        return settings != null && settings.isDebugMode();
     }
 
     private void refreshStatus(String message) {
         if (message != null) {
             debugMessage = message;
         }
+        statusLabel.setVisible(isDebugMode());
+        if (!isDebugMode()) {
+            return;
+        }
         String cursor = hoveredTile == null
             ? "outside board"
             : "(" + hoveredTile.getX() + ", " + hoveredTile.getY() + ")";
-        String state = gameplayClock.isPaused() ? "PAUSED" : "RUNNING";
-        Board board = sandboxSession.getBoard();
+        String state = gameplayClock.isPaused() ? "PAUSED" : session.isRunning() ? "RUNNING" : "FINISHED";
+        Board board = session.getBoard();
         statusLabel.setText(
             debugMessage
                 + " | tick=" + gameplayClock.getCurrentTick()
@@ -323,7 +330,7 @@ public final class GameScreen extends BaseScreen {
                 + " | cursor=" + cursor
                 + " | plants=" + board.getPlantCount()
                 + " | zombies=" + board.getActiveZombieCount()
-                + "\nP/Space: pause | 1/2/4: speed | Left click: tile | Esc: main menu"
+                + "\nP/Space: pause | 1/2/3: speed | Left click: inspect tile | Esc: main menu"
                 + "\n" + animations.getStatusMessage()
         );
     }
