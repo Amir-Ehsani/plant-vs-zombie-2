@@ -25,6 +25,7 @@ import ui.PvzAnimationService;
 
 public class GreenhouseScreen extends BaseMenuScreen {
     private static final Color POT_TEXT_COLOR = Color.valueOf("4A3A1F");
+    private static final Color NEWS_TEXT_COLOR = Color.valueOf("FFFBEA");
     private static final float POT_WIDTH = 126f;
     private static final float POT_HEIGHT = 106f;
     private static final float POT_ART_WIDTH = 108f;
@@ -209,7 +210,7 @@ public class GreenhouseScreen extends BaseMenuScreen {
             priceRow.add(coin).size(16f, 16f).padRight(4f);
         }
         Label price = new Label(String.valueOf(GreenhouseController.POT_PURCHASE_PRICE), skin, "medium_outline");
-        price.setColor(Color.WHITE);
+        price.setColor(NEWS_TEXT_COLOR);
         price.setAlignment(Align.center);
         priceRow.add(price);
         content.add(priceRow).width(110f).padBottom(3f);
@@ -247,35 +248,38 @@ public class GreenhouseScreen extends BaseMenuScreen {
     }
 
     private void buildGrowingPot(Table content, Greenhouse.Pot pot) {
+        content.top();
         Actor actor = animations.createPlantActor(pot.getPlantName());
         actor.setSize(62f, 50f);
-        content.add(actor).size(66f, 52f).expandY().bottom().padTop(24f).padBottom(-7f).row();
-        Label name = new Label(pot.getPlantName(), skin, "medium_outline");
-        name.setColor(Color.WHITE);
+        content.add(actor).size(66f, 52f).padTop(24f).padBottom(-7f).row();
+        Label name = potLabel(pot.getPlantName());
+        name.setColor(NEWS_TEXT_COLOR);
         name.setAlignment(Align.center);
         name.setWrap(true);
         content.add(name).width(110f).height(20f).padTop(-6f).row();
-        Label remaining = new Label(remainingTime(pot), skin, "secondary");
-        remaining.setColor(Color.valueOf("FFF5C9"));
+        Label remaining = potLabel(remainingTime(pot));
+        remaining.setColor(NEWS_TEXT_COLOR);
         remaining.setAlignment(Align.center);
         content.add(remaining).width(110f).padTop(-4f).row();
         int cost = Math.max(1, pot.getRemainingHoursRoundedUp());
-        content.add(createSpeedUpControl(pot, cost)).width(82f).height(22f).padTop(-2f).padBottom(1f);
+        content.add(createSpeedUpControl(pot, cost)).width(82f).height(22f).padTop(2f).padBottom(1f);
     }
 
     private void buildReadyPot(Table content, Greenhouse.Pot pot) {
+        content.top();
         Actor actor = animations.createPlantActor(pot.getPlantName());
         actor.setSize(62f, 50f);
-        content.add(actor).size(66f, 52f).expandY().bottom().padTop(24f).padBottom(-7f).row();
+        content.add(actor).size(66f, 52f).padTop(24f).padBottom(-7f).row();
         Label state = new Label("READY", skin, "medium_outline");
+        state.setColor(NEWS_TEXT_COLOR);
         state.setAlignment(Align.center);
         content.add(state).width(110f).row();
-        Label name = new Label(pot.getPlantName(), skin, "medium_outline");
-        name.setColor(Color.WHITE);
+        Label name = potLabel(pot.getPlantName());
+        name.setColor(NEWS_TEXT_COLOR);
         name.setAlignment(Align.center);
         content.add(name).width(110f).padTop(-4f).row();
         content.add(new MenuButton("Collect", skin, "green_small", () -> collectReward(pot)))
-                .width(90f).height(22f).padTop(1f).padBottom(1f);
+                .width(90f).height(26f).padTop(1f).padBottom(1f);
     }
 
     private Stack createSpeedUpControl(Greenhouse.Pot pot, int cost) {
@@ -289,9 +293,9 @@ public class GreenhouseScreen extends BaseMenuScreen {
         Table price = new Table();
         price.add().expandX().fillX();
         Label label = new Label(String.valueOf(cost), skin, "medium_outline");
-        label.setColor(Color.WHITE);
+        label.setColor(NEWS_TEXT_COLOR);
         label.setAlignment(Align.right);
-        price.add(label).right().padRight(8f);
+        price.add(label).right().padRight(11f);
         control.add(price);
         control.addListener(new ClickListener() {
             @Override
