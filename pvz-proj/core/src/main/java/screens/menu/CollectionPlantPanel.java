@@ -254,7 +254,7 @@ public class CollectionPlantPanel extends Table {
         title.setAlignment(Align.center);
         title.setWrap(true);
         panel.add(title).width(280f).center().padBottom(4f).row();
-        panel.add(animations.createPlantActor(type.getName())).size(84f).center().padBottom(4f).row();
+        panel.add(animations.createPlantActor(type.getName())).size(112f).center().padBottom(6f).row();
         addSectionTitle(panel, "Overview");
         addPair(panel, "Status", data.isUnlocked() ? "Unlocked" : "Locked", "Level", String.valueOf(data.getLevel()));
         addPair(panel, "Seeds", seedText(data), "Boosts", String.valueOf(data.getBoostCount()));
@@ -279,7 +279,7 @@ public class CollectionPlantPanel extends Table {
         if (!data.isUnlocked()) {
             TextButton button = new MenuButton("Buy for " + CollectionController.PLANT_PURCHASE_PRICE + " Coins",
                     skin, "green", () -> purchase(type.getName()));
-            panel.add(button).width(210f).height(40f).padTop(6f).center().row();
+            panel.add(button).width(210f).height(40f).padTop(10f).padBottom(8f).center().row();
             return;
         }
         if (data.getLevel() < 4) {
@@ -287,7 +287,7 @@ public class CollectionPlantPanel extends Table {
             String text = available ? "Upgrade" : "Need Resources";
             String style = available ? "purple" : "brown";
             panel.add(new MenuButton(text, skin, style, () -> upgrade(type.getName())))
-                    .width(180f).height(40f).padTop(6f).center().row();
+                    .width(180f).height(40f).padTop(10f).padBottom(8f).center().row();
         }
     }
 
