@@ -173,7 +173,8 @@ public class MainMenuScreen extends BaseMenuScreen {
     private void addBottomNavigation() {
         Table table = createRoot();
         table.bottom().center();
-        table.padBottom(2f);
+        table.setY(-18f);
+        table.padBottom(0f);
         table.add(createSkinShortcut("Collection", "almanac", game.getScreenManager()::showCollection))
                 .padRight(10f);
         table.add(createAssetShortcut(
