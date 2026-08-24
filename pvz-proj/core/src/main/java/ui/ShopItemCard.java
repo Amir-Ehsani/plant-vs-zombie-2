@@ -44,11 +44,11 @@ public class ShopItemCard extends Table implements Disposable {
         buyButton.getLabel().setAlignment(Align.left);
         buyButton.padLeft(12f);
         Actor icon = createIconActor(skin, animations, item);
-        add(createIconHolder(icon)).width(176f).height(112f).padTop(12f).padBottom(2f).row();
+        add(createIconHolder(icon)).width(176f).height(104f).padTop(16f).padBottom(0f).row();
         add(title).width(176f).height(58f).padTop(2f).row();
-        add(amountLabel).width(176f).height(48f).padTop(3f).row();
-        add(remainingLabel).width(176f).height(34f).padTop(2f).row();
-        add(createBuyArea(skin, animations, item)).width(150f).height(42f).padTop(8f).padBottom(6f);
+        add(amountLabel).width(176f).height(46f).padTop(2f).row();
+        add(remainingLabel).width(176f).height(30f).padTop(2f).row();
+        add(createBuyArea(skin, animations, item)).width(144f).height(38f).padTop(2f).padBottom(8f);
     }
 
     public void setBuyEnabled(boolean enabled) {
@@ -61,7 +61,7 @@ public class ShopItemCard extends Table implements Disposable {
 
     private Table createIconHolder(Actor icon) {
         Table holder = new Table();
-        holder.add(icon).size(96f, 86f).padTop(18f).bottom();
+        holder.add(icon).size(92f, 74f).padTop(22f).bottom();
         return holder;
     }
 
@@ -75,7 +75,7 @@ public class ShopItemCard extends Table implements Disposable {
         if (currencyRegion != null) {
             Image currencyIcon = new Image(currencyRegion);
             currencyIcon.setScaling(Scaling.fit);
-            overlay.add(currencyIcon).size(20f, 20f).padRight(3f);
+            overlay.add(currencyIcon).size(18f, 18f).padRight(2f);
         }
         Label price = new Label(item == null ? "-" : String.valueOf(item.getPrice()), skin, "secondary");
         price.setAlignment(Align.center);
@@ -109,14 +109,14 @@ public class ShopItemCard extends Table implements Disposable {
             return animations.region("IMAGE_UI_ALMANAC_ALMANAC_STAT_ICON_PLANTFOOD_LARGE");
         }
         if ("random_seed_packet".equals(type)) {
-            return trimPacketRegion(animations.region("IMAGE_UI_STOREMULTI_SEEDPACKETICON"));
+            return animations.region("IMAGE_UI_STOREMULTI_SEEDPACKETICON");
         }
         if ("selected_seed_packet".equals(type)) {
-            return trimPacketRegion(animations.region("IMAGE_UI_PACKETS_READY"));
+            return animations.region("IMAGE_UI_PACKETS_READY");
         }
         if ("daily_seed_packet".equals(type)) {
             TextureRegion packet = packetRegion(animations, item.getTargetName());
-            return trimPacketRegion(packet != null ? packet : animations.region("IMAGE_UI_PACKETS_READY"));
+            return packet != null ? packet : animations.region("IMAGE_UI_PACKETS_READY");
         }
         if ("currency_exchange".equals(type)) {
             return animations.region("IMAGE_UI_STOREMULTI_SEEDPACKETICON");
@@ -144,21 +144,6 @@ public class ShopItemCard extends Table implements Disposable {
             return animations.region("IMAGE_EFFECTS_COIN_DIAMOND_COIN_DIAMOND_141X146");
         }
         return animations.region("IMAGE_UI_THYMED_EVENTS_ECS_CONVRT_COIN");
-    }
-
-    private TextureRegion trimPacketRegion(TextureRegion region) {
-        if (region == null) {
-            return null;
-        }
-        int width = region.getRegionWidth();
-        int height = region.getRegionHeight();
-        int left = Math.max(0, Math.round(width * 0.08f));
-        int right = Math.max(0, Math.round(width * 0.08f));
-        int top = Math.max(0, Math.round(height * 0.08f));
-        int bottom = Math.max(0, Math.round(height * 0.08f));
-        int trimmedWidth = Math.max(1, width - left - right);
-        int trimmedHeight = Math.max(1, height - top - bottom);
-        return new TextureRegion(region, left, top, trimmedWidth, trimmedHeight);
     }
 
     private String shortType(String type) {
