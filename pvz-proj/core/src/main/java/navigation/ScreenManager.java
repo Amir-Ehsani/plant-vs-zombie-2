@@ -3,6 +3,11 @@ package navigation;
 import com.badlogic.gdx.Screen;
 import com.pvz.Main;
 import screens.menu.CollectionScreen;
+import screens.menu.QuestScreen;
+import screens.menu.MiniGameHubScreen;
+import screens.menu.AdventureScreen;
+import screens.menu.AdventurePlantSelectionScreen;
+import screens.menu.AdventureMissionScreen;
 import screens.menu.ForgotPasswordScreen;
 import screens.menu.GreenhouseScreen;
 import screens.menu.LeaderboardScreen;
@@ -64,7 +69,7 @@ public class ScreenManager {
     }
 
     public void showAdventure() {
-        show(new GameScreen(game));
+        show(new AdventureScreen(game));
     }
 
     public void showCollection() {
@@ -88,7 +93,23 @@ public class ScreenManager {
     }
 
     public void showQuests() {
-        showPlaceholder("Quests");
+        show(new QuestScreen(game));
+    }
+
+    public void showMiniGames() {
+        show(new MiniGameHubScreen(game));
+    }
+
+    public void showAdventureMission(String chapterName, int levelNumber) {
+        show(new AdventureMissionScreen(game, chapterName, levelNumber));
+    }
+
+    public void showPlantSelection(String chapterName, int levelNumber) {
+        show(new AdventurePlantSelectionScreen(game, chapterName, levelNumber));
+    }
+
+    public void showPreparedGame() {
+        show(new GameScreen(game, game.getGameController()));
     }
 
     public void showPlaceholder(String title) {
