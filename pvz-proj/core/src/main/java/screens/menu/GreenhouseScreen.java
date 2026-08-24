@@ -3,10 +3,12 @@ package screens.menu;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.scenes.scene2d.Actor;
+import com.badlogic.gdx.scenes.scene2d.InputEvent;
 import com.badlogic.gdx.scenes.scene2d.ui.Image;
-import com.badlogic.gdx.scenes.scene2d.ui.Label;
 import com.badlogic.gdx.scenes.scene2d.ui.Stack;
+import com.badlogic.gdx.scenes.scene2d.ui.Label;
 import com.badlogic.gdx.scenes.scene2d.ui.Table;
+import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
 import com.badlogic.gdx.utils.Align;
 import com.badlogic.gdx.utils.Scaling;
 import com.pvz.Main;
@@ -23,8 +25,8 @@ import ui.PvzAnimationService;
 
 public class GreenhouseScreen extends BaseMenuScreen {
     private static final Color POT_TEXT_COLOR = Color.valueOf("4A3A1F");
-    private static final float POT_WIDTH = 158f;
-    private static final float POT_HEIGHT = 132f;
+    private static final float POT_WIDTH = 142f;
+    private static final float POT_HEIGHT = 120f;
 
     private final GreenhouseController controller;
     private final PvzAnimationService animations;
@@ -73,14 +75,17 @@ public class GreenhouseScreen extends BaseMenuScreen {
         topLeft.add(subtitle).left().padBottom(8f).row();
         Table navigation = new Table();
         navigation.add(new MenuButton("Shop", skin, "green", game.getScreenManager()::showShopFromGreenhouse))
-                .width(150f).height(42f).padRight(8f);
-        navigation.add(new BackButton(skin, game.getScreenManager()::showMainMenu))
                 .width(150f).height(42f);
         topLeft.add(navigation).left();
 
         Table topRight = createRoot();
         topRight.top().right();
-        addResourceBar(topRight);
+        Table rightColumn = new Table();
+        addResourceBar(rightColumn);
+        rightColumn.row();
+        rightColumn.add(new BackButton(skin, game.getScreenManager()::showMainMenu))
+                .width(150f).height(42f).right().padTop(8f);
+        topRight.add(rightColumn).top().right();
 
         Table board = createRoot();
         board.center();
@@ -130,7 +135,7 @@ public class GreenhouseScreen extends BaseMenuScreen {
 
     private void rebuildGrid(Greenhouse greenhouse) {
         potGrid.clearChildren();
-        potGrid.defaults().pad(4f);
+        potGrid.defaults().pad(3f);
         for (int y = 1; y <= Greenhouse.HEIGHT; y++) {
             for (int x = 1; x <= Greenhouse.WIDTH; x++) {
                 potGrid.add(createPotCard(greenhouse.getPot(x, y))).width(POT_WIDTH).height(POT_HEIGHT);
@@ -141,11 +146,8 @@ public class GreenhouseScreen extends BaseMenuScreen {
 
     private Table createPotCard(Greenhouse.Pot pot) {
         Stack stack = new Stack();
-        Image potImage = createPotImage();
+        Image potImage = createPotImage(pot);
         if (potImage != null) {
-            if (pot.isLocked()) {
-                potImage.setColor(0.62f, 0.62f, 0.62f, 1f);
-            }
             stack.add(potImage);
         }
 
@@ -167,14 +169,13 @@ public class GreenhouseScreen extends BaseMenuScreen {
         return card;
     }
 
-    private Image createPotImage() {
-        TextureRegion region = animations.region(
-                "IMAGE_ZEN_GARDEN_GROWING_PLANT_SLOT_GROWING_PLANT_SLOT_184X161"
-        );
-        if (region == null) {
-            region = animations.region(
-                    "IMAGE_ZEN_GARDEN_GROWING_PLANT_SLOT_GROWING_PLANT_SLOT_184X161_2"
-            );
+    private Image createPotImage(Greenhouse.Pot pot) {
+        String resourceId = pot != null && pot.isReady()
+                ? "IMAGE_ZEN_GARDEN_GROWING_PLANT_SLOT_GROWING_PLANT_SLOT_184X161_2"
+                : "IMAGE_ZEN_GARDEN_GROWING_PLANT_SLOT_GROWING_PLANT_SLOT_184X161";
+        TextureRegion region = animations.region(resourceId);
+        if (region == null && pot != null && pot.isReady()) {
+            region = animations.region("IMAGE_ZEN_GARDEN_GROWING_PLANT_SLOT_GROWING_PLANT_SLOT_184X161");
         }
         if (region == null) {
             return null;
@@ -186,53 +187,105 @@ public class GreenhouseScreen extends BaseMenuScreen {
 
     private void buildLockedPot(Table content, Greenhouse.Pot pot) {
         content.add().expandY().row();
-        Label state = new Label("LOCKED", skin, "medium_outline");
-        state.setAlignment(Align.center);
-        content.add(state).width(136f).padBottom(1f).row();
-        Label price = potLabel(GreenhouseController.POT_PURCHASE_PRICE + " Coins");
+        TextureRegion lockRegion = animations.region("IMAGE_ZEN_GARDEN_LOCKED_POT_ICON");
+        if (lockRegion != null) {
+            Image lockImage = new Image(lockRegion);
+            lockImage.setScaling(Scaling.fit);
+            content.add(lockImage).size(46f, 42f).padBottom(1f).row();
+        } else {
+            Label state = new Label("LOCKED", skin, "medium_outline");
+            state.setAlignment(Align.center);
+            content.add(state).width(124f).padBottom(1f).row();
+        }
+        Label price = new Label(String.valueOf(GreenhouseController.POT_PURCHASE_PRICE), skin, "medium_outline");
+        price.setColor(Color.WHITE);
         price.setAlignment(Align.center);
-        content.add(price).width(136f).padBottom(3f).row();
-        content.add(new MenuButton("Buy Pot", skin, "green_small", () -> confirmPotPurchase(pot)))
-                .width(108f).height(28f).padBottom(3f);
+        content.add(price).width(124f).padBottom(1f).row();
+        Label currency = new Label("Coins", skin, "secondary");
+        currency.setColor(Color.WHITE);
+        currency.setAlignment(Align.center);
+        content.add(currency).width(124f).padBottom(3f);
+        content.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                confirmPotPurchase(pot);
+            }
+        });
     }
 
     private void buildEmptyPot(Table content, Greenhouse.Pot pot) {
         content.add().expandY().row();
-        Label state = potLabel("EMPTY");
-        state.setAlignment(Align.center);
-        content.add(state).width(136f).padBottom(3f).row();
-        content.add(new MenuButton("Plant", skin, "green_small", () -> showPlantSelection(pot)))
-                .width(108f).height(28f).padBottom(3f);
+        TextureRegion plantRegion = animations.region(
+                "IMAGE_ZEN_GARDEN_GROWING_PLANT_SLOT_GROWING_PLANT_SLOT_122X161"
+        );
+        if (plantRegion != null) {
+            Image plantButton = new Image(plantRegion);
+            plantButton.setScaling(Scaling.fit);
+            content.add(plantButton).size(72f, 72f).padBottom(3f).row();
+        } else {
+            Label state = potLabel("PLANT");
+            state.setAlignment(Align.center);
+            content.add(state).width(124f).padBottom(3f).row();
+        }
+        Label hint = potLabel("Tap to plant");
+        hint.setAlignment(Align.center);
+        content.add(hint).width(124f).padBottom(3f);
+        content.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                showPlantSelection(pot);
+            }
+        });
     }
 
     private void buildGrowingPot(Table content, Greenhouse.Pot pot) {
         Actor actor = animations.createPlantActor(pot.getPlantName());
-        actor.setSize(76f, 66f);
-        content.add(actor).size(82f, 68f).expandY().bottom().padTop(5f).row();
+        actor.setSize(70f, 58f);
+        content.add(actor).size(76f, 60f).expandY().bottom().padTop(15f).padBottom(-5f).row();
         Label name = potLabel(pot.getPlantName());
         name.setAlignment(Align.center);
         name.setWrap(true);
-        content.add(name).width(136f).height(24f).row();
+        content.add(name).width(124f).height(22f).row();
         Label remaining = potLabel(remainingTime(pot));
         remaining.setAlignment(Align.center);
-        content.add(remaining).width(136f).row();
+        content.add(remaining).width(124f).row();
         int cost = Math.max(1, pot.getRemainingHoursRoundedUp());
-        content.add(new MenuButton("Speed Up " + cost, skin, "purple", () -> confirmSpeedUp(pot, cost)))
-                .width(114f).height(26f).padTop(2f).padBottom(2f);
+        content.add(createSpeedUpControl(pot, cost)).width(94f).height(24f).padTop(1f).padBottom(1f);
     }
 
     private void buildReadyPot(Table content, Greenhouse.Pot pot) {
         Actor actor = animations.createPlantActor(pot.getPlantName());
-        actor.setSize(76f, 66f);
-        content.add(actor).size(82f, 68f).expandY().bottom().padTop(5f).row();
+        actor.setSize(70f, 58f);
+        content.add(actor).size(76f, 60f).expandY().bottom().padTop(15f).padBottom(-5f).row();
         Label state = new Label("READY", skin, "medium_outline");
         state.setAlignment(Align.center);
-        content.add(state).width(136f).row();
+        content.add(state).width(124f).row();
         Label name = potLabel(pot.getPlantName());
         name.setAlignment(Align.center);
-        content.add(name).width(136f).row();
+        content.add(name).width(124f).row();
         content.add(new MenuButton("Collect", skin, "green_small", () -> collectReward(pot)))
-                .width(108f).height(26f).padTop(2f).padBottom(2f);
+                .width(100f).height(24f).padTop(1f).padBottom(1f);
+    }
+
+    private Stack createSpeedUpControl(Greenhouse.Pot pot, int cost) {
+        Stack control = new Stack();
+        TextureRegion region = animations.region("IMAGE_ZEN_GARDEN_BUTTON_UNLOCK_INACTIVE");
+        if (region != null) {
+            Image image = new Image(region);
+            image.setScaling(Scaling.fill);
+            control.add(image);
+        }
+        Label label = new Label(cost + " Diamonds", skin, "secondary");
+        label.setColor(Color.WHITE);
+        label.setAlignment(Align.center);
+        control.add(label);
+        control.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                confirmSpeedUp(pot, cost);
+            }
+        });
+        return control;
     }
 
     private void confirmPotPurchase(Greenhouse.Pot pot) {
