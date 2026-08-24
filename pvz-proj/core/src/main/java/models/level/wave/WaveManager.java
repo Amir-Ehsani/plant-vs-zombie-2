@@ -12,12 +12,16 @@ import java.util.List;
 import java.util.Random;
 
 public class WaveManager {
+    private static final double ZOMBIE_SPAWN_X_OFFSET = 0.75;
+    private static final int NEXT_WAVE_GAP_TICKS = 50;
+
     private final List<Wave> waves;
     private final Random random;
     private Board board;
     private AttackPattern attackPattern;
     private int nextWaveIndex;
     private int roundRobinLane;
+    private int nextWaveThresholdReachedTick;
 
     public WaveManager(List<Wave> waves) {
         this(waves, null, AttackPattern.RANDOM_LANES, new Random());
@@ -32,10 +36,10 @@ public class WaveManager {
     }
 
     public WaveManager(
-            List<Wave> waves,
-            Board board,
-            AttackPattern attackPattern,
-            Random random
+        List<Wave> waves,
+        Board board,
+        AttackPattern attackPattern,
+        Random random
     ) {
         validateWaves(waves);
         if (attackPattern == null) {
@@ -51,6 +55,7 @@ public class WaveManager {
         this.random = random;
         this.nextWaveIndex = 0;
         this.roundRobinLane = 1;
+        this.nextWaveThresholdReachedTick = -1;
     }
 
     public void bindBoard(Board board) {
@@ -77,15 +82,21 @@ public class WaveManager {
         }
 
         Wave nextWave = waves.get(nextWaveIndex);
-        if (!nextWave.isReadyToSpawn(currentTick)) {
-            return false;
-        }
         if (nextWaveIndex == 0) {
-            return true;
+            return nextWave.isReadyToSpawn(currentTick);
         }
 
         Wave previousWave = waves.get(nextWaveIndex - 1);
-        return previousWave.hasLostSeventyFivePercentHealth();
+        if (!previousWave.hasLostSeventyFivePercentHealth()) {
+            nextWaveThresholdReachedTick = -1;
+            return false;
+        }
+        if (nextWaveThresholdReachedTick < 0) {
+            nextWaveThresholdReachedTick = currentTick;
+        }
+
+        boolean gapElapsed = currentTick - nextWaveThresholdReachedTick >= NEXT_WAVE_GAP_TICKS;
+        return gapElapsed && nextWave.isReadyToSpawn(currentTick);
     }
 
     public Wave spawnNextWave(int currentTick) {
@@ -102,6 +113,7 @@ public class WaveManager {
 
         wave.markAsSpawned();
         nextWaveIndex++;
+        nextWaveThresholdReachedTick = -1;
         return wave;
     }
 
@@ -172,7 +184,7 @@ public class WaveManager {
             return;
         }
 
-        double targetX = board.getWidth();
+        double targetX = resolveSpawnX(zombie);
         double targetY = laneNumber;
         zombie.moveBy(targetX - zombie.getX(), targetY - zombie.getY());
 
@@ -182,6 +194,15 @@ public class WaveManager {
             throw new IllegalStateException("Zombie spawn tile does not exist.");
         }
         tile.addZombie(zombie);
+    }
+
+
+    private double resolveSpawnX(Zombie zombie) {
+        String name = zombie.getName();
+        if ("fisherman".equalsIgnoreCase(name) || "king".equalsIgnoreCase(name)) {
+            return board.getWidth();
+        }
+        return board.getWidth() + ZOMBIE_SPAWN_X_OFFSET;
     }
 
     private int chooseLane() {

@@ -17,7 +17,7 @@ import java.util.Map;
 public final class LawnMowerRenderSystem {
     private static final float START_X = 0.15f;
     private static final float END_X = 10.15f;
-    private static final float RUN_SECONDS = 2.0f;
+    private static final float RUN_SECONDS = 4.0f;
     private static final float MOWER_SCALE = 0.34f;
 
     private final BoardGeometry geometry;
