@@ -250,15 +250,17 @@ public class GreenhouseScreen extends BaseMenuScreen {
         Actor actor = animations.createPlantActor(pot.getPlantName());
         actor.setSize(62f, 50f);
         content.add(actor).size(66f, 52f).expandY().bottom().padTop(24f).padBottom(-7f).row();
-        Label name = potLabel(pot.getPlantName());
+        Label name = new Label(pot.getPlantName(), skin, "medium_outline");
+        name.setColor(Color.WHITE);
         name.setAlignment(Align.center);
         name.setWrap(true);
-        content.add(name).width(110f).height(20f).row();
-        Label remaining = potLabel(remainingTime(pot));
+        content.add(name).width(110f).height(20f).padTop(-6f).row();
+        Label remaining = new Label(remainingTime(pot), skin, "secondary");
+        remaining.setColor(Color.valueOf("FFF5C9"));
         remaining.setAlignment(Align.center);
-        content.add(remaining).width(110f).row();
+        content.add(remaining).width(110f).padTop(-4f).row();
         int cost = Math.max(1, pot.getRemainingHoursRoundedUp());
-        content.add(createSpeedUpControl(pot, cost)).width(82f).height(22f).padTop(1f).padBottom(1f);
+        content.add(createSpeedUpControl(pot, cost)).width(82f).height(22f).padTop(-2f).padBottom(1f);
     }
 
     private void buildReadyPot(Table content, Greenhouse.Pot pot) {
@@ -268,9 +270,10 @@ public class GreenhouseScreen extends BaseMenuScreen {
         Label state = new Label("READY", skin, "medium_outline");
         state.setAlignment(Align.center);
         content.add(state).width(110f).row();
-        Label name = potLabel(pot.getPlantName());
+        Label name = new Label(pot.getPlantName(), skin, "medium_outline");
+        name.setColor(Color.WHITE);
         name.setAlignment(Align.center);
-        content.add(name).width(110f).row();
+        content.add(name).width(110f).padTop(-4f).row();
         content.add(new MenuButton("Collect", skin, "green_small", () -> collectReward(pot)))
                 .width(90f).height(22f).padTop(1f).padBottom(1f);
     }
@@ -284,16 +287,11 @@ public class GreenhouseScreen extends BaseMenuScreen {
             control.add(image);
         }
         Table price = new Table();
-        Label label = new Label(String.valueOf(cost), skin, "secondary");
+        price.add().expandX().fillX();
+        Label label = new Label(String.valueOf(cost), skin, "medium_outline");
         label.setColor(Color.WHITE);
-        label.setAlignment(Align.center);
-        price.add(label).padRight(4f);
-        TextureRegion diamondRegion = animations.region("IMAGE_EFFECTS_COIN_DIAMOND_COIN_DIAMOND_141X146");
-        if (diamondRegion != null) {
-            Image diamond = new Image(diamondRegion);
-            diamond.setScaling(Scaling.fit);
-            price.add(diamond).size(14f, 14f);
-        }
+        label.setAlignment(Align.right);
+        price.add(label).right().padRight(8f);
         control.add(price);
         control.addListener(new ClickListener() {
             @Override
