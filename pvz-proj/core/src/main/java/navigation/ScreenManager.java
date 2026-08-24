@@ -4,6 +4,7 @@ import com.badlogic.gdx.Screen;
 import com.pvz.Main;
 import screens.menu.CollectionScreen;
 import screens.menu.ForgotPasswordScreen;
+import screens.menu.GreenhouseScreen;
 import screens.menu.LeaderboardScreen;
 import screens.menu.LoginScreen;
 import screens.menu.MainMenuScreen;
@@ -12,6 +13,7 @@ import screens.menu.PlaceholderMenuScreen;
 import screens.menu.ProfileScreen;
 import screens.menu.RegisterScreen;
 import screens.menu.SettingsScreen;
+import screens.menu.ShopScreen;
 import screens.game.GameScreen;
 
 public class ScreenManager {
@@ -70,11 +72,15 @@ public class ScreenManager {
     }
 
     public void showGreenhouse() {
-        showPlaceholder("Greenhouse");
+        show(new GreenhouseScreen(game));
     }
 
     public void showShop() {
-        showPlaceholder("Shop");
+        show(new ShopScreen(game, this::showMainMenu));
+    }
+
+    public void showShopFromGreenhouse() {
+        show(new ShopScreen(game, this::showGreenhouse));
     }
 
     public void showSettings() {
