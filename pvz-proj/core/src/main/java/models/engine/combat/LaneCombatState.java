@@ -229,7 +229,6 @@ abstract class LaneCombatState {
         return familyBoostTicks.getOrDefault(normalizeText(category), 0) > 0;
     }
 
-
     protected int clampX(Lane lane, Zombie zombie) {
         return Math.max(1, Math.min(lane.getWidth(), (int) Math.ceil(zombie.getX())));
     }

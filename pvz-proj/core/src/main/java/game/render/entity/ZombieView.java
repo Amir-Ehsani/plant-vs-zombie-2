@@ -20,6 +20,8 @@ public final class ZombieView extends EntityView<Zombie> {
     private static final double POSITION_EPSILON = 0.0001;
     private static final float EATING_DELAY = 0.16f;
     private static final float EATING_X_OFFSET = 0.10f;
+    private static final float VISUAL_FOLLOW_RATE = 18f;
+    private static final float TELEPORT_SNAP_DISTANCE = 1.25f;
 
     private double lastX;
     private float visualX;
@@ -82,12 +84,14 @@ public final class ZombieView extends EntityView<Zombie> {
 
     private void updateVisualPosition(float delta) {
         float targetX = (float) entity.getX();
-        if (!visualInitialized) {
+        if (!visualInitialized || Math.abs(targetX - visualX) >= TELEPORT_SNAP_DISTANCE) {
             visualX = targetX;
             visualInitialized = true;
             return;
         }
-        visualX += (targetX - visualX) * Math.min(1f, Math.max(0f, delta) * 12f);
+        float safeDelta = Math.max(0f, delta);
+        float follow = 1f - (float) Math.exp(-VISUAL_FOLLOW_RATE * safeDelta);
+        visualX += (targetX - visualX) * follow;
     }
 
     private String resolveClip(List<String> effects) {
