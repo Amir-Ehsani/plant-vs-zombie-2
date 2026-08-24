@@ -22,8 +22,8 @@ public class AdventureScreen extends BaseMenuScreen {
     private static final Color TITLE_COLOR = Color.WHITE;
     private static final Color TEXT_COLOR = Color.valueOf("F6F0CF");
     private static final Color LOCKED_COLOR = Color.valueOf("FFD35A");
-    private static final float CARD_WIDTH = 245f;
-    private static final float CARD_HEIGHT = 430f;
+    private static final float CARD_WIDTH = 260f;
+    private static final float CARD_HEIGHT = 455f;
 
     private final Table chapterTable;
 
@@ -81,10 +81,10 @@ public class AdventureScreen extends BaseMenuScreen {
         Table panel = new Table();
         Label title = createTitle("Choose Your Chapter");
         title.setColor(TITLE_COLOR);
-        panel.add(title).padBottom(12f).row();
+        panel.add(title).padBottom(-28f).row();
 
-        chapterTable.defaults().width(CARD_WIDTH).height(CARD_HEIGHT).padLeft(12f).padRight(12f);
-        panel.add(chapterTable).width(1180f).height(460f);
+        chapterTable.defaults().width(CARD_WIDTH).height(CARD_HEIGHT).padLeft(8f).padRight(8f);
+        panel.add(chapterTable).width(1180f).height(500f);
         root.add(panel).center();
     }
 
@@ -101,16 +101,16 @@ public class AdventureScreen extends BaseMenuScreen {
 
     private Table createChapterCard(User user, String chapterName) {
         Table card = new Table();
-        boolean unlocked = user.isChapterUnlocked(chapterName);
+        boolean unlocked = user.getSettings().isDebugMode() || user.isChapterUnlocked(chapterName);
 
-        card.add(createWorldImage(chapterName)).width(200f).height(270f).padBottom(6f).row();
+        card.add(createWorldImage(chapterName)).width(235f).height(320f).padTop(24f).padBottom(-10f).row();
 
         Label name = new Label(worldDisplayName(chapterName), skin, "big_outline");
         name.setColor(TITLE_COLOR);
         name.setFontScale(0.9f);
         name.setAlignment(Align.center);
         name.setWrap(true);
-        card.add(name).width(210f).height(70f).padBottom(2f).row();
+        card.add(name).width(225f).height(62f).padBottom(0f).row();
 
         Label progress = createSecondaryLabel(completedLevelCount(user, chapterName) + "/" + AdventureLevelCatalog.BOSS_LEVEL);
         progress.setColor(TEXT_COLOR);
