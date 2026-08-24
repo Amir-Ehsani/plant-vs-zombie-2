@@ -48,11 +48,10 @@ public final class GameplayClock {
     }
 
     public void togglePause() {
-        if (isPaused()) {
-            session.getTickManager().resume();
-        } else {
-            session.getTickManager().pause();
+        if (!session.isRunning()) {
+            return;
         }
+        controller.handlePause();
     }
 
     public void setGameSpeed(int gameSpeed) {
@@ -67,11 +66,11 @@ public final class GameplayClock {
     }
 
     public boolean isPaused() {
-        return session.getTickManager().isPaused();
+        return session.getTickManager() != null && session.getTickManager().isPaused();
     }
 
     public int getCurrentTick() {
-        return session.getTickManager().getCurrentTick();
+        return session.getTickManager() == null ? 0 : session.getTickManager().getCurrentTick();
     }
 
     private boolean advanceGame() {

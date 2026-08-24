@@ -59,18 +59,21 @@ abstract class LaneCombatTerrainSupport extends LaneCombatState {
     protected boolean isPeaPlant(Plant plant) {
         String name = normalizeText(plant == null ? null : plant.getName());
         return name.contains("pea")
-                || name.equals("peashooter")
-                || name.equals("repeater")
-                || name.equals("threepeater")
-                || name.equals("split pea")
-                || name.equals("mega gatling pea");
+            || name.equals("peashooter")
+            || name.equals("repeater")
+            || name.equals("threepeater")
+            || name.equals("split pea")
+            || name.equals("mega gatling pea");
     }
 
     protected Tile findBlockingTerrain(Lane lane, Plant plant, Zombie target) {
         int startX = Math.max(1, (int) Math.floor(plant.getX()) + 1);
         int endX = Math.min(lane.getWidth(), (int) Math.ceil(target.getX()));
-        boolean lobber = normalizeCategory(plant).equals("lobber");
-        if (lobber || normalizeCategory(plant).equals("homing")) {
+        String category = normalizeCategory(plant);
+        boolean ignoresTerrain = category.equals("lobber")
+            || category.equals("homing")
+            || category.equals("strike through");
+        if (ignoresTerrain) {
             return null;
         }
 
@@ -106,10 +109,10 @@ abstract class LaneCombatTerrainSupport extends LaneCombatState {
     }
 
     protected int removeDeadPlants(
-            Lane lane,
-            Set<Plant> consumedPlants,
-            Map<Plant, Position> plantPositions,
-            List<GameEvent> events
+        Lane lane,
+        Set<Plant> consumedPlants,
+        Map<Plant, Position> plantPositions,
+        List<GameEvent> events
     ) {
         int destroyed = 0;
         for (Tile tile : lane.getTiles()) {
@@ -174,8 +177,8 @@ abstract class LaneCombatTerrainSupport extends LaneCombatState {
                 state.pendingLaneShift = 0;
             }
             int targetLaneNumber = board == null
-                    ? lane.getLaneId()
-                    : Math.max(1, Math.min(board.getHeight(), (int) Math.round(zombie.getY())));
+                ? lane.getLaneId()
+                : Math.max(1, Math.min(board.getHeight(), (int) Math.round(zombie.getY())));
             Lane targetLane = board == null ? lane : board.getLaneAt(targetLaneNumber);
             if (targetLane == null) {
                 continue;

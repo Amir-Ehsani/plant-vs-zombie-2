@@ -59,6 +59,11 @@ public final class EntityAnimationRegistry {
         plantAliases.put(normalize("Rotobaga"), "ROTORUTABAGA");
         plantAliases.put(normalize("Mega Gatling Pea"), "MEGAGATLING");
         plantAliases.put(normalize("Phat Beet"), "PHATBEETS");
+        plantAliases.put(normalize("Kernel-pult"), "KERNALPULT");
+        plantAliases.put(normalize("Iceberg Lettuce"), "ICEBURG");
+        plantAliases.put(normalize("Cat-tail"), "HOMINGTHISTLE");
+        plantAliases.put(normalize("Pierce-mint"), "SPEARMINT");
+        plantAliases.put(normalize("catTail-mint"), "ENCHANTMINT");
     }
 
     private void initializeZombieAliases() {

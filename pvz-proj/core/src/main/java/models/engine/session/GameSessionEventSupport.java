@@ -86,14 +86,14 @@ abstract class GameSessionEventSupport extends GameSessionState {
 
     protected Position randomSunPosition() {
         Position fallback = new Position(
-                random.nextInt(board.getWidth()) + 1,
-                random.nextInt(board.getHeight()) + 1
+            random.nextInt(board.getWidth()) + 1,
+            random.nextInt(board.getHeight()) + 1
         );
 
         for (int attempt = 0; attempt < board.getWidth() * board.getHeight(); attempt++) {
             Position candidate = new Position(
-                    random.nextInt(board.getWidth()) + 1,
-                    random.nextInt(board.getHeight()) + 1
+                random.nextInt(board.getWidth()) + 1,
+                random.nextInt(board.getHeight()) + 1
             );
             if (!sunManager.hasSunAt(candidate)) {
                 return candidate;
@@ -119,15 +119,15 @@ abstract class GameSessionEventSupport extends GameSessionState {
         }
 
         boolean finalWave = currentLevel != null
-                && wave.getWaveNumber() == currentLevel.getWaveManager().getTotalWaves();
+            && wave.getWaveNumber() == currentLevel.getWaveManager().getTotalWaves();
         pendingEvents.add(GameEvent.waveStarted(wave.getWaveNumber(), finalWave));
 
         for (Zombie zombie : wave.getZombiesList()) {
             if (zombie != null) {
                 registerSpawnedZombie(zombie);
                 pendingEvents.add(GameEvent.zombieSpawned(
-                        zombie,
-                        wave.getWaveNumber()
+                    zombie,
+                    wave.getWaveNumber()
                 ));
             }
         }
@@ -150,7 +150,7 @@ abstract class GameSessionEventSupport extends GameSessionState {
             if (event.getType() == GameEventType.ZOMBIE_KILLED) {
                 handleZombieDeath(event.getZombie());
             } else if (event.getType() == GameEventType.PLANT_DESTROYED
-                    && normalizeName(event.getEntityName()).equals("sun bean")) {
+                && normalizeName(event.getEntityName()).equals("sun bean")) {
                 int releasedSun = 50;
                 totalSunAmount += releasedSun;
                 totalSunProduced += releasedSun;
@@ -163,8 +163,8 @@ abstract class GameSessionEventSupport extends GameSessionState {
             return;
         }
         int waveNumber = currentLevel == null
-                ? 0
-                : currentLevel.getWaveManager().getCurrentWaveNumber();
+            ? 0
+            : currentLevel.getWaveManager().getCurrentWaveNumber();
         for (Zombie zombie : zombies) {
             if (zombie == null) {
                 continue;
@@ -179,29 +179,49 @@ abstract class GameSessionEventSupport extends GameSessionState {
             return;
         }
 
-        if (Boolean.TRUE.equals(glowingZombies.remove(zombie))
-                && plantFoodCount < MAX_PLANT_FOOD) {
-            plantFoodCount++;
-            pendingEvents.add(GameEvent.plantFoodDropped(plantFoodCount));
-        }
+        awardGlowingZombiePlantFood(zombie);
+        restoreStolenSun(zombie);
+        rollZombieResourceDrop();
+    }
 
+    private void awardGlowingZombiePlantFood(Zombie zombie) {
+        if (!Boolean.TRUE.equals(glowingZombies.remove(zombie))
+            || plantFoodCount >= MAX_PLANT_FOOD) {
+            return;
+        }
+        plantFoodCount++;
+        pendingEvents.add(GameEvent.plantFoodDropped(plantFoodCount));
+    }
+
+    private void restoreStolenSun(Zombie zombie) {
         String zombieName = normalizeName(zombie.getType() == null ? "" : zombie.getType().getName());
         int stolenSun = zombie.takeStolenSun();
-        if (stolenSun > 0) {
-            int restored = zombieName.equals("turquoise") ? stolenSun / 2 : stolenSun;
-            if (restored > 0) {
-                totalSunAmount += restored;
-            }
+        if (stolenSun <= 0) {
+            return;
         }
+        int restored = zombieName.equals("turquoise") ? stolenSun / 2 : stolenSun;
+        if (restored > 0) {
+            totalSunAmount += restored;
+        }
+    }
 
-        if (zombie.hasDroppedReward()) {
-            pendingEvents.add(GameEvent.rewardDropped(zombie.getDroppedRewardType()));
+    private void rollZombieResourceDrop() {
+        if (random.nextInt(100) >= 10) {
+            return;
+        }
+        int reward = random.nextInt(3);
+        if (reward == 0) {
+            pendingEvents.add(GameEvent.rewardDropped("diamond", 1));
+        } else if (reward == 1) {
+            pendingEvents.add(GameEvent.rewardDropped("coin", 50));
+        } else {
+            pendingEvents.add(GameEvent.rewardDropped("pot", 1));
         }
     }
 
     protected void startPlantRecharge(PlantType type) {
         if (type == null || isPlantRechargeIgnored()
-                || currentLevel != null && currentLevel.usesConveyorBelt()) {
+            || currentLevel != null && currentLevel.usesConveyorBelt()) {
             return;
         }
 
@@ -212,8 +232,8 @@ abstract class GameSessionEventSupport extends GameSessionState {
         }
 
         plantRechargeUntilTick.put(
-                normalizeName(type.getName()),
-                tickManager.getCurrentTick() + rechargeTicks
+            normalizeName(type.getName()),
+            tickManager.getCurrentTick() + rechargeTicks
         );
     }
 

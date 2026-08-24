@@ -35,7 +35,7 @@ abstract class LaneCombatAttackSupport extends LaneCombatAbilitySupport {
         super(board, random);
     }
     protected void performPlantAttack(
-            Lane lane, Tile tile, Plant plant, PlantRuntimeState state
+        Lane lane, Tile tile, Plant plant, PlantRuntimeState state
     ) {
         if (attackDisabledPlantObstruction(lane, plant)) {
             plant.attack();
@@ -48,7 +48,7 @@ abstract class LaneCombatAttackSupport extends LaneCombatAbilitySupport {
         performStandardPlantAttack(name, lane, tile, plant, state);
     }
     private boolean handleLaneAttack(
-            String name, Lane lane, Plant plant, PlantRuntimeState state
+        String name, Lane lane, Plant plant, PlantRuntimeState state
     ) {
         int hits;
         if (name.equals("threepeater")) {
@@ -58,11 +58,11 @@ abstract class LaneCombatAttackSupport extends LaneCombatAbilitySupport {
                 hits = attackLanes(plant, laneNumbers);
             } else {
                 hits = attackLanes(plant, lane.getLaneId() - 1,
-                        lane.getLaneId(), lane.getLaneId() + 1);
+                    lane.getLaneId(), lane.getLaneId() + 1);
             }
         } else if (name.equals("rotobaga")) {
             hits = attackLanes(plant, lane.getLaneId() - 1,
-                    lane.getLaneId(), lane.getLaneId() + 1);
+                lane.getLaneId(), lane.getLaneId() + 1);
         } else {
             return false;
         }
@@ -73,7 +73,7 @@ abstract class LaneCombatAttackSupport extends LaneCombatAbilitySupport {
         return true;
     }
     private boolean handleDirectionalAttack(
-            String name, Lane lane, Plant plant, PlantRuntimeState state
+        String name, Lane lane, Plant plant, PlantRuntimeState state
     ) {
         if (name.equals("starfruit")) {
             List<Zombie> targets = closestTargets(plant, allLivingEnemyZombies(), 5, false);
@@ -96,7 +96,7 @@ abstract class LaneCombatAttackSupport extends LaneCombatAbilitySupport {
         return true;
     }
     private void performStandardPlantAttack(
-            String name, Lane lane, Tile tile, Plant plant, PlantRuntimeState state
+        String name, Lane lane, Tile tile, Plant plant, PlantRuntimeState state
     ) {
         List<Zombie> candidates = collectCandidateZombies(plant, lane);
         Zombie target = selectPrimaryTarget(plant, candidates);
@@ -125,7 +125,7 @@ abstract class LaneCombatAttackSupport extends LaneCombatAbilitySupport {
     }
     private boolean isChargeReady(String name, Plant plant, PlantRuntimeState state) {
         return !name.equals("citron") || state.hasAttacked
-                || state.ageTicks >= Math.max(1, plant.getChargeTimeTicks());
+            || state.ageTicks >= Math.max(1, plant.getChargeTimeTicks());
     }
     private void fireShots(Plant plant, Tile tile, Zombie target, int damage, boolean fireDamage) {
         int shotCount = resolveShotCount(plant, tile);
@@ -138,7 +138,7 @@ abstract class LaneCombatAttackSupport extends LaneCombatAbilitySupport {
         if ((!name.equals("pepper pult") && plant.getWarmthRadius() <= 0) || board == null) return;
         int radius = Math.max(1, plant.getWarmthRadius());
         board.meltTerrainArea(new Position(
-                (int) Math.round(plant.getX()), (int) Math.round(plant.getY())), radius);
+            (int) Math.round(plant.getX()), (int) Math.round(plant.getY())), radius);
     }
     private void finishAttack(Plant plant, PlantRuntimeState state) {
         plant.attack();
@@ -187,18 +187,18 @@ abstract class LaneCombatAttackSupport extends LaneCombatAbilitySupport {
         }
         if (name.equals("kiwibeast")) {
             double healthRatio = plant.getMaxHp() == 0 ? 1.0
-                    : plant.getHp() / (double) plant.getMaxHp();
+                : plant.getHp() / (double) plant.getMaxHp();
             int size = healthRatio <= 0.33 ? Math.max(3, plant.getMaxSize())
-                    : healthRatio <= 0.66 ? Math.max(2, plant.getMaxSize())
-                    : 1;
+                : healthRatio <= 0.66 ? Math.max(2, plant.getMaxSize())
+                : 1;
             return 15 * size;
         }
         if (name.equals("bonk choy")) {
             return 15;
         }
         if (name.equals("goo peashooter") || name.equals("snow pea")
-                || name.equals("fire peashooter") || name.equals("mega gatling pea")
-                || name.equals("repeater") || name.equals("pea pod")) {
+            || name.equals("fire peashooter") || name.equals("mega gatling pea")
+            || name.equals("repeater") || name.equals("pea pod")) {
             return 20;
         }
         return Math.max(0, plant.getAttackDamage());
@@ -243,10 +243,10 @@ abstract class LaneCombatAttackSupport extends LaneCombatAbilitySupport {
         }
     }
     protected void applySplashDamage(
-            Plant plant,
-            Zombie primary,
-            int primaryDamage,
-            boolean fireDamage
+        Plant plant,
+        Zombie primary,
+        int primaryDamage,
+        boolean fireDamage
     ) {
         int splash = plant.getAreaDamage();
         String name = normalizeText(plant.getName());
@@ -257,24 +257,24 @@ abstract class LaneCombatAttackSupport extends LaneCombatAbilitySupport {
             return;
         }
         Position center = new Position(
-                Math.max(1, Math.min(board.getWidth(), (int) Math.ceil(primary.getX()))),
-                Math.max(1, Math.min(board.getHeight(), (int) Math.round(primary.getY())))
+            Math.max(1, Math.min(board.getWidth(), (int) Math.ceil(primary.getX()))),
+            Math.max(1, Math.min(board.getHeight(), (int) Math.round(primary.getY())))
         );
         damageArea(center, 1, 1, splash,
-                fireDamage ? "fire splash" : "splash", plant, primary);
+            fireDamage ? "fire splash" : "splash", plant, primary);
     }
     protected void applyExtraTargets(
-            Plant plant,
-            Zombie primary,
-            List<Zombie> candidates,
-            int damage,
-            boolean fireDamage
+        Plant plant,
+        Zombie primary,
+        List<Zombie> candidates,
+        int damage,
+        boolean fireDamage
     ) {
         int additional = plant.hasPlantFoodUnlimitedPierce()
-                ? Integer.MAX_VALUE
-                : Math.max(0, plant.getTargetCount() - 1)
-                + Math.max(0, plant.getPierceCount())
-                + Math.max(0, plant.getBounces());
+            ? Integer.MAX_VALUE
+            : Math.max(0, plant.getTargetCount() - 1)
+            + Math.max(0, plant.getPierceCount())
+            + Math.max(0, plant.getBounces());
         String category = normalizeCategory(plant);
         if (category.equals("strike through") && additional == 0) {
             additional = 2;
@@ -286,7 +286,7 @@ abstract class LaneCombatAttackSupport extends LaneCombatAbilitySupport {
         List<Zombie> ordered = new ArrayList<>();
         for (Zombie zombie : candidates) {
             if (zombie != null && zombie != primary && zombie.isAlive()
-                    && !isHypnotized(zombie)) {
+                && !isHypnotized(zombie)) {
                 ordered.add(zombie);
             }
         }
@@ -295,21 +295,21 @@ abstract class LaneCombatAttackSupport extends LaneCombatAbilitySupport {
         for (int index = 0; index < ordered.size() && index < additional; index++) {
             Zombie zombie = ordered.get(index);
             int appliedDamage = index < plant.getBounces()
-                    ? Math.max(1, damage / 2)
-                    : damage;
+                ? Math.max(1, damage / 2)
+                : damage;
             dealPlantDamage(plant, zombie, appliedDamage,
-                    fireDamage ? "fire" : "multi target", fireDamage);
+                fireDamage ? "fire" : "multi target", fireDamage);
             applyOnHitEffects(plant, zombie);
         }
     }
     protected void damageArea(
-            Position center,
-            int xRadius,
-            int yRadius,
-            int damage,
-            String damageType,
-            Plant source,
-            Zombie excluded
+        Position center,
+        int xRadius,
+        int yRadius,
+        int damage,
+        String damageType,
+        Plant source,
+        Zombie excluded
     ) {
         if (board == null || center == null || damage <= 0) {
             return;
@@ -321,13 +321,13 @@ abstract class LaneCombatAttackSupport extends LaneCombatAbilitySupport {
             int x = (int) Math.ceil(zombie.getX());
             int y = (int) Math.round(zombie.getY());
             if (Math.abs(x - center.getX()) <= xRadius
-                    && Math.abs(y - center.getY()) <= yRadius) {
+                && Math.abs(y - center.getY()) <= yRadius) {
                 dealPlantDamage(source, zombie, damage, damageType, damageType.contains("fire"));
             }
         }
     }
     protected void dealPlantDamage(
-            Plant source, Zombie target, int damage, String damageType, boolean fireDamage
+        Plant source, Zombie target, int damage, String damageType, boolean fireDamage
     ) {
         if (!canDamageTarget(target, damage)) return;
         int adjusted = adjustedPlantDamage(source, damage);
@@ -346,11 +346,11 @@ abstract class LaneCombatAttackSupport extends LaneCombatAbilitySupport {
         return damage;
     }
     private boolean isAttackBlockedOrReflected(
-            Plant source,
-            Zombie target,
-            ZombieRuntimeState state,
-            String damageType,
-            int damage
+        Plant source,
+        Zombie target,
+        ZombieRuntimeState state,
+        String damageType,
+        int damage
     ) {
         String targetName = normalizeText(target.getName());
         if (!targetName.equals("juggler") || !isReflectableProjectile(source, damageType)) return false;
@@ -358,20 +358,20 @@ abstract class LaneCombatAttackSupport extends LaneCombatAbilitySupport {
         if (source != null) {
             source.takeDamage(new Damage(damage, "reflected projectile"));
             if (isIceDamage(resolveDamageType(source))
-                    || normalizeText(source.getName()).contains("snow")) source.addIceHit();
+                || normalizeText(source.getName()).contains("snow")) source.addIceHit();
         }
         return true;
     }
     private void recordPlantDamageSource(Plant source, Zombie target, String damageType) {
         if (source == null) return;
         target.recordDamageSource(source.getName(),
-                source.getType() == null ? "" : source.getType().getCategory(), damageType);
+            source.getType() == null ? "" : source.getType().getCategory(), damageType);
     }
     private void damageTerrainAtTarget(Zombie target, int damage) {
         if (board == null) return;
         Position position = new Position(
-                Math.max(1, Math.min(board.getWidth(), (int) Math.ceil(target.getX()))),
-                Math.max(1, Math.min(board.getHeight(), (int) Math.round(target.getY())))
+            Math.max(1, Math.min(board.getWidth(), (int) Math.ceil(target.getX()))),
+            Math.max(1, Math.min(board.getHeight(), (int) Math.round(target.getY())))
         );
         board.damageTerrain(position, damage, true);
     }
@@ -387,6 +387,11 @@ abstract class LaneCombatAttackSupport extends LaneCombatAbilitySupport {
         observeZombieDamage(zombie, state);
         handleFrontObjectState(lane, zombie, state);
         if (!applyZombieStatusEffects(lane, zombie, state)) return;
+        if (zombie.getX() > lane.getWidth()) {
+            updateZombieSpeed(zombie, state);
+            moveZombieByAbility(zombie, state);
+            return;
+        }
         runSpecialZombieAbility(lane, zombie, state);
         if (!zombie.isAlive()) {
             handleSpecialZombieDeath(zombie, state);
@@ -400,11 +405,11 @@ abstract class LaneCombatAttackSupport extends LaneCombatAbilitySupport {
         moveOrAttackWithZombie(lane, zombie, state);
     }
     private boolean applyZombieStatusEffects(
-            Lane lane, Zombie zombie, ZombieRuntimeState state
+        Lane lane, Zombie zombie, ZombieRuntimeState state
     ) {
         if (state.poisonTicks > 0) {
             zombie.recordDamageSource(
-                    state.poisonSourcePlantName, state.poisonSourcePlantCategory, "poison");
+                state.poisonSourcePlantName, state.poisonSourcePlantCategory, "poison");
             zombie.takeDamage(new Damage(state.poisonDamage, "poison"));
             state.poisonTicks--;
             if (!zombie.isAlive()) {
@@ -441,7 +446,7 @@ abstract class LaneCombatAttackSupport extends LaneCombatAbilitySupport {
         if (plant != null && plant.isTransformedToCat()) plant = null;
         updateSnorkelState(zombie, tile, plant);
         if (handleAllstarZombieCollision(lane, zombie, state)
-                || handleHeavyZombieCollision(lane, zombie)) return;
+            || handleHeavyZombieCollision(lane, zombie)) return;
         if (plant != null && plant.isAlive() && !fliesOverPlant(zombie, plant)) {
             handleZombiePlantCollision(lane, zombie, state, plant);
         } else {
