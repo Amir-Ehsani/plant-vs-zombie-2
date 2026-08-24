@@ -16,9 +16,9 @@ public final class SunRenderSystem {
     private static final String SUN_ANIMATION_NAME = "SUN";
     private static final int SKY_FALL_TICKS = 50;
     private static final float SKY_START_MARGIN = 70f;
-    private static final float NORMAL_SCALE = 0.32f;
-    private static final float SPECIAL_SCALE = 0.44f;
-    private static final float RADIOACTIVE_SCALE = 0.37f;
+    private static final float NORMAL_SCALE = 0.64f;
+    private static final float SPECIAL_SCALE = 0.88f;
+    private static final float RADIOACTIVE_SCALE = 0.74f;
     private static final float HIT_RADIUS_FACTOR = 0.34f;
 
     private final BoardGeometry geometry;
