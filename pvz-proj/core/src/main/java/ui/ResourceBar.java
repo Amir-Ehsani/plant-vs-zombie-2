@@ -1,5 +1,6 @@
 package ui;
 
+import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.scenes.scene2d.ui.Skin;
 import com.badlogic.gdx.scenes.scene2d.ui.Table;
 import models.account.User;
@@ -11,12 +12,15 @@ public class ResourceBar extends Table {
     private final CurrencyActor sunActor;
     private final CurrencyActor plantFoodActor;
 
-    public ResourceBar(Skin skin) {
+    public ResourceBar(Skin skin, PvzAnimationService animations) {
         this.skin = skin;
         setBackground(skin.getDrawable("image_ui_mainmenu_name_field_10"));
-        pad(12f, 18f, 12f, 18f);
-        coinsActor = new CurrencyActor(skin, "Coins");
-        diamondsActor = new CurrencyActor(skin, "Diamonds");
+        pad(10f, 14f, 10f, 14f);
+        TextureRegion barBackground = animations == null ? null : animations.region("IMAGE_UI_GENERIC_PURPLEBUTTON_DOWN");
+        TextureRegion coinIcon = animations == null ? null : animations.region("IMAGE_UI_THYMED_EVENTS_ECS_CONVRT_COIN");
+        TextureRegion diamondIcon = animations == null ? null : animations.region("IMAGE_EFFECTS_COIN_DIAMOND_COIN_DIAMOND_141X146");
+        coinsActor = new CurrencyActor(skin, "Coins", barBackground, coinIcon);
+        diamondsActor = new CurrencyActor(skin, "Diamonds", barBackground, diamondIcon);
         sunActor = new CurrencyActor(skin, "Sun");
         plantFoodActor = new CurrencyActor(skin, "Plant Food");
         rebuild(false, false, null, null, null, null);
@@ -62,11 +66,11 @@ public class ResourceBar extends Table {
     ) {
         clearChildren();
         Table content = new Table();
-        content.add(coinsActor).padRight(14f);
-        content.add(diamondsActor);
+        content.add(coinsActor).padRight(10f).height(32f);
+        content.add(diamondsActor).padRight(gameResourcesVisible ? 10f : 0f).height(32f);
         if (gameResourcesVisible) {
-            content.add(sunActor).padLeft(14f);
-            content.add(plantFoodActor).padLeft(14f);
+            content.add(sunActor).padLeft(4f).padRight(8f);
+            content.add(plantFoodActor).padLeft(4f).padRight(8f);
         }
         if (debugVisible) {
             addDebugButton(content, "+Coin", 92f, addCoin);
