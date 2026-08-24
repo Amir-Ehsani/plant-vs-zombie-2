@@ -25,8 +25,10 @@ import ui.PvzAnimationService;
 
 public class GreenhouseScreen extends BaseMenuScreen {
     private static final Color POT_TEXT_COLOR = Color.valueOf("4A3A1F");
-    private static final float POT_WIDTH = 142f;
-    private static final float POT_HEIGHT = 120f;
+    private static final float POT_WIDTH = 126f;
+    private static final float POT_HEIGHT = 106f;
+    private static final float POT_ART_WIDTH = 108f;
+    private static final float POT_ART_HEIGHT = 94f;
 
     private final GreenhouseController controller;
     private final PvzAnimationService animations;
@@ -135,7 +137,7 @@ public class GreenhouseScreen extends BaseMenuScreen {
 
     private void rebuildGrid(Greenhouse greenhouse) {
         potGrid.clearChildren();
-        potGrid.defaults().pad(3f);
+        potGrid.defaults().pad(10f, 12f, 10f, 12f);
         for (int y = 1; y <= Greenhouse.HEIGHT; y++) {
             for (int x = 1; x <= Greenhouse.WIDTH; x++) {
                 potGrid.add(createPotCard(greenhouse.getPot(x, y))).width(POT_WIDTH).height(POT_HEIGHT);
@@ -146,10 +148,12 @@ public class GreenhouseScreen extends BaseMenuScreen {
 
     private Table createPotCard(Greenhouse.Pot pot) {
         Stack stack = new Stack();
+        Table potLayer = new Table();
         Image potImage = createPotImage(pot);
         if (potImage != null) {
-            stack.add(potImage);
+            potLayer.add(potImage).size(POT_ART_WIDTH, POT_ART_HEIGHT).center();
         }
+        stack.add(potLayer);
 
         Table content = new Table();
         content.pad(5f, 7f, 5f, 7f);
@@ -181,7 +185,7 @@ public class GreenhouseScreen extends BaseMenuScreen {
             return null;
         }
         Image image = new Image(region);
-        image.setScaling(Scaling.fill);
+        image.setScaling(Scaling.fit);
         return image;
     }
 
@@ -191,20 +195,24 @@ public class GreenhouseScreen extends BaseMenuScreen {
         if (lockRegion != null) {
             Image lockImage = new Image(lockRegion);
             lockImage.setScaling(Scaling.fit);
-            content.add(lockImage).size(46f, 42f).padBottom(1f).row();
+            content.add(lockImage).size(40f, 36f).padTop(4f).padBottom(1f).row();
         } else {
             Label state = new Label("LOCKED", skin, "medium_outline");
             state.setAlignment(Align.center);
-            content.add(state).width(124f).padBottom(1f).row();
+            content.add(state).width(110f).padBottom(1f).row();
+        }
+        Table priceRow = new Table();
+        TextureRegion coinRegion = animations.region("IMAGE_UI_THYMED_EVENTS_ECS_CONVRT_COIN");
+        if (coinRegion != null) {
+            Image coin = new Image(coinRegion);
+            coin.setScaling(Scaling.fit);
+            priceRow.add(coin).size(16f, 16f).padRight(4f);
         }
         Label price = new Label(String.valueOf(GreenhouseController.POT_PURCHASE_PRICE), skin, "medium_outline");
         price.setColor(Color.WHITE);
         price.setAlignment(Align.center);
-        content.add(price).width(124f).padBottom(1f).row();
-        Label currency = new Label("Coins", skin, "secondary");
-        currency.setColor(Color.WHITE);
-        currency.setAlignment(Align.center);
-        content.add(currency).width(124f).padBottom(3f);
+        priceRow.add(price);
+        content.add(priceRow).width(110f).padBottom(3f);
         content.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
@@ -221,15 +229,15 @@ public class GreenhouseScreen extends BaseMenuScreen {
         if (plantRegion != null) {
             Image plantButton = new Image(plantRegion);
             plantButton.setScaling(Scaling.fit);
-            content.add(plantButton).size(72f, 72f).padBottom(3f).row();
+            content.add(plantButton).size(64f, 58f).padTop(8f).padBottom(2f).row();
         } else {
             Label state = potLabel("PLANT");
             state.setAlignment(Align.center);
-            content.add(state).width(124f).padBottom(3f).row();
+            content.add(state).width(110f).padBottom(2f).row();
         }
         Label hint = potLabel("Tap to plant");
         hint.setAlignment(Align.center);
-        content.add(hint).width(124f).padBottom(3f);
+        content.add(hint).width(110f).padBottom(2f);
         content.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
@@ -240,31 +248,31 @@ public class GreenhouseScreen extends BaseMenuScreen {
 
     private void buildGrowingPot(Table content, Greenhouse.Pot pot) {
         Actor actor = animations.createPlantActor(pot.getPlantName());
-        actor.setSize(70f, 58f);
-        content.add(actor).size(76f, 60f).expandY().bottom().padTop(15f).padBottom(-5f).row();
+        actor.setSize(62f, 50f);
+        content.add(actor).size(66f, 52f).expandY().bottom().padTop(24f).padBottom(-7f).row();
         Label name = potLabel(pot.getPlantName());
         name.setAlignment(Align.center);
         name.setWrap(true);
-        content.add(name).width(124f).height(22f).row();
+        content.add(name).width(110f).height(20f).row();
         Label remaining = potLabel(remainingTime(pot));
         remaining.setAlignment(Align.center);
-        content.add(remaining).width(124f).row();
+        content.add(remaining).width(110f).row();
         int cost = Math.max(1, pot.getRemainingHoursRoundedUp());
-        content.add(createSpeedUpControl(pot, cost)).width(94f).height(24f).padTop(1f).padBottom(1f);
+        content.add(createSpeedUpControl(pot, cost)).width(82f).height(22f).padTop(1f).padBottom(1f);
     }
 
     private void buildReadyPot(Table content, Greenhouse.Pot pot) {
         Actor actor = animations.createPlantActor(pot.getPlantName());
-        actor.setSize(70f, 58f);
-        content.add(actor).size(76f, 60f).expandY().bottom().padTop(15f).padBottom(-5f).row();
+        actor.setSize(62f, 50f);
+        content.add(actor).size(66f, 52f).expandY().bottom().padTop(24f).padBottom(-7f).row();
         Label state = new Label("READY", skin, "medium_outline");
         state.setAlignment(Align.center);
-        content.add(state).width(124f).row();
+        content.add(state).width(110f).row();
         Label name = potLabel(pot.getPlantName());
         name.setAlignment(Align.center);
-        content.add(name).width(124f).row();
+        content.add(name).width(110f).row();
         content.add(new MenuButton("Collect", skin, "green_small", () -> collectReward(pot)))
-                .width(100f).height(24f).padTop(1f).padBottom(1f);
+                .width(90f).height(22f).padTop(1f).padBottom(1f);
     }
 
     private Stack createSpeedUpControl(Greenhouse.Pot pot, int cost) {
@@ -275,10 +283,18 @@ public class GreenhouseScreen extends BaseMenuScreen {
             image.setScaling(Scaling.fill);
             control.add(image);
         }
-        Label label = new Label(cost + " Diamonds", skin, "secondary");
+        Table price = new Table();
+        Label label = new Label(String.valueOf(cost), skin, "secondary");
         label.setColor(Color.WHITE);
         label.setAlignment(Align.center);
-        control.add(label);
+        price.add(label).padRight(4f);
+        TextureRegion diamondRegion = animations.region("IMAGE_EFFECTS_COIN_DIAMOND_COIN_DIAMOND_141X146");
+        if (diamondRegion != null) {
+            Image diamond = new Image(diamondRegion);
+            diamond.setScaling(Scaling.fit);
+            price.add(diamond).size(14f, 14f);
+        }
+        control.add(price);
         control.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
