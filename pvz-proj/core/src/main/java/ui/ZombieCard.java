@@ -30,6 +30,7 @@ public class ZombieCard extends BorderedTable {
         visualContainer = new Container<>();
         visualContainer.fill(false);
         visualContainer.center();
+        visualContainer.padTop(18f);
         image = new Image();
         fallbackLabel = new Label("", skin, "medium_outline");
         unknownLabel = new Label("?", skin, "big_outline");
