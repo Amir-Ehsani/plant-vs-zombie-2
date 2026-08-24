@@ -25,6 +25,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class MainMenuScreen extends BaseMenuScreen {
+    private static final Color SHORTCUT_TEXT_COLOR = Color.valueOf("FFFBEA");
     private final MainMenuController controller;
     private final PvzAnimationService animations;
     private Texture backgroundTexture;
@@ -61,9 +62,9 @@ public class MainMenuScreen extends BaseMenuScreen {
         addBackground();
         addTopLeftCluster();
         addTopRightCluster();
-        addRightSideCluster();
         addCenterCluster();
         addBottomLeftCluster();
+        addBottomCenterCluster();
         addBottomRightCluster();
     }
 
@@ -107,58 +108,6 @@ public class MainMenuScreen extends BaseMenuScreen {
         Table table = createRoot();
         table.top().right();
         addResourceBar(table);
-    }
-
-    private void addRightSideCluster() {
-        Table table = createRoot();
-        table.right();
-        table.padTop(24f);
-        table.add(createLargeShortcut(
-                "Shop",
-                "IMAGE_UI_HUD_WORLDMAP_BUTTONS_HUD_STORE_NORMAL",
-                "IMAGE_UI_HUD_WORLDMAP_BUTTONS_HUD_STORE_SELECTED",
-                game.getScreenManager()::showShop
-        )).padBottom(12f).row();
-        table.add(createLargeShortcut(
-                "Greenhouse",
-                "IMAGE_UI_GENERIC_BUTTONS_HUD_ZG_NORMAL",
-                "IMAGE_UI_GENERIC_BUTTONS_HUD_ZG_SELECTED",
-                game.getScreenManager()::showGreenhouse
-        )).padBottom(12f).row();
-        table.add(new MenuButton("Leaderboard", skin, "brown", game.getScreenManager()::showLeaderboard))
-                .width(160f).height(44f);
-    }
-
-    private Table createLargeShortcut(String title, String normalRegionId, String selectedRegionId, Runnable action) {
-        Table shortcut = new Table();
-        ImageButton.ImageButtonStyle style = new ImageButton.ImageButtonStyle();
-        TextureRegion normal = animations.region(normalRegionId);
-        TextureRegion selected = animations.region(selectedRegionId);
-        if (normal != null) {
-            style.up = new TextureRegionDrawable(normal);
-        }
-        if (selected != null) {
-            style.down = new TextureRegionDrawable(selected);
-            style.checked = new TextureRegionDrawable(selected);
-            style.over = new TextureRegionDrawable(selected);
-        } else if (normal != null) {
-            style.down = new TextureRegionDrawable(normal);
-            style.checked = new TextureRegionDrawable(normal);
-            style.over = new TextureRegionDrawable(normal);
-        }
-        ImageButton button = new ImageButton(style);
-        button.addListener(new ClickListener() {
-            @Override
-            public void clicked(InputEvent event, float x, float y) {
-                action.run();
-            }
-        });
-        Label label = new Label(title, skin, "secondary");
-        label.setColor(Color.valueOf("FFF5C9"));
-        label.setAlignment(Align.center);
-        shortcut.add(button).size(86f, 86f).center().row();
-        shortcut.add(label).width(110f).padTop(2f).center();
-        return shortcut;
     }
 
     private void addCenterCluster() {
@@ -225,20 +174,75 @@ public class MainMenuScreen extends BaseMenuScreen {
     private void addBottomLeftCluster() {
         Table table = createRoot();
         table.bottom().left();
-        table.add(createShortcut("Collection", "almanac", game.getScreenManager()::showCollection)).padRight(12f);
-        table.add(createShortcut(newsText(), "hud_zg", game.getScreenManager()::showNews));
+        table.add(createSkinShortcut("Collection", "almanac", game.getScreenManager()::showCollection))
+                .padRight(12f);
+        table.add(createAssetShortcut(
+                newsText(),
+                "IMAGE_UI_HUD_NEWSBUTTON_BUTTONS_HUD_NEWS_NORMAL",
+                null,
+                game.getScreenManager()::showNews
+        ));
+    }
+
+    private void addBottomCenterCluster() {
+        Table table = createRoot();
+        table.bottom().center();
+        table.add(new MenuButton("Leaderboard", skin, "brown", game.getScreenManager()::showLeaderboard))
+                .width(170f).height(44f).padBottom(4f);
     }
 
     private void addBottomRightCluster() {
         Table table = createRoot();
         table.bottom().right();
-        table.add(createShortcut("Quests", "hud_quests", game.getScreenManager()::showQuests)).padLeft(12f);
-        table.add(createShortcut("Settings", "settings", game.getScreenManager()::showSettings)).padLeft(12f);
+        Table shortcuts = new Table();
+        shortcuts.add(createAssetShortcut(
+                "Shop",
+                "IMAGE_UI_HUD_WORLDMAP_BUTTONS_HUD_STORE_NORMAL",
+                "IMAGE_UI_HUD_WORLDMAP_BUTTONS_HUD_STORE_SELECTED",
+                game.getScreenManager()::showShop
+        )).padLeft(12f);
+        shortcuts.add(createAssetShortcut(
+                "Greenhouse",
+                "IMAGE_UI_GENERIC_BUTTONS_HUD_ZG_NORMAL",
+                "IMAGE_UI_GENERIC_BUTTONS_HUD_ZG_SELECTED",
+                game.getScreenManager()::showGreenhouse
+        )).padLeft(12f).row();
+        shortcuts.add(createSkinShortcut("Quests", "hud_quests", game.getScreenManager()::showQuests))
+                .padLeft(12f).padTop(6f);
+        shortcuts.add(createSkinShortcut("Settings", "settings", game.getScreenManager()::showSettings))
+                .padLeft(12f).padTop(6f);
+        table.add(shortcuts);
     }
 
-    private Table createShortcut(String title, String styleName, Runnable action) {
-        Table shortcut = new Table();
+    private Table createSkinShortcut(String title, String styleName, Runnable action) {
         ImageButton button = new ImageButton(skin, styleName);
+        return createShortcut(title, button, action);
+    }
+
+    private Table createAssetShortcut(
+            String title,
+            String normalRegionId,
+            String pressedRegionId,
+            Runnable action
+    ) {
+        ImageButton.ImageButtonStyle style = new ImageButton.ImageButtonStyle();
+        TextureRegion normal = animations.region(normalRegionId);
+        TextureRegion pressed = pressedRegionId == null ? null : animations.region(pressedRegionId);
+        if (normal != null) {
+            style.up = new TextureRegionDrawable(normal);
+            style.over = new TextureRegionDrawable(normal);
+            style.checked = new TextureRegionDrawable(normal);
+        }
+        if (pressed != null) {
+            style.down = new TextureRegionDrawable(pressed);
+        } else if (normal != null) {
+            style.down = new TextureRegionDrawable(normal);
+        }
+        return createShortcut(title, new ImageButton(style), action);
+    }
+
+    private Table createShortcut(String title, ImageButton button, Runnable action) {
+        Table shortcut = new Table();
         button.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
@@ -246,7 +250,7 @@ public class MainMenuScreen extends BaseMenuScreen {
             }
         });
         Label label = new Label(title, skin, "secondary");
-        label.setColor(Color.valueOf("FFF5C9"));
+        label.setColor(SHORTCUT_TEXT_COLOR);
         label.setAlignment(Align.center);
         shortcut.add(button).size(72f).center().row();
         shortcut.add(label).width(106f).padTop(3f).center();
