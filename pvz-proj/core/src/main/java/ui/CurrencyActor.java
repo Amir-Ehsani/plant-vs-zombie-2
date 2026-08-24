@@ -1,5 +1,6 @@
 package ui;
 
+import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.scenes.scene2d.ui.Image;
 import com.badlogic.gdx.scenes.scene2d.ui.Label;
@@ -10,6 +11,7 @@ import com.badlogic.gdx.utils.Align;
 import com.badlogic.gdx.utils.Scaling;
 
 public class CurrencyActor extends Table {
+    private static final Color RESOURCE_TEXT_COLOR = Color.valueOf("FFFBEA");
     private final String name;
     private final Label valueLabel;
 
@@ -21,24 +23,22 @@ public class CurrencyActor extends Table {
         this.name = name == null ? "" : name;
         if (backgroundRegion != null) {
             setBackground(new TextureRegionDrawable(backgroundRegion));
-            pad(6f, 10f, 6f, 10f);
+            pad(9f, 12f, 9f, 12f);
         }
         if (iconRegion != null) {
             Image icon = new Image(iconRegion);
             icon.setScaling(Scaling.fit);
-            add(icon).size(18f, 18f).padRight(5f);
+            add(icon).size(22f, 22f).padRight(6f);
         } else if (!this.name.isBlank()) {
             Label nameLabel = new Label(this.name + ":", skin, "secondary");
             add(nameLabel).padRight(6f);
         }
         valueLabel = new Label("0", skin, backgroundRegion == null ? "medium_outline" : "secondary");
+        if (backgroundRegion != null) {
+            valueLabel.setColor(RESOURCE_TEXT_COLOR);
+        }
         valueLabel.setAlignment(Align.center);
         add(valueLabel);
-        if (backgroundRegion != null && !this.name.isBlank()) {
-            Label hiddenName = new Label(this.name, skin, "secondary");
-            hiddenName.setVisible(false);
-            add(hiddenName).width(0f).height(0f);
-        }
     }
 
     public void setValue(int value) {
