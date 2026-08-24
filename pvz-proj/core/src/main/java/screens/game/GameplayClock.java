@@ -1,7 +1,7 @@
 package screens.game;
 
+import models.account.Settings;
 import models.engine.session.GameSession;
-
 
 public final class GameplayClock {
     private static final float TICK_SECONDS = 0.1f;
@@ -16,15 +16,14 @@ public final class GameplayClock {
             throw new IllegalArgumentException("Game session cannot be null.");
         }
         this.session = session;
-        this.accumulator = 0f;
-        this.gameSpeed = 1;
+        accumulator = 0f;
+        gameSpeed = Settings.MIN_GAME_SPEED;
     }
 
     public void update(float delta) {
         if (isPaused() || !session.isRunning()) {
             return;
         }
-
         accumulator += Math.min(delta, MAX_FRAME_DELTA);
         while (accumulator >= TICK_SECONDS) {
             session.advanceTicks(gameSpeed);
@@ -44,8 +43,8 @@ public final class GameplayClock {
     }
 
     public void setGameSpeed(int gameSpeed) {
-        if (gameSpeed <= 0) {
-            throw new IllegalArgumentException("Game speed must be positive.");
+        if (gameSpeed < Settings.MIN_GAME_SPEED || gameSpeed > Settings.MAX_GAME_SPEED) {
+            throw new IllegalArgumentException("Game speed must be between 1 and 3.");
         }
         this.gameSpeed = gameSpeed;
     }
