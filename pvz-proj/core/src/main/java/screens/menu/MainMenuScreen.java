@@ -173,8 +173,7 @@ public class MainMenuScreen extends BaseMenuScreen {
     private void addBottomNavigation() {
         Table table = createRoot();
         table.bottom().center();
-        table.setY(-18f);
-        table.padBottom(0f);
+        table.pad(24f, 24f, 0f, 24f);
         table.add(createSkinShortcut("Collection", "almanac", game.getScreenManager()::showCollection))
                 .padRight(10f);
         table.add(createAssetShortcut(
@@ -184,7 +183,7 @@ public class MainMenuScreen extends BaseMenuScreen {
                 game.getScreenManager()::showNews
         )).padRight(10f);
         table.add(new MenuButton("Leaderboard", skin, "brown", game.getScreenManager()::showLeaderboard))
-                .width(160f).height(44f).padRight(10f).padBottom(16f);
+                .width(160f).height(44f).padRight(10f);
         table.add(createSkinShortcut("Quests", "hud_quests", game.getScreenManager()::showQuests))
                 .padRight(10f);
         table.add(createSkinShortcut("Settings", "settings", game.getScreenManager()::showSettings));
