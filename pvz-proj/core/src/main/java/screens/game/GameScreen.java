@@ -17,6 +17,7 @@ import com.pvz.Main;
 import controllers.core.GameController;
 import controllers.features.SettingsController;
 import game.animation.core.PvzAnimationService;
+import game.hud.CompactSeedBank;
 import game.hud.GameplayEventFeedback;
 import game.render.BoardBackgroundCatalog;
 import game.render.BoardGeometry;
@@ -66,6 +67,7 @@ public final class GameScreen extends BaseScreen {
     private final SunRenderSystem sunRenderSystem;
     private final LawnMowerRenderSystem lawnMowerRenderSystem;
     private final GameplayEventFeedback eventFeedback;
+    private final CompactSeedBank compactSeedBank;
 
     private TextureRegion background;
     private Position hoveredTile;
@@ -102,19 +104,20 @@ public final class GameScreen extends BaseScreen {
             projectileRenderSystem = new ProjectileRenderSystem(boardGeometry, animations);
             sunRenderSystem = new SunRenderSystem(boardGeometry, animations);
             lawnMowerRenderSystem = new LawnMowerRenderSystem(
-                    boardGeometry,
-                    animations,
-                    session.getCurrentLevel() == null ? null : session.getCurrentLevel().getSeasonType()
+                boardGeometry,
+                animations,
+                session.getCurrentLevel() == null ? null : session.getCurrentLevel().getSeasonType()
             );
+            compactSeedBank = new CompactSeedBank(animations, game.getSkin());
         } else {
             entityRenderSystem = null;
             projectileRenderSystem = null;
             sunRenderSystem = null;
             lawnMowerRenderSystem = null;
+            compactSeedBank = null;
         }
         eventFeedback = new GameplayEventFeedback(notificationManager);
         buildHud();
-        buildPlantCardHud();
         loadStageAssets();
         debugMessage = "Adventure session connected";
         refreshGameHud();
@@ -140,6 +143,7 @@ public final class GameScreen extends BaseScreen {
         drawBackground();
         drawGrid();
         drawLawnMowers();
+        drawSeedBank();
         drawEntities();
         drawProjectiles();
         drawSuns();
@@ -205,8 +209,8 @@ public final class GameScreen extends BaseScreen {
             return Settings.MIN_GAME_SPEED;
         }
         return Math.max(
-                Settings.MIN_GAME_SPEED,
-                Math.min(Settings.MAX_GAME_SPEED, settings.getGameSpeed())
+            Settings.MIN_GAME_SPEED,
+            Math.min(Settings.MAX_GAME_SPEED, settings.getGameSpeed())
         );
     }
 
@@ -282,8 +286,8 @@ public final class GameScreen extends BaseScreen {
             return;
         }
         card.setSeedPacketProgress(
-                data.getSeedPackets(),
-                data.getRequiredSeedPacketsForNextLevel()
+            data.getSeedPackets(),
+            data.getRequiredSeedPacketsForNextLevel()
         );
     }
 
@@ -347,19 +351,19 @@ public final class GameScreen extends BaseScreen {
         boolean debug = isDebugMode();
         if (!resourceBarConfigured || debugControlsVisible != debug) {
             resourceBar.setGameDebugControls(
-                    debug,
-                    this::addDebugCoins,
-                    this::addDebugDiamonds,
-                    this::addDebugSun,
-                    this::addDebugPlantFood
+                debug,
+                this::addDebugCoins,
+                this::addDebugDiamonds,
+                this::addDebugSun,
+                this::addDebugPlantFood
             );
             resourceBarConfigured = true;
             debugControlsVisible = debug;
         }
         resourceBar.refreshGame(
-                user,
-                session.getTotalSunAmount(),
-                session.getPlantFoodCount()
+            user,
+            session.getTotalSunAmount(),
+            session.getPlantFoodCount()
         );
         refreshGameplayPlantCards();
     }
@@ -450,6 +454,12 @@ public final class GameScreen extends BaseScreen {
         disableAlphaBlending();
     }
 
+    private void drawSeedBank() {
+        if (compactSeedBank != null) {
+            compactSeedBank.render(shapes, batch, session, visualStateTime);
+        }
+    }
+
     private void drawEntities() {
         if (entityRenderSystem != null) {
             entityRenderSystem.render(batch, session.getBoard());
@@ -492,9 +502,9 @@ public final class GameScreen extends BaseScreen {
         Vector2 world = new Vector2(Gdx.input.getX(), Gdx.input.getY());
         stage.getViewport().unproject(world);
         Sun sun = sunRenderSystem.findHoveredSun(
-                world.x,
-                world.y,
-                session.getSunManager()
+            world.x,
+            world.y,
+            session.getSunManager()
         );
         if (sun == null) {
             return;
@@ -600,24 +610,24 @@ public final class GameScreen extends BaseScreen {
             return;
         }
         String cursor = hoveredTile == null
-                ? "outside board"
-                : "(" + hoveredTile.getX() + ", " + hoveredTile.getY() + ")";
+            ? "outside board"
+            : "(" + hoveredTile.getX() + ", " + hoveredTile.getY() + ")";
         String state = gameplayClock.isPaused()
-                ? "PAUSED"
-                : session.isRunning() ? "RUNNING" : "FINISHED";
+            ? "PAUSED"
+            : session.isRunning() ? "RUNNING" : "FINISHED";
         String grid = settings != null && settings.isGridVisible() ? "on" : "off";
         Board board = session.getBoard();
         statusLabel.setText(
-                debugMessage
-                        + " | tick=" + gameplayClock.getCurrentTick()
-                        + " | speed=x" + gameplayClock.getGameSpeed()
-                        + " | " + state
-                        + " | grid=" + grid
-                        + " | cursor=" + cursor
-                        + " | plants=" + board.getPlantCount()
-                        + " | zombies=" + board.getActiveZombieCount()
-                        + "\nP/Space: pause | 1/2/3: speed | Left click: inspect tile | Esc: main menu"
-                        + "\n" + animations.getStatusMessage()
+            debugMessage
+                + " | tick=" + gameplayClock.getCurrentTick()
+                + " | speed=x" + gameplayClock.getGameSpeed()
+                + " | " + state
+                + " | grid=" + grid
+                + " | cursor=" + cursor
+                + " | plants=" + board.getPlantCount()
+                + " | zombies=" + board.getActiveZombieCount()
+                + "\nP/Space: pause | 1/2/3: speed | Left click: inspect tile | Esc: main menu"
+                + "\n" + animations.getStatusMessage()
         );
     }
 }

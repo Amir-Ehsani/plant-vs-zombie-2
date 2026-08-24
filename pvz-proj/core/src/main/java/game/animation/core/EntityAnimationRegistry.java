@@ -1,6 +1,7 @@
 package game.animation.core;
 
 import models.core.plant.Plant;
+import models.core.plant.PlantType;
 import models.core.zombie.Zombie;
 
 import java.util.LinkedHashMap;
@@ -26,11 +27,15 @@ public final class EntityAnimationRegistry {
     }
 
     public EntityAnimationProfile forPlant(Plant plant) {
-        if (plant == null || plant.getType() == null) {
+        return plant == null ? null : forPlantType(plant.getType());
+    }
+
+    public EntityAnimationProfile forPlantType(PlantType type) {
+        if (type == null) {
             return null;
         }
-        String normalized = normalize(plant.getName());
-        String animationName = plantAliases.getOrDefault(normalized, plant.getName());
+        String normalized = normalize(type.getName());
+        String animationName = plantAliases.getOrDefault(normalized, type.getName());
         AnimationDefinition definition = catalog.findByName(animationName, PLANT_PATH);
         if (definition == null) {
             definition = catalog.findByName(animationName, MINT_PATH);
@@ -38,7 +43,7 @@ public final class EntityAnimationRegistry {
         if (definition == null) {
             return null;
         }
-        return new EntityAnimationProfile(definition, plantScale(plant.getName()));
+        return new EntityAnimationProfile(definition, plantScale(type.getName()));
     }
 
     public EntityAnimationProfile forZombie(Zombie zombie) {
