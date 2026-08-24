@@ -77,12 +77,12 @@ public class CollectionZombiePanel extends Table {
 
     private void refreshCards(List<ZombieType> types) {
         cardsTable.clearChildren();
-        cardsTable.defaults().pad(5f).top();
+        cardsTable.defaults().pad(6f).top();
         int column = 0;
         for (ZombieType type : types) {
             boolean discovered = isZombieDiscovered(type.getName());
             ZombieCard card = createCard(type, discovered);
-            cardsTable.add(card).width(210f).height(196f).top();
+            cardsTable.add(card).width(220f).height(252f).top();
             column++;
             if (column % 3 == 0) {
                 cardsTable.row();
