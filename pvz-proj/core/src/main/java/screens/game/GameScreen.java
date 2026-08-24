@@ -10,23 +10,35 @@ import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.scenes.scene2d.ui.Label;
+import com.badlogic.gdx.scenes.scene2d.ui.ScrollPane;
 import com.badlogic.gdx.scenes.scene2d.ui.Table;
 import com.pvz.Main;
+import controllers.features.SettingsController;
 import game.animation.core.PvzAnimationService;
 import game.render.BoardGeometry;
 import game.render.BoardRenderer;
 import game.render.entity.EntityOverlayRenderer;
 import game.render.entity.EntityRenderSystem;
+import models.account.PlantData;
+import models.account.Settings;
+import models.account.User;
 import models.core.plant.Plant;
+import models.core.plant.PlantType;
 import models.core.zombie.Zombie;
 import models.engine.board.Board;
 import models.engine.board.Position;
 import models.engine.board.Tile;
 import models.engine.board.TileType;
 import models.engine.session.GameSession;
+import models.engine.session.PlantRechargeStatus;
 import screens.BaseScreen;
+import ui.NotificationManager;
+import ui.PlantCard;
+import ui.ResourceBar;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 public final class GameScreen extends BaseScreen {
     private static final float BOARD_X = 315f;
@@ -34,6 +46,7 @@ public final class GameScreen extends BaseScreen {
     private static final float BOARD_WIDTH = 920f;
     private static final float BOARD_HEIGHT = 457f;
     private static final String EGYPT_BACKGROUND = "IMAGE_BACKGROUNDS_EGYPT_TEXTURE";
+    private static final float TICK_SECONDS = 0.1f;
 
     private final SpriteBatch batch;
     private final ShapeRenderer shapes;
@@ -43,6 +56,9 @@ public final class GameScreen extends BaseScreen {
     private final GameSession sandboxSession;
     private final GameplayClock gameplayClock;
     private final Label statusLabel;
+    private final ResourceBar resourceBar;
+    private final Table plantCardsTable;
+    private final Map<String, PlantCard> gameplayPlantCards;
     private final EntityRenderSystem entityRenderSystem;
     private final EntityOverlayRenderer entityOverlayRenderer;
 
@@ -51,6 +67,8 @@ public final class GameScreen extends BaseScreen {
     private float hudRefreshAccumulator;
     private String debugMessage;
     private boolean pausedByLifecycle;
+    private boolean resourceBarConfigured;
+    private boolean debugControlsVisible;
 
     public GameScreen(Main game) {
         super(game);
@@ -62,19 +80,27 @@ public final class GameScreen extends BaseScreen {
         sandboxSession = createSandboxSession();
         gameplayClock = new GameplayClock(sandboxSession);
         statusLabel = new Label("", game.getSkin());
+        resourceBar = new ResourceBar(game.getSkin());
+        plantCardsTable = new Table();
+        gameplayPlantCards = new LinkedHashMap<>();
         entityRenderSystem = animations.isAvailable()
-            ? new EntityRenderSystem(boardGeometry, animations)
-            : null;
+                ? new EntityRenderSystem(boardGeometry, animations)
+                : null;
         entityOverlayRenderer = new EntityOverlayRenderer(boardGeometry);
-        buildDebugHud();
+        applySettings();
+        buildHud();
+        buildPlantCardHud();
         loadStageAssets();
         debugMessage = "Stage 2 ready";
+        refreshGameHud();
         refreshStatus(debugMessage);
     }
 
     @Override
     public void show() {
         super.show();
+        applySettings();
+        refreshGameHud();
         Gdx.input.setInputProcessor(new InputMultiplexer(createDebugInput(), stage));
     }
 
@@ -87,7 +113,7 @@ public final class GameScreen extends BaseScreen {
         batch.setProjectionMatrix(stage.getCamera().combined);
         shapes.setProjectionMatrix(stage.getCamera().combined);
         drawBackground();
-        drawBoardDebug();
+        drawBoardGrid();
         drawEntities();
         drawEntityOverlays();
         drawHover();
@@ -128,7 +154,14 @@ public final class GameScreen extends BaseScreen {
 
     private GameSession createSandboxSession() {
         GameSession session = new GameSession();
-        session.setSelectedPlantNames(List.of("Sunflower", "Wall-nut", "Pumpkin", "Lily Pad", "Tall-nut", "Peashooter"));
+        session.setSelectedPlantNames(List.of(
+                "Sunflower",
+                "Wall-nut",
+                "Pumpkin",
+                "Lily Pad",
+                "Tall-nut",
+                "Peashooter"
+        ));
         session.initSession();
         session.addSun(5000);
         Board board = session.getBoard();
@@ -163,13 +196,74 @@ public final class GameScreen extends BaseScreen {
         return session;
     }
 
-    private void buildDebugHud() {
+    private void buildHud() {
         Table hud = new Table();
         hud.setFillParent(true);
-        hud.top().left().pad(14f);
+        hud.top().pad(10f);
         statusLabel.setWrap(true);
-        hud.add(statusLabel).width(850f).left();
+        hud.add(statusLabel).width(460f).left().top().expandX().fillX();
+        hud.add(resourceBar).right().top();
         stage.addActor(hud);
+    }
+
+    private void buildPlantCardHud() {
+        plantCardsTable.top();
+        plantCardsTable.defaults().padBottom(8f);
+        for (PlantRechargeStatus status : sandboxSession.getPlantRechargeStatuses()) {
+            if (!status.isSelected()) {
+                continue;
+            }
+            PlantCard card = createGameplayPlantCard(status);
+            gameplayPlantCards.put(status.getPlantName(), card);
+            plantCardsTable.add(card).width(270f).row();
+        }
+        ScrollPane scrollPane = new ScrollPane(plantCardsTable, game.getSkin());
+        scrollPane.setFadeScrollBars(false);
+        scrollPane.setScrollingDisabled(true, false);
+        scrollPane.setOverscroll(false, false);
+        Table host = new Table();
+        host.setFillParent(true);
+        host.left().bottom().padLeft(10f).padBottom(12f);
+        host.add(scrollPane).width(290f).height(530f);
+        stage.addActor(host);
+    }
+
+    private PlantCard createGameplayPlantCard(PlantRechargeStatus status) {
+        PlantCard card = new PlantCard(game.getSkin());
+        PlantType type = sandboxSession.getPlantType(status.getPlantName());
+        PlantData data = getPlantData(status.getPlantName());
+        card.setName(status.getPlantName());
+        card.setCost(status.getSunCost());
+        card.setLevel(data == null ? 1 : data.getLevel());
+        setSeedProgress(card, data);
+        if (type != null) {
+            card.setFamily(type.getCategory());
+            card.setTags(type.getTags());
+            card.setHealth(type.getBaseHp());
+        }
+        card.setLocked(data != null && !data.isUnlocked());
+        card.setBoosted(data != null && data.getBoostCount() > 0);
+        card.setSelected(status.isSelected());
+        card.setCooldown(status.getRemainingTicks() * TICK_SECONDS);
+        card.setPlantActor(game.getAnimationService().createPlantActor(status.getPlantName()));
+        card.clearAction();
+        return card;
+    }
+
+    private void setSeedProgress(PlantCard card, PlantData data) {
+        if (data == null) {
+            card.setSeedPacketProgress(0, 10);
+            return;
+        }
+        card.setSeedPacketProgress(data.getSeedPackets(), data.getRequiredSeedPacketsForNextLevel());
+    }
+
+    private PlantData getPlantData(String plantName) {
+        User user = game.getAuthController().getLoggedInUser();
+        if (user == null || user.getCollection() == null) {
+            return null;
+        }
+        return user.getCollection().findPlant(plantName);
     }
 
     private void loadStageAssets() {
@@ -179,6 +273,7 @@ public final class GameScreen extends BaseScreen {
     }
 
     private void updateRuntime(float delta) {
+        applySettings();
         animations.update();
         gameplayClock.update(delta);
         float visualDelta = gameplayClock.isPaused() ? 0f : delta * gameplayClock.getGameSpeed();
@@ -188,8 +283,100 @@ public final class GameScreen extends BaseScreen {
         hudRefreshAccumulator += delta;
         if (hudRefreshAccumulator >= 0.1f) {
             hudRefreshAccumulator = 0f;
+            refreshGameHud();
             refreshStatus(debugMessage);
         }
+    }
+
+    private void applySettings() {
+        Settings settings = getSettings();
+        int speed = settings == null ? Settings.MIN_GAME_SPEED : settings.getGameSpeed();
+        if (gameplayClock.getGameSpeed() != speed) {
+            gameplayClock.setGameSpeed(speed);
+        }
+    }
+
+    private Settings getSettings() {
+        User user = game.getAuthController().getLoggedInUser();
+        return user == null ? null : user.getSettings();
+    }
+
+    private void refreshGameHud() {
+        User user = game.getAuthController().getLoggedInUser();
+        Settings settings = user == null ? null : user.getSettings();
+        boolean debug = settings != null && settings.isDebugMode();
+        if (!resourceBarConfigured || debugControlsVisible != debug) {
+            resourceBar.setGameDebugControls(
+                    debug,
+                    this::addDebugCoins,
+                    this::addDebugDiamonds,
+                    this::addDebugSun,
+                    this::addDebugPlantFood
+            );
+            resourceBarConfigured = true;
+            debugControlsVisible = debug;
+        }
+        resourceBar.refreshGame(user, sandboxSession.getTotalSunAmount(), sandboxSession.getPlantFoodCount());
+        refreshGameplayPlantCards();
+    }
+
+    private void refreshGameplayPlantCards() {
+        for (PlantRechargeStatus status : sandboxSession.getPlantRechargeStatuses()) {
+            PlantCard card = gameplayPlantCards.get(status.getPlantName());
+            if (card == null) {
+                continue;
+            }
+            card.setSelected(status.isSelected());
+            card.setCooldown(status.getRemainingTicks() * TICK_SECONDS);
+        }
+    }
+
+    private void addDebugCoins() {
+        SettingsController controller = game.getSettingsController();
+        controller.addDebugCoins(1000);
+        showSettingsMessage(controller);
+        refreshGameHud();
+    }
+
+    private void addDebugDiamonds() {
+        SettingsController controller = game.getSettingsController();
+        controller.addDebugDiamonds(10);
+        showSettingsMessage(controller);
+        refreshGameHud();
+    }
+
+    private void addDebugSun() {
+        SettingsController controller = game.getSettingsController();
+        controller.addDebugSun(sandboxSession, 250);
+        showSettingsMessage(controller);
+        refreshGameHud();
+    }
+
+    private void addDebugPlantFood() {
+        SettingsController controller = game.getSettingsController();
+        controller.addDebugPlantFood(sandboxSession);
+        showSettingsMessage(controller);
+        refreshGameHud();
+    }
+
+    private void showSettingsMessage(SettingsController controller) {
+        String message = controller.getLastMessage();
+        if (message == null || message.isBlank()) {
+            return;
+        }
+        if (controller.wasSuccessful()) {
+            NotificationManager.showSuccess(stripMessagePrefix(message));
+            return;
+        }
+        NotificationManager.showError(stripMessagePrefix(message));
+    }
+
+    private String stripMessagePrefix(String message) {
+        int separator = message.indexOf(':');
+        if (separator < 0 || separator + 1 >= message.length()) {
+            return message;
+        }
+        return message.substring(separator + 1).trim();
     }
 
     private void drawBackground() {
@@ -203,7 +390,11 @@ public final class GameScreen extends BaseScreen {
         disableAlphaBlending();
     }
 
-    private void drawBoardDebug() {
+    private void drawBoardGrid() {
+        Settings settings = getSettings();
+        if (settings == null || !settings.isGridVisible()) {
+            return;
+        }
         enableAlphaBlending();
         shapes.begin(ShapeRenderer.ShapeType.Line);
         boardRenderer.drawGrid(shapes);
@@ -290,8 +481,8 @@ public final class GameScreen extends BaseScreen {
             setSpeed(2);
             return true;
         }
-        if (keycode == Input.Keys.NUM_4) {
-            setSpeed(4);
+        if (keycode == Input.Keys.NUM_3) {
+            setSpeed(3);
             return true;
         }
         if (keycode == Input.Keys.ESCAPE) {
@@ -302,8 +493,11 @@ public final class GameScreen extends BaseScreen {
     }
 
     private void setSpeed(int speed) {
-        gameplayClock.setGameSpeed(speed);
-        refreshStatus("Game speed x" + speed);
+        SettingsController controller = game.getSettingsController();
+        controller.changeGameSpeed(speed);
+        applySettings();
+        showSettingsMessage(controller);
+        refreshStatus("Game speed x" + gameplayClock.getGameSpeed());
     }
 
     private void refreshStatus(String message) {
@@ -311,20 +505,23 @@ public final class GameScreen extends BaseScreen {
             debugMessage = message;
         }
         String cursor = hoveredTile == null
-            ? "outside board"
-            : "(" + hoveredTile.getX() + ", " + hoveredTile.getY() + ")";
+                ? "outside board"
+                : "(" + hoveredTile.getX() + ", " + hoveredTile.getY() + ")";
         String state = gameplayClock.isPaused() ? "PAUSED" : "RUNNING";
+        Settings settings = getSettings();
+        boolean gridVisible = settings != null && settings.isGridVisible();
         Board board = sandboxSession.getBoard();
         statusLabel.setText(
-            debugMessage
-                + " | tick=" + gameplayClock.getCurrentTick()
-                + " | speed=x" + gameplayClock.getGameSpeed()
-                + " | " + state
-                + " | cursor=" + cursor
-                + " | plants=" + board.getPlantCount()
-                + " | zombies=" + board.getActiveZombieCount()
-                + "\nP/Space: pause | 1/2/4: speed | Left click: tile | Esc: main menu"
-                + "\n" + animations.getStatusMessage()
+                debugMessage
+                        + " | tick=" + gameplayClock.getCurrentTick()
+                        + " | speed=x" + gameplayClock.getGameSpeed()
+                        + " | " + state
+                        + " | grid=" + (gridVisible ? "on" : "off")
+                        + " | cursor=" + cursor
+                        + " | plants=" + board.getPlantCount()
+                        + " | zombies=" + board.getActiveZombieCount()
+                        + "\nP/Space: pause | 1/2/3: speed | Left click: tile | Esc: main menu"
+                        + "\n" + animations.getStatusMessage()
         );
     }
 }
