@@ -1,6 +1,7 @@
 package screens.menu;
 
 import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.scenes.scene2d.Actor;
 import com.badlogic.gdx.scenes.scene2d.InputEvent;
@@ -152,7 +153,8 @@ public class MainMenuScreen extends BaseMenuScreen {
                 action.run();
             }
         });
-        Label label = new Label(title, skin, "secondary");
+        Label label = new Label(title, skin, "medium_outline");
+        label.setColor(Color.valueOf("FFF5C9"));
         label.setAlignment(Align.center);
         shortcut.add(button).size(72f).center().row();
         shortcut.add(label).width(130f).padTop(5f).center();
