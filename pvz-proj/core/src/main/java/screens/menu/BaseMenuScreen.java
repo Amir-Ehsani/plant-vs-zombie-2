@@ -79,7 +79,7 @@ public abstract class BaseMenuScreen extends BaseScreen {
     }
 
     protected ResourceBar addResourceBar(Table root) {
-        resourceBar = new ResourceBar(skin);
+        resourceBar = new ResourceBar(skin, game.getAnimationService());
         refreshResourceBar();
         root.add(resourceBar).right().padBottom(12f).row();
         return resourceBar;
