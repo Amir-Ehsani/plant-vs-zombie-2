@@ -7,6 +7,7 @@ import models.engine.session.GameSession;
 public final class GameplayClock {
     private static final float TICK_SECONDS = 0.1f;
     private static final float MAX_FRAME_DELTA = 0.25f;
+    private static final int MAX_TICKS_PER_FRAME = 8;
 
     private final GameController controller;
     private final GameSession session;
@@ -38,12 +39,20 @@ public final class GameplayClock {
             return;
         }
         accumulator += Math.min(Math.max(delta, 0f), MAX_FRAME_DELTA);
-        while (accumulator >= TICK_SECONDS && session.isRunning()) {
+        float tickInterval = TICK_SECONDS / gameSpeed;
+        int processedTicks = 0;
+        while (accumulator >= tickInterval
+                && session.isRunning()
+                && processedTicks < MAX_TICKS_PER_FRAME) {
             if (!advanceGame()) {
                 accumulator = 0f;
                 break;
             }
-            accumulator -= TICK_SECONDS;
+            accumulator -= tickInterval;
+            processedTicks++;
+        }
+        if (processedTicks == MAX_TICKS_PER_FRAME && accumulator >= tickInterval) {
+            accumulator = Math.min(accumulator, tickInterval);
         }
     }
 
@@ -75,9 +84,9 @@ public final class GameplayClock {
 
     private boolean advanceGame() {
         if (controller == null) {
-            return session.advanceTicks(gameSpeed);
+            return session.advanceTicks(1);
         }
-        controller.advanceTime(gameSpeed);
+        controller.advanceTime(1);
         return controller.wasSuccessful();
     }
 }
