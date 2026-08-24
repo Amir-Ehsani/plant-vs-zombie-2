@@ -113,6 +113,42 @@ public class ShopController extends ShopControllerBase {
         return false;
     }
 
+
+    public boolean canBuy(String itemId, int count, String plantType) {
+        User user = getLoggedInUserOrFail();
+        if (user == null) {
+            return false;
+        }
+        if (count <= 0) {
+            fail("Count must be positive.");
+            return false;
+        }
+        ShopItem item = findItemById(user, itemId);
+        if (item == null) {
+            fail("Item was not found.");
+            return false;
+        }
+        if (item.isDaily() && count != 1) {
+            fail("The daily offer can only be bought once.");
+            return false;
+        }
+        if (!validatePurchase(user, item, count, plantType)) {
+            return false;
+        }
+        int totalPrice = calculateTotalPrice(item, count);
+        if (totalPrice < 0) {
+            fail("The purchase amount is too large.");
+            return false;
+        }
+        int balance = "gem".equals(item.getCurrency()) ? user.getGems() : user.getCoins();
+        if (balance < totalPrice) {
+            fail("Not enough " + item.getCurrency() + "s.");
+            return false;
+        }
+        success("Purchase is available.");
+        return true;
+    }
+
     public boolean buy(String itemId, int count, String plantType) {
         User user = getLoggedInUserOrFail();
         return user != null && buy(user, itemId, count, plantType);
