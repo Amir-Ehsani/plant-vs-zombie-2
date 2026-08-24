@@ -145,7 +145,7 @@ public class CollectionZombiePanel extends Table {
         title.setAlignment(Align.center);
         title.setWrap(true);
         panel.add(title).width(280f).padBottom(4f).row();
-        panel.add(animations.createZombieActor(type)).size(112f).padBottom(6f).row();
+        panel.add(animations.createZombieActor(type)).size(112f).padTop(14f).padBottom(6f).row();
         addPair(panel, "Health", String.valueOf(type.getBaseHp()), "Speed", formatSpeed(type.getSpeed()));
         addPair(panel, "Wave Cost", String.valueOf(type.getWaveCost()),
                 "Damage", String.valueOf(type.getDamagePerTick()));
