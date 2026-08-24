@@ -3,6 +3,7 @@ package ui;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.scenes.scene2d.Actor;
+import com.badlogic.gdx.scenes.scene2d.Touchable;
 import com.badlogic.gdx.scenes.scene2d.ui.Image;
 import com.badlogic.gdx.scenes.scene2d.ui.Label;
 import com.badlogic.gdx.scenes.scene2d.ui.Skin;
@@ -11,7 +12,7 @@ import com.badlogic.gdx.scenes.scene2d.ui.Table;
 import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable;
 import com.badlogic.gdx.utils.Align;
 import com.badlogic.gdx.utils.Disposable;
-
+import com.badlogic.gdx.utils.Scaling;
 import controllers.features.ShopController;
 
 public class ShopItemCard extends Table implements Disposable {
@@ -24,7 +25,7 @@ public class ShopItemCard extends Table implements Disposable {
             String remainingText,
             Runnable buyAction
     ) {
-        pad(10f, 8f, 10f, 8f);
+        pad(12f, 8f, 8f, 8f);
         setClip(true);
         TextureRegion background = animations == null ? null : animations.region("IMAGE_UI_STORE_GACHA_PINATA_GENERAL_CARD");
         if (background != null) {
@@ -33,22 +34,21 @@ public class ShopItemCard extends Table implements Disposable {
         Label title = new Label(item == null ? "Item" : item.getName(), skin, "medium_outline");
         title.setAlignment(Align.center);
         title.setWrap(true);
-        Label priceLabel = new Label(item == null ? "-" : item.getPrice() + " " + currencyName(item.getCurrency()), skin, "medium_outline");
-        priceLabel.setAlignment(Align.center);
         Label amountLabel = new Label(receiveText(item), skin, "secondary");
         amountLabel.setAlignment(Align.center);
         amountLabel.setWrap(true);
         Label remainingLabel = new Label(remainingText == null ? "" : remainingText, skin, "secondary");
         remainingLabel.setAlignment(Align.center);
         remainingLabel.setWrap(true);
-        buyButton = new MenuButton(item != null && item.isDaily() ? "Claim" : "Buy", skin, "green_small", buyAction);
+        buyButton = new MenuButton("Buy", skin, "green_small", buyAction);
+        buyButton.getLabel().setAlignment(Align.left);
+        buyButton.padLeft(12f);
         Actor icon = createIconActor(skin, animations, item);
-        add(icon).size(116f, 114f).padTop(8f).padBottom(2f).row();
-        add(title).width(176f).height(50f).padTop(4f).row();
-        add(priceLabel).width(176f).padTop(3f).row();
-        add(amountLabel).width(176f).height(46f).padTop(4f).row();
-        add(remainingLabel).width(176f).height(40f).padTop(4f).row();
-        add(buyButton).width(132f).height(36f).padTop(10f).padBottom(10f);
+        add(createIconHolder(icon)).width(176f).height(112f).padTop(12f).padBottom(2f).row();
+        add(title).width(176f).height(58f).padTop(2f).row();
+        add(amountLabel).width(176f).height(48f).padTop(3f).row();
+        add(remainingLabel).width(176f).height(34f).padTop(2f).row();
+        add(createBuyArea(skin, animations, item)).width(150f).height(42f).padTop(8f).padBottom(6f);
     }
 
     public void setBuyEnabled(boolean enabled) {
@@ -57,6 +57,31 @@ public class ShopItemCard extends Table implements Disposable {
 
     @Override
     public void dispose() {
+    }
+
+    private Table createIconHolder(Actor icon) {
+        Table holder = new Table();
+        holder.add(icon).size(96f, 86f).padTop(18f).bottom();
+        return holder;
+    }
+
+    private Stack createBuyArea(Skin skin, PvzAnimationService animations, ShopController.ShopItem item) {
+        Stack stack = new Stack();
+        stack.add(buyButton);
+        Table overlay = new Table();
+        overlay.setTouchable(Touchable.disabled);
+        overlay.add().expandX().fillX();
+        TextureRegion currencyRegion = currencyRegion(animations, item == null ? null : item.getCurrency());
+        if (currencyRegion != null) {
+            Image currencyIcon = new Image(currencyRegion);
+            currencyIcon.setScaling(Scaling.fit);
+            overlay.add(currencyIcon).size(20f, 20f).padRight(3f);
+        }
+        Label price = new Label(item == null ? "-" : String.valueOf(item.getPrice()), skin, "secondary");
+        price.setAlignment(Align.center);
+        overlay.add(price).padRight(10f);
+        stack.add(overlay);
+        return stack;
     }
 
     private Actor createIconActor(Skin skin, PvzAnimationService animations, ShopController.ShopItem item) {
@@ -68,20 +93,7 @@ public class ShopItemCard extends Table implements Disposable {
             return fallback;
         }
         Image icon = new Image(region);
-        icon.setScaling(com.badlogic.gdx.utils.Scaling.fit);
-        if (isPacketItem(item)) {
-            TextureRegion boost = animations == null ? null : animations.region("IMAGE_UI_PACKETS_BOOST");
-            if (boost != null) {
-                Stack stack = new Stack();
-                Image background = new Image(boost);
-                background.setScaling(com.badlogic.gdx.utils.Scaling.fit);
-                Table overlay = new Table();
-                overlay.add(icon).size(76f, 96f).padTop(10f);
-                stack.add(background);
-                stack.add(overlay);
-                return stack;
-            }
-        }
+        icon.setScaling(Scaling.fit);
         return icon;
     }
 
@@ -97,14 +109,14 @@ public class ShopItemCard extends Table implements Disposable {
             return animations.region("IMAGE_UI_ALMANAC_ALMANAC_STAT_ICON_PLANTFOOD_LARGE");
         }
         if ("random_seed_packet".equals(type)) {
-            return animations.region("IMAGE_UI_STOREMULTI_SEEDPACKETICON");
+            return trimPacketRegion(animations.region("IMAGE_UI_STOREMULTI_SEEDPACKETICON"));
         }
         if ("selected_seed_packet".equals(type)) {
-            return animations.region("IMAGE_UI_PACKETS_READY");
+            return trimPacketRegion(animations.region("IMAGE_UI_PACKETS_READY"));
         }
         if ("daily_seed_packet".equals(type)) {
             TextureRegion packet = packetRegion(animations, item.getTargetName());
-            return packet != null ? packet : animations.region("IMAGE_UI_PACKETS_READY");
+            return trimPacketRegion(packet != null ? packet : animations.region("IMAGE_UI_PACKETS_READY"));
         }
         if ("currency_exchange".equals(type)) {
             return animations.region("IMAGE_UI_STOREMULTI_SEEDPACKETICON");
@@ -124,14 +136,29 @@ public class ShopItemCard extends Table implements Disposable {
         return animations.region("IMAGE_UI_PACKETS_READY");
     }
 
-    private boolean isPacketItem(ShopController.ShopItem item) {
-        if (item == null) {
-            return false;
+    private TextureRegion currencyRegion(PvzAnimationService animations, String currency) {
+        if (animations == null) {
+            return null;
         }
-        String type = item.getType();
-        return "random_seed_packet".equals(type)
-                || "selected_seed_packet".equals(type)
-                || "daily_seed_packet".equals(type);
+        if ("gem".equals(currency)) {
+            return animations.region("IMAGE_EFFECTS_COIN_DIAMOND_COIN_DIAMOND_141X146");
+        }
+        return animations.region("IMAGE_UI_THYMED_EVENTS_ECS_CONVRT_COIN");
+    }
+
+    private TextureRegion trimPacketRegion(TextureRegion region) {
+        if (region == null) {
+            return null;
+        }
+        int width = region.getRegionWidth();
+        int height = region.getRegionHeight();
+        int left = Math.max(0, Math.round(width * 0.08f));
+        int right = Math.max(0, Math.round(width * 0.08f));
+        int top = Math.max(0, Math.round(height * 0.08f));
+        int bottom = Math.max(0, Math.round(height * 0.08f));
+        int trimmedWidth = Math.max(1, width - left - right);
+        int trimmedHeight = Math.max(1, height - top - bottom);
+        return new TextureRegion(region, left, top, trimmedWidth, trimmedHeight);
     }
 
     private String shortType(String type) {
@@ -167,9 +194,5 @@ public class ShopItemCard extends Table implements Disposable {
             return "+" + item.getUnitAmount() + " seeds for selected plant";
         }
         return "+" + item.getUnitAmount() + " random seeds";
-    }
-
-    private String currencyName(String currency) {
-        return "gem".equals(currency) ? "Diamonds" : "Coins";
     }
 }
