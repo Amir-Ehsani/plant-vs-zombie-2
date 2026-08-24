@@ -47,7 +47,7 @@ public final class GameplayEventFeedback {
         }
         for (String line : message.split("\\R")) {
             String clean = cleanSingleLine(line);
-            if (isDropFeedback(clean) || isMowerFeedback(clean)) {
+            if (isDropFeedback(clean)) {
                 result.add(clean);
             }
         }
@@ -61,9 +61,6 @@ public final class GameplayEventFeedback {
             || line.startsWith("A zombie dropped a greenhouse pot");
     }
 
-    private boolean isMowerFeedback(String line) {
-        return line.startsWith("The lawn mower in the row");
-    }
 
     private String cleanSingleLine(String value) {
         if (value == null) {
