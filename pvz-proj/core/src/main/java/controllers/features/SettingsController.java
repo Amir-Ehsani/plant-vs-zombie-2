@@ -90,6 +90,29 @@ public class SettingsController {
         copyGameControllerResult(gameController);
     }
 
+    public void addDebugSun(GameSession gameSession, int amount) {
+        if (!validateDebugSession(gameSession)) {
+            return;
+        }
+        if (amount <= 0) {
+            fail("Debug amount must be positive.");
+            return;
+        }
+        gameSession.addSun(amount);
+        success(amount + " sun added.");
+    }
+
+    public void addDebugPlantFood(GameSession gameSession) {
+        if (!validateDebugSession(gameSession)) {
+            return;
+        }
+        if (!gameSession.addPlantFood()) {
+            fail("Plant food storage is full.");
+            return;
+        }
+        success("Plant food added.");
+    }
+
     public boolean applyGameSpeed(GameSession gameSession) {
         Settings settings = getSettings();
         if (settings == null || gameSession == null || gameSession.getTickManager() == null) {
@@ -155,6 +178,22 @@ public class SettingsController {
         }
         if (gameController == null) {
             fail("Game controller is not available.");
+            return false;
+        }
+        return true;
+    }
+
+    private boolean validateDebugSession(GameSession gameSession) {
+        User user = getLoggedInUserOrFail();
+        if (user == null) {
+            return false;
+        }
+        if (!user.getSettings().isDebugMode()) {
+            fail("Debug mode is disabled.");
+            return false;
+        }
+        if (gameSession == null || !gameSession.isRunning()) {
+            fail("Game session is not available.");
             return false;
         }
         return true;

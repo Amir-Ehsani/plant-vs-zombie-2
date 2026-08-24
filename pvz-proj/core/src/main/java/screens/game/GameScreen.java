@@ -11,9 +11,11 @@ import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.scenes.scene2d.ui.Label;
+import com.badlogic.gdx.scenes.scene2d.ui.ScrollPane;
 import com.badlogic.gdx.scenes.scene2d.ui.Table;
 import com.pvz.Main;
 import controllers.core.GameController;
+import controllers.features.SettingsController;
 import game.animation.core.PvzAnimationService;
 import game.hud.GameplayEventFeedback;
 import game.render.BoardBackgroundCatalog;
@@ -23,18 +25,28 @@ import game.render.entity.EntityRenderSystem;
 import game.render.mower.LawnMowerRenderSystem;
 import game.render.projectile.ProjectileRenderSystem;
 import game.render.sun.SunRenderSystem;
+import models.account.PlantData;
 import models.account.Settings;
+import models.account.User;
+import models.core.plant.PlantType;
 import models.engine.board.Board;
 import models.engine.board.Position;
 import models.engine.session.GameSession;
+import models.engine.session.PlantRechargeStatus;
 import models.engine.sun.Sun;
 import screens.BaseScreen;
+import ui.PlantCard;
+import ui.ResourceBar;
+
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 public final class GameScreen extends BaseScreen {
     private static final float BOARD_X = 315f;
     private static final float BOARD_Y = 74f;
     private static final float BOARD_WIDTH = 920f;
     private static final float BOARD_HEIGHT = 457f;
+    private static final float TICK_SECONDS = 0.1f;
 
     private final GameController controller;
     private final GameSession session;
@@ -46,6 +58,9 @@ public final class GameScreen extends BaseScreen {
     private final PvzAnimationService animations;
     private final GameplayClock gameplayClock;
     private final Label statusLabel;
+    private final ResourceBar resourceBar;
+    private final Table plantCardsTable;
+    private final Map<String, PlantCard> gameplayPlantCards;
     private final EntityRenderSystem entityRenderSystem;
     private final ProjectileRenderSystem projectileRenderSystem;
     private final SunRenderSystem sunRenderSystem;
@@ -57,6 +72,8 @@ public final class GameScreen extends BaseScreen {
     private float hudRefreshAccumulator;
     private String debugMessage;
     private boolean pausedByLifecycle;
+    private boolean resourceBarConfigured;
+    private boolean debugControlsVisible;
     private float visualStateTime;
 
     public GameScreen(Main game) {
@@ -77,14 +94,17 @@ public final class GameScreen extends BaseScreen {
         gameplayClock = new GameplayClock(controller);
         gameplayClock.setGameSpeed(resolveInitialGameSpeed());
         statusLabel = new Label("", game.getSkin());
+        resourceBar = new ResourceBar(game.getSkin());
+        plantCardsTable = new Table();
+        gameplayPlantCards = new LinkedHashMap<>();
         if (animations.isAvailable()) {
             entityRenderSystem = new EntityRenderSystem(boardGeometry, animations);
             projectileRenderSystem = new ProjectileRenderSystem(boardGeometry, animations);
             sunRenderSystem = new SunRenderSystem(boardGeometry, animations);
             lawnMowerRenderSystem = new LawnMowerRenderSystem(
-                boardGeometry,
-                animations,
-                session.getCurrentLevel() == null ? null : session.getCurrentLevel().getSeasonType()
+                    boardGeometry,
+                    animations,
+                    session.getCurrentLevel() == null ? null : session.getCurrentLevel().getSeasonType()
             );
         } else {
             entityRenderSystem = null;
@@ -93,15 +113,19 @@ public final class GameScreen extends BaseScreen {
             lawnMowerRenderSystem = null;
         }
         eventFeedback = new GameplayEventFeedback(notificationManager);
-        buildDebugHud();
+        buildHud();
+        buildPlantCardHud();
         loadStageAssets();
         debugMessage = "Adventure session connected";
+        refreshGameHud();
         refreshStatus(debugMessage);
     }
 
     @Override
     public void show() {
         super.show();
+        applyStoredGameSpeed();
+        refreshGameHud();
         Gdx.input.setInputProcessor(new InputMultiplexer(createInput(), stage));
     }
 
@@ -180,17 +204,95 @@ public final class GameScreen extends BaseScreen {
         if (settings == null) {
             return Settings.MIN_GAME_SPEED;
         }
-        return Math.max(Settings.MIN_GAME_SPEED, Math.min(Settings.MAX_GAME_SPEED, settings.getGameSpeed()));
+        return Math.max(
+                Settings.MIN_GAME_SPEED,
+                Math.min(Settings.MAX_GAME_SPEED, settings.getGameSpeed())
+        );
     }
 
-    private void buildDebugHud() {
+    private void applyStoredGameSpeed() {
+        int speed = resolveInitialGameSpeed();
+        if (gameplayClock.getGameSpeed() != speed) {
+            gameplayClock.setGameSpeed(speed);
+        }
+    }
+
+    private void buildHud() {
         Table hud = new Table();
         hud.setFillParent(true);
-        hud.top().left().pad(14f);
+        hud.top().pad(10f);
         statusLabel.setWrap(true);
         statusLabel.setVisible(isDebugMode());
-        hud.add(statusLabel).width(900f).left();
+        hud.add(statusLabel).width(460f).left().top().expandX().fillX();
+        hud.add(resourceBar).right().top();
         stage.addActor(hud);
+    }
+
+    private void buildPlantCardHud() {
+        plantCardsTable.top();
+        plantCardsTable.defaults().padBottom(8f);
+        for (PlantRechargeStatus status : session.getPlantRechargeStatuses()) {
+            if (!status.isSelected()) {
+                continue;
+            }
+            addGameplayPlantCard(status);
+        }
+        ScrollPane scrollPane = new ScrollPane(plantCardsTable, game.getSkin());
+        scrollPane.setFadeScrollBars(false);
+        scrollPane.setScrollingDisabled(true, false);
+        scrollPane.setOverscroll(false, false);
+        Table host = new Table();
+        host.setFillParent(true);
+        host.left().bottom().padLeft(10f).padBottom(12f);
+        host.add(scrollPane).width(290f).height(530f);
+        stage.addActor(host);
+    }
+
+    private void addGameplayPlantCard(PlantRechargeStatus status) {
+        PlantCard card = createGameplayPlantCard(status);
+        gameplayPlantCards.put(status.getPlantName(), card);
+        plantCardsTable.add(card).width(270f).row();
+    }
+
+    private PlantCard createGameplayPlantCard(PlantRechargeStatus status) {
+        PlantCard card = new PlantCard(game.getSkin());
+        PlantType type = session.getPlantType(status.getPlantName());
+        PlantData data = getPlantData(status.getPlantName());
+        card.setName(status.getPlantName());
+        card.setCost(status.getSunCost());
+        card.setLevel(data == null ? 1 : data.getLevel());
+        setSeedProgress(card, data);
+        if (type != null) {
+            card.setFamily(type.getCategory());
+            card.setTags(type.getTags());
+            card.setHealth(type.getBaseHp());
+        }
+        card.setLocked(data != null && !data.isUnlocked());
+        card.setBoosted(data != null && data.getBoostCount() > 0);
+        card.setSelected(status.isSelected());
+        card.setCooldown(status.getRemainingTicks() * TICK_SECONDS);
+        card.setPlantActor(game.getAnimationService().createPlantActor(status.getPlantName()));
+        card.clearAction();
+        return card;
+    }
+
+    private void setSeedProgress(PlantCard card, PlantData data) {
+        if (data == null) {
+            card.setSeedPacketProgress(0, 10);
+            return;
+        }
+        card.setSeedPacketProgress(
+                data.getSeedPackets(),
+                data.getRequiredSeedPacketsForNextLevel()
+        );
+    }
+
+    private PlantData getPlantData(String plantName) {
+        User user = game.getAuthController().getLoggedInUser();
+        if (user == null || user.getCollection() == null) {
+            return null;
+        }
+        return user.getCollection().findPlant(plantName);
     }
 
     private void loadStageAssets() {
@@ -202,6 +304,7 @@ public final class GameScreen extends BaseScreen {
     }
 
     private void updateRuntime(float delta) {
+        applyStoredGameSpeed();
         animations.update();
         int previousTick = gameplayClock.getCurrentTick();
         gameplayClock.update(delta);
@@ -213,7 +316,7 @@ public final class GameScreen extends BaseScreen {
             eventFeedback.acceptTickMessage(currentTick, controller.getLastMessage());
         }
         collectSunUnderPointer();
-        refreshDebugHud(delta);
+        refreshHud(delta);
     }
 
     private void updateRenderSystems(float visualDelta, int currentTick) {
@@ -230,12 +333,99 @@ public final class GameScreen extends BaseScreen {
         }
     }
 
-    private void refreshDebugHud(float delta) {
+    private void refreshHud(float delta) {
         hudRefreshAccumulator += delta;
         if (hudRefreshAccumulator >= 0.1f) {
             hudRefreshAccumulator = 0f;
+            refreshGameHud();
             refreshStatus(debugMessage);
         }
+    }
+
+    private void refreshGameHud() {
+        User user = game.getAuthController().getLoggedInUser();
+        boolean debug = isDebugMode();
+        if (!resourceBarConfigured || debugControlsVisible != debug) {
+            resourceBar.setGameDebugControls(
+                    debug,
+                    this::addDebugCoins,
+                    this::addDebugDiamonds,
+                    this::addDebugSun,
+                    this::addDebugPlantFood
+            );
+            resourceBarConfigured = true;
+            debugControlsVisible = debug;
+        }
+        resourceBar.refreshGame(
+                user,
+                session.getTotalSunAmount(),
+                session.getPlantFoodCount()
+        );
+        refreshGameplayPlantCards();
+    }
+
+    private void refreshGameplayPlantCards() {
+        for (PlantRechargeStatus status : session.getPlantRechargeStatuses()) {
+            PlantCard card = gameplayPlantCards.get(status.getPlantName());
+            if (status.isSelected() && card == null) {
+                addGameplayPlantCard(status);
+                card = gameplayPlantCards.get(status.getPlantName());
+            }
+            if (card == null) {
+                continue;
+            }
+            card.setSelected(status.isSelected());
+            card.setCooldown(status.getRemainingTicks() * TICK_SECONDS);
+        }
+    }
+
+    private void addDebugCoins() {
+        SettingsController settingsController = game.getSettingsController();
+        settingsController.addDebugCoins(1000);
+        showSettingsMessage(settingsController);
+        refreshGameHud();
+    }
+
+    private void addDebugDiamonds() {
+        SettingsController settingsController = game.getSettingsController();
+        settingsController.addDebugDiamonds(10);
+        showSettingsMessage(settingsController);
+        refreshGameHud();
+    }
+
+    private void addDebugSun() {
+        SettingsController settingsController = game.getSettingsController();
+        settingsController.addDebugSun(controller, 250);
+        showSettingsMessage(settingsController);
+        refreshGameHud();
+    }
+
+    private void addDebugPlantFood() {
+        SettingsController settingsController = game.getSettingsController();
+        settingsController.addDebugPlantFood(controller);
+        showSettingsMessage(settingsController);
+        refreshGameHud();
+    }
+
+    private void showSettingsMessage(SettingsController settingsController) {
+        String message = settingsController.getLastMessage();
+        if (message == null || message.isBlank()) {
+            return;
+        }
+        String displayMessage = stripMessagePrefix(message);
+        if (settingsController.wasSuccessful()) {
+            notificationManager.push(displayMessage, ui.NotificationType.SUCCESS);
+            return;
+        }
+        notificationManager.push(displayMessage, ui.NotificationType.ERROR);
+    }
+
+    private String stripMessagePrefix(String message) {
+        int separator = message.indexOf(':');
+        if (separator < 0 || separator + 1 >= message.length()) {
+            return message;
+        }
+        return message.substring(separator + 1).trim();
     }
 
     private void drawBackground() {
@@ -301,13 +491,18 @@ public final class GameScreen extends BaseScreen {
         }
         Vector2 world = new Vector2(Gdx.input.getX(), Gdx.input.getY());
         stage.getViewport().unproject(world);
-        Sun sun = sunRenderSystem.findHoveredSun(world.x, world.y, session.getSunManager());
+        Sun sun = sunRenderSystem.findHoveredSun(
+                world.x,
+                world.y,
+                session.getSunManager()
+        );
         if (sun == null) {
             return;
         }
         controller.collectSun(sun.getPosition());
         if (controller.wasSuccessful()) {
             eventFeedback.showSunCollection(controller.getLastMessage());
+            refreshGameHud();
         }
     }
 
@@ -351,6 +546,7 @@ public final class GameScreen extends BaseScreen {
         if (isDebugMode()) {
             refreshStatus(controller.getLastMessage());
         }
+        refreshGameHud();
         return true;
     }
 
@@ -379,12 +575,15 @@ public final class GameScreen extends BaseScreen {
     }
 
     private void setSpeed(int speed) {
-        game.getSettingsController().changeGameSpeed(speed);
-        if (!game.getSettingsController().wasSuccessful()) {
-            refreshStatus(game.getSettingsController().getLastMessage());
+        SettingsController settingsController = game.getSettingsController();
+        settingsController.changeGameSpeed(speed);
+        if (!settingsController.wasSuccessful()) {
+            showSettingsMessage(settingsController);
+            refreshStatus(settingsController.getLastMessage());
             return;
         }
         gameplayClock.setGameSpeed(speed);
+        showSettingsMessage(settingsController);
         refreshStatus("Game speed x" + speed);
     }
 
@@ -401,20 +600,24 @@ public final class GameScreen extends BaseScreen {
             return;
         }
         String cursor = hoveredTile == null
-            ? "outside board"
-            : "(" + hoveredTile.getX() + ", " + hoveredTile.getY() + ")";
-        String state = gameplayClock.isPaused() ? "PAUSED" : session.isRunning() ? "RUNNING" : "FINISHED";
+                ? "outside board"
+                : "(" + hoveredTile.getX() + ", " + hoveredTile.getY() + ")";
+        String state = gameplayClock.isPaused()
+                ? "PAUSED"
+                : session.isRunning() ? "RUNNING" : "FINISHED";
+        String grid = settings != null && settings.isGridVisible() ? "on" : "off";
         Board board = session.getBoard();
         statusLabel.setText(
-            debugMessage
-                + " | tick=" + gameplayClock.getCurrentTick()
-                + " | speed=x" + gameplayClock.getGameSpeed()
-                + " | " + state
-                + " | cursor=" + cursor
-                + " | plants=" + board.getPlantCount()
-                + " | zombies=" + board.getActiveZombieCount()
-                + "\nP/Space: pause | 1/2/3: speed | Left click: inspect tile | Esc: main menu"
-                + "\n" + animations.getStatusMessage()
+                debugMessage
+                        + " | tick=" + gameplayClock.getCurrentTick()
+                        + " | speed=x" + gameplayClock.getGameSpeed()
+                        + " | " + state
+                        + " | grid=" + grid
+                        + " | cursor=" + cursor
+                        + " | plants=" + board.getPlantCount()
+                        + " | zombies=" + board.getActiveZombieCount()
+                        + "\nP/Space: pause | 1/2/3: speed | Left click: inspect tile | Esc: main menu"
+                        + "\n" + animations.getStatusMessage()
         );
     }
 }

@@ -23,19 +23,27 @@ public final class GameplayClock {
         gameSpeed = Settings.MIN_GAME_SPEED;
     }
 
+    public GameplayClock(GameSession session) {
+        if (session == null) {
+            throw new IllegalArgumentException("Game session cannot be null.");
+        }
+        controller = null;
+        this.session = session;
+        accumulator = 0f;
+        gameSpeed = Settings.MIN_GAME_SPEED;
+    }
+
     public void update(float delta) {
         if (isPaused() || !session.isRunning()) {
             return;
         }
-
         accumulator += Math.min(Math.max(delta, 0f), MAX_FRAME_DELTA);
         while (accumulator >= TICK_SECONDS && session.isRunning()) {
-            controller.advanceTime(gameSpeed);
-            accumulator -= TICK_SECONDS;
-            if (!controller.wasSuccessful()) {
+            if (!advanceGame()) {
                 accumulator = 0f;
                 break;
             }
+            accumulator -= TICK_SECONDS;
         }
     }
 
@@ -63,5 +71,13 @@ public final class GameplayClock {
 
     public int getCurrentTick() {
         return session.getTickManager() == null ? 0 : session.getTickManager().getCurrentTick();
+    }
+
+    private boolean advanceGame() {
+        if (controller == null) {
+            return session.advanceTicks(gameSpeed);
+        }
+        controller.advanceTime(gameSpeed);
+        return controller.wasSuccessful();
     }
 }

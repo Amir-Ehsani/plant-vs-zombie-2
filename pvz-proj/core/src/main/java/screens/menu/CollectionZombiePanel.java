@@ -4,7 +4,6 @@ import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.scenes.scene2d.ui.Label;
 import com.badlogic.gdx.scenes.scene2d.ui.ScrollPane;
 import com.badlogic.gdx.scenes.scene2d.ui.Skin;
-import com.badlogic.gdx.scenes.scene2d.ui.ScrollPane;
 import com.badlogic.gdx.scenes.scene2d.ui.Table;
 import com.badlogic.gdx.utils.Align;
 import controllers.auth.AuthController;
@@ -148,7 +147,8 @@ public class CollectionZombiePanel extends Table {
         panel.add(title).width(280f).padBottom(4f).row();
         panel.add(animations.createZombieActor(type.getName())).size(84f).padBottom(4f).row();
         addPair(panel, "Health", String.valueOf(type.getBaseHp()), "Speed", formatSpeed(type.getSpeed()));
-        addPair(panel, "Wave Cost", String.valueOf(type.getWaveCost()), "Damage", String.valueOf(type.getDamagePerTick()));
+        addPair(panel, "Wave Cost", String.valueOf(type.getWaveCost()),
+                "Damage", String.valueOf(type.getDamagePerTick()));
         addWide(panel, "Armor", safeText(type.getDefaultArmorName()));
         addWide(panel, "Tags", type.getTags().isEmpty() ? "-" : String.join(", ", type.getTags()));
         addWide(panel, "Ability", safeText(type.getAbility()));

@@ -27,7 +27,9 @@ public class PlantCard extends BorderedTable {
     private final Label levelLabel;
     private final Label seedLabel;
     private final Label familyLabel;
+    private final Label tagsLabel;
     private final Label healthLabel;
+    private final Label cooldownLabel;
     private final Label stateLabel;
     private final ProgressBarActor seedProgress;
     private final Table actionTable;
@@ -50,7 +52,10 @@ public class PlantCard extends BorderedTable {
         levelLabel = panelLabel("Level: 1");
         seedLabel = panelLabel("Seeds: 0 / 1");
         familyLabel = panelLabel("Family: -");
+        tagsLabel = panelLabel("Tags: -");
         healthLabel = panelLabel("Health: 0");
+        cooldownLabel = panelLabel("");
+        cooldownLabel.setVisible(false);
         stateLabel = panelLabel("");
         seedProgress = new ProgressBarActor(skin, 0f, 1f);
         actionTable = new Table();
@@ -101,6 +106,7 @@ public class PlantCard extends BorderedTable {
     }
 
     public void setTags(String tags) {
+        tagsLabel.setText("Tags: " + safeText(tags));
     }
 
     public void setHealth(int health) {
@@ -124,6 +130,18 @@ public class PlantCard extends BorderedTable {
     }
 
     public void setCooldown(float cooldown) {
+        float remaining = Math.max(0f, cooldown);
+        cooldownLabel.setVisible(true);
+        if (remaining == 0f) {
+            cooldownLabel.setText("Cooldown: Ready");
+            return;
+        }
+        cooldownLabel.setText("Cooldown: " + formatCooldown(remaining));
+    }
+
+    public void clearCooldown() {
+        cooldownLabel.setText("");
+        cooldownLabel.setVisible(false);
     }
 
     public void setPurchaseAction(int price, Runnable action) {
@@ -133,8 +151,14 @@ public class PlantCard extends BorderedTable {
     }
 
     public void setUpgradeAction(Runnable action) {
+        setUpgradeAction(true, action);
+    }
+
+    public void setUpgradeAction(boolean available, Runnable action) {
         actionTable.clearChildren();
-        actionTable.add(new MenuButton("Upgrade", skin, "purple", action)).width(132f).height(32f);
+        String text = available ? "Upgrade" : "Need Resources";
+        String style = available ? "purple" : "brown";
+        actionTable.add(new MenuButton(text, skin, style, action)).width(144f).height(32f);
     }
 
     public void clearAction() {
@@ -166,7 +190,10 @@ public class PlantCard extends BorderedTable {
         levelLabel.setAlignment(Align.center);
         seedLabel.setAlignment(Align.center);
         familyLabel.setAlignment(Align.center);
+        tagsLabel.setAlignment(Align.center);
+        tagsLabel.setWrap(true);
         healthLabel.setAlignment(Align.center);
+        cooldownLabel.setAlignment(Align.center);
         stateLabel.setAlignment(Align.center);
         lockOverlay.setTransform(true);
         lockOverlay.add(lockLabel).center();
@@ -184,7 +211,9 @@ public class PlantCard extends BorderedTable {
         add(seedLabel).width(235f).padTop(2f).row();
         add(seedProgress).width(190f).padTop(1f).center().row();
         add(familyLabel).width(235f).padTop(2f).row();
+        add(tagsLabel).width(235f).padTop(1f).row();
         add(healthLabel).width(235f).padTop(1f).row();
+        add(cooldownLabel).width(235f).padTop(1f).row();
         add(stateLabel).width(235f).padTop(2f).row();
         add(actionTable).padTop(6f).padBottom(1f).row();
     }
@@ -213,5 +242,12 @@ public class PlantCard extends BorderedTable {
 
     private String safeText(String value) {
         return value == null || value.isBlank() ? "-" : value.trim();
+    }
+
+    private String formatCooldown(float remaining) {
+        if (remaining >= 10f) {
+            return Math.round(remaining) + "s";
+        }
+        return String.format("%.1fs", remaining);
     }
 }
