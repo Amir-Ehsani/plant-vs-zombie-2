@@ -1,7 +1,6 @@
 package game.render.mower;
 
 import com.badlogic.gdx.graphics.g2d.Batch;
-import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Vector2;
 import game.animation.core.AnimationDefinition;
 import game.animation.core.PvzAnimationService;
@@ -15,14 +14,14 @@ import java.util.HashMap;
 import java.util.Map;
 
 public final class LawnMowerRenderSystem {
-    private static final float START_X = 0.15f;
-    private static final float END_X = 10.15f;
-    private static final float RUN_SECONDS = 4.0f;
     private static final float MOWER_SCALE = 0.45f;
+    private static final float VISUAL_TILES_PER_SECOND = 2.5f;
+    private static final float POSITION_EPSILON = 0.001f;
 
     private final BoardGeometry geometry;
     private final PvzAnimationService animations;
-    private final Map<Integer, MowerState> states = new HashMap<>();
+    private final Map<Integer, Float> laneAnimationTimes = new HashMap<>();
+    private final Map<Integer, Float> laneVisualPositions = new HashMap<>();
     private final String animationPath;
     private final String idleClip;
     private final String attackClip;
@@ -37,10 +36,7 @@ public final class LawnMowerRenderSystem {
         }
         this.geometry = geometry;
         this.animations = animations;
-        AnimationDefinition definition = animations.getCatalog().findByName(
-            animationNameFor(seasonType),
-            null
-        );
+        AnimationDefinition definition = animations.getCatalog().findByName(animationNameFor(seasonType), null);
         if (definition == null) {
             animationPath = null;
             idleClip = null;
@@ -55,15 +51,14 @@ public final class LawnMowerRenderSystem {
 
     public void update(float delta, Board board) {
         if (board == null) {
-            states.clear();
+            clearRuntimeState();
             return;
         }
+        float safeDelta = Math.max(0f, delta);
         for (int row = 1; row <= board.getHeight(); row++) {
-            Lane lane = board.getLaneAt(row);
-            if (lane == null) {
-                continue;
-            }
-            updateLaneState(row, lane.getLawnMower(), delta);
+            LawnMower mower = board.getLaneAt(row).getLawnMower();
+            updateVisualPosition(row, mower, safeDelta);
+            updateAnimationTime(row, mower, safeDelta);
         }
     }
 
@@ -74,74 +69,65 @@ public final class LawnMowerRenderSystem {
         batch.begin();
         for (int row = 1; row <= board.getHeight(); row++) {
             Lane lane = board.getLaneAt(row);
-            if (lane == null) {
-                continue;
+            if (lane != null) {
+                drawLaneMower(batch, row, lane.getLawnMower());
             }
-            drawLaneMower(batch, row, lane.getLawnMower());
         }
         batch.end();
     }
 
-    private void updateLaneState(int row, LawnMower mower, float delta) {
-        MowerState state = states.computeIfAbsent(row, ignored -> new MowerState(mower.isReady()));
-        if (state.wasReady && mower.isTriggered() && !state.running && !state.finished) {
-            state.running = true;
-            state.elapsed = 0f;
-        }
-        state.wasReady = mower.isReady();
-        if (!state.running || delta <= 0f) {
+    private void updateVisualPosition(int row, LawnMower mower, float delta) {
+        float targetX = (float) mower.getPositionX();
+        if (!mower.isTriggered()) {
+            laneVisualPositions.put(row, targetX);
             return;
         }
-        state.elapsed += delta;
-        if (state.elapsed >= RUN_SECONDS) {
-            state.running = false;
-            state.finished = true;
+        float visualX = laneVisualPositions.getOrDefault(row, (float) LawnMower.START_X);
+        if (visualX > targetX) {
+            visualX = targetX;
         }
+        float maxDistance = VISUAL_TILES_PER_SECOND * delta;
+        laneVisualPositions.put(row, Math.min(targetX, visualX + maxDistance));
+    }
+
+    private void updateAnimationTime(int row, LawnMower mower, float delta) {
+        float current = laneAnimationTimes.getOrDefault(row, 0f);
+        boolean active = mower.isMoving() || isFinishingVisualTravel(row, mower);
+        laneAnimationTimes.put(row, active ? current + delta : 0f);
+    }
+
+    private boolean isFinishingVisualTravel(int row, LawnMower mower) {
+        if (!mower.isTriggered()) {
+            return false;
+        }
+        float visualX = laneVisualPositions.getOrDefault(row, (float) mower.getPositionX());
+        return visualX + POSITION_EPSILON < (float) mower.getPositionX();
     }
 
     private void drawLaneMower(Batch batch, int row, LawnMower mower) {
-        MowerState state = states.computeIfAbsent(row, ignored -> new MowerState(mower.isReady()));
-        if (state.running) {
-            float progress = MathUtils.clamp(state.elapsed / RUN_SECONDS, 0f, 1f);
-            drawAt(batch, MathUtils.lerp(START_X, END_X, progress), row, attackClip, state.elapsed, true);
-            return;
-        }
-        if (mower.isReady()) {
-            drawAt(batch, START_X, row, idleClip, state.elapsed, true);
+        float animationTime = laneAnimationTimes.getOrDefault(row, 0f);
+        float visualX = laneVisualPositions.getOrDefault(row, (float) mower.getPositionX());
+        if (mower.isMoving() || isFinishingVisualTravel(row, mower)) {
+            drawAt(batch, visualX, row, attackClip, animationTime);
+        } else if (mower.isReady()) {
+            drawAt(batch, (float) LawnMower.START_X, row, idleClip, animationTime);
         }
     }
 
-    private void drawAt(
-        Batch batch,
-        float boardX,
-        int row,
-        String clip,
-        float stateTime,
-        boolean loop
-    ) {
+    private void clearRuntimeState() {
+        laneAnimationTimes.clear();
+        laneVisualPositions.clear();
+    }
+
+    private void drawAt(Batch batch, float boardX, int row, String clip, float stateTime) {
         Vector2 position = geometry.entityToScreen(boardX, row);
-        animations.draw(
-            batch,
-            animationPath,
-            clip,
-            stateTime,
-            position.x,
-            position.y,
-            MOWER_SCALE,
-            loop
-        );
+        animations.draw(batch, animationPath, clip, stateTime, position.x, position.y, MOWER_SCALE, true);
     }
 
     private String animationNameFor(SeasonType seasonType) {
-        if (seasonType == SeasonType.FROSTBITE_CAVES) {
-            return "MOWER_ICEAGE";
-        }
-        if (seasonType == SeasonType.BIG_WAVE_BEACH) {
-            return "MOWER_BEACH";
-        }
-        if (seasonType == SeasonType.DARK_AGES) {
-            return "MOWER_DARK";
-        }
+        if (seasonType == SeasonType.FROSTBITE_CAVES) return "MOWER_ICEAGE";
+        if (seasonType == SeasonType.BIG_WAVE_BEACH) return "MOWER_BEACH";
+        if (seasonType == SeasonType.DARK_AGES) return "MOWER_DARK";
         return "MOWER_EGYPT";
     }
 
@@ -152,16 +138,5 @@ public final class LawnMowerRenderSystem {
             }
         }
         return definition.getClips().isEmpty() ? null : definition.getClips().iterator().next();
-    }
-
-    private static final class MowerState {
-        private boolean wasReady;
-        private boolean running;
-        private boolean finished;
-        private float elapsed;
-
-        private MowerState(boolean ready) {
-            wasReady = ready;
-        }
     }
 }
