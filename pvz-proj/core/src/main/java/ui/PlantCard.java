@@ -221,9 +221,9 @@ public class PlantCard extends BorderedTable {
         fallbackLabel.setAlignment(Align.center);
         fallbackLabel.setColor(PANEL_TEXT_COLOR);
         lockLabel.setAlignment(Align.center);
-        lockLabel.setColor(PANEL_TEXT_COLOR);
+        lockLabel.setColor(Color.WHITE);
         nameLabel.setAlignment(Align.center);
-        nameLabel.setColor(PANEL_TEXT_COLOR);
+        nameLabel.setColor(Color.WHITE);
         nameLabel.setWrap(true);
         costLabel.setAlignment(Align.center);
         levelLabel.setAlignment(Align.center);
@@ -266,8 +266,10 @@ public class PlantCard extends BorderedTable {
     private void refreshState() {
         if (locked) {
             stateLabel.setText("LOCKED");
+            stateLabel.setColor(Color.WHITE);
             return;
         }
+        stateLabel.setColor(PANEL_TEXT_COLOR);
         if (selected && boosted) {
             stateLabel.setText("SELECTED | BOOSTED");
             return;

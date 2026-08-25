@@ -252,6 +252,7 @@ public class CollectionPlantPanel extends Table {
         panel.defaults().pad(1f);
         Label title = new Label(type.getName(), skin, "medium_outline");
         title.setAlignment(Align.center);
+        title.setColor(Color.WHITE);
         title.setWrap(true);
         panel.add(title).width(280f).center().padBottom(4f).row();
         panel.add(animations.createPlantActor(type.getName())).size(112f).center().padBottom(6f).row();

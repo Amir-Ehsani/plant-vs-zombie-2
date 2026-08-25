@@ -3,6 +3,7 @@ package screens.menu;
 import com.badlogic.gdx.scenes.scene2d.ui.Label;
 import com.badlogic.gdx.scenes.scene2d.ui.ScrollPane;
 import com.badlogic.gdx.scenes.scene2d.ui.Table;
+import com.badlogic.gdx.utils.Align;
 import com.pvz.Main;
 import controllers.features.LeaderboardController;
 import models.account.User;
@@ -37,16 +38,20 @@ public class LeaderboardScreen extends BaseMenuScreen {
 
     private void buildUi() {
         Table root = createRoot();
+        root.top();
         addResourceBar(root);
         Table panel = createPanel();
-        panel.add(createTitle("Leaderboard")).padBottom(14f).row();
+        panel.add(createTitle("Leaderboard")).padBottom(10f).row();
         rowsTable = new Table();
+        rowsTable.top();
         ScrollPane scrollPane = new ScrollPane(rowsTable, skin);
         scrollPane.setFadeScrollBars(false);
-        panel.add(scrollPane).width(1000f).height(350f).row();
+        scrollPane.setOverscroll(false, false);
+        scrollPane.setScrollingDisabled(true, false);
+        panel.add(scrollPane).width(900f).height(315f).row();
         panel.add(new BackButton(skin, game.getScreenManager()::showMainMenu))
-                .width(190f).height(44f).padTop(10f);
-        root.add(panel).expand().center();
+                .width(180f).height(42f).padTop(8f);
+        root.add(panel).width(960f).height(490f).top().padTop(2f);
     }
 
     private void refreshRows() {
@@ -61,36 +66,48 @@ public class LeaderboardScreen extends BaseMenuScreen {
     }
 
     private void addHeaders() {
-        rowsTable.add(createRowLabel("#")).width(45f);
-        addHeader("Username", "username", 180f);
-        addHeader("Progress", "progress", 220f);
-        addHeader("Minigames", "minigames", 130f);
-        addHeader("Daily Quests", "daily-quests", 145f);
-        addHeader("Other Quests", "quests", 145f);
-        addHeader("Best MioPoint", "best-score", 150f);
+        addHeader("#", "rank", 42f, false);
+        addHeader("Username", "username", 145f, true);
+        addHeader("Progress", "progress", 175f, true);
+        addHeader("Minigames", "minigames", 110f, true);
+        addHeader("Daily Quests", "daily-quests", 120f, true);
+        addHeader("Other Quests", "quests", 120f, true);
+        addHeader("Best MioPoint", "best-score", 130f, true);
         rowsTable.row();
     }
 
-    private void addHeader(String text, String column, float width) {
+    private void addHeader(String text, String column, float width, boolean sortable) {
+        if (!sortable) {
+            Label label = createRowLabel(text);
+            rowsTable.add(label).width(width).height(40f).center();
+            return;
+        }
         String marker = sortColumn.equals(column) ? ascending ? " ^" : " v" : "";
-        rowsTable.add(new MenuButton(text + marker, skin, "brown", () -> sortBy(column))).width(width).height(44f);
+        MenuButton button = new MenuButton(text + marker, skin, "brown", () -> sortBy(column));
+        button.getLabel().setAlignment(Align.center);
+        rowsTable.add(button).width(width).height(40f).center();
     }
 
     private void addUserRow(int rank, User user) {
-        rowsTable.add(createRowLabel(String.valueOf(rank))).width(45f).padTop(8f);
-        rowsTable.add(createRowLabel(user.getUsername())).width(180f).left().padTop(8f);
-        rowsTable.add(createRowLabel(controller.getLastProgress(user))).width(220f).left().padTop(8f);
-        rowsTable.add(createRowLabel(String.valueOf(controller.getCompletedMiniGameCount(user))))
-                .width(130f).padTop(8f);
-        rowsTable.add(createRowLabel(String.valueOf(controller.getDailyQuestCount(user))))
-                .width(145f).padTop(8f);
-        rowsTable.add(createRowLabel(String.valueOf(controller.getNonDailyQuestCount(user))))
-                .width(145f).padTop(8f);
-        rowsTable.add(createRowLabel(String.valueOf(user.getBestMioPoint()))).width(150f).padTop(8f).row();
+        addValue(String.valueOf(rank), 42f);
+        addValue(user.getUsername(), 145f);
+        addValue(controller.getLastProgress(user), 175f);
+        addValue(String.valueOf(controller.getCompletedMiniGameCount(user)), 110f);
+        addValue(String.valueOf(controller.getDailyQuestCount(user)), 120f);
+        addValue(String.valueOf(controller.getNonDailyQuestCount(user)), 120f);
+        addValue(String.valueOf(user.getBestMioPoint()), 130f);
+        rowsTable.row();
+    }
+
+    private void addValue(String text, float width) {
+        rowsTable.add(createRowLabel(text)).width(width).height(34f).center().padTop(4f);
     }
 
     private Label createRowLabel(String text) {
-        return new Label(text == null ? "" : text, skin, "secondary");
+        Label label = new Label(text == null ? "" : text, skin, "secondary");
+        label.setAlignment(Align.center);
+        label.setWrap(true);
+        return label;
     }
 
     private void sortBy(String column) {

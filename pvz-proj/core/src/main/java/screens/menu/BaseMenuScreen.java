@@ -1,7 +1,6 @@
 package screens.menu;
 
 import com.badlogic.gdx.Gdx;
-import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.scenes.scene2d.ui.Image;
 import com.badlogic.gdx.scenes.scene2d.ui.Label;
@@ -20,7 +19,6 @@ import ui.NotificationManager;
 import ui.ResourceBar;
 
 public abstract class BaseMenuScreen extends BaseScreen {
-    protected static final Color BRIGHT_PANEL_TEXT_COLOR = Color.valueOf("FFFBEA");
     protected final Skin skin;
     protected ResourceBar resourceBar;
     private Texture menuBackgroundTexture;
@@ -58,21 +56,16 @@ public abstract class BaseMenuScreen extends BaseScreen {
 
     protected Label createTitle(String text) {
         Label label = new Label(text == null ? "" : text, skin, "big_outline");
-        label.setColor(BRIGHT_PANEL_TEXT_COLOR);
         label.setAlignment(Align.center);
         return label;
     }
 
     protected Label createLabel(String text) {
-        Label label = new Label(text == null ? "" : text, skin, "default");
-        label.setColor(BRIGHT_PANEL_TEXT_COLOR);
-        return label;
+        return new Label(text == null ? "" : text, skin, "default");
     }
 
     protected Label createSecondaryLabel(String text) {
-        Label label = new Label(text == null ? "" : text, skin, "secondary");
-        label.setColor(BRIGHT_PANEL_TEXT_COLOR);
-        return label;
+        return new Label(text == null ? "" : text, skin, "secondary");
     }
 
     protected TextButton createButton(String text) {

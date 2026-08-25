@@ -18,7 +18,7 @@ public class QuestCard extends BorderedTable {
         pad(16f);
         Label name = new Label(quest == null ? "Quest" : quest.getQuestDescription(), skin, "medium_outline");
         name.setAlignment(Align.left);
-        name.setColor(TEXT_COLOR);
+        name.setColor(Color.WHITE);
         name.setWrap(true);
         Label description = label(skin, quest == null ? "" : quest.getConditionDescription());
         description.setWrap(true);
