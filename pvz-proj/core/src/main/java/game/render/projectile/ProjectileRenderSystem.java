@@ -275,8 +275,10 @@ public final class ProjectileRenderSystem {
         if (definition == null || definition.projectilePath == null) {
             return;
         }
-        float startX = (float) plant.getX() + (type.isLobbed() ? 0.15f : 0.38f);
-        float startY = (float) plant.getY() - (type.isLobbed() ? 0.34f : 0.12f);
+        // Spawn coordinates are independent from visual scale so enlarging a projectile
+        // never moves its trajectory away from the plant's mouth / launch point.
+        float startX = (float) plant.getX() + type.getSpawnXOffset();
+        float startY = (float) plant.getY() + type.getSpawnYOffset();
         float distance = Math.max(0.5f, Math.abs((float) target.x - startX));
         float duration = MathUtils.clamp(distance / TILES_PER_SECOND, MIN_TRAVEL_SECONDS, MAX_TRAVEL_SECONDS);
         projectiles.add(new VisualProjectile(type, definition, startX, startY, target, duration, delay));

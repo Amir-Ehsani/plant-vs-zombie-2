@@ -18,7 +18,9 @@ import controllers.core.GameController;
 import controllers.features.SettingsController;
 import game.animation.core.PvzAnimationService;
 import game.hud.CompactSeedBank;
-import game.hud.GameplayEventFeedback;
+import game.input.GameplayInputMode;
+import game.input.GameplayInteractionSystem;
+import game.input.InteractionOverlayRenderer;
 import game.render.BoardBackgroundCatalog;
 import game.render.BoardGeometry;
 import game.render.BoardRenderer;
@@ -36,6 +38,7 @@ import models.engine.session.GameSession;
 import models.engine.session.PlantRechargeStatus;
 import models.engine.sun.Sun;
 import screens.BaseScreen;
+import ui.MenuButton;
 import ui.PlantCard;
 import ui.ResourceBar;
 
@@ -66,8 +69,10 @@ public final class GameScreen extends BaseScreen {
     private final ProjectileRenderSystem projectileRenderSystem;
     private final SunRenderSystem sunRenderSystem;
     private final LawnMowerRenderSystem lawnMowerRenderSystem;
-    private final GameplayEventFeedback eventFeedback;
     private final CompactSeedBank compactSeedBank;
+    private final GameplayInteractionSystem interactions;
+    private final InteractionOverlayRenderer interactionOverlay;
+    private final Vector2 cursorWorld;
 
     private TextureRegion background;
     private Position hoveredTile;
@@ -96,6 +101,7 @@ public final class GameScreen extends BaseScreen {
         gameplayClock = new GameplayClock(controller);
         gameplayClock.setGameSpeed(resolveInitialGameSpeed());
         statusLabel = new Label("", game.getSkin());
+        cursorWorld = new Vector2();
         resourceBar = new ResourceBar(game.getSkin(), game.getAnimationService());
         plantCardsTable = new Table();
         gameplayPlantCards = new LinkedHashMap<>();
@@ -116,8 +122,13 @@ public final class GameScreen extends BaseScreen {
             lawnMowerRenderSystem = null;
             compactSeedBank = null;
         }
-        eventFeedback = new GameplayEventFeedback(notificationManager);
+        interactionOverlay = new InteractionOverlayRenderer(boardGeometry, animations);
+        interactions = new GameplayInteractionSystem(
+            controller,
+            game.getAuthController().getLoggedInUser()
+        );
         buildHud();
+        buildInteractionControls();
         loadStageAssets();
         debugMessage = "Adventure session connected";
         refreshGameHud();
@@ -142,11 +153,13 @@ public final class GameScreen extends BaseScreen {
         shapes.setProjectionMatrix(stage.getCamera().combined);
         drawBackground();
         drawGrid();
+        drawInteractionTileHighlight();
         drawLawnMowers();
         drawSeedBank();
         drawEntities();
         drawProjectiles();
         drawSuns();
+        drawInteractionCursor();
         drawHover();
         stage.act(Math.min(delta, 1f / 15f));
         stage.draw();
@@ -232,6 +245,21 @@ public final class GameScreen extends BaseScreen {
         stage.addActor(hud);
     }
 
+    private void buildInteractionControls() {
+        Table controls = new Table();
+        controls.setFillParent(true);
+        controls.bottom().right().padRight(14f).padBottom(12f);
+        controls.add(new MenuButton("Shovel [S]", game.getSkin(), "green_small", this::selectShovel))
+            .width(120f).height(36f).padRight(6f);
+        controls.add(new MenuButton(
+            "Plant Food [F]",
+            game.getSkin(),
+            "purple",
+            this::selectPlantFood
+        )).width(142f).height(36f);
+        stage.addActor(controls);
+    }
+
     private void buildPlantCardHud() {
         plantCardsTable.top();
         plantCardsTable.defaults().padBottom(8f);
@@ -310,16 +338,16 @@ public final class GameScreen extends BaseScreen {
     private void updateRuntime(float delta) {
         applyStoredGameSpeed();
         animations.update();
-        int previousTick = gameplayClock.getCurrentTick();
+        updateCursorWorld();
         gameplayClock.update(delta);
         int currentTick = gameplayClock.getCurrentTick();
         float visualDelta = gameplayClock.isPaused() ? 0f : delta * gameplayClock.getGameSpeed();
         visualStateTime += visualDelta;
         updateRenderSystems(visualDelta, currentTick);
-        if (currentTick != previousTick) {
-            eventFeedback.acceptTickMessage(currentTick, controller.getLastMessage());
-        }
         collectSunUnderPointer();
+        if (!session.isRunning() && interactions.isActive()) {
+            interactions.cancel();
+        }
         refreshHud(delta);
     }
 
@@ -416,12 +444,7 @@ public final class GameScreen extends BaseScreen {
         if (message == null || message.isBlank()) {
             return;
         }
-        String displayMessage = stripMessagePrefix(message);
-        if (settingsController.wasSuccessful()) {
-            notificationManager.push(displayMessage, ui.NotificationType.SUCCESS);
-            return;
-        }
-        notificationManager.push(displayMessage, ui.NotificationType.ERROR);
+        refreshStatus(stripMessagePrefix(message));
     }
 
     private String stripMessagePrefix(String message) {
@@ -456,8 +479,46 @@ public final class GameScreen extends BaseScreen {
 
     private void drawSeedBank() {
         if (compactSeedBank != null) {
-            compactSeedBank.render(shapes, batch, session, visualStateTime);
+            compactSeedBank.render(
+                shapes,
+                batch,
+                session,
+                visualStateTime,
+                interactions.getSelectedPlantName()
+            );
         }
+    }
+
+    private void drawInteractionTileHighlight() {
+        if (interactionOverlay == null || hoveredTile == null || !interactions.isActive()) {
+            return;
+        }
+        enableAlphaBlending();
+        shapes.begin(ShapeRenderer.ShapeType.Filled);
+        interactionOverlay.drawTileHighlight(shapes, interactions, hoveredTile);
+        shapes.end();
+        disableAlphaBlending();
+    }
+
+    private void drawInteractionCursor() {
+        if (interactionOverlay == null || !interactions.isActive()) {
+            return;
+        }
+        batch.begin();
+        interactionOverlay.drawPlantGhost(
+            batch,
+            session,
+            interactions,
+            cursorWorld.x,
+            cursorWorld.y,
+            visualStateTime
+        );
+        batch.end();
+        enableAlphaBlending();
+        shapes.begin(ShapeRenderer.ShapeType.Filled);
+        interactionOverlay.drawToolCursor(shapes, interactions, cursorWorld.x, cursorWorld.y);
+        shapes.end();
+        disableAlphaBlending();
     }
 
     private void drawEntities() {
@@ -485,7 +546,7 @@ public final class GameScreen extends BaseScreen {
     }
 
     private void drawHover() {
-        if (!isDebugMode() || hoveredTile == null) {
+        if (!isDebugMode() || hoveredTile == null || interactions.isActive()) {
             return;
         }
         enableAlphaBlending();
@@ -511,7 +572,6 @@ public final class GameScreen extends BaseScreen {
         }
         controller.collectSun(sun.getPosition());
         if (controller.wasSuccessful()) {
-            eventFeedback.showSunCollection(controller.getLastMessage());
             refreshGameHud();
         }
     }
@@ -535,7 +595,14 @@ public final class GameScreen extends BaseScreen {
 
             @Override
             public boolean touchDown(int screenX, int screenY, int pointer, int button) {
-                updateHoveredTile(screenX, screenY);
+                updatePointer(screenX, screenY);
+                if (button == Input.Buttons.RIGHT && interactions.isActive()) {
+                    cancelInteraction();
+                    return true;
+                }
+                if (button == Input.Buttons.LEFT && handleSeedBankClick()) {
+                    return true;
+                }
                 return handleBoardClick(button);
             }
 
@@ -550,6 +617,11 @@ public final class GameScreen extends BaseScreen {
         if (button != Input.Buttons.LEFT || hoveredTile == null) {
             return false;
         }
+        if (interactions.handleTileClick(hoveredTile)) {
+            showInteractionResult();
+            refreshGameHud();
+            return true;
+        }
         controller.handleUserClick(hoveredTile);
         String tile = "Clicked tile row=" + hoveredTile.getY() + ", column=" + hoveredTile.getX();
         Gdx.app.log("GameScreen", tile);
@@ -561,12 +633,41 @@ public final class GameScreen extends BaseScreen {
     }
 
     private void updateHoveredTile(int screenX, int screenY) {
-        Vector2 world = new Vector2(screenX, screenY);
-        stage.getViewport().unproject(world);
-        hoveredTile = screenToBoard(world.x, world.y);
+        updatePointer(screenX, screenY);
+    }
+
+    private void updatePointer(int screenX, int screenY) {
+        cursorWorld.set(screenX, screenY);
+        stage.getViewport().unproject(cursorWorld);
+        hoveredTile = screenToBoard(cursorWorld.x, cursorWorld.y);
+    }
+
+    private void updateCursorWorld() {
+        updatePointer(Gdx.input.getX(), Gdx.input.getY());
+    }
+
+    private boolean handleSeedBankClick() {
+        if (compactSeedBank == null) {
+            return false;
+        }
+        String plantName = compactSeedBank.findPlantAt(session, cursorWorld.x, cursorWorld.y);
+        if (plantName == null) {
+            return false;
+        }
+        interactions.selectPlant(plantName);
+        showInteractionResult();
+        return true;
     }
 
     private boolean handleKey(int keycode) {
+        if (keycode == Input.Keys.S) {
+            selectShovel();
+            return true;
+        }
+        if (keycode == Input.Keys.F) {
+            selectPlantFood();
+            return true;
+        }
         if (keycode == Input.Keys.P || keycode == Input.Keys.SPACE) {
             gameplayClock.togglePause();
             refreshStatus(gameplayClock.isPaused() ? "Paused" : "Resumed");
@@ -578,6 +679,10 @@ public final class GameScreen extends BaseScreen {
             return true;
         }
         if (keycode == Input.Keys.ESCAPE) {
+            if (interactions.isActive()) {
+                cancelInteraction();
+                return true;
+            }
             game.getScreenManager().showMainMenu();
             return true;
         }
@@ -595,6 +700,40 @@ public final class GameScreen extends BaseScreen {
         gameplayClock.setGameSpeed(speed);
         showSettingsMessage(settingsController);
         refreshStatus("Game speed x" + speed);
+    }
+
+    private void selectShovel() {
+        interactions.selectShovel();
+        showInteractionResult();
+    }
+
+    private void selectPlantFood() {
+        interactions.selectPlantFood();
+        showInteractionResult();
+    }
+
+    private void cancelInteraction() {
+        interactions.cancel();
+    }
+
+    private void showInteractionResult() {
+        String message = interactions.getLastMessage();
+        if (message == null || message.isBlank()) {
+            return;
+        }
+        refreshStatus(message);
+    }
+
+    private String formatModeName(GameplayInputMode mode) {
+        if (mode == null) {
+            return "Normal";
+        }
+        return switch (mode) {
+            case NORMAL -> "Normal";
+            case PLANTING -> "Planting";
+            case SHOVEL -> "Shovel";
+            case PLANT_FOOD -> "Plant Food";
+        };
     }
 
     private boolean isDebugMode() {
@@ -624,9 +763,11 @@ public final class GameScreen extends BaseScreen {
                 + " | " + state
                 + " | grid=" + grid
                 + " | cursor=" + cursor
+                + " | input=" + formatModeName(interactions.getMode())
                 + " | plants=" + board.getPlantCount()
                 + " | zombies=" + board.getActiveZombieCount()
-                + "\nP/Space: pause | 1/2/3: speed | Left click: inspect tile | Esc: main menu"
+                + "\nS: shovel | F: plant food | RMB/Esc: cancel input"
+                + " | P/Space: pause | 1/2/3: speed | Esc: main menu"
                 + "\n" + animations.getStatusMessage()
         );
     }

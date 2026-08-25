@@ -31,6 +31,7 @@ public final class CompactSeedBank {
     private static final Color SLOT_COLOR = new Color(0.88f, 0.84f, 0.68f, 1f);
     private static final Color READY_BORDER = new Color(0.18f, 0.34f, 0.15f, 1f);
     private static final Color COOLDOWN_BORDER = new Color(0.38f, 0.38f, 0.34f, 1f);
+    private static final Color SELECTED_BORDER = new Color(0.95f, 0.68f, 0.12f, 1f);
     private static final Color TEXT_COLOR = new Color(0.20f, 0.16f, 0.08f, 1f);
 
     private final PvzAnimationService animations;
@@ -47,7 +48,13 @@ public final class CompactSeedBank {
         this.font = skin.get("secondary", Label.LabelStyle.class).font;
     }
 
-    public void render(ShapeRenderer shapes, Batch batch, GameSession session, float stateTime) {
+    public void render(
+        ShapeRenderer shapes,
+        Batch batch,
+        GameSession session,
+        float stateTime,
+        String selectedPlantName
+    ) {
         if (shapes == null || batch == null || session == null) {
             return;
         }
@@ -55,17 +62,37 @@ public final class CompactSeedBank {
         if (plants.isEmpty()) {
             return;
         }
-        drawSlots(shapes, session, plants);
+        drawSlots(shapes, session, plants, selectedPlantName);
         drawSlotContents(batch, session, plants, stateTime);
     }
 
-    private void drawSlots(ShapeRenderer shapes, GameSession session, List<String> plants) {
+    public String findPlantAt(GameSession session, float x, float y) {
+        if (session == null || x < BANK_X || x > BANK_X + SLOT_WIDTH) {
+            return null;
+        }
+        List<String> plants = visiblePlants(session);
+        for (int index = 0; index < plants.size(); index++) {
+            float slotY = slotY(index);
+            if (y >= slotY && y <= slotY + SLOT_HEIGHT) {
+                return plants.get(index);
+            }
+        }
+        return null;
+    }
+
+    private void drawSlots(
+        ShapeRenderer shapes,
+        GameSession session,
+        List<String> plants,
+        String selectedPlantName
+    ) {
         shapes.begin(ShapeRenderer.ShapeType.Filled);
         for (int index = 0; index < plants.size(); index++) {
             float y = slotY(index);
             String name = plants.get(index);
             boolean ready = session.getPlantRechargeRemainingTicks(name) <= 0;
-            shapes.setColor(ready ? READY_BORDER : COOLDOWN_BORDER);
+            boolean selected = isSelected(name, selectedPlantName);
+            shapes.setColor(selected ? SELECTED_BORDER : ready ? READY_BORDER : COOLDOWN_BORDER);
             shapes.rect(BANK_X, y, SLOT_WIDTH, SLOT_HEIGHT);
             shapes.setColor(SLOT_COLOR);
             shapes.rect(BANK_X + 2f, y + 2f, SLOT_WIDTH - 4f, SLOT_HEIGHT - 4f);
@@ -153,6 +180,13 @@ public final class CompactSeedBank {
             result.add(plantName);
         }
         return result;
+    }
+
+
+    private boolean isSelected(String plantName, String selectedPlantName) {
+        return plantName != null
+            && selectedPlantName != null
+            && plantName.equalsIgnoreCase(selectedPlantName);
     }
 
     private float slotY(int index) {

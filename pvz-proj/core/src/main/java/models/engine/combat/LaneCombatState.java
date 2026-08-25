@@ -28,7 +28,7 @@ import java.util.Set;
 
 abstract class LaneCombatState {
     protected static final double MELEE_RANGE = 1.35;
-    protected static final double GLOBAL_ZOMBIE_SPEED_SCALE = 0.08;
+    protected static final double GLOBAL_ZOMBIE_SPEED_SCALE = 0.055;
     protected static final int TICKS_PER_SECOND = 10;
     protected static final int DEFAULT_CHILL_TICKS = 3 * TICKS_PER_SECOND;
     protected static final int DEFAULT_FREEZE_TICKS = 5 * TICKS_PER_SECOND;
