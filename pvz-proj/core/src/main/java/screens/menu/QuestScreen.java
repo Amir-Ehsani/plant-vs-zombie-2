@@ -45,7 +45,7 @@ public class QuestScreen extends BaseMenuScreen {
         addResourceBar(root);
         Table panel = createPanel();
         Label screenTitle = createTitle("Quests");
-        screenTitle.setColor(TEXT_COLOR);
+        screenTitle.setColor(Color.WHITE);
         panel.add(screenTitle).padBottom(8f).row();
         panel.add(filters).padBottom(8f).row();
         rebuildFilters();

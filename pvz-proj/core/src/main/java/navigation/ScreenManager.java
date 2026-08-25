@@ -6,6 +6,7 @@ import screens.menu.CollectionScreen;
 import screens.menu.QuestScreen;
 import screens.menu.MiniGameHubScreen;
 import screens.menu.AdventureScreen;
+import screens.menu.AdventureLevelSelectionScreen;
 import screens.menu.AdventurePlantSelectionScreen;
 import screens.menu.AdventureMissionScreen;
 import screens.menu.ForgotPasswordScreen;
@@ -70,6 +71,10 @@ public class ScreenManager {
 
     public void showAdventure() {
         show(new AdventureScreen(game));
+    }
+
+    public void showAdventureLevels(String chapterName) {
+        show(new AdventureLevelSelectionScreen(game, chapterName));
     }
 
     public void showCollection() {
