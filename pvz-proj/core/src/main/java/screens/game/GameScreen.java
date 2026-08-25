@@ -10,9 +10,13 @@ import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.math.Vector2;
+import com.badlogic.gdx.scenes.scene2d.InputEvent;
+import com.badlogic.gdx.scenes.scene2d.ui.ImageButton;
 import com.badlogic.gdx.scenes.scene2d.ui.Label;
 import com.badlogic.gdx.scenes.scene2d.ui.ScrollPane;
 import com.badlogic.gdx.scenes.scene2d.ui.Table;
+import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
+import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable;
 import com.pvz.Main;
 import controllers.core.GameController;
 import controllers.features.SettingsController;
@@ -32,13 +36,20 @@ import models.core.plant.PlantType;
 import models.engine.board.Board;
 import models.engine.board.Position;
 import models.engine.session.GameSession;
+import models.engine.session.GameState;
 import models.engine.session.PlantRechargeStatus;
 import models.engine.sun.Sun;
+import models.level.core.AdventureLevelCatalog;
 import screens.BaseScreen;
+import ui.GameOverDialog;
+import ui.MenuButton;
+import ui.PauseDialog;
 import ui.PlantCard;
 import ui.ResourceBar;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 public final class GameScreen extends BaseScreen {
@@ -75,6 +86,9 @@ public final class GameScreen extends BaseScreen {
     private boolean resourceBarConfigured;
     private boolean debugControlsVisible;
     private float visualStateTime;
+    private PauseDialog pauseDialog;
+    private GameOverDialog gameOverDialog;
+    private boolean gameOverShown;
 
     public GameScreen(Main game) {
         this(game, prepareController(game));
@@ -117,6 +131,9 @@ public final class GameScreen extends BaseScreen {
         buildPlantCardHud();
         loadStageAssets();
         debugMessage = "Adventure session connected";
+        pauseDialog = null;
+        gameOverDialog = null;
+        gameOverShown = false;
         refreshGameHud();
         refreshStatus(debugMessage);
     }
@@ -126,7 +143,7 @@ public final class GameScreen extends BaseScreen {
         super.show();
         applyStoredGameSpeed();
         refreshGameHud();
-        Gdx.input.setInputProcessor(new InputMultiplexer(createInput(), stage));
+        Gdx.input.setInputProcessor(new InputMultiplexer(stage, createInput()));
     }
 
     @Override
@@ -224,8 +241,29 @@ public final class GameScreen extends BaseScreen {
         statusLabel.setWrap(true);
         statusLabel.setVisible(isDebugMode());
         hud.add(statusLabel).width(460f).left().top().expandX().fillX();
+        hud.add(createPauseButton()).size(54f).padRight(8f).top();
         hud.add(resourceBar).right().top();
         stage.addActor(hud);
+    }
+
+    private ImageButton createPauseButton() {
+        ImageButton.ImageButtonStyle style = new ImageButton.ImageButtonStyle();
+        TextureRegion region = game.getAnimationService().region("IMAGE_UI_HUD_INGAME_PAUSE_BUTTON");
+        if (region != null) {
+            TextureRegionDrawable drawable = new TextureRegionDrawable(region);
+            style.up = drawable;
+            style.over = drawable;
+            style.down = drawable;
+            style.checked = drawable;
+        }
+        ImageButton button = new ImageButton(style);
+        button.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                showPauseDialog();
+            }
+        });
+        return button;
     }
 
     private void buildPlantCardHud() {
@@ -317,6 +355,7 @@ public final class GameScreen extends BaseScreen {
         }
         collectSunUnderPointer();
         refreshHud(delta);
+        showGameOverIfNeeded();
     }
 
     private void updateRenderSystems(float visualDelta, int currentTick) {
@@ -537,6 +576,12 @@ public final class GameScreen extends BaseScreen {
     }
 
     private boolean handleBoardClick(int button) {
+        if (pauseDialog != null && pauseDialog.getStage() != null) {
+            return false;
+        }
+        if (gameOverShown || gameplayClock.isPaused() || !session.isRunning()) {
+            return false;
+        }
         if (button != Input.Buttons.LEFT || hoveredTile == null) {
             return false;
         }
@@ -557,9 +602,8 @@ public final class GameScreen extends BaseScreen {
     }
 
     private boolean handleKey(int keycode) {
-        if (keycode == Input.Keys.P || keycode == Input.Keys.SPACE) {
-            gameplayClock.togglePause();
-            refreshStatus(gameplayClock.isPaused() ? "Paused" : "Resumed");
+        if (keycode == Input.Keys.P || keycode == Input.Keys.SPACE || keycode == Input.Keys.ESCAPE) {
+            togglePauseMenu();
             return true;
         }
         if (keycode == Input.Keys.NUM_1 || keycode == Input.Keys.NUM_2 || keycode == Input.Keys.NUM_3) {
@@ -567,11 +611,138 @@ public final class GameScreen extends BaseScreen {
             setSpeed(speed);
             return true;
         }
-        if (keycode == Input.Keys.ESCAPE) {
-            game.getScreenManager().showMainMenu();
-            return true;
-        }
         return false;
+    }
+
+    private void togglePauseMenu() {
+        if (gameOverShown || !session.isRunning()) {
+            return;
+        }
+        if (pauseDialog != null && pauseDialog.getStage() != null) {
+            resumeFromPause();
+            return;
+        }
+        showPauseDialog();
+    }
+
+    private void showPauseDialog() {
+        if (gameOverShown || !session.isRunning()) {
+            return;
+        }
+        if (!gameplayClock.isPaused()) {
+            gameplayClock.togglePause();
+        }
+        pauseDialog = new PauseDialog(
+                game.getSkin(),
+                this::resumeFromPause,
+                this::restartCurrentLevel,
+                this::saveAndExit
+        );
+        pauseDialog.show(stage);
+        refreshStatus("Paused");
+    }
+
+    private void resumeFromPause() {
+        if (pauseDialog != null) {
+            pauseDialog.close();
+            pauseDialog = null;
+        }
+        if (session.isRunning() && gameplayClock.isPaused()) {
+            gameplayClock.togglePause();
+        }
+        refreshStatus("Resumed");
+    }
+
+    private void restartCurrentLevel() {
+        if (pauseDialog != null) {
+            pauseDialog.close();
+            pauseDialog = null;
+        }
+        User user = game.getAuthController().getLoggedInUser();
+        if (user == null) {
+            game.getScreenManager().showMainMenu();
+            return;
+        }
+        String chapter = user.getCurrentChapterName();
+        int levelNumber = user.getCurrentChapterLevel();
+        List<String> selectedPlants = new ArrayList<>(session.getSelectedPlantNames());
+        controller.prepareChapterLevel(chapter, levelNumber);
+        if (!controller.wasSuccessful()) {
+            game.getScreenManager().showAdventure();
+            return;
+        }
+        if (!controller.shouldAutoStartCurrentLevel()) {
+            for (String plantName : selectedPlants) {
+                controller.addPlantToSelection(plantName);
+            }
+        }
+        controller.startGame();
+        if (!controller.wasSuccessful()) {
+            game.getScreenManager().showAdventureMission(chapter, levelNumber);
+            return;
+        }
+        game.getScreenManager().showPreparedGame();
+    }
+
+    private void saveAndExit() {
+        if (pauseDialog != null) {
+            pauseDialog.close();
+            pauseDialog = null;
+        }
+        game.getAuthController().saveUsers();
+        game.getScreenManager().showAdventure();
+    }
+
+    private void showGameOverIfNeeded() {
+        if (gameOverShown || session.getState() == null || !session.getState().isFinished()) {
+            return;
+        }
+        gameOverShown = true;
+        boolean victory = session.getState().getStatus() == GameState.Status.WON;
+        String message = victory
+                ? "The lawn is safe. Continue your Adventure."
+                : "The zombies broke through. Try the level again.";
+        gameOverDialog = new GameOverDialog(
+                game.getSkin(),
+                victory,
+                message,
+                victory ? this::continueAfterVictory : this::retryAfterDefeat,
+                game.getScreenManager()::showAdventure
+        );
+        gameOverDialog.show(stage);
+    }
+
+    private void retryAfterDefeat() {
+        User user = game.getAuthController().getLoggedInUser();
+        if (user == null) {
+            game.getScreenManager().showAdventure();
+            return;
+        }
+        game.getScreenManager().showAdventureMission(
+                user.getCurrentChapterName(),
+                user.getCurrentChapterLevel()
+        );
+    }
+
+    private void continueAfterVictory() {
+        User user = game.getAuthController().getLoggedInUser();
+        if (user == null) {
+            game.getScreenManager().showAdventure();
+            return;
+        }
+        String chapter = AdventureLevelCatalog.normalizeChapterName(user.getCurrentChapterName());
+        int levelNumber = user.getCurrentChapterLevel();
+        if (levelNumber < AdventureLevelCatalog.LAST_PLAYABLE_LEVEL
+                && user.isChapterLevelUnlocked(chapter, levelNumber + 1)) {
+            game.getScreenManager().showAdventureMission(chapter, levelNumber + 1);
+            return;
+        }
+        String nextChapter = AdventureLevelCatalog.nextChapter(chapter);
+        if (nextChapter != null && user.isChapterUnlocked(nextChapter)) {
+            game.getScreenManager().showAdventureMission(nextChapter, 1);
+            return;
+        }
+        game.getScreenManager().showAdventure();
     }
 
     private void setSpeed(int speed) {
