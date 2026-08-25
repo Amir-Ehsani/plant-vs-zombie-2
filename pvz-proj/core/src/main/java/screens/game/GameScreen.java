@@ -40,14 +40,18 @@ import models.core.plant.PlantType;
 import models.engine.board.Board;
 import models.engine.board.Position;
 import models.engine.session.GameSession;
+import models.engine.session.GameState;
 import models.engine.session.PlantRechargeStatus;
 import models.engine.sun.Sun;
+import models.level.core.AdventureLevelCatalog;
 import screens.BaseScreen;
 import ui.MenuButton;
 import ui.PlantCard;
 import ui.ResourceBar;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 public final class GameScreen extends BaseScreen {
@@ -95,6 +99,9 @@ public final class GameScreen extends BaseScreen {
     private boolean resourceBarConfigured;
     private boolean debugControlsVisible;
     private float visualStateTime;
+    private PauseDialog pauseDialog;
+    private GameOverDialog gameOverDialog;
+    private boolean gameOverShown;
 
     public GameScreen(Main game) {
         this(game, prepareController(game));
@@ -144,6 +151,9 @@ public final class GameScreen extends BaseScreen {
         buildInteractionControls();
         loadStageAssets();
         debugMessage = "Adventure session connected";
+        pauseDialog = null;
+        gameOverDialog = null;
+        gameOverShown = false;
         refreshGameHud();
         refreshStatus(debugMessage);
     }
@@ -153,7 +163,7 @@ public final class GameScreen extends BaseScreen {
         super.show();
         applyStoredGameSpeed();
         refreshGameHud();
-        Gdx.input.setInputProcessor(new InputMultiplexer(createInput(), stage));
+        Gdx.input.setInputProcessor(new InputMultiplexer(stage, createInput()));
     }
 
     @Override
@@ -255,6 +265,7 @@ public final class GameScreen extends BaseScreen {
         statusLabel.setWrap(true);
         statusLabel.setVisible(isDebugMode());
         hud.add(statusLabel).width(460f).left().top().expandX().fillX();
+        hud.add(createPauseButton()).size(54f).padRight(8f).top();
         hud.add(resourceBar).right().top();
         stage.addActor(hud);
     }
@@ -400,6 +411,7 @@ public final class GameScreen extends BaseScreen {
             interactions.cancel();
         }
         refreshHud(delta);
+        showGameOverIfNeeded();
     }
 
     private void updateRenderSystems(float visualDelta, int currentTick) {
@@ -627,7 +639,8 @@ public final class GameScreen extends BaseScreen {
     }
 
     private void collectSunUnderPointer() {
-        if (sunRenderSystem == null || gameplayClock.isPaused() || !session.isRunning()) {
+        if (sunRenderSystem == null || gameplayClock.isPaused() || !session.isRunning()
+                || (pauseDialog != null && pauseDialog.getStage() != null) || gameOverShown) {
             return;
         }
         Vector2 world = new Vector2(Gdx.input.getX(), Gdx.input.getY());
@@ -684,6 +697,12 @@ public final class GameScreen extends BaseScreen {
     }
 
     private boolean handleBoardClick(int button) {
+        if (pauseDialog != null && pauseDialog.getStage() != null) {
+            return false;
+        }
+        if (gameOverShown || gameplayClock.isPaused() || !session.isRunning()) {
+            return false;
+        }
         if (button != Input.Buttons.LEFT || hoveredTile == null) {
             return false;
         }
@@ -757,6 +776,145 @@ public final class GameScreen extends BaseScreen {
             return true;
         }
         return false;
+    }
+
+    private void togglePauseMenu() {
+        if (gameOverShown || !session.isRunning()) {
+            return;
+        }
+        if (pauseDialog != null && pauseDialog.getStage() != null) {
+            resumeFromPause();
+            return;
+        }
+        showPauseDialog();
+    }
+
+    private void showPauseDialog() {
+        if (gameOverShown || !session.isRunning()) {
+            return;
+        }
+        if (pauseDialog != null && pauseDialog.getStage() != null) {
+            return;
+        }
+        if (!gameplayClock.isPaused()) {
+            gameplayClock.togglePause();
+        }
+        interactions.cancel();
+        pauseDialog = new PauseDialog(
+                game.getSkin(),
+                this::resumeFromPause,
+                this::restartCurrentLevel,
+                this::saveAndExit
+        );
+        pauseDialog.show(stage);
+        refreshStatus("Paused");
+    }
+
+    private void resumeFromPause() {
+        if (pauseDialog != null) {
+            pauseDialog.close();
+            pauseDialog = null;
+        }
+        if (session.isRunning() && gameplayClock.isPaused()) {
+            gameplayClock.togglePause();
+        }
+        refreshStatus("Resumed");
+    }
+
+    private void restartCurrentLevel() {
+        if (pauseDialog != null) {
+            pauseDialog.close();
+            pauseDialog = null;
+        }
+        User user = game.getAuthController().getLoggedInUser();
+        if (user == null) {
+            game.getScreenManager().showMainMenu();
+            return;
+        }
+        String chapter = user.getCurrentChapterName();
+        int levelNumber = user.getCurrentChapterLevel();
+        List<String> selectedPlants = new ArrayList<>(session.getSelectedPlantNames());
+        controller.prepareChapterLevel(chapter, levelNumber);
+        if (!controller.wasSuccessful()) {
+            game.getScreenManager().showAdventure();
+            return;
+        }
+        if (!controller.shouldAutoStartCurrentLevel()) {
+            for (String plantName : selectedPlants) {
+                controller.addPlantToSelection(plantName);
+            }
+        }
+        controller.startGame();
+        if (!controller.wasSuccessful()) {
+            game.getScreenManager().showAdventureMission(chapter, levelNumber);
+            return;
+        }
+        game.getScreenManager().showPreparedGame();
+    }
+
+    private void saveAndExit() {
+        if (pauseDialog != null) {
+            pauseDialog.close();
+            pauseDialog = null;
+        }
+        game.getAuthController().saveUsers();
+        game.getScreenManager().showAdventure();
+    }
+
+    private void showGameOverIfNeeded() {
+        if (gameOverShown || session.getState() == null || !session.getState().isFinished()) {
+            return;
+        }
+        if (pauseDialog != null) {
+            pauseDialog.close();
+            pauseDialog = null;
+        }
+        gameOverShown = true;
+        boolean victory = session.getState().getStatus() == GameState.Status.WON;
+        String message = victory
+                ? "The lawn is safe. Continue your Adventure."
+                : "The zombies broke through. Try the level again.";
+        gameOverDialog = new GameOverDialog(
+                game.getSkin(),
+                victory,
+                message,
+                victory ? this::continueAfterVictory : this::retryAfterDefeat,
+                game.getScreenManager()::showAdventure
+        );
+        gameOverDialog.show(stage);
+    }
+
+    private void retryAfterDefeat() {
+        User user = game.getAuthController().getLoggedInUser();
+        if (user == null) {
+            game.getScreenManager().showAdventure();
+            return;
+        }
+        game.getScreenManager().showAdventureMission(
+                user.getCurrentChapterName(),
+                user.getCurrentChapterLevel()
+        );
+    }
+
+    private void continueAfterVictory() {
+        User user = game.getAuthController().getLoggedInUser();
+        if (user == null) {
+            game.getScreenManager().showAdventure();
+            return;
+        }
+        String chapter = AdventureLevelCatalog.normalizeChapterName(user.getCurrentChapterName());
+        int levelNumber = user.getCurrentChapterLevel();
+        if (levelNumber < AdventureLevelCatalog.LAST_PLAYABLE_LEVEL
+                && user.isChapterLevelUnlocked(chapter, levelNumber + 1)) {
+            game.getScreenManager().showAdventureMission(chapter, levelNumber + 1);
+            return;
+        }
+        String nextChapter = AdventureLevelCatalog.nextChapter(chapter);
+        if (nextChapter != null && user.isChapterUnlocked(nextChapter)) {
+            game.getScreenManager().showAdventureMission(nextChapter, 1);
+            return;
+        }
+        game.getScreenManager().showAdventure();
     }
 
     private void setSpeed(int speed) {

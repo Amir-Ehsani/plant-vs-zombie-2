@@ -2,6 +2,7 @@ package ui;
 
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.files.FileHandle;
+import models.core.zombie.ZombieType;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -12,7 +13,7 @@ import java.util.Map;
 public final class PvzAnimationCatalog {
     private static final String IMAGES_ROOT = "pvz-assets/IMAGES/";
     private static final String PLANT_FALLBACK = "768/INITIAL/PLANT/SUNFLOWER/SUNFLOWER.PAM";
-    private static final String ZOMBIE_FALLBACK = "768/INITIAL/ZOMBIE/ZOMBIE_EGYPT_BASIC/ZOMBIE_EGYPT_BASIC.PAM";
+    private static final String ZOMBIE_FALLBACK = "768/INITIAL/ZOMBIE/ZOMBIE_TUTORIAL/ZOMBIE_TUTORIAL.PAM";
     private static final Map<String, String> PLANT_CACHE = new HashMap<>();
     private static final Map<String, String> ZOMBIE_CACHE = new HashMap<>();
     private static final Map<String, String> PLANT_ALIASES = Map.ofEntries(
@@ -29,65 +30,65 @@ public final class PvzAnimationCatalog {
             Map.entry("cat tail mint", "AILMINT"),
             Map.entry("cat tail", "PEASHOOTER")
     );
-    private static final Map<String, String> ZOMBIE_NAME_ALIASES = Map.ofEntries(
-            Map.entry("default", "ZOMBIE_EGYPT_BASIC"),
-            Map.entry("cone head", "ZOMBIE_CARNIE_CONEHEAD"),
-            Map.entry("bucket head", "ZOMBIE_CARNIE_BUCKETHEAD"),
-            Map.entry("brick head", "ZOMBIE_ICEAGE_BASIC_BRICK"),
-            Map.entry("knight", "ZOMBIE_DARK_BASIC"),
-            Map.entry("gargantuar", "EGYPT_GARGANTUAR"),
-            Map.entry("imp", "ZOMBIE_EGYPT_IMP"),
-            Map.entry("ra", "ZOMBIE_EGYPT_RA"),
-            Map.entry("explorer", "ZOMBIE_EXPLORER"),
-            Map.entry("tomb raiser", "ZOMBIE_EGYPT_TOMBRAISER"),
-            Map.entry("dodo", "ZOMBIE_ICEAGE_DODORIDER"),
-            Map.entry("hunter", "ZOMBIE_ICEAGE_HUNTER"),
-            Map.entry("troglobite", "ZOMBIE_ICEAGE_TROGLOBITE"),
-            Map.entry("fisherman", "ZOMBIE_BEACH_FISHERMAN"),
-            Map.entry("octopus", "ZOMBIE_BEACH_OCTOPUS"),
-            Map.entry("snorkel", "ZOMBIE_BEACH_SNORKELER"),
-            Map.entry("juggler", "ZOMBIE_DARK_JESTER"),
-            Map.entry("wizard", "ZOMBIE_DARK_WIZARD"),
-            Map.entry("king", "ZOMBIE_DARK_KING"),
-            Map.entry("imp dragon", "ZOMBIE_DARK_IMP_DRAGON"),
-            Map.entry("allstar", "ZOMBIE_MODERN_ALLSTAR"),
-            Map.entry("arcade", "ZOMBIE_80S_ARCADE"),
-            Map.entry("umbrella", "ZOMBIE_LOSTCITY_JANE"),
-            Map.entry("turquoise", "ZOMBIE_LOSTCITY_CRYSTALSKULL"),
-            Map.entry("prospector", "ZOMBIE_PROSPECTOR"),
-            Map.entry("piano", "ZOMBIE_PIANO"),
-            Map.entry("news paper", "ZOMBIE_MODERN_NEWSPAPER"),
-            Map.entry("barrel roller", "ZOMBIE_PIRATE_BARREL_PUSHER")
+    private static final Map<String, String> ZOMBIE_ID_PATHS = Map.ofEntries(
+            Map.entry("ZombieDefault", "768/INITIAL/ZOMBIE/ZOMBIE_TUTORIAL/ZOMBIE_TUTORIAL.PAM"),
+            Map.entry("ZombieArmor1", "768/FULL/ZOMBIE/LNY_CONEHEAD_ZOMBIE/LNY_CONEHEAD_ZOMBIE.PAM"),
+            Map.entry("ZombieArmor2", "768/FULL/ZOMBIE/LNY_BUCKETHEAD_ZOMBIE/LNY_BUCKETHEAD_ZOMBIE.PAM"),
+            Map.entry("ZombieArmor4", "768/FULL/ZOMBIE/ZOMBIE_DARK_BASIC_BRICK/ZOMBIE_DARK_BASIC_BRICK.PAM"),
+            Map.entry("ZombieDarkArmor3", "768/FULL/ZOMBIE/ZOMBIE_DARK_BASIC/ZOMBIE_DARK_BASIC.PAM"),
+            Map.entry("ZombieGargantuar", "768/FULL/ZOMBIE/GARGANTUAR/GARGANTUAR.PAM"),
+            Map.entry("ZombieImp", "768/INITIAL/ZOMBIE/ZOMBIE_TUTORIAL_IMP/ZOMBIE_TUTORIAL_IMP.PAM"),
+            Map.entry("ZombieRa", "768/INITIAL/ZOMBIE/ZOMBIE_EGYPT_RA/ZOMBIE_EGYPT_RA.PAM"),
+            Map.entry("ZombieExplorer", "768/INITIAL/ZOMBIE/ZOMBIE_EXPLORER/ZOMBIE_EXPLORER.PAM"),
+            Map.entry("ZombieTombRaiser", "768/INITIAL/ZOMBIE/ZOMBIE_EGYPT_TOMBRAISER/ZOMBIE_EGYPT_TOMBRAISER.PAM"),
+            Map.entry("ZombieIceAgeDodo", "768/FULL/ZOMBIE/ZOMBIE_ICEAGE_DODORIDER/ZOMBIE_ICEAGE_DODORIDER.PAM"),
+            Map.entry("ZombieIceAgeHunter", "768/FULL/ZOMBIE/ZOMBIE_ICEAGE_HUNTER/ZOMBIE_ICEAGE_HUNTER.PAM"),
+            Map.entry("ZombieIceAgeTroglobite", "768/FULL/ZOMBIE/ZOMBIE_ICEAGE_TROGLOBITE/ZOMBIE_ICEAGE_TROGLOBITE.PAM"),
+            Map.entry("ZombieBeachFisherman", "768/FULL/ZOMBIE/ZOMBIE_BEACH_FISHERMAN/ZOMBIE_BEACH_FISHERMAN.PAM"),
+            Map.entry("ZombieBeachOctopus", "768/FULL/ZOMBIE/ZOMBIE_BEACH_OCTOPUS/ZOMBIE_BEACH_OCTOPUS.PAM"),
+            Map.entry("ZombieBeachSnorkel", "768/FULL/ZOMBIE/ZOMBIE_BEACH_SNORKELER/ZOMBIE_BEACH_SNORKELER.PAM"),
+            Map.entry("ZombieDarkJuggler", "768/FULL/ZOMBIE/ZOMBIE_DARK_JESTER/ZOMBIE_DARK_JESTER.PAM"),
+            Map.entry("ZombieWizard", "768/FULL/ZOMBIE/ZOMBIE_DARK_WIZARD/ZOMBIE_DARK_WIZARD.PAM"),
+            Map.entry("ZombieDarkKing", "768/FULL/ZOMBIE/ZOMBIE_DARK_KING/ZOMBIE_DARK_KING.PAM"),
+            Map.entry("ZombieDarkImpDragon", "768/FULL/ZOMBIE/ZOMBIE_DARK_IMP_DRAGON/ZOMBIE_DARK_IMP_DRAGON.PAM"),
+            Map.entry("ZombieModernAllStar", "768/FULL/ZOMBIE/ZOMBIE_MODERN_ALLSTAR/ZOMBIE_MODERN_ALLSTAR.PAM"),
+            Map.entry("ZombieArcade", "768/FULL/ZOMBIE/ZOMBIE_80S_ARCADE/ZOMBIE_80S_ARCADE.PAM"),
+            Map.entry("ZombieLostCityJane", "768/FULL/ZOMBIE/ZOMBIE_LOSTCITY_JANE/ZOMBIE_LOSTCITY_JANE.PAM"),
+            Map.entry("ZombieCrystalSkull", "768/FULL/ZOMBIE/ZOMBIE_LOSTCITY_CRYSTALSKULL/ZOMBIE_LOSTCITY_CRYSTALSKULL.PAM"),
+            Map.entry("ZombieProspector", "768/FULL/ZOMBIE/ZOMBIE_PROSPECTOR/ZOMBIE_PROSPECTOR.PAM"),
+            Map.entry("ZombiePiano", "768/FULL/ZOMBIE/ZOMBIE_PIANO/ZOMBIE_PIANO.PAM"),
+            Map.entry("ZombieNewspaper", "768/FULL/ZOMBIE/ZOMBIE_MODERN_NEWSPAPER/ZOMBIE_MODERN_NEWSPAPER.PAM"),
+            Map.entry("ZombieBarrelRoller", "768/FULL/ZOMBIE/ZOMBIE_PIRATE_BARREL_PUSHER/ZOMBIE_PIRATE_BARREL_PUSHER.PAM")
     );
-    private static final Map<String, String> ZOMBIE_ID_ALIASES = Map.ofEntries(
-            Map.entry("ZombieDefault", "ZOMBIE_EGYPT_BASIC"),
-            Map.entry("ZombieArmor1", "ZOMBIE_CARNIE_CONEHEAD"),
-            Map.entry("ZombieArmor2", "ZOMBIE_CARNIE_BUCKETHEAD"),
-            Map.entry("ZombieArmor4", "ZOMBIE_ICEAGE_BASIC_BRICK"),
-            Map.entry("ZombieDarkArmor3", "ZOMBIE_DARK_BASIC"),
-            Map.entry("ZombieGargantuar", "EGYPT_GARGANTUAR"),
-            Map.entry("ZombieImp", "ZOMBIE_EGYPT_IMP"),
-            Map.entry("ZombieRa", "ZOMBIE_EGYPT_RA"),
-            Map.entry("ZombieExplorer", "ZOMBIE_EXPLORER"),
-            Map.entry("ZombieTombRaiser", "ZOMBIE_EGYPT_TOMBRAISER"),
-            Map.entry("ZombieIceAgeDodo", "ZOMBIE_ICEAGE_DODORIDER"),
-            Map.entry("ZombieIceAgeHunter", "ZOMBIE_ICEAGE_HUNTER"),
-            Map.entry("ZombieIceAgeTroglobite", "ZOMBIE_ICEAGE_TROGLOBITE"),
-            Map.entry("ZombieBeachFisherman", "ZOMBIE_BEACH_FISHERMAN"),
-            Map.entry("ZombieBeachOctopus", "ZOMBIE_BEACH_OCTOPUS"),
-            Map.entry("ZombieBeachSnorkel", "ZOMBIE_BEACH_SNORKELER"),
-            Map.entry("ZombieDarkJuggler", "ZOMBIE_DARK_JESTER"),
-            Map.entry("ZombieWizard", "ZOMBIE_DARK_WIZARD"),
-            Map.entry("ZombieDarkKing", "ZOMBIE_DARK_KING"),
-            Map.entry("ZombieDarkImpDragon", "ZOMBIE_DARK_IMP_DRAGON"),
-            Map.entry("ZombieModernAllStar", "ZOMBIE_MODERN_ALLSTAR"),
-            Map.entry("ZombieArcade", "ZOMBIE_80S_ARCADE"),
-            Map.entry("ZombieLostCityJane", "ZOMBIE_LOSTCITY_JANE"),
-            Map.entry("ZombieCrystalSkull", "ZOMBIE_LOSTCITY_CRYSTALSKULL"),
-            Map.entry("ZombieProspector", "ZOMBIE_PROSPECTOR"),
-            Map.entry("ZombiePiano", "ZOMBIE_PIANO"),
-            Map.entry("ZombieNewspaper", "ZOMBIE_MODERN_NEWSPAPER"),
-            Map.entry("ZombieBarrelRoller", "ZOMBIE_PIRATE_BARREL_PUSHER")
+    private static final Map<String, String> ZOMBIE_PATHS = Map.ofEntries(
+            Map.entry("default", "768/INITIAL/ZOMBIE/ZOMBIE_TUTORIAL/ZOMBIE_TUTORIAL.PAM"),
+            Map.entry("cone head", "768/FULL/ZOMBIE/LNY_CONEHEAD_ZOMBIE/LNY_CONEHEAD_ZOMBIE.PAM"),
+            Map.entry("bucket head", "768/FULL/ZOMBIE/LNY_BUCKETHEAD_ZOMBIE/LNY_BUCKETHEAD_ZOMBIE.PAM"),
+            Map.entry("brick head", "768/FULL/ZOMBIE/ZOMBIE_DARK_BASIC_BRICK/ZOMBIE_DARK_BASIC_BRICK.PAM"),
+            Map.entry("knight", "768/FULL/ZOMBIE/ZOMBIE_DARK_BASIC/ZOMBIE_DARK_BASIC.PAM"),
+            Map.entry("gargantuar", "768/FULL/ZOMBIE/GARGANTUAR/GARGANTUAR.PAM"),
+            Map.entry("imp", "768/INITIAL/ZOMBIE/ZOMBIE_TUTORIAL_IMP/ZOMBIE_TUTORIAL_IMP.PAM"),
+            Map.entry("ra", "768/INITIAL/ZOMBIE/ZOMBIE_EGYPT_RA/ZOMBIE_EGYPT_RA.PAM"),
+            Map.entry("explorer", "768/INITIAL/ZOMBIE/ZOMBIE_EXPLORER/ZOMBIE_EXPLORER.PAM"),
+            Map.entry("tomb raiser", "768/INITIAL/ZOMBIE/ZOMBIE_EGYPT_TOMBRAISER/ZOMBIE_EGYPT_TOMBRAISER.PAM"),
+            Map.entry("dodo", "768/FULL/ZOMBIE/ZOMBIE_ICEAGE_DODORIDER/ZOMBIE_ICEAGE_DODORIDER.PAM"),
+            Map.entry("hunter", "768/FULL/ZOMBIE/ZOMBIE_ICEAGE_HUNTER/ZOMBIE_ICEAGE_HUNTER.PAM"),
+            Map.entry("troglobite", "768/FULL/ZOMBIE/ZOMBIE_ICEAGE_TROGLOBITE/ZOMBIE_ICEAGE_TROGLOBITE.PAM"),
+            Map.entry("fisherman", "768/FULL/ZOMBIE/ZOMBIE_BEACH_FISHERMAN/ZOMBIE_BEACH_FISHERMAN.PAM"),
+            Map.entry("octopus", "768/FULL/ZOMBIE/ZOMBIE_BEACH_OCTOPUS/ZOMBIE_BEACH_OCTOPUS.PAM"),
+            Map.entry("snorkel", "768/FULL/ZOMBIE/ZOMBIE_BEACH_SNORKELER/ZOMBIE_BEACH_SNORKELER.PAM"),
+            Map.entry("juggler", "768/FULL/ZOMBIE/ZOMBIE_DARK_JESTER/ZOMBIE_DARK_JESTER.PAM"),
+            Map.entry("wizard", "768/FULL/ZOMBIE/ZOMBIE_DARK_WIZARD/ZOMBIE_DARK_WIZARD.PAM"),
+            Map.entry("king", "768/FULL/ZOMBIE/ZOMBIE_DARK_KING/ZOMBIE_DARK_KING.PAM"),
+            Map.entry("imp dragon", "768/FULL/ZOMBIE/ZOMBIE_DARK_IMP_DRAGON/ZOMBIE_DARK_IMP_DRAGON.PAM"),
+            Map.entry("allstar", "768/FULL/ZOMBIE/ZOMBIE_MODERN_ALLSTAR/ZOMBIE_MODERN_ALLSTAR.PAM"),
+            Map.entry("arcade", "768/FULL/ZOMBIE/ZOMBIE_80S_ARCADE/ZOMBIE_80S_ARCADE.PAM"),
+            Map.entry("umbrella", "768/FULL/ZOMBIE/ZOMBIE_LOSTCITY_JANE/ZOMBIE_LOSTCITY_JANE.PAM"),
+            Map.entry("turquoise", "768/FULL/ZOMBIE/ZOMBIE_LOSTCITY_CRYSTALSKULL/ZOMBIE_LOSTCITY_CRYSTALSKULL.PAM"),
+            Map.entry("prospector", "768/FULL/ZOMBIE/ZOMBIE_PROSPECTOR/ZOMBIE_PROSPECTOR.PAM"),
+            Map.entry("piano", "768/FULL/ZOMBIE/ZOMBIE_PIANO/ZOMBIE_PIANO.PAM"),
+            Map.entry("news paper", "768/FULL/ZOMBIE/ZOMBIE_MODERN_NEWSPAPER/ZOMBIE_MODERN_NEWSPAPER.PAM"),
+            Map.entry("barrel roller", "768/FULL/ZOMBIE/ZOMBIE_PIRATE_BARREL_PUSHER/ZOMBIE_PIRATE_BARREL_PUSHER.PAM")
     );
 
     private PvzAnimationCatalog() {
@@ -110,30 +111,25 @@ public final class PvzAnimationCatalog {
         return path;
     }
 
-    public static String zombiePath(String zombieName) {
-        return zombiePath(zombieName, null);
+    public static String zombiePath(ZombieType zombieType) {
+        if (zombieType == null) {
+            return ZOMBIE_FALLBACK;
+        }
+        String mappedPath = ZOMBIE_ID_PATHS.get(zombieType.getId());
+        if (mappedPath != null && exists(mappedPath)) {
+            return mappedPath;
+        }
+        return zombiePath(zombieType.getName());
     }
 
-    public static String zombiePath(String zombieName, String zombieId) {
-        String cacheKey = normalizeName(zombieName) + "|" + normalizeId(zombieId);
-        if (ZOMBIE_CACHE.containsKey(cacheKey)) {
-            return ZOMBIE_CACHE.get(cacheKey);
+    public static String zombiePath(String zombieName) {
+        String key = normalizeName(zombieName);
+        if (ZOMBIE_CACHE.containsKey(key)) {
+            return ZOMBIE_CACHE.get(key);
         }
-        List<String> tokens = new ArrayList<>();
-        String idAlias = ZOMBIE_ID_ALIASES.get(normalizeId(zombieId));
-        String nameAlias = ZOMBIE_NAME_ALIASES.get(normalizeName(zombieName));
-        if (idAlias != null) {
-            tokens.add(idAlias);
-        }
-        if (nameAlias != null && !tokens.contains(nameAlias)) {
-            tokens.add(nameAlias);
-        }
-        tokens.add(underscoredToken(zombieName));
-        tokens.add(compactToken(zombieName));
-        tokens.add(underscoredToken(zombieId));
-        tokens.add(compactToken(zombieId));
-        String path = findZombiePath(tokens);
-        ZOMBIE_CACHE.put(cacheKey, path);
+        String mappedPath = ZOMBIE_PATHS.get(key);
+        String path = mappedPath != null && exists(mappedPath) ? mappedPath : ZOMBIE_FALLBACK;
+        ZOMBIE_CACHE.put(key, path);
         return path;
     }
 
@@ -151,37 +147,16 @@ public final class PvzAnimationCatalog {
         return PLANT_FALLBACK;
     }
 
-    private static String findZombiePath(List<String> tokens) {
-        for (String token : tokens) {
-            if (token == null || token.isBlank()) {
-                continue;
-            }
-            for (String path : zombieCandidates(token)) {
-                if (exists(path)) {
-                    return path;
-                }
-            }
-        }
-        return ZOMBIE_FALLBACK;
-    }
-
     private static List<String> plantCandidates(String token) {
         return List.of(
-                pamPath("768/INITIAL/PLANT", token),
-                pamPath("768/FULL/PLANT", token),
-                pamPath("768/INITIAL/EMPOWERMINTS/PLANT", token),
-                pamPath("768/FULL/EMPOWERMINTS/PLANT", token)
+                plantPath("768/INITIAL/PLANT", token),
+                plantPath("768/FULL/PLANT", token),
+                plantPath("768/INITIAL/EMPOWERMINTS/PLANT", token),
+                plantPath("768/FULL/EMPOWERMINTS/PLANT", token)
         );
     }
 
-    private static List<String> zombieCandidates(String token) {
-        return List.of(
-                pamPath("768/FULL/ZOMBIE", token),
-                pamPath("768/INITIAL/ZOMBIE", token)
-        );
-    }
-
-    private static String pamPath(String parent, String token) {
+    private static String plantPath(String parent, String token) {
         return parent + "/" + token + "/" + token + ".PAM";
     }
 
@@ -208,9 +183,5 @@ public final class PvzAnimationCatalog {
                 .replace('-', ' ')
                 .replace('_', ' ')
                 .replaceAll("\\s+", " ");
-    }
-
-    private static String normalizeId(String value) {
-        return value == null ? "" : value.trim();
     }
 }

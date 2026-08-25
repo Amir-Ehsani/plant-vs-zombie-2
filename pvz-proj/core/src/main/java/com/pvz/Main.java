@@ -13,6 +13,7 @@ import controllers.features.NewsController;
 import controllers.features.ProfileController;
 import controllers.features.ShopController;
 import controllers.features.SettingsController;
+import controllers.features.TravelLogController;
 import navigation.ScreenManager;
 import pvz.skin.PvzSkin;
 import ui.PvzAnimationService;
@@ -29,6 +30,7 @@ public class Main extends Game {
     private GreenhouseController greenhouseController;
     private ShopController shopController;
     private SettingsController settingsController;
+    private TravelLogController travelLogController;
     private PvzAnimationService animationService;
     private ScreenManager screenManager;
 
@@ -45,6 +47,7 @@ public class Main extends Game {
         greenhouseController = new GreenhouseController(authController);
         shopController = new ShopController(authController);
         settingsController = new SettingsController(authController);
+        travelLogController = new TravelLogController(authController);
         screenManager = new ScreenManager(this);
         screenManager.showInitialScreen();
     }
@@ -116,6 +119,10 @@ public class Main extends Game {
 
     public ShopController getShopController() {
         return shopController;
+    }
+
+    public TravelLogController getTravelLogController() {
+        return travelLogController;
     }
 
     public PvzAnimationService getAnimationService() {

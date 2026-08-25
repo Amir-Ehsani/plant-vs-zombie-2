@@ -91,7 +91,9 @@ public class PlantSelectionDialog extends ModalWindow {
             }
         });
         Actor packetActor = createPacketActor(plantName, skin, animations);
-        card.add(packetActor).size(112f, 54f).padTop(6f).row();
+        Table packetHolder = new Table();
+        packetHolder.add(packetActor).size(88f, 40f).left().bottom().padLeft(8f).padTop(22f).padBottom(2f);
+        card.add(packetHolder).width(148f).height(60f).left().bottom().row();
         Label label = new Label(plantName, skin, "secondary");
         label.setAlignment(Align.center);
         label.setWrap(true);
@@ -105,7 +107,7 @@ public class PlantSelectionDialog extends ModalWindow {
             Image image = new Image(packet);
             image.setScaling(Scaling.fit);
             Table holder = new Table();
-            holder.add(image).size(94f, 46f).center();
+            holder.add(image).size(84f, 36f).left().bottom().padLeft(2f).padBottom(2f);
             return holder;
         }
         if (animations != null) {

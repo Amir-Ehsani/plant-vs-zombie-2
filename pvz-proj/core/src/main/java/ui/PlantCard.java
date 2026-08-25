@@ -161,6 +161,35 @@ public class PlantCard extends BorderedTable {
         actionTable.add(new MenuButton(text, skin, style, action)).width(144f).height(32f);
     }
 
+    public void setSelectionMode(boolean enabled) {
+        seedLabel.setVisible(!enabled);
+        seedProgress.setVisible(!enabled);
+        familyLabel.setVisible(!enabled);
+        tagsLabel.setVisible(!enabled);
+        healthLabel.setVisible(!enabled);
+        cooldownLabel.setVisible(!enabled && cooldownLabel.isVisible());
+    }
+
+    public void setSelectionActions(
+            boolean boostAvailable,
+            Runnable boostAction,
+            boolean upgradeAvailable,
+            Runnable upgradeAction
+    ) {
+        actionTable.clearChildren();
+        MenuButton boostButton = new MenuButton("Boost", skin, boostAvailable ? "purple" : "brown", boostAction);
+        boostButton.setDisabled(!boostAvailable);
+        MenuButton upgradeButton = new MenuButton(
+                upgradeAvailable ? "Upgrade" : "Need Seeds",
+                skin,
+                upgradeAvailable ? "green_small" : "brown",
+                upgradeAction
+        );
+        upgradeButton.setDisabled(!upgradeAvailable);
+        actionTable.add(boostButton).width(104f).height(32f).padRight(4f);
+        actionTable.add(upgradeButton).width(112f).height(32f);
+    }
+
     public void clearAction() {
         actionTable.clearChildren();
     }
@@ -173,6 +202,13 @@ public class PlantCard extends BorderedTable {
         addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
+                Actor target = event.getTarget();
+                while (target != null && target != PlantCard.this) {
+                    if (target == actionTable) {
+                        return;
+                    }
+                    target = target.getParent();
+                }
                 action.run();
             }
         });
@@ -183,8 +219,11 @@ public class PlantCard extends BorderedTable {
         defaults().center();
         seedProgress.setTextColor(PANEL_TEXT_COLOR);
         fallbackLabel.setAlignment(Align.center);
+        fallbackLabel.setColor(PANEL_TEXT_COLOR);
         lockLabel.setAlignment(Align.center);
+        lockLabel.setColor(PANEL_TEXT_COLOR);
         nameLabel.setAlignment(Align.center);
+        nameLabel.setColor(PANEL_TEXT_COLOR);
         nameLabel.setWrap(true);
         costLabel.setAlignment(Align.center);
         levelLabel.setAlignment(Align.center);
