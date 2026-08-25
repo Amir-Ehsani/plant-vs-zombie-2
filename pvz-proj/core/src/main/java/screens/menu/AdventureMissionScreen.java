@@ -34,10 +34,10 @@ public class AdventureMissionScreen extends BaseMenuScreen {
         Table root = createRoot();
         Table panel = createPanel();
         Label screenTitle = createTitle(AdventureMissionCatalog.title(chapterName, levelNumber));
-        screenTitle.setColor(TEXT_COLOR);
+        screenTitle.setColor(Color.WHITE);
         panel.add(screenTitle).padBottom(14f).row();
         Label missionTitle = new Label("Mission", skin, "medium_outline");
-        missionTitle.setColor(TEXT_COLOR);
+        missionTitle.setColor(Color.WHITE);
         panel.add(missionTitle).padBottom(8f).row();
         Label mission = new Label(AdventureMissionCatalog.mission(chapterName, levelNumber), skin, "medium");
         mission.setColor(TEXT_COLOR);
