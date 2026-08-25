@@ -86,7 +86,7 @@ public class AdventureLevelSelectionScreen extends BaseMenuScreen {
         title.setColor(TITLE_COLOR);
         title.setFontScale(1f);
         title.setSize(600f, 60f);
-        title.setPosition((WORLD_WIDTH - title.getWidth()) / 2f, 615f);
+        title.setPosition((WORLD_WIDTH - title.getWidth()) / 2f, 552f);
         title.setAlignment(Align.center);
         title.setTouchable(Touchable.disabled);
         group.addActor(title);
@@ -94,7 +94,7 @@ public class AdventureLevelSelectionScreen extends BaseMenuScreen {
         Label subtitle = createSecondaryLabel("Choose a level");
         subtitle.setColor(TEXT_COLOR);
         subtitle.setSize(320f, 32f);
-        subtitle.setPosition((WORLD_WIDTH - subtitle.getWidth()) / 2f, 585f);
+        subtitle.setPosition((WORLD_WIDTH - subtitle.getWidth()) / 2f, 520f);
         subtitle.setAlignment(Align.center);
         subtitle.setTouchable(Touchable.disabled);
         group.addActor(subtitle);
