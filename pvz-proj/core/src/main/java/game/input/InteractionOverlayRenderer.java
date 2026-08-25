@@ -2,6 +2,7 @@ package game.input;
 
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.g2d.Batch;
+import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.Rectangle;
 import game.animation.core.EntityAnimationProfile;
@@ -20,15 +21,15 @@ public final class InteractionOverlayRenderer {
     private static final Color INVALID_TILE = new Color(1f, 0.25f, 0.20f, 0.28f);
     private static final Color TOOL_COLOR = new Color(0.94f, 0.91f, 0.72f, 0.95f);
     private static final Color TOOL_ACCENT = new Color(0.30f, 0.65f, 0.25f, 0.95f);
-    private static final Color SHOVEL_HANDLE = new Color(0.43f, 0.24f, 0.11f, 1f);
-    private static final Color SHOVEL_METAL = new Color(0.78f, 0.82f, 0.84f, 1f);
-    private static final Color SHOVEL_EDGE = new Color(0.36f, 0.39f, 0.42f, 1f);
     private static final float GHOST_SCALE_MULTIPLIER = 0.72f;
+    private static final float SHOVEL_CURSOR_HEIGHT = 50f;
+    private static final String SHOVEL_ICON_ID = "IMAGE_UI_HUD_INGAME_SHOVEL_ICON";
 
     private final BoardGeometry geometry;
     private final PvzAnimationService animations;
     private final EntityAnimationRegistry registry;
     private final Map<String, EntityAnimationProfile> plantProfiles;
+    private final TextureRegion shovelCursor;
 
     public InteractionOverlayRenderer(BoardGeometry geometry, PvzAnimationService animations) {
         if (geometry == null || animations == null) {
@@ -40,6 +41,7 @@ public final class InteractionOverlayRenderer {
             ? null
             : new EntityAnimationRegistry(animations.getCatalog());
         plantProfiles = new LinkedHashMap<>();
+        shovelCursor = animations.region(SHOVEL_ICON_ID);
     }
 
     public void drawTileHighlight(
@@ -85,6 +87,28 @@ public final class InteractionOverlayRenderer {
         );
     }
 
+    public void drawSpriteToolCursor(
+            Batch batch,
+            GameplayInteractionSystem interactions,
+            float cursorX,
+            float cursorY
+    ) {
+        if (batch == null || interactions == null
+                || interactions.getMode() != GameplayInputMode.SHOVEL
+                || shovelCursor == null) {
+            return;
+        }
+        float aspect = shovelCursor.getRegionWidth() / (float) Math.max(1, shovelCursor.getRegionHeight());
+        float width = SHOVEL_CURSOR_HEIGHT * aspect;
+        batch.draw(
+            shovelCursor,
+            cursorX - width * 0.28f,
+            cursorY - SHOVEL_CURSOR_HEIGHT * 0.72f,
+            width,
+            SHOVEL_CURSOR_HEIGHT
+        );
+    }
+
     public void drawToolCursor(
             ShapeRenderer shapes,
             GameplayInteractionSystem interactions,
@@ -94,18 +118,13 @@ public final class InteractionOverlayRenderer {
         if (shapes == null || interactions == null) {
             return;
         }
-        if (interactions.getMode() == GameplayInputMode.SHOVEL) {
-            drawShovel(shapes, cursorX, cursorY);
-        } else if (interactions.getMode() == GameplayInputMode.PLANT_FOOD) {
+        if (interactions.getMode() == GameplayInputMode.PLANT_FOOD) {
             drawLeaf(shapes, cursorX, cursorY);
         }
     }
 
     private EntityAnimationProfile profileFor(GameSession session, String plantName) {
-        if (plantName == null) {
-            return null;
-        }
-        if (registry == null) {
+        if (plantName == null || registry == null) {
             return null;
         }
         EntityAnimationProfile cached = plantProfiles.get(plantName);
@@ -119,24 +138,6 @@ public final class InteractionOverlayRenderer {
             plantProfiles.put(plantName, profile);
         }
         return profile;
-    }
-
-    private void drawShovel(ShapeRenderer shapes, float x, float y) {
-        // A compact D-grip shovel silhouette: handle, shaft, collar and pointed blade.
-        // It stays centered around the pointer so the clicked tile remains obvious.
-        shapes.setColor(SHOVEL_HANDLE);
-        shapes.rectLine(x - 14f, y + 28f, x + 7f, y - 12f, 5f);
-        shapes.rectLine(x - 22f, y + 31f, x - 8f, y + 36f, 4f);
-        shapes.rectLine(x - 22f, y + 31f, x - 17f, y + 21f, 4f);
-        shapes.rectLine(x - 8f, y + 36f, x - 4f, y + 26f, 4f);
-
-        shapes.setColor(SHOVEL_EDGE);
-        shapes.rectLine(x + 4f, y - 8f, x + 10f, y - 18f, 7f);
-        shapes.triangle(x + 7f, y - 16f, x - 9f, y - 31f, x + 27f, y - 28f);
-
-        shapes.setColor(SHOVEL_METAL);
-        shapes.triangle(x + 8f, y - 15f, x - 5f, y - 29f, x + 23f, y - 27f);
-        shapes.triangle(x - 5f, y - 29f, x + 23f, y - 27f, x + 8f, y - 39f);
     }
 
     private void drawLeaf(ShapeRenderer shapes, float x, float y) {

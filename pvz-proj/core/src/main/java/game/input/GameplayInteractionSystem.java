@@ -30,6 +30,10 @@ public final class GameplayInteractionSystem {
     }
 
     public boolean selectPlant(String plantName) {
+        if (isSamePlantSelection(plantName)) {
+            cancel();
+            return true;
+        }
         InteractionValidation validation = placementValidator.validateSelection(plantName);
         if (!validation.isValid()) {
             return fail(validation.getMessage());
@@ -37,6 +41,13 @@ public final class GameplayInteractionSystem {
         selectedPlantName = plantName;
         mode = GameplayInputMode.PLANTING;
         return succeed("Planting " + plantName + ". Choose a tile.");
+    }
+
+    private boolean isSamePlantSelection(String plantName) {
+        return mode == GameplayInputMode.PLANTING
+                && selectedPlantName != null
+                && plantName != null
+                && selectedPlantName.equalsIgnoreCase(plantName);
     }
 
     public boolean selectShovel() {
