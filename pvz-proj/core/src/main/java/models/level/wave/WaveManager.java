@@ -12,9 +12,9 @@ import java.util.List;
 import java.util.Random;
 
 public class WaveManager {
-    private static final double MIN_ZOMBIE_SPAWN_X_OFFSET = 0.65;
-    private static final double ZOMBIE_SPAWN_X_SPREAD = 0.04;
-    private static final double SPAWN_TRAILING_X_STEP = 0.08;
+    private static final double MIN_ZOMBIE_SPAWN_X_OFFSET = 4.0;
+    private static final double ZOMBIE_SPAWN_X_SPREAD = 0.12;
+    private static final double SPAWN_TRAILING_X_STEP = 0.10;
     private static final int MAX_TRAILING_STEPS = 6;
     private static final int ZOMBIE_SPAWN_INTERVAL_TICKS = 10;
     private static final int NEXT_WAVE_GAP_TICKS = 50;
