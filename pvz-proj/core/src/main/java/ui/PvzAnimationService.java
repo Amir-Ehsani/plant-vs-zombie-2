@@ -40,26 +40,12 @@ public class PvzAnimationService {
         return new PamAnimationActor(this, PvzAnimationCatalog.plantPath(plantName));
     }
 
+    public PamAnimationActor createZombieActor(ZombieType zombieType) {
+        return new PamAnimationActor(this, PvzAnimationCatalog.zombiePath(zombieType));
+    }
+
     public PamAnimationActor createZombieActor(String zombieName) {
         return new PamAnimationActor(this, PvzAnimationCatalog.zombiePath(zombieName));
-    }
-
-    public PamAnimationActor createZombieActor(ZombieType zombieType) {
-        if (zombieType == null) {
-            return new PamAnimationActor(this, PvzAnimationCatalog.zombiePath(null));
-        }
-        return new PamAnimationActor(this, PvzAnimationCatalog.zombiePath(zombieType.getName(), zombieType.getId()));
-    }
-
-    public TextureRegion region(String resourceId) {
-        if (!available || textureBank == null || resourceId == null || resourceId.isBlank()) {
-            return null;
-        }
-        try {
-            return textureBank.region(resourceId);
-        } catch (RuntimeException ignored) {
-            return null;
-        }
     }
 
     public boolean isAvailable() {
@@ -68,6 +54,18 @@ public class PvzAnimationService {
 
     public PamPlayer getPamPlayer() {
         return pamPlayer;
+    }
+
+
+    public TextureRegion region(String imageResourceId) {
+        if (!available || textureBank == null || imageResourceId == null || imageResourceId.isBlank()) {
+            return null;
+        }
+        try {
+            return textureBank.region(imageResourceId);
+        } catch (RuntimeException exception) {
+            return null;
+        }
     }
 
     public void update() {
