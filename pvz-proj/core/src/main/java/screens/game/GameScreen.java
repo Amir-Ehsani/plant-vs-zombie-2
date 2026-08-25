@@ -45,9 +45,7 @@ import models.engine.session.PlantRechargeStatus;
 import models.engine.sun.Sun;
 import models.level.core.AdventureLevelCatalog;
 import screens.BaseScreen;
-import ui.MenuButton;
-import ui.PlantCard;
-import ui.ResourceBar;
+import ui.*;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -268,6 +266,27 @@ public final class GameScreen extends BaseScreen {
         hud.add(createPauseButton()).size(54f).padRight(8f).top();
         hud.add(resourceBar).right().top();
         stage.addActor(hud);
+    }
+
+    private Button createPauseButton() {
+        TextureRegion region = game.getAnimationService().region("IMAGE_UI_HUD_INGAME_PAUSE_BUTTON");
+        if (region == null) {
+            return new MenuButton("Pause", game.getSkin(), "brown", this::showPauseDialog);
+        }
+        ImageButton.ImageButtonStyle style = new ImageButton.ImageButtonStyle();
+        TextureRegionDrawable drawable = new TextureRegionDrawable(region);
+        style.up = drawable;
+        style.over = drawable;
+        style.down = drawable;
+        style.checked = drawable;
+        ImageButton button = new ImageButton(style);
+        button.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                showPauseDialog();
+            }
+        });
+        return button;
     }
 
     private void buildInteractionControls() {
