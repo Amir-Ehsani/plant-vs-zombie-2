@@ -4,6 +4,7 @@ import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.g2d.Batch;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
+import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.scenes.scene2d.ui.Label;
 import com.badlogic.gdx.scenes.scene2d.ui.Skin;
 import game.animation.core.EntityAnimationProfile;
@@ -23,15 +24,17 @@ public final class CompactSeedBank {
     private static final float SLOT_WIDTH = 136f;
     private static final float SLOT_HEIGHT = 76f;
     private static final float SLOT_GAP = 3f;
-    private static final float PLANT_X_OFFSET = 42f;
-    private static final float PLANT_Y_OFFSET = 39f;
-    private static final float COMPACT_SCALE_MULTIPLIER = 0.70f;
+    private static final float SLOT_INSET = 2f;
+    private static final float PLANT_X_OFFSET = SLOT_WIDTH * 0.50f;
+    private static final float PLANT_Y_OFFSET = SLOT_HEIGHT * 0.52f;
+    private static final float COMPACT_SCALE_MULTIPLIER = 0.82f;
     private static final int MAX_VISIBLE_SLOTS = 8;
 
     private static final Color SLOT_COLOR = new Color(0.88f, 0.84f, 0.68f, 1f);
     private static final Color READY_BORDER = new Color(0.18f, 0.34f, 0.15f, 1f);
     private static final Color COOLDOWN_BORDER = new Color(0.38f, 0.38f, 0.34f, 1f);
     private static final Color SELECTED_BORDER = new Color(0.95f, 0.68f, 0.12f, 1f);
+    private static final Color COOLDOWN_SHADE = new Color(0.03f, 0.04f, 0.05f, 0.68f);
     private static final Color TEXT_COLOR = new Color(0.20f, 0.16f, 0.08f, 1f);
 
     private final PvzAnimationService animations;
@@ -63,7 +66,9 @@ public final class CompactSeedBank {
             return;
         }
         drawSlots(shapes, session, plants, selectedPlantName);
-        drawSlotContents(batch, session, plants, stateTime);
+        drawPlants(batch, session, plants, stateTime);
+        drawCooldownShade(shapes, session, plants);
+        drawCosts(batch, session, plants);
     }
 
     public String findPlantAt(GameSession session, float x, float y) {
@@ -95,25 +100,73 @@ public final class CompactSeedBank {
             shapes.setColor(selected ? SELECTED_BORDER : ready ? READY_BORDER : COOLDOWN_BORDER);
             shapes.rect(BANK_X, y, SLOT_WIDTH, SLOT_HEIGHT);
             shapes.setColor(SLOT_COLOR);
-            shapes.rect(BANK_X + 2f, y + 2f, SLOT_WIDTH - 4f, SLOT_HEIGHT - 4f);
+            shapes.rect(
+                BANK_X + SLOT_INSET,
+                y + SLOT_INSET,
+                SLOT_WIDTH - SLOT_INSET * 2f,
+                SLOT_HEIGHT - SLOT_INSET * 2f
+            );
         }
         shapes.end();
     }
 
-    private void drawSlotContents(
+    private void drawPlants(
         Batch batch,
         GameSession session,
         List<String> plants,
         float stateTime
     ) {
+        batch.begin();
+        for (int index = 0; index < plants.size(); index++) {
+            drawPlant(batch, session, plants.get(index), slotY(index), stateTime);
+        }
+        batch.end();
+    }
+
+    private void drawCooldownShade(
+        ShapeRenderer shapes,
+        GameSession session,
+        List<String> plants
+    ) {
+        shapes.begin(ShapeRenderer.ShapeType.Filled);
+        shapes.setColor(COOLDOWN_SHADE);
+        for (int index = 0; index < plants.size(); index++) {
+            String plantName = plants.get(index);
+            float remainingRatio = cooldownRemainingRatio(session, plantName);
+            if (remainingRatio <= 0f) {
+                continue;
+            }
+            float innerHeight = SLOT_HEIGHT - SLOT_INSET * 2f;
+            float darkHeight = innerHeight * remainingRatio;
+            float brightHeight = innerHeight - darkHeight;
+            shapes.rect(
+                BANK_X + SLOT_INSET,
+                slotY(index) + SLOT_INSET + brightHeight,
+                SLOT_WIDTH - SLOT_INSET * 2f,
+                darkHeight
+            );
+        }
+        shapes.end();
+    }
+
+    private float cooldownRemainingRatio(GameSession session, String plantName) {
+        int remaining = session.getPlantRechargeRemainingTicks(plantName);
+        if (remaining <= 0) {
+            return 0f;
+        }
+        PlantType type = session.getPlantType(plantName);
+        int total = type == null ? remaining : Math.max(1, type.getRecharge());
+        total = Math.max(total, remaining);
+        return MathUtils.clamp(remaining / (float) total, 0f, 1f);
+    }
+
+    private void drawCosts(Batch batch, GameSession session, List<String> plants) {
         Color previousFontColor = new Color(font.getColor());
         batch.begin();
         font.setColor(TEXT_COLOR);
         for (int index = 0; index < plants.size(); index++) {
-            String plantName = plants.get(index);
-            float y = slotY(index);
-            drawPlant(batch, session, plantName, y, stateTime);
-            drawCost(batch, session, plantName, y);
+            int cost = session.getPlantCost(plants.get(index));
+            font.draw(batch, String.valueOf(cost), BANK_X + 100f, slotY(index) + 21f);
         }
         font.setColor(previousFontColor);
         batch.end();
@@ -143,20 +196,6 @@ public final class CompactSeedBank {
         );
     }
 
-    private void drawCost(Batch batch, GameSession session, String plantName, float y) {
-        int cost = session.getPlantCost(plantName);
-        int cooldown = session.getPlantRechargeRemainingTicks(plantName);
-        font.draw(batch, String.valueOf(cost), BANK_X + 94f, y + 29f);
-        if (cooldown > 0) {
-            font.draw(
-                batch,
-                Math.max(1, (int) Math.ceil(cooldown / 10f)) + "s",
-                BANK_X + 94f,
-                y + 54f
-            );
-        }
-    }
-
     private EntityAnimationProfile profileFor(GameSession session, String plantName) {
         EntityAnimationProfile cached = profiles.get(plantName);
         if (cached != null) {
@@ -181,7 +220,6 @@ public final class CompactSeedBank {
         }
         return result;
     }
-
 
     private boolean isSelected(String plantName, String selectedPlantName) {
         return plantName != null
