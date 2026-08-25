@@ -9,14 +9,19 @@ public final class BoardGeometry {
     public static final int COLUMNS = 9;
 
     private final Rectangle boardBounds;
-    private final float tileWidth;
-    private final float tileHeight;
+    private float tileWidth;
+    private float tileHeight;
 
     public BoardGeometry(float x, float y, float width, float height) {
+        boardBounds = new Rectangle();
+        setBounds(x, y, width, height);
+    }
+
+    public void setBounds(float x, float y, float width, float height) {
         if (width <= 0f || height <= 0f) {
             throw new IllegalArgumentException("Board dimensions must be positive.");
         }
-        boardBounds = new Rectangle(x, y, width, height);
+        boardBounds.set(x, y, width, height);
         tileWidth = width / COLUMNS;
         tileHeight = height / ROWS;
     }
