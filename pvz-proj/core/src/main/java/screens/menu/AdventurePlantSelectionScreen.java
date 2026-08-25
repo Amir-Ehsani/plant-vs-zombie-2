@@ -1,13 +1,17 @@
 package screens.menu;
 
 import com.badlogic.gdx.graphics.Color;
-import com.badlogic.gdx.scenes.scene2d.Actor;
+import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.scenes.scene2d.InputEvent;
+import com.badlogic.gdx.scenes.scene2d.ui.Image;
 import com.badlogic.gdx.scenes.scene2d.ui.Label;
 import com.badlogic.gdx.scenes.scene2d.ui.ScrollPane;
+import com.badlogic.gdx.scenes.scene2d.ui.Stack;
 import com.badlogic.gdx.scenes.scene2d.ui.Table;
 import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
+import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable;
 import com.badlogic.gdx.utils.Align;
+import com.badlogic.gdx.utils.Scaling;
 import com.pvz.Main;
 import controllers.core.GameController;
 import models.account.PlantData;
@@ -17,11 +21,10 @@ import models.core.plant.PlantRegistry;
 import models.core.plant.PlantType;
 import models.engine.session.GameSession;
 import models.level.core.Level;
-import pvz.skin.BorderedTable;
 import ui.AdventureMissionCatalog;
 import ui.BackButton;
 import ui.MenuButton;
-import ui.PlantCard;
+import ui.SeedPacketCatalog;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -32,14 +35,20 @@ import java.util.Set;
 public class AdventurePlantSelectionScreen extends BaseMenuScreen {
     private static final int MAX_SELECTED_PLANTS = 8;
     private static final Color TEXT_COLOR = Color.valueOf("4A3A1F");
+    private static final Color TITLE_COLOR = Color.WHITE;
+    private static final float PACKET_WIDTH = 132f;
+    private static final float PACKET_HEIGHT = 88f;
+
     private final String chapterName;
     private final int levelNumber;
     private final GameController controller;
     private final PlantRegistry plantRegistry;
     private final Table plantGrid;
     private final Table selectedSlots;
+    private final Table detailPanel;
     private final Label selectionCount;
     private final Set<String> paidBoostNames;
+    private String focusedPlantName;
 
     public AdventurePlantSelectionScreen(Main game, String chapterName, int levelNumber) {
         super(game);
@@ -49,9 +58,11 @@ public class AdventurePlantSelectionScreen extends BaseMenuScreen {
         plantRegistry = DefaultPlantRegistry.getInstance();
         plantGrid = new Table();
         selectedSlots = new Table();
+        detailPanel = new Table();
         selectionCount = new Label("", skin, "secondary");
         selectionCount.setColor(TEXT_COLOR);
         paidBoostNames = new HashSet<>();
+        focusedPlantName = "";
         buildUi();
     }
 
@@ -70,31 +81,57 @@ public class AdventurePlantSelectionScreen extends BaseMenuScreen {
     private void buildUi() {
         addMenuBackground();
         Table root = createRoot();
+        root.top();
         addResourceBar(root);
+
         Table panel = createPanel();
+        panel.pad(14f, 18f, 14f, 18f);
+
         Label screenTitle = createTitle("Choose Your Plants");
-        screenTitle.setColor(TEXT_COLOR);
-        panel.add(screenTitle).padBottom(4f).row();
+        screenTitle.setColor(TITLE_COLOR);
+        panel.add(screenTitle).padBottom(2f).row();
+
         Label mission = panelLabel(AdventureMissionCatalog.mission(chapterName, levelNumber));
         mission.setWrap(true);
         mission.setAlignment(Align.center);
-        panel.add(mission).width(920f).padBottom(8f).row();
-        panel.add(selectionCount).padBottom(6f).row();
-        panel.add(selectedSlots).width(1000f).height(76f).padBottom(10f).row();
+        panel.add(mission).width(1010f).padBottom(4f).row();
+        panel.add(selectionCount).padBottom(4f).row();
+
+        Table body = new Table();
+        body.top();
+
+        Table selectedColumn = new Table();
+        selectedColumn.top();
+        Label selectedTitle = new Label("Selected", skin, "medium_outline");
+        selectedTitle.setColor(TITLE_COLOR);
+        selectedTitle.setAlignment(Align.center);
+        selectedColumn.add(selectedTitle).width(142f).padBottom(4f).row();
+        selectedColumn.add(selectedSlots).width(146f).top();
+        body.add(selectedColumn).width(150f).height(500f).top().padRight(10f);
+
+        Table browser = new Table();
+        browser.top();
+        browser.add(detailPanel).width(820f).height(150f).padBottom(6f).row();
+
         plantGrid.top().left();
-        plantGrid.defaults().pad(6f);
+        plantGrid.defaults().pad(4f);
         ScrollPane scrollPane = new ScrollPane(plantGrid, skin);
         scrollPane.setFadeScrollBars(false);
         scrollPane.setOverscroll(false, false);
-        scrollPane.setScrollingDisabled(false, false);
-        panel.add(scrollPane).width(1060f).height(390f).row();
+        scrollPane.setScrollingDisabled(true, false);
+        browser.add(scrollPane).width(840f).height(330f);
+        body.add(browser).width(850f).height(500f).top();
+
+        panel.add(body).width(1015f).height(500f).row();
+
         Table actions = new Table();
         actions.add(new BackButton(skin, () -> game.getScreenManager().showAdventureMission(chapterName, levelNumber)))
-                .width(180f).height(46f).padRight(10f);
-        actions.add(new MenuButton("LET'S ROCK", skin, "green", this::startLevel))
+                .width(180f).height(46f).padRight(14f);
+        actions.add(new MenuButton("LET'S ROCK", skin, "purple", this::startLevel))
                 .width(220f).height(52f);
-        panel.add(actions).padTop(10f);
-        root.add(panel).width(1160f).height(680f);
+        panel.add(actions).padTop(6f);
+
+        root.add(panel).width(1100f).height(650f);
     }
 
     private boolean ensurePreparedLevel() {
@@ -113,35 +150,46 @@ public class AdventurePlantSelectionScreen extends BaseMenuScreen {
 
     private void refreshAll() {
         refreshResourceBar();
+        ensureFocusedPlant();
         rebuildSelectedSlots();
+        rebuildDetailPanel();
         rebuildPlantGrid();
+    }
+
+    private void ensureFocusedPlant() {
+        if (!focusedPlantName.isBlank() && findPlantData(focusedPlantName) != null) {
+            return;
+        }
+        List<PlantData> available = availablePlants();
+        focusedPlantName = available.isEmpty() ? "" : available.get(0).getName();
     }
 
     private void rebuildSelectedSlots() {
         selectedSlots.clearChildren();
-        selectedSlots.defaults().padRight(5f);
+        selectedSlots.top();
+        selectedSlots.defaults().padBottom(3f);
         List<String> selected = selectedPlantNames();
         selectionCount.setText("Selected Plants: " + selected.size() + " / " + MAX_SELECTED_PLANTS);
         for (int index = 0; index < MAX_SELECTED_PLANTS; index++) {
             String plantName = index < selected.size() ? selected.get(index) : null;
-            selectedSlots.add(createSelectedSlot(index + 1, plantName)).width(118f).height(68f);
+            selectedSlots.add(createSelectedSlot(index + 1, plantName)).width(140f).height(56f).row();
         }
     }
 
     private Table createSelectedSlot(int slotNumber, String plantName) {
-        BorderedTable slot = new BorderedTable();
-        slot.pad(6f);
-        Label slotLabel = panelLabel("Slot " + slotNumber);
-        slotLabel.setAlignment(Align.center);
-        slot.add(slotLabel).row();
-        Label plantLabel = panelLabel(plantName == null ? "Empty" : plantName);
-        plantLabel.setAlignment(Align.center);
-        plantLabel.setWrap(true);
-        slot.add(plantLabel).width(102f).height(30f).padTop(2f);
-        if (plantName != null) {
+        Table slot = new Table();
+        Stack stack = createPacketStack(plantName, 134f, 54f, 84f, 42f);
+        slot.add(stack).width(134f).height(54f);
+        if (plantName == null) {
+            Label empty = new Label(String.valueOf(slotNumber), skin, "secondary");
+            empty.setColor(TEXT_COLOR);
+            empty.setAlignment(Align.center);
+            stack.add(empty);
+        } else {
             slot.addListener(new ClickListener() {
                 @Override
                 public void clicked(InputEvent event, float x, float y) {
+                    focusedPlantName = plantName;
                     removePlant(plantName);
                 }
             });
@@ -149,14 +197,56 @@ public class AdventurePlantSelectionScreen extends BaseMenuScreen {
         return slot;
     }
 
+    private void rebuildDetailPanel() {
+        detailPanel.clearChildren();
+        detailPanel.pad(8f);
+        PlantData data = findPlantData(focusedPlantName);
+        if (data == null) {
+            Label empty = panelLabel("Select a seed packet to view plant details.");
+            empty.setAlignment(Align.center);
+            detailPanel.add(empty).expand().center();
+            return;
+        }
+
+        PlantType type = plantRegistry.getByName(data.getName());
+        Stack preview = createPacketStack(data.getName(), 170f, 120f, 118f, 72f);
+        detailPanel.add(preview).width(170f).height(120f).padRight(12f);
+
+        Table info = new Table();
+        info.top().left();
+        Label name = new Label(data.getName(), skin, "medium_outline");
+        name.setColor(TITLE_COLOR);
+        name.setAlignment(Align.left);
+        info.add(name).left().padBottom(6f).row();
+        info.add(panelLabel("Sun Cost: " + (type == null ? 0 : type.getSunCost()))).left().row();
+        info.add(panelLabel("Level: " + data.getLevel())).left().row();
+        info.add(panelLabel("Family: " + (type == null ? "-" : type.getCategory()))).left().row();
+        info.add(panelLabel("Boost: " + (isBoosted(data.getName()) ? "Ready" : "None"))).left().row();
+        detailPanel.add(info).width(320f).top().left().padRight(12f);
+
+        Table actions = new Table();
+        actions.top();
+        boolean selected = isSelected(data.getName());
+        MenuButton select = new MenuButton(selected ? "Remove" : "Select", skin, selected ? "brown" : "green_small",
+                () -> togglePlant(data.getName()));
+        actions.add(select).width(150f).height(38f).padBottom(5f).row();
+        MenuButton boost = new MenuButton("Boost", skin, "purple", () -> boostPlant(data.getName()));
+        boost.setDisabled(!selected || paidBoostNames.contains(normalize(data.getName())));
+        actions.add(boost).width(150f).height(38f).padBottom(5f).row();
+        MenuButton upgrade = new MenuButton("Upgrade", skin, "green_small", () -> upgradePlant(data.getName()));
+        upgrade.setDisabled(!data.canUpgrade());
+        actions.add(upgrade).width(150f).height(38f);
+        detailPanel.add(actions).width(170f).top();
+    }
+
     private void rebuildPlantGrid() {
         plantGrid.clearChildren();
         List<PlantData> plants = availablePlants();
         int column = 0;
         for (PlantData plant : plants) {
-            plantGrid.add(createPlantCard(plant)).width(250f).height(330f);
+            plantGrid.add(createSeedPacketChoice(plant)).width(PACKET_WIDTH).height(PACKET_HEIGHT);
             column++;
-            if (column % 4 == 0) {
+            if (column % 6 == 0) {
                 plantGrid.row();
             }
         }
@@ -165,32 +255,70 @@ public class AdventurePlantSelectionScreen extends BaseMenuScreen {
         }
     }
 
-    private PlantCard createPlantCard(PlantData data) {
-        PlantType type = plantRegistry.getByName(data.getName());
-        PlantCard card = new PlantCard(skin);
-        card.setSelectionMode(true);
-        card.setName(data.getName());
-        card.setLevel(data.getLevel());
-        card.setCost(type == null ? 0 : type.getSunCost());
-        card.setSeedPacketProgress(data.getSeedPackets(), data.getRequiredSeedPacketsForNextLevel());
-        card.setFamily(type == null ? "-" : type.getCategory());
-        card.setTags(type == null ? "-" : type.getTags());
-        card.setHealth(type == null ? 0 : type.getBaseHp());
-        card.setLocked(false);
-        boolean selected = isSelected(data.getName());
-        boolean boosted = data.getBoostCount() > 0 || paidBoostNames.contains(normalize(data.getName()));
-        card.setSelected(selected);
-        card.setBoosted(boosted);
-        Actor actor = game.getAnimationService().createPlantActor(data.getName());
-        card.setPlantActor(actor);
-        card.setSelectionActions(
-                selected && !paidBoostNames.contains(normalize(data.getName())),
-                () -> boostPlant(data.getName()),
-                data.canUpgrade(),
-                () -> upgradePlant(data.getName())
-        );
-        card.setOnClick(() -> togglePlant(data.getName()));
+    private Table createSeedPacketChoice(PlantData data) {
+        Table card = new Table();
+        Stack stack = createPacketStack(data.getName(), PACKET_WIDTH, PACKET_HEIGHT, 92f, 58f);
+
+        Table overlay = new Table();
+        overlay.setFillParent(true);
+        overlay.top().right();
+        Label cost = new Label(String.valueOf(resolveSunCost(data.getName())), skin, "secondary");
+        cost.setColor(TEXT_COLOR);
+        overlay.add(cost).padTop(6f).padRight(8f);
+        stack.add(overlay);
+
+        if (isSelected(data.getName())) {
+            Table selectedOverlay = new Table();
+            selectedOverlay.setFillParent(true);
+            selectedOverlay.bottom().right();
+            Label selected = new Label("SELECTED", skin, "secondary");
+            selected.setColor(TITLE_COLOR);
+            selectedOverlay.add(selected).padRight(6f).padBottom(4f);
+            stack.add(selectedOverlay);
+        }
+
+        card.add(stack).width(PACKET_WIDTH).height(PACKET_HEIGHT);
+        card.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                focusedPlantName = data.getName();
+                togglePlant(data.getName());
+            }
+        });
         return card;
+    }
+
+    private Stack createPacketStack(String plantName, float width, float height, float packetWidth, float packetHeight) {
+        Stack stack = new Stack();
+        TextureRegion backgroundRegion = game.getAnimationService().region("IMAGE_UI_PACKETS_SELECTED");
+        if (backgroundRegion != null) {
+            Image background = new Image(backgroundRegion);
+            background.setScaling(Scaling.fill);
+            stack.add(background);
+        }
+
+        if (plantName != null && !plantName.isBlank()) {
+            TextureRegion packetRegion = SeedPacketCatalog.region(game.getAnimationService(), plantName);
+            if (packetRegion != null) {
+                Table packetHolder = new Table();
+                packetHolder.setFillParent(true);
+                packetHolder.bottom().left();
+                Image packet = new Image(new TextureRegionDrawable(packetRegion));
+                packet.setScaling(Scaling.fit);
+                packetHolder.add(packet).width(packetWidth).height(packetHeight).left().bottom();
+                stack.add(packetHolder);
+            } else {
+                Table fallback = new Table();
+                fallback.setFillParent(true);
+                fallback.bottom().left();
+                Label label = new Label(plantName, skin, "secondary");
+                label.setColor(TEXT_COLOR);
+                label.setWrap(true);
+                fallback.add(label).width(width - 12f).left().bottom().pad(6f);
+                stack.add(fallback);
+            }
+        }
+        return stack;
     }
 
     private void togglePlant(String plantName) {
@@ -257,6 +385,27 @@ public class AdventurePlantSelectionScreen extends BaseMenuScreen {
         }
         result.sort((first, second) -> first.getName().compareToIgnoreCase(second.getName()));
         return result;
+    }
+
+    private PlantData findPlantData(String plantName) {
+        if (plantName == null || plantName.isBlank()) {
+            return null;
+        }
+        User user = game.getAuthController().getLoggedInUser();
+        if (user == null) {
+            return null;
+        }
+        return user.getCollection().findPlant(plantName);
+    }
+
+    private int resolveSunCost(String plantName) {
+        PlantType type = plantRegistry.getByName(plantName);
+        return type == null ? 0 : type.getSunCost();
+    }
+
+    private boolean isBoosted(String plantName) {
+        PlantData data = findPlantData(plantName);
+        return data != null && (data.getBoostCount() > 0 || paidBoostNames.contains(normalize(plantName)));
     }
 
     private List<String> selectedPlantNames() {
