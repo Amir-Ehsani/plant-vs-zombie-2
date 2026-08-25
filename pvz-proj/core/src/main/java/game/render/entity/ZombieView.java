@@ -22,11 +22,16 @@ public final class ZombieView extends EntityView<Zombie> {
     private static final float EATING_X_OFFSET = 0.10f;
     private static final float VISUAL_FOLLOW_RATE = 18f;
     private static final float TELEPORT_SNAP_DISTANCE = 1.25f;
+    private static final double ARM_DETACH_HEALTH_RATIO = 0.50;
 
     private double lastX;
     private float visualX;
     private boolean visualInitialized;
     private float stationaryTime;
+    private boolean armDetached;
+    private boolean armDetachPending;
+    private String detachedArmPart;
+    private String lastClip;
 
     public ZombieView(Zombie zombie, EntityAnimationProfile profile) {
         super(zombie, profile);
@@ -39,6 +44,7 @@ public final class ZombieView extends EntityView<Zombie> {
         super.update(delta, board);
         updateMovementState(delta);
         updateVisualPosition(delta);
+        detectArmDetach();
     }
 
     @Override
@@ -54,6 +60,7 @@ public final class ZombieView extends EntityView<Zombie> {
 
         List<String> effects = board.getZombieEffects(entity);
         String clip = resolveClip(effects);
+        lastClip = clip;
         Vector2 position = geometry.entityToScreen(visualX, entity.getY());
         float renderX = position.x + eatingOffset(geometry, clip);
 
@@ -70,6 +77,54 @@ public final class ZombieView extends EntityView<Zombie> {
             resolveVisibility(animations, effects)
         );
         batch.setColor(Color.WHITE);
+    }
+
+    ZombiePartVisual takeDetachedArmVisual(PvzAnimationService animations) {
+        if (!armDetachPending || animations == null) {
+            return null;
+        }
+        armDetachPending = false;
+        detachedArmPart = resolveDetachedArmPart(animations);
+        if (detachedArmPart == null) {
+            return null;
+        }
+        String clip = lastClip == null ? profile.firstClip("walk", "idle", "eat") : lastClip;
+        if (clip == null) {
+            return null;
+        }
+        return new ZombiePartVisual(
+            profile,
+            clip,
+            detachedArmPart,
+            stateTime,
+            visualX,
+            (int) Math.round(entity.getY())
+        );
+    }
+
+    ZombieDeathVisual createDeathVisual() {
+        String clip = deathClip();
+        if (clip == null) {
+            return null;
+        }
+        return new ZombieDeathVisual(
+            profile,
+            clip,
+            visualX,
+            (int) Math.round(entity.getY()),
+            armDetached ? detachedArmPart : null
+        );
+    }
+
+    private void detectArmDetach() {
+        if (armDetached || !entity.isAlive() || entity.getMaxHp() <= 0) {
+            return;
+        }
+        double ratio = entity.getHp() / (double) entity.getMaxHp();
+        if (ratio <= ARM_DETACH_HEALTH_RATIO) {
+            armDetached = true;
+            armDetachPending = true;
+        }
     }
 
     private void updateMovementState(float delta) {
@@ -163,7 +218,47 @@ public final class ZombieView extends EntityView<Zombie> {
         if (hasEffect(effects, "buttered")) {
             tokens.add("butter");
         }
-        return new LinkedHashMap<>(animations.visibilityForTokens(profile.getPath(), tokens));
+        Map<String, Boolean> visibility = new LinkedHashMap<>(
+            animations.visibilityForTokens(profile.getPath(), tokens)
+        );
+        if (armDetached) {
+            String armPart = resolveDetachedArmPart(animations);
+            if (armPart != null) visibility.put(armPart, false);
+        }
+        return visibility;
+    }
+
+    private String resolveDetachedArmPart(PvzAnimationService animations) {
+        if (detachedArmPart == null) {
+            detachedArmPart = animations.findDetachableArmPart(profile.getPath());
+        }
+        return detachedArmPart;
+    }
+
+    private String deathClip() {
+        String exact = findExactClip("die", "death", "zombie die", "final_die", "rare_death");
+        if (exact != null) {
+            return exact;
+        }
+        for (String clip : profile.getDefinition().getClips()) {
+            String normalized = normalize(clip);
+            if (normalized.contains("die") || normalized.contains("death")) {
+                return clip;
+            }
+        }
+        return null;
+    }
+
+    private String findExactClip(String... candidates) {
+        for (String candidate : candidates) {
+            String normalizedCandidate = normalize(candidate);
+            for (String clip : profile.getDefinition().getClips()) {
+                if (normalize(clip).equals(normalizedCandidate)) {
+                    return clip;
+                }
+            }
+        }
+        return null;
     }
 
     private void addArmorTokens(List<String> tokens, String armorName) {
