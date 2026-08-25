@@ -10,9 +10,13 @@ import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.math.Vector2;
+import com.badlogic.gdx.scenes.scene2d.InputEvent;
+import com.badlogic.gdx.scenes.scene2d.ui.ImageButton;
 import com.badlogic.gdx.scenes.scene2d.ui.Label;
 import com.badlogic.gdx.scenes.scene2d.ui.ScrollPane;
 import com.badlogic.gdx.scenes.scene2d.ui.Table;
+import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
+import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable;
 import com.pvz.Main;
 import controllers.core.GameController;
 import controllers.features.SettingsController;
@@ -104,7 +108,7 @@ public final class GameScreen extends BaseScreen {
         gameplayClock = new GameplayClock(controller);
         gameplayClock.setGameSpeed(resolveInitialGameSpeed());
         statusLabel = new Label("", game.getSkin());
-        resourceBar = new ResourceBar(game.getSkin(), game.getAnimationService());
+        resourceBar = new ResourceBar(game.getSkin());
         plantCardsTable = new Table();
         gameplayPlantCards = new LinkedHashMap<>();
         if (animations.isAvailable()) {
@@ -139,7 +143,7 @@ public final class GameScreen extends BaseScreen {
         super.show();
         applyStoredGameSpeed();
         refreshGameHud();
-        Gdx.input.setInputProcessor(new InputMultiplexer(createInput(), stage));
+        Gdx.input.setInputProcessor(new InputMultiplexer(stage, createInput()));
     }
 
     @Override
@@ -237,10 +241,29 @@ public final class GameScreen extends BaseScreen {
         statusLabel.setWrap(true);
         statusLabel.setVisible(isDebugMode());
         hud.add(statusLabel).width(460f).left().top().expandX().fillX();
-        hud.add(new MenuButton("Pause", game.getSkin(), "brown", this::showPauseDialog))
-                .width(110f).height(38f).padRight(8f).top();
+        hud.add(createPauseButton()).size(54f).padRight(8f).top();
         hud.add(resourceBar).right().top();
         stage.addActor(hud);
+    }
+
+    private ImageButton createPauseButton() {
+        ImageButton.ImageButtonStyle style = new ImageButton.ImageButtonStyle();
+        TextureRegion region = game.getAnimationService().region("IMAGE_UI_HUD_INGAME_PAUSE_BUTTON");
+        if (region != null) {
+            TextureRegionDrawable drawable = new TextureRegionDrawable(region);
+            style.up = drawable;
+            style.over = drawable;
+            style.down = drawable;
+            style.checked = drawable;
+        }
+        ImageButton button = new ImageButton(style);
+        button.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                showPauseDialog();
+            }
+        });
+        return button;
     }
 
     private void buildPlantCardHud() {
@@ -553,6 +576,12 @@ public final class GameScreen extends BaseScreen {
     }
 
     private boolean handleBoardClick(int button) {
+        if (pauseDialog != null && pauseDialog.getStage() != null) {
+            return false;
+        }
+        if (gameOverShown || gameplayClock.isPaused() || !session.isRunning()) {
+            return false;
+        }
         if (button != Input.Buttons.LEFT || hoveredTile == null) {
             return false;
         }
