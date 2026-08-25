@@ -11,6 +11,7 @@ import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.scenes.scene2d.InputEvent;
+import com.badlogic.gdx.scenes.scene2d.ui.Button;
 import com.badlogic.gdx.scenes.scene2d.ui.ImageButton;
 import com.badlogic.gdx.scenes.scene2d.ui.Label;
 import com.badlogic.gdx.scenes.scene2d.ui.ScrollPane;
@@ -21,7 +22,10 @@ import com.pvz.Main;
 import controllers.core.GameController;
 import controllers.features.SettingsController;
 import game.animation.core.PvzAnimationService;
-import game.hud.GameplayEventFeedback;
+import game.hud.CompactSeedBank;
+import game.input.GameplayInputMode;
+import game.input.GameplayInteractionSystem;
+import game.input.InteractionOverlayRenderer;
 import game.render.BoardBackgroundCatalog;
 import game.render.BoardGeometry;
 import game.render.BoardRenderer;
@@ -57,7 +61,12 @@ public final class GameScreen extends BaseScreen {
     private static final float BOARD_Y = 74f;
     private static final float BOARD_WIDTH = 920f;
     private static final float BOARD_HEIGHT = 457f;
+    private static final float BOARD_LEFT_RATIO = BOARD_X / WORLD_WIDTH;
+    private static final float BOARD_WIDTH_RATIO = BOARD_WIDTH / WORLD_WIDTH;
     private static final float TICK_SECONDS = 0.1f;
+    private static final String SHOVEL_BUTTON_ID = "IMAGE_UI_HUD_INGAME_SHOVEL_BUTTON";
+    private static final String SHOVEL_BUTTON_DOWN_ID = "IMAGE_UI_HUD_INGAME_SHOVEL_BUTTON_DOWN";
+    private static final String PAUSE_BUTTON_ID = "IMAGE_UI_HUD_INGAME_PAUSE_BUTTON";
 
     private final GameController controller;
     private final GameSession session;
@@ -76,9 +85,16 @@ public final class GameScreen extends BaseScreen {
     private final ProjectileRenderSystem projectileRenderSystem;
     private final SunRenderSystem sunRenderSystem;
     private final LawnMowerRenderSystem lawnMowerRenderSystem;
-    private final GameplayEventFeedback eventFeedback;
+    private final CompactSeedBank compactSeedBank;
+    private final GameplayInteractionSystem interactions;
+    private final InteractionOverlayRenderer interactionOverlay;
+    private final Vector2 cursorWorld;
+    private Button shovelButton;
 
     private TextureRegion background;
+    private TextureRegion backgroundLeft;
+    private TextureRegion backgroundRight;
+    private float backgroundCenterX;
     private Position hoveredTile;
     private float hudRefreshAccumulator;
     private String debugMessage;
@@ -108,6 +124,7 @@ public final class GameScreen extends BaseScreen {
         gameplayClock = new GameplayClock(controller);
         gameplayClock.setGameSpeed(resolveInitialGameSpeed());
         statusLabel = new Label("", game.getSkin());
+        cursorWorld = new Vector2();
         resourceBar = new ResourceBar(game.getSkin(), game.getAnimationService());
         plantCardsTable = new Table();
         gameplayPlantCards = new LinkedHashMap<>();
@@ -116,19 +133,25 @@ public final class GameScreen extends BaseScreen {
             projectileRenderSystem = new ProjectileRenderSystem(boardGeometry, animations);
             sunRenderSystem = new SunRenderSystem(boardGeometry, animations);
             lawnMowerRenderSystem = new LawnMowerRenderSystem(
-                    boardGeometry,
-                    animations,
-                    session.getCurrentLevel() == null ? null : session.getCurrentLevel().getSeasonType()
+                boardGeometry,
+                animations,
+                session.getCurrentLevel() == null ? null : session.getCurrentLevel().getSeasonType()
             );
+            compactSeedBank = new CompactSeedBank(animations, game.getSkin());
         } else {
             entityRenderSystem = null;
             projectileRenderSystem = null;
             sunRenderSystem = null;
             lawnMowerRenderSystem = null;
+            compactSeedBank = null;
         }
-        eventFeedback = new GameplayEventFeedback(notificationManager);
+        interactionOverlay = new InteractionOverlayRenderer(boardGeometry, animations);
+        interactions = new GameplayInteractionSystem(
+            controller,
+            game.getAuthController().getLoggedInUser()
+        );
         buildHud();
-        buildPlantCardHud();
+        buildInteractionControls();
         loadStageAssets();
         debugMessage = "Adventure session connected";
         pauseDialog = null;
@@ -156,11 +179,15 @@ public final class GameScreen extends BaseScreen {
         shapes.setProjectionMatrix(stage.getCamera().combined);
         drawBackground();
         drawGrid();
+        drawInteractionTileHighlight();
         drawLawnMowers();
+        drawSeedBank();
         drawEntities();
         drawProjectiles();
         drawSuns();
+        drawInteractionCursor();
         drawHover();
+        syncInteractionControlState();
         stage.act(Math.min(delta, 1f / 15f));
         stage.draw();
     }
@@ -222,8 +249,8 @@ public final class GameScreen extends BaseScreen {
             return Settings.MIN_GAME_SPEED;
         }
         return Math.max(
-                Settings.MIN_GAME_SPEED,
-                Math.min(Settings.MAX_GAME_SPEED, settings.getGameSpeed())
+            Settings.MIN_GAME_SPEED,
+            Math.min(Settings.MAX_GAME_SPEED, settings.getGameSpeed())
         );
     }
 
@@ -246,21 +273,57 @@ public final class GameScreen extends BaseScreen {
         stage.addActor(hud);
     }
 
-    private ImageButton createPauseButton() {
-        ImageButton.ImageButtonStyle style = new ImageButton.ImageButtonStyle();
-        TextureRegion region = game.getAnimationService().region("IMAGE_UI_HUD_INGAME_PAUSE_BUTTON");
-        if (region != null) {
-            TextureRegionDrawable drawable = new TextureRegionDrawable(region);
-            style.up = drawable;
-            style.over = drawable;
-            style.down = drawable;
-            style.checked = drawable;
+    private Button createPauseButton() {
+        TextureRegion region = game.getAnimationService().region(PAUSE_BUTTON_ID);
+        if (region == null) {
+            return new MenuButton("Pause", game.getSkin(), "brown", this::showPauseDialog);
         }
+        ImageButton.ImageButtonStyle style = new ImageButton.ImageButtonStyle();
+        TextureRegionDrawable drawable = new TextureRegionDrawable(region);
+        style.up = drawable;
+        style.over = drawable;
+        style.down = drawable;
+        style.checked = drawable;
         ImageButton button = new ImageButton(style);
         button.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
                 showPauseDialog();
+            }
+        });
+        return button;
+    }
+
+    private void buildInteractionControls() {
+        Table controls = new Table();
+        controls.setFillParent(true);
+        controls.bottom().right().padRight(14f).padBottom(12f);
+        shovelButton = createShovelButton();
+        controls.add(shovelButton).width(76f).height(76f).padRight(8f);
+        controls.add(new MenuButton(
+            "Plant Food [F]",
+            game.getSkin(),
+            "purple",
+            this::selectPlantFood
+        )).width(142f).height(36f);
+        stage.addActor(controls);
+    }
+
+    private Button createShovelButton() {
+        TextureRegion normal = animations.region(SHOVEL_BUTTON_ID);
+        TextureRegion pressed = animations.region(SHOVEL_BUTTON_DOWN_ID);
+        if (normal == null || pressed == null) {
+            return new MenuButton("Shovel [S]", game.getSkin(), "green_small", this::selectShovel);
+        }
+        ImageButton.ImageButtonStyle style = new ImageButton.ImageButtonStyle();
+        style.up = new TextureRegionDrawable(normal);
+        style.down = new TextureRegionDrawable(pressed);
+        style.checked = new TextureRegionDrawable(pressed);
+        ImageButton button = new ImageButton(style);
+        button.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                selectShovel();
             }
         });
         return button;
@@ -320,8 +383,8 @@ public final class GameScreen extends BaseScreen {
             return;
         }
         card.setSeedPacketProgress(
-                data.getSeedPackets(),
-                data.getRequiredSeedPacketsForNextLevel()
+            data.getSeedPackets(),
+            data.getRequiredSeedPacketsForNextLevel()
         );
     }
 
@@ -337,23 +400,40 @@ public final class GameScreen extends BaseScreen {
         if (!animations.isAvailable()) {
             return;
         }
-        String resourceId = BoardBackgroundCatalog.resourceId(session.getCurrentLevel());
-        background = animations.region(resourceId);
+        BoardBackgroundCatalog.BackgroundResources resources =
+            BoardBackgroundCatalog.resources(session.getCurrentLevel());
+        backgroundLeft = animations.region(resources.leftId());
+        background = animations.region(resources.centerId());
+        backgroundRight = animations.region(resources.rightId());
+        updateBackgroundLayout();
+    }
+
+    private void updateBackgroundLayout() {
+        if (background == null) {
+            backgroundCenterX = 0f;
+            boardGeometry.setBounds(BOARD_X, BOARD_Y, BOARD_WIDTH, BOARD_HEIGHT);
+            return;
+        }
+
+        float centerWidth = BoardRenderer.scaledWidth(background, WORLD_HEIGHT);
+        backgroundCenterX = BOARD_X - centerWidth * BOARD_LEFT_RATIO;
+        float correctedBoardWidth = centerWidth * BOARD_WIDTH_RATIO;
+        boardGeometry.setBounds(BOARD_X, BOARD_Y, correctedBoardWidth, BOARD_HEIGHT);
     }
 
     private void updateRuntime(float delta) {
         applyStoredGameSpeed();
         animations.update();
-        int previousTick = gameplayClock.getCurrentTick();
+        updateCursorWorld();
         gameplayClock.update(delta);
         int currentTick = gameplayClock.getCurrentTick();
         float visualDelta = gameplayClock.isPaused() ? 0f : delta * gameplayClock.getGameSpeed();
         visualStateTime += visualDelta;
         updateRenderSystems(visualDelta, currentTick);
-        if (currentTick != previousTick) {
-            eventFeedback.acceptTickMessage(currentTick, controller.getLastMessage());
-        }
         collectSunUnderPointer();
+        if (!session.isRunning() && interactions.isActive()) {
+            interactions.cancel();
+        }
         refreshHud(delta);
         showGameOverIfNeeded();
     }
@@ -369,6 +449,9 @@ public final class GameScreen extends BaseScreen {
         }
         if (lawnMowerRenderSystem != null) {
             lawnMowerRenderSystem.update(visualDelta, board);
+        }
+        if (sunRenderSystem != null) {
+            sunRenderSystem.update(visualDelta, session.getSunManager());
         }
     }
 
@@ -386,19 +469,19 @@ public final class GameScreen extends BaseScreen {
         boolean debug = isDebugMode();
         if (!resourceBarConfigured || debugControlsVisible != debug) {
             resourceBar.setGameDebugControls(
-                    debug,
-                    this::addDebugCoins,
-                    this::addDebugDiamonds,
-                    this::addDebugSun,
-                    this::addDebugPlantFood
+                debug,
+                this::addDebugCoins,
+                this::addDebugDiamonds,
+                this::addDebugSun,
+                this::addDebugPlantFood
             );
             resourceBarConfigured = true;
             debugControlsVisible = debug;
         }
         resourceBar.refreshGame(
-                user,
-                session.getTotalSunAmount(),
-                session.getPlantFoodCount()
+            user,
+            session.getTotalSunAmount(),
+            session.getPlantFoodCount()
         );
         refreshGameplayPlantCards();
     }
@@ -451,12 +534,7 @@ public final class GameScreen extends BaseScreen {
         if (message == null || message.isBlank()) {
             return;
         }
-        String displayMessage = stripMessagePrefix(message);
-        if (settingsController.wasSuccessful()) {
-            notificationManager.push(displayMessage, ui.NotificationType.SUCCESS);
-            return;
-        }
-        notificationManager.push(displayMessage, ui.NotificationType.ERROR);
+        refreshStatus(stripMessagePrefix(message));
     }
 
     private String stripMessagePrefix(String message) {
@@ -469,7 +547,14 @@ public final class GameScreen extends BaseScreen {
 
     private void drawBackground() {
         batch.begin();
-        boardRenderer.drawBackground(batch, background, WORLD_WIDTH, WORLD_HEIGHT);
+        boardRenderer.drawBackground(
+            batch,
+            backgroundLeft,
+            background,
+            backgroundRight,
+            WORLD_HEIGHT,
+            backgroundCenterX
+        );
         batch.end();
         enableAlphaBlending();
         shapes.begin(ShapeRenderer.ShapeType.Filled);
@@ -485,6 +570,59 @@ public final class GameScreen extends BaseScreen {
         enableAlphaBlending();
         shapes.begin(ShapeRenderer.ShapeType.Line);
         boardRenderer.drawGrid(shapes);
+        shapes.end();
+        disableAlphaBlending();
+    }
+
+    private void drawSeedBank() {
+        if (compactSeedBank == null) {
+            return;
+        }
+        enableAlphaBlending();
+        compactSeedBank.render(
+            shapes,
+            batch,
+            session,
+            visualStateTime,
+            interactions.getSelectedPlantName()
+        );
+        disableAlphaBlending();
+    }
+
+    private void drawInteractionTileHighlight() {
+        if (interactionOverlay == null || hoveredTile == null || !interactions.isActive()) {
+            return;
+        }
+        enableAlphaBlending();
+        shapes.begin(ShapeRenderer.ShapeType.Filled);
+        interactionOverlay.drawTileHighlight(shapes, interactions, hoveredTile);
+        shapes.end();
+        disableAlphaBlending();
+    }
+
+    private void drawInteractionCursor() {
+        if (interactionOverlay == null || !interactions.isActive()) {
+            return;
+        }
+        batch.begin();
+        interactionOverlay.drawPlantGhost(
+            batch,
+            session,
+            interactions,
+            cursorWorld.x,
+            cursorWorld.y,
+            visualStateTime
+        );
+        interactionOverlay.drawSpriteToolCursor(
+            batch,
+            interactions,
+            cursorWorld.x,
+            cursorWorld.y
+        );
+        batch.end();
+        enableAlphaBlending();
+        shapes.begin(ShapeRenderer.ShapeType.Filled);
+        interactionOverlay.drawToolCursor(shapes, interactions, cursorWorld.x, cursorWorld.y);
         shapes.end();
         disableAlphaBlending();
     }
@@ -514,7 +652,7 @@ public final class GameScreen extends BaseScreen {
     }
 
     private void drawHover() {
-        if (!isDebugMode() || hoveredTile == null) {
+        if (!isDebugMode() || hoveredTile == null || interactions.isActive()) {
             return;
         }
         enableAlphaBlending();
@@ -525,22 +663,22 @@ public final class GameScreen extends BaseScreen {
     }
 
     private void collectSunUnderPointer() {
-        if (sunRenderSystem == null || gameplayClock.isPaused() || !session.isRunning()) {
+        if (sunRenderSystem == null || gameplayClock.isPaused() || !session.isRunning()
+                || (pauseDialog != null && pauseDialog.getStage() != null) || gameOverShown) {
             return;
         }
         Vector2 world = new Vector2(Gdx.input.getX(), Gdx.input.getY());
         stage.getViewport().unproject(world);
         Sun sun = sunRenderSystem.findHoveredSun(
-                world.x,
-                world.y,
-                session.getSunManager()
+            world.x,
+            world.y,
+            session.getSunManager()
         );
         if (sun == null) {
             return;
         }
         controller.collectSun(sun.getPosition());
         if (controller.wasSuccessful()) {
-            eventFeedback.showSunCollection(controller.getLastMessage());
             refreshGameHud();
         }
     }
@@ -564,7 +702,17 @@ public final class GameScreen extends BaseScreen {
 
             @Override
             public boolean touchDown(int screenX, int screenY, int pointer, int button) {
-                updateHoveredTile(screenX, screenY);
+                updatePointer(screenX, screenY);
+                if ((pauseDialog != null && pauseDialog.getStage() != null) || gameOverShown) {
+                    return false;
+                }
+                if (button == Input.Buttons.RIGHT && interactions.isActive()) {
+                    cancelInteraction();
+                    return true;
+                }
+                if (button == Input.Buttons.LEFT && handleSeedBankClick()) {
+                    return true;
+                }
                 return handleBoardClick(button);
             }
 
@@ -585,6 +733,11 @@ public final class GameScreen extends BaseScreen {
         if (button != Input.Buttons.LEFT || hoveredTile == null) {
             return false;
         }
+        if (interactions.handleTileClick(hoveredTile)) {
+            showInteractionResult();
+            refreshGameHud();
+            return true;
+        }
         controller.handleUserClick(hoveredTile);
         String tile = "Clicked tile row=" + hoveredTile.getY() + ", column=" + hoveredTile.getX();
         Gdx.app.log("GameScreen", tile);
@@ -596,14 +749,51 @@ public final class GameScreen extends BaseScreen {
     }
 
     private void updateHoveredTile(int screenX, int screenY) {
-        Vector2 world = new Vector2(screenX, screenY);
-        stage.getViewport().unproject(world);
-        hoveredTile = screenToBoard(world.x, world.y);
+        updatePointer(screenX, screenY);
+    }
+
+    private void updatePointer(int screenX, int screenY) {
+        cursorWorld.set(screenX, screenY);
+        stage.getViewport().unproject(cursorWorld);
+        hoveredTile = screenToBoard(cursorWorld.x, cursorWorld.y);
+    }
+
+    private void updateCursorWorld() {
+        updatePointer(Gdx.input.getX(), Gdx.input.getY());
+    }
+
+    private boolean handleSeedBankClick() {
+        if (compactSeedBank == null || gameplayClock.isPaused() || !session.isRunning() || gameOverShown) {
+            return false;
+        }
+        String plantName = compactSeedBank.findPlantAt(session, cursorWorld.x, cursorWorld.y);
+        if (plantName == null) {
+            return false;
+        }
+        interactions.selectPlant(plantName);
+        showInteractionResult();
+        return true;
     }
 
     private boolean handleKey(int keycode) {
         if (keycode == Input.Keys.P || keycode == Input.Keys.SPACE || keycode == Input.Keys.ESCAPE) {
+            if (interactions.isActive() && keycode == Input.Keys.ESCAPE
+                    && (pauseDialog == null || pauseDialog.getStage() == null)) {
+                cancelInteraction();
+                return true;
+            }
             togglePauseMenu();
+            return true;
+        }
+        if ((pauseDialog != null && pauseDialog.getStage() != null) || gameOverShown) {
+            return false;
+        }
+        if (keycode == Input.Keys.S) {
+            selectShovel();
+            return true;
+        }
+        if (keycode == Input.Keys.F) {
+            selectPlantFood();
             return true;
         }
         if (keycode == Input.Keys.NUM_1 || keycode == Input.Keys.NUM_2 || keycode == Input.Keys.NUM_3) {
@@ -629,9 +819,13 @@ public final class GameScreen extends BaseScreen {
         if (gameOverShown || !session.isRunning()) {
             return;
         }
+        if (pauseDialog != null && pauseDialog.getStage() != null) {
+            return;
+        }
         if (!gameplayClock.isPaused()) {
             gameplayClock.togglePause();
         }
+        interactions.cancel();
         pauseDialog = new PauseDialog(
                 game.getSkin(),
                 this::resumeFromPause,
@@ -697,6 +891,10 @@ public final class GameScreen extends BaseScreen {
         if (gameOverShown || session.getState() == null || !session.getState().isFinished()) {
             return;
         }
+        if (pauseDialog != null) {
+            pauseDialog.close();
+            pauseDialog = null;
+        }
         gameOverShown = true;
         boolean victory = session.getState().getStatus() == GameState.Status.WON;
         String message = victory
@@ -758,6 +956,47 @@ public final class GameScreen extends BaseScreen {
         refreshStatus("Game speed x" + speed);
     }
 
+    private void selectShovel() {
+        interactions.selectShovel();
+        showInteractionResult();
+    }
+
+    private void selectPlantFood() {
+        interactions.selectPlantFood();
+        showInteractionResult();
+    }
+
+    private void cancelInteraction() {
+        interactions.cancel();
+    }
+
+    private void showInteractionResult() {
+        String message = interactions.getLastMessage();
+        if (message == null || message.isBlank()) {
+            return;
+        }
+        refreshStatus(message);
+    }
+
+    private String formatModeName(GameplayInputMode mode) {
+        if (mode == null) {
+            return "Normal";
+        }
+        return switch (mode) {
+            case NORMAL -> "Normal";
+            case PLANTING -> "Planting";
+            case SHOVEL -> "Shovel";
+            case PLANT_FOOD -> "Plant Food";
+        };
+    }
+
+
+    private void syncInteractionControlState() {
+        if (shovelButton != null) {
+            shovelButton.setChecked(interactions.getMode() == GameplayInputMode.SHOVEL);
+        }
+    }
+
     private boolean isDebugMode() {
         return settings != null && settings.isDebugMode();
     }
@@ -771,24 +1010,26 @@ public final class GameScreen extends BaseScreen {
             return;
         }
         String cursor = hoveredTile == null
-                ? "outside board"
-                : "(" + hoveredTile.getX() + ", " + hoveredTile.getY() + ")";
+            ? "outside board"
+            : "(" + hoveredTile.getX() + ", " + hoveredTile.getY() + ")";
         String state = gameplayClock.isPaused()
-                ? "PAUSED"
-                : session.isRunning() ? "RUNNING" : "FINISHED";
+            ? "PAUSED"
+            : session.isRunning() ? "RUNNING" : "FINISHED";
         String grid = settings != null && settings.isGridVisible() ? "on" : "off";
         Board board = session.getBoard();
         statusLabel.setText(
-                debugMessage
-                        + " | tick=" + gameplayClock.getCurrentTick()
-                        + " | speed=x" + gameplayClock.getGameSpeed()
-                        + " | " + state
-                        + " | grid=" + grid
-                        + " | cursor=" + cursor
-                        + " | plants=" + board.getPlantCount()
-                        + " | zombies=" + board.getActiveZombieCount()
-                        + "\nP/Space: pause | 1/2/3: speed | Left click: inspect tile | Esc: main menu"
-                        + "\n" + animations.getStatusMessage()
+            debugMessage
+                + " | tick=" + gameplayClock.getCurrentTick()
+                + " | speed=x" + gameplayClock.getGameSpeed()
+                + " | " + state
+                + " | grid=" + grid
+                + " | cursor=" + cursor
+                + " | input=" + formatModeName(interactions.getMode())
+                + " | plants=" + board.getPlantCount()
+                + " | zombies=" + board.getActiveZombieCount()
+                + "\nS: shovel | F: plant food | RMB: cancel input"
+                + " | P/Space/Esc: pause menu | 1/2/3: speed"
+                + "\n" + animations.getStatusMessage()
         );
     }
 }
