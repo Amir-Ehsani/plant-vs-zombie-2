@@ -27,6 +27,7 @@ public class Plant extends PlantState {
         }
 
         cooldownRemaining = attackIntervalTicks;
+        registerAttackVisual();
     }
 
     public void attack(GameEntity target) {
@@ -41,6 +42,7 @@ public class Plant extends PlantState {
         }
 
         cooldownRemaining = attackIntervalTicks;
+        registerAttackVisual();
     }
 
     private boolean canAttack(GameEntity target) {
@@ -59,6 +61,17 @@ public class Plant extends PlantState {
             return;
         }
         food.activateBoost(this, context);
+        visualPlantFoodSerial++;
+    }
+
+    public void prepareAttackAnimation(String clip) {
+        pendingVisualAttackClip = clip;
+    }
+
+    private void registerAttackVisual() {
+        visualAttackClip = pendingVisualAttackClip == null ? "attack" : pendingVisualAttackClip;
+        pendingVisualAttackClip = null;
+        visualAttackSerial++;
     }
 
     public void upgrade(PlantUpgrade upgrade) {

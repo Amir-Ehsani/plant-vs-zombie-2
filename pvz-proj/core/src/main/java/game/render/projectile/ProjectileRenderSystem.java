@@ -3,6 +3,8 @@ import com.badlogic.gdx.graphics.g2d.Batch;
 import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Vector2;
 import game.animation.core.AnimationDefinition;
+import game.animation.core.EntityAnimationProfile;
+import game.animation.core.EntityAnimationRegistry;
 import game.animation.core.PvzAnimationService;
 import game.render.BoardGeometry;
 import models.core.plant.Plant;
@@ -29,6 +31,7 @@ public final class ProjectileRenderSystem {
     private static final float SHOT_STAGGER_SECONDS = 0.07f;
     private final BoardGeometry geometry;
     private final PvzAnimationService animations;
+    private final EntityAnimationRegistry entityAnimations;
     private final Map<Plant, Integer> previousCooldowns = new IdentityHashMap<>();
     private final List<ZombieSnapshot> previousZombies = new ArrayList<>();
     private final List<VisualProjectile> projectiles = new ArrayList<>();
@@ -43,6 +46,7 @@ public final class ProjectileRenderSystem {
         }
         this.geometry = geometry;
         this.animations = animations;
+        entityAnimations = new EntityAnimationRegistry(animations.getCatalog());
         loadDefinitions();
     }
     public void observe(Board board, int currentTick) {
@@ -116,9 +120,10 @@ public final class ProjectileRenderSystem {
         int targetIndex = 0;
         for (int shot = 0; shot < shots; shot++) {
             ZombieSnapshot zombieTarget = targets.get(Math.min(targetIndex, targets.size() - 1));
-            ProjectileVisualType type = resolveTorchwoodType(board, plant, zombieTarget, baseType);
+            ProjectileVisualType type = resolveVisualType(board, plant, zombieTarget, baseType);
             ProjectileTarget visualTarget = resolveProjectileTarget(board, plant, zombieTarget, type);
-            spawnProjectile(plant, visualTarget, type, shot * SHOT_STAGGER_SECONDS);
+            float delay = releaseDelaySeconds(plant, type) + shot * SHOT_STAGGER_SECONDS;
+            spawnProjectile(plant, visualTarget, type, delay);
             if (targets.size() > 1) {
                 targetIndex = (targetIndex + 1) % targets.size();
             }
@@ -173,6 +178,32 @@ public final class ProjectileRenderSystem {
             }
         }
         return selected;
+    }
+
+    private ProjectileVisualType resolveVisualType(
+        Board board,
+        Plant plant,
+        ZombieSnapshot target,
+        ProjectileVisualType baseType
+    ) {
+        if (baseType == ProjectileVisualType.KERNEL
+            && "attack2".equalsIgnoreCase(plant.getVisualAttackClip())) {
+            return ProjectileVisualType.KERNEL_BUTTER;
+        }
+        return resolveTorchwoodType(board, plant, target, baseType);
+    }
+
+    private float releaseDelaySeconds(Plant plant, ProjectileVisualType type) {
+        EntityAnimationProfile profile = entityAnimations.forPlant(plant);
+        if (profile == null) {
+            return 0f;
+        }
+        String clip = plant.getVisualAttackClip();
+        if (clip == null || !profile.getDefinition().hasClip(clip)) {
+            clip = "attack";
+        }
+        float duration = profile.getDefinition().getClipDuration(clip);
+        return Math.max(0f, duration * type.getReleaseFraction());
     }
 
     private ProjectileVisualType resolveTorchwoodType(
@@ -371,7 +402,7 @@ public final class ProjectileRenderSystem {
             }
             definitions.put(type, new VisualDefinition(
                 projectile.getPath(),
-                chooseClip(projectile, "idle", "special", "animation", "animation2"),
+                chooseClip(projectile, type.getProjectileClip(), "animation", "animation2", "idle"),
                 impact == null ? null : impact.getPath(),
                 impact == null ? null : chooseClip(impact, "animation", "animation2", "idle")
             ));

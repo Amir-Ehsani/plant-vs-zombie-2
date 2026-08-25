@@ -60,6 +60,10 @@ abstract class PlantState extends GameEntity {
     protected int iceHits;
     protected int octopusHits;
     protected Zombie transformedByWizard;
+    protected int visualAttackSerial;
+    protected int visualPlantFoodSerial;
+    protected String visualAttackClip;
+    protected String pendingVisualAttackClip;
 
 
     protected PlantState() {
@@ -135,6 +139,10 @@ abstract class PlantState extends GameEntity {
         iceHits = 0;
         octopusHits = 0;
         transformedByWizard = null;
+        visualAttackSerial = 0;
+        visualPlantFoodSerial = 0;
+        visualAttackClip = "attack";
+        pendingVisualAttackClip = null;
     }
 
 
@@ -179,6 +187,15 @@ abstract class PlantState extends GameEntity {
     }
     public boolean isBoosted() {
         return boosted;
+    }
+    public int getVisualAttackSerial() {
+        return visualAttackSerial;
+    }
+    public int getVisualPlantFoodSerial() {
+        return visualPlantFoodSerial;
+    }
+    public String getVisualAttackClip() {
+        return visualAttackClip;
     }
     public int getCurrentSunCost() {
         return currentSunCost;
