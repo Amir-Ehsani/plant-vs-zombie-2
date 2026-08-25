@@ -24,4 +24,12 @@ public final class BoardBackgroundCatalog {
             case DARK_AGES -> DARK_AGES;
         };
     }
+
+    public static BackgroundResources resources(Level level) {
+        String centerId = resourceId(level);
+        return new BackgroundResources(centerId + "_LEFT", centerId, centerId + "_RIGHT");
+    }
+
+    public record BackgroundResources(String leftId, String centerId, String rightId) {
+    }
 }

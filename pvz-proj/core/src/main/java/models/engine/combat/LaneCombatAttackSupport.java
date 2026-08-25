@@ -82,6 +82,9 @@ abstract class LaneCombatAttackSupport extends LaneCombatAbilitySupport {
             if (!targets.isEmpty()) plant.attack();
             return true;
         }
+        if (name.equals("bonk choy")) {
+            return handleBonkChoyAttack(lane, plant, state);
+        }
         if (!name.equals("split pea")) return false;
         List<Zombie> candidates = collectCandidateZombies(plant, lane);
         Zombie front = nearestZombie(candidates, plant, false);
@@ -94,6 +97,35 @@ abstract class LaneCombatAttackSupport extends LaneCombatAbilitySupport {
             state.hasAttacked = true;
         }
         return true;
+    }
+
+    private boolean handleBonkChoyAttack(
+        Lane lane, Plant plant, PlantRuntimeState state
+    ) {
+        List<Zombie> candidates = collectCandidateZombies(plant, lane);
+        Zombie front = nearestZombie(candidates, plant, false);
+        Zombie back = nearestZombieBehind(candidates, plant);
+        double range = resolveMaximumRange(plant);
+        if (front != null && Math.abs(front.getX() - plant.getX()) > range) front = null;
+        if (back != null && Math.abs(back.getX() - plant.getX()) > range) back = null;
+        int damage = effectiveDamage(plant, 15);
+        if (front != null) dealPlantDamage(plant, front, damage, "melee", false);
+        if (back != null && back != front) dealPlantDamage(plant, back, damage, "melee", false);
+        if (front != null || back != null) {
+            plant.prepareAttackAnimation(resolveBonkAttackClip(front, back));
+            plant.attack();
+            state.hasAttacked = true;
+        }
+        return true;
+    }
+    private String resolveBonkAttackClip(Zombie front, Zombie back) {
+        if (front != null && back != null && back != front) {
+            return "attack3";
+        }
+        if (back != null) {
+            return "attack2";
+        }
+        return "attack";
     }
     private void performStandardPlantAttack(
         String name, Lane lane, Tile tile, Plant plant, PlantRuntimeState state
@@ -205,7 +237,7 @@ abstract class LaneCombatAttackSupport extends LaneCombatAbilitySupport {
     }
     protected int resolveShotCount(Plant plant, Tile tile) {
         String name = normalizeText(plant.getName());
-        if (name.equals("repeater") || name.equals("bonk choy")) {
+        if (name.equals("repeater")) {
             return 2;
         }
         if (name.equals("mega gatling pea")) {
@@ -239,6 +271,7 @@ abstract class LaneCombatAttackSupport extends LaneCombatAbilitySupport {
             int chance = Math.min(100, 25 + plant.getButterChancePercent());
             if (random.nextInt(100) < chance) {
                 applyButterStun(target, DEFAULT_BUTTER_TICKS);
+                plant.prepareAttackAnimation("attack2");
             }
         }
     }

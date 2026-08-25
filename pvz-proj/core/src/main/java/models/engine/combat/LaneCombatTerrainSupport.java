@@ -87,16 +87,14 @@ abstract class LaneCombatTerrainSupport extends LaneCombatState {
     }
 
     protected List<Zombie> handleLaneEnd(Lane lane, List<Zombie> zombies) {
-        if (!hasLivingZombieAtLaneEnd(zombies)) {
-            return Collections.emptyList();
-        }
-
         LawnMower mower = lane.getLawnMower();
-        if (!mower.isReady()) {
+        if (mower.isReady() && hasLivingZombieAtLaneEnd(zombies)) {
+            mower.trigger();
+        }
+        if (!mower.isMoving()) {
             return Collections.emptyList();
         }
-
-        return mower.destroyZombies(zombies);
+        return mower.advanceAndDestroy(zombies);
     }
 
     protected boolean hasLivingZombieAtLaneEnd(List<Zombie> zombies) {

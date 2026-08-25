@@ -45,9 +45,7 @@ import models.engine.session.PlantRechargeStatus;
 import models.engine.sun.Sun;
 import models.level.core.AdventureLevelCatalog;
 import screens.BaseScreen;
-import ui.GameOverDialog;
 import ui.MenuButton;
-import ui.PauseDialog;
 import ui.PlantCard;
 import ui.ResourceBar;
 
@@ -66,7 +64,6 @@ public final class GameScreen extends BaseScreen {
     private static final float TICK_SECONDS = 0.1f;
     private static final String SHOVEL_BUTTON_ID = "IMAGE_UI_HUD_INGAME_SHOVEL_BUTTON";
     private static final String SHOVEL_BUTTON_DOWN_ID = "IMAGE_UI_HUD_INGAME_SHOVEL_BUTTON_DOWN";
-    private static final String PAUSE_BUTTON_ID = "IMAGE_UI_HUD_INGAME_PAUSE_BUTTON";
 
     private final GameController controller;
     private final GameSession session;
@@ -271,27 +268,6 @@ public final class GameScreen extends BaseScreen {
         hud.add(createPauseButton()).size(54f).padRight(8f).top();
         hud.add(resourceBar).right().top();
         stage.addActor(hud);
-    }
-
-    private Button createPauseButton() {
-        TextureRegion region = game.getAnimationService().region(PAUSE_BUTTON_ID);
-        if (region == null) {
-            return new MenuButton("Pause", game.getSkin(), "brown", this::showPauseDialog);
-        }
-        ImageButton.ImageButtonStyle style = new ImageButton.ImageButtonStyle();
-        TextureRegionDrawable drawable = new TextureRegionDrawable(region);
-        style.up = drawable;
-        style.over = drawable;
-        style.down = drawable;
-        style.checked = drawable;
-        ImageButton button = new ImageButton(style);
-        button.addListener(new ClickListener() {
-            @Override
-            public void clicked(InputEvent event, float x, float y) {
-                showPauseDialog();
-            }
-        });
-        return button;
     }
 
     private void buildInteractionControls() {
@@ -703,9 +679,6 @@ public final class GameScreen extends BaseScreen {
             @Override
             public boolean touchDown(int screenX, int screenY, int pointer, int button) {
                 updatePointer(screenX, screenY);
-                if ((pauseDialog != null && pauseDialog.getStage() != null) || gameOverShown) {
-                    return false;
-                }
                 if (button == Input.Buttons.RIGHT && interactions.isActive()) {
                     cancelInteraction();
                     return true;
@@ -763,7 +736,7 @@ public final class GameScreen extends BaseScreen {
     }
 
     private boolean handleSeedBankClick() {
-        if (compactSeedBank == null || gameplayClock.isPaused() || !session.isRunning() || gameOverShown) {
+        if (compactSeedBank == null) {
             return false;
         }
         String plantName = compactSeedBank.findPlantAt(session, cursorWorld.x, cursorWorld.y);
@@ -776,18 +749,6 @@ public final class GameScreen extends BaseScreen {
     }
 
     private boolean handleKey(int keycode) {
-        if (keycode == Input.Keys.P || keycode == Input.Keys.SPACE || keycode == Input.Keys.ESCAPE) {
-            if (interactions.isActive() && keycode == Input.Keys.ESCAPE
-                    && (pauseDialog == null || pauseDialog.getStage() == null)) {
-                cancelInteraction();
-                return true;
-            }
-            togglePauseMenu();
-            return true;
-        }
-        if ((pauseDialog != null && pauseDialog.getStage() != null) || gameOverShown) {
-            return false;
-        }
         if (keycode == Input.Keys.S) {
             selectShovel();
             return true;
@@ -796,9 +757,22 @@ public final class GameScreen extends BaseScreen {
             selectPlantFood();
             return true;
         }
+        if (keycode == Input.Keys.P || keycode == Input.Keys.SPACE) {
+            gameplayClock.togglePause();
+            refreshStatus(gameplayClock.isPaused() ? "Paused" : "Resumed");
+            return true;
+        }
         if (keycode == Input.Keys.NUM_1 || keycode == Input.Keys.NUM_2 || keycode == Input.Keys.NUM_3) {
             int speed = keycode == Input.Keys.NUM_1 ? 1 : keycode == Input.Keys.NUM_2 ? 2 : 3;
             setSpeed(speed);
+            return true;
+        }
+        if (keycode == Input.Keys.ESCAPE) {
+            if (interactions.isActive()) {
+                cancelInteraction();
+                return true;
+            }
+            game.getScreenManager().showMainMenu();
             return true;
         }
         return false;
@@ -1027,8 +1001,8 @@ public final class GameScreen extends BaseScreen {
                 + " | input=" + formatModeName(interactions.getMode())
                 + " | plants=" + board.getPlantCount()
                 + " | zombies=" + board.getActiveZombieCount()
-                + "\nS: shovel | F: plant food | RMB: cancel input"
-                + " | P/Space/Esc: pause menu | 1/2/3: speed"
+                + "\nS: shovel | F: plant food | RMB/Esc: cancel input"
+                + " | P/Space: pause | 1/2/3: speed | Esc: main menu"
                 + "\n" + animations.getStatusMessage()
         );
     }

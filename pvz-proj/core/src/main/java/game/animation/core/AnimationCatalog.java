@@ -7,11 +7,9 @@ import com.badlogic.gdx.utils.JsonValue;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Set;
 
 public final class AnimationCatalog {
     private final Map<String, AnimationDefinition> byPath;
@@ -85,8 +83,8 @@ public final class AnimationCatalog {
         }
 
         int[] canvas = readCanvas(item.get("canvas"));
-        Set<String> clips = readClips(item.get("clips"));
-        return new AnimationDefinition(name, path, canvas[0], canvas[1], clips);
+        Map<String, Float> clipDurations = readClipDurations(item.get("clips"));
+        return new AnimationDefinition(name, path, canvas[0], canvas[1], clipDurations);
     }
 
     private static int[] readCanvas(JsonValue canvas) {
@@ -101,13 +99,13 @@ public final class AnimationCatalog {
         return new int[]{width, height};
     }
 
-    private static Set<String> readClips(JsonValue clipsObject) {
-        Set<String> clips = new LinkedHashSet<>();
+    private static Map<String, Float> readClipDurations(JsonValue clipsObject) {
+        Map<String, Float> clips = new LinkedHashMap<>();
         if (clipsObject == null || !clipsObject.isObject()) {
             return clips;
         }
         for (JsonValue clip = clipsObject.child; clip != null; clip = clip.next) {
-            clips.add(clip.name);
+            clips.put(clip.name, Math.max(0f, clip.asFloat()));
         }
         return clips;
     }

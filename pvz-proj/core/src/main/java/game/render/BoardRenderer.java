@@ -18,10 +18,36 @@ public final class BoardRenderer {
         this.geometry = geometry;
     }
 
-    public void drawBackground(Batch batch, TextureRegion background, float worldWidth, float worldHeight) {
-        if (background != null) {
-            batch.draw(background, 0f, 0f, worldWidth, worldHeight);
+    public void drawBackground(
+        Batch batch,
+        TextureRegion left,
+        TextureRegion center,
+        TextureRegion right,
+        float worldHeight,
+        float centerX
+    ) {
+        if (center == null) {
+            return;
         }
+
+        float centerWidth = scaledWidth(center, worldHeight);
+        drawRegion(batch, left, centerX - scaledWidth(left, worldHeight), worldHeight);
+        batch.draw(center, centerX, 0f, centerWidth, worldHeight);
+        drawRegion(batch, right, centerX + centerWidth, worldHeight);
+    }
+
+    public static float scaledWidth(TextureRegion region, float targetHeight) {
+        if (region == null || region.getRegionHeight() <= 0) {
+            return 0f;
+        }
+        return targetHeight * region.getRegionWidth() / region.getRegionHeight();
+    }
+
+    private void drawRegion(Batch batch, TextureRegion region, float x, float height) {
+        if (region == null) {
+            return;
+        }
+        batch.draw(region, x, 0f, scaledWidth(region, height), height);
     }
 
     public void drawBoardFill(ShapeRenderer shapes, boolean hasBackground) {

@@ -4,6 +4,7 @@ import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.files.FileHandle;
 import com.badlogic.gdx.graphics.g2d.Batch;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
+import com.badlogic.gdx.math.Matrix4;
 import com.badlogic.gdx.utils.Disposable;
 import pvz.libpvz.pam.PamPlayer;
 import pvz.libpvz.textures.TextureBank;
@@ -25,6 +26,7 @@ public final class PvzAnimationService implements Disposable {
 
     private final Map<String, Set<String>> partNamesCache = new LinkedHashMap<>();
     private final Map<String, Map<String, Boolean>> visibilityCache = new LinkedHashMap<>();
+    private final Map<String, String> detachableArmCache = new LinkedHashMap<>();
 
     private TextureBank textureBank;
     private PamPlayer pamPlayer;
@@ -95,6 +97,55 @@ public final class PvzAnimationService implements Disposable {
             visibility == null || visibility.isEmpty() ? null : visibility
         );
         return true;
+    }
+
+    public boolean drawPart(
+        Batch batch,
+        String pamPath,
+        String clip,
+        float stateTime,
+        float x,
+        float y,
+        float scale,
+        String partName
+    ) {
+        if (!canDraw(pamPath, clip) || batch == null || partName == null || partName.isBlank()) {
+            return false;
+        }
+        Matrix4 original = new Matrix4(batch.getTransformMatrix());
+        Matrix4 scaled = new Matrix4(original);
+        scaled.translate(x, y, 0f).scale(scale, scale, 1f).translate(-x, -y, 0f);
+        batch.setTransformMatrix(scaled);
+        try {
+            pamPlayer.drawPart(batch, pamPath, clip, stateTime, x, y, partName);
+            return true;
+        } finally {
+            batch.setTransformMatrix(original);
+        }
+    }
+
+    public String findDetachableArmPart(String pamPath) {
+        if (!available || pamPath == null || pamPath.isBlank()) {
+            return null;
+        }
+        String cached = detachableArmCache.get(pamPath);
+        if (cached != null) {
+            return cached.isEmpty() ? null : cached;
+        }
+        String selected = null;
+        int bestScore = Integer.MIN_VALUE;
+        for (String partName : partNames(pamPath)) {
+            int score = armPartScore(partName);
+            if (score > bestScore) {
+                bestScore = score;
+                selected = partName;
+            }
+        }
+        if (bestScore < 0) {
+            selected = null;
+        }
+        detachableArmCache.put(pamPath, selected == null ? "" : selected);
+        return selected;
     }
 
     public TextureRegion region(String imageResourceId) {
@@ -171,6 +222,7 @@ public final class PvzAnimationService implements Disposable {
         catalog = null;
         partNamesCache.clear();
         visibilityCache.clear();
+        detachableArmCache.clear();
         available = false;
     }
 
@@ -308,6 +360,20 @@ public final class PvzAnimationService implements Disposable {
         }
         AnimationDefinition definition = catalog.findByPath(pamPath);
         return definition != null && definition.hasClip(clip);
+    }
+
+    private int armPartScore(String partName) {
+        String normalized = normalizeToken(partName);
+        if (!normalized.contains("arm") || normalized.contains("armor")) {
+            return -1;
+        }
+        int score = 10 - Math.min(10, normalized.length() / 8);
+        if (normalized.contains("outerarm") || normalized.contains("armouter")) score += 100;
+        if (normalized.contains("rightarm") || normalized.contains("armright")) score += 90;
+        if (normalized.contains("frontarm") || normalized.contains("armfront")) score += 80;
+        if (normalized.contains("upperarm") || normalized.contains("armupper")) score += 70;
+        if (normalized.endsWith("arm")) score += 35;
+        return score;
     }
 
     private String normalizeToken(String value) {
