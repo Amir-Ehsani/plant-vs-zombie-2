@@ -117,6 +117,7 @@ public class DefaultLaneCombatStrategy extends LaneCombatPlantSupport implements
                 PlantRuntimeState state = plantStateOf(plant);
                 state.ageTicks++;
                 plant.tickCooldown();
+                applyPassivePlantEnvironment(plant, state);
 
                 if (isLifespanExpired(plant, state)) {
                     plant.takeDamage(new Damage(plant.getMaxHp(), "lifespan"));
@@ -138,6 +139,36 @@ public class DefaultLaneCombatStrategy extends LaneCombatPlantSupport implements
                 }
 
                 performPlantAttack(lane, tile, plant, state);
+            }
+        }
+    }
+
+    private void applyPassivePlantEnvironment(Plant source, PlantRuntimeState state) {
+        if (board == null || source == null || !isFirePlant(source)
+                || state.ageTicks % TICKS_PER_SECOND != 0) {
+            return;
+        }
+        int radius = Math.max(1, source.getWarmthRadius());
+        int centerX = (int) Math.round(source.getX());
+        int centerY = (int) Math.round(source.getY());
+        board.meltTerrainArea(new Position(centerX, centerY), radius);
+        for (int lane = Math.max(1, centerY - radius);
+                lane <= Math.min(board.getHeight(), centerY + radius); lane++) {
+            Lane candidateLane = board.getLaneAt(lane);
+            if (candidateLane == null) {
+                continue;
+            }
+            for (int x = Math.max(1, centerX - radius);
+                    x <= Math.min(board.getWidth(), centerX + radius); x++) {
+                Tile tile = candidateLane.getTileAt(x);
+                if (tile == null) {
+                    continue;
+                }
+                for (Plant neighbor : tile.getPlants()) {
+                    if (neighbor != null && neighbor != source && neighbor.getIceHits() > 0) {
+                        neighbor.removeIceHit();
+                    }
+                }
             }
         }
     }
