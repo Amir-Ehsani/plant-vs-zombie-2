@@ -43,11 +43,12 @@ import java.util.Set;
 abstract class GameSessionState {
     protected static final int DEFAULT_INITIAL_SUN_AMOUNT = 50;
     protected static final int MAX_PLANT_FOOD = 3;
-    protected static final int BASE_PLANT_SUN_AMOUNT = 25;
-    protected static final int TWIN_SUNFLOWER_SUN_AMOUNT = 50;
+    protected static final int BASE_PLANT_SUN_AMOUNT = 50;
+    protected static final int TWIN_SUNFLOWER_SUN_AMOUNT = 100;
     protected static final int PRIMAL_SUNFLOWER_SUN_AMOUNT = 75;
-    protected static final int MATURE_SUN_SHROOM_SUN_AMOUNT = 50;
-    protected static final int DEFAULT_SUN_SHROOM_GROW_TICKS = 30 * 10;
+    protected static final int MATURE_SUN_SHROOM_SUN_AMOUNT = 75;
+    protected static final int SUN_SHROOM_STAGE_TWO_TICKS = 24 * 10;
+    protected static final int DEFAULT_SUN_SHROOM_GROW_TICKS = 72 * 10;
     protected static final int DOUBLE_SUN_CHANCE_PERCENT = 25;
     protected static final int FALLING_SUN_TICKS = 50;
     protected static final int TICKS_PER_SECOND = 10;

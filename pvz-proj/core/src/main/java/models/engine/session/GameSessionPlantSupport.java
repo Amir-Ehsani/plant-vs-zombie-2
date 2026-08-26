@@ -291,7 +291,7 @@ abstract class GameSessionPlantSupport extends GameSessionEventSupport {
             if (age >= growTicks) {
                 return "special_stage3";
             }
-            if (age >= Math.max(1, growTicks / 3)) {
+            if (age >= Math.min(SUN_SHROOM_STAGE_TWO_TICKS, growTicks)) {
                 return "special_stage2";
             }
             return "special_stage1";
@@ -311,8 +311,13 @@ abstract class GameSessionPlantSupport extends GameSessionEventSupport {
             int growTicks = plant.getGrowTimeTicks() > 0
                     ? plant.getGrowTimeTicks()
                     : DEFAULT_SUN_SHROOM_GROW_TICKS;
-            if (plantAgeTicks.getOrDefault(plant, 0) >= growTicks) {
+            int age = plantAgeTicks.getOrDefault(plant, 0);
+            if (age >= growTicks) {
                 amount = MATURE_SUN_SHROOM_SUN_AMOUNT;
+            } else if (age >= Math.min(SUN_SHROOM_STAGE_TWO_TICKS, growTicks)) {
+                amount = 50;
+            } else {
+                amount = 25;
             }
         }
 
