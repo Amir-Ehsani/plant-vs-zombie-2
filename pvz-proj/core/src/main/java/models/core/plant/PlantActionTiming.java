@@ -136,7 +136,7 @@ public final class PlantActionTiming {
     public static String immediateActionClip(String plantName) {
         return switch (normalize(plantName)) {
             case "gold bloom", "cherry bomb", "grapeshot", "jalapeno", "hot potato" -> "attack";
-            case "doom shroom" -> "stage1_explode";
+            case "doom shroom" -> "stage3_explode";
             case "ice shroom" -> "attack";
             case "grave buster" -> "attack";
             case "enlighten mint", "appease mint", "arma mint", "bombard mint",

@@ -436,11 +436,16 @@ abstract class GameSessionPlantSupport extends GameSessionEventSupport {
     ) {
         int radius;
         String damageType;
+        if (name.equals("doom shroom")) {
+            recordBoardEvents(board.damageAllZombies(
+                    Math.max(3000, damage), "doom shroom",
+                    plant.getName(), plantCategory(plant)
+            ));
+            createTemporaryCrater(position);
+            return true;
+        }
         if (name.equals("cherry bomb") || name.equals("grapeshot")) {
             radius = 1;
-            damageType = name;
-        } else if (name.equals("doom shroom")) {
-            radius = 2;
             damageType = name;
         } else {
             return null;
@@ -453,11 +458,29 @@ abstract class GameSessionPlantSupport extends GameSessionEventSupport {
         return true;
     }
 
+    private void createTemporaryCrater(Position position) {
+        Tile tile = board.getTileAt(position);
+        if (tile == null) {
+            return;
+        }
+        tile.setTileType(TileType.CRATER);
+        schedulePlantAction(135, () -> {
+            Tile current = board.getTileAt(position);
+            if (current != null && current.getTileType() == TileType.CRATER) {
+                current.setTileType(TileType.NORMAL);
+            }
+        });
+    }
+
     private void executeGrapeshotBounces(Plant plant) {
-        recordBoardEvents(board.damageRandomZombies(
-                8 + Math.max(0, plant.getBounces()), 200, "grapeshot bounce", random,
-                plant.getName(), plantCategory(plant)
-        ));
+        int bounceCount = 8 + Math.max(0, plant.getBounces());
+        for (int bounce = 0; bounce < bounceCount; bounce++) {
+            int delay = 2 + (int) Math.round((48.0 * bounce) / Math.max(1, bounceCount - 1));
+            schedulePlantAction(delay, () -> recordBoardEvents(board.damageRandomZombies(
+                    1, 200, "grapeshot bounce", random,
+                    plant.getName(), plantCategory(plant)
+            )));
+        }
     }
 
     private Boolean executeLaneOrGlobalPlant(
