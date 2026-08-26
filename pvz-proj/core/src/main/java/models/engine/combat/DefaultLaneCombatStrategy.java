@@ -117,6 +117,12 @@ public class DefaultLaneCombatStrategy extends LaneCombatPlantSupport implements
                 PlantRuntimeState state = plantStateOf(plant);
                 state.ageTicks++;
                 plant.tickCooldown();
+                if (plant.consumeExplosiveArmorBreak()) {
+                    damageArea(tile.getPosition(), 1, 1,
+                            Math.max(1800, plant.getExplodeDamage()),
+                            "armor explosion", plant, null);
+                    plant.triggerSpecialAnimation("attack");
+                }
                 applyPassivePlantEnvironment(plant, state);
 
                 if (isLifespanExpired(plant, state)) {

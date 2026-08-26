@@ -57,6 +57,8 @@ abstract class PlantState extends GameEntity {
     protected boolean plantFoodUnlimitedPierce;
     protected boolean blueFlame;
     protected boolean plantFoodHypnoGargantuar;
+    protected boolean explosiveArmor;
+    protected boolean explosiveArmorBreakPending;
     protected int iceHits;
     protected int octopusHits;
     protected Zombie transformedByWizard;
@@ -138,6 +140,8 @@ abstract class PlantState extends GameEntity {
         plantFoodUnlimitedPierce = false;
         blueFlame = false;
         plantFoodHypnoGargantuar = false;
+        explosiveArmor = false;
+        explosiveArmorBreakPending = false;
         iceHits = 0;
         octopusHits = 0;
         transformedByWizard = null;

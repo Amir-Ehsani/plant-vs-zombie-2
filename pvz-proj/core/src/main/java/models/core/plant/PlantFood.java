@@ -321,7 +321,8 @@ public class PlantFood {
                 context.attractNearbyZombies(plant);
                 plant.healToFull();
             });
-            case "explode o nut", "pumpkin" -> contextAction(context, plant, () -> plant.addArmor(4000));
+            case "explode o nut" -> contextAction(context, plant, () -> plant.addExplosiveArmor(4000));
+            case "pumpkin" -> contextAction(context, plant, () -> plant.addArmor(4000));
             case "sun bean" -> contextAction(context, plant, () -> plant.addArmor(1000));
             case "torchwood" -> contextAction(context, plant, plant::enableBlueFlame);
             case "magnet shroom" -> contextAction(context, plant, () -> context.removeArmorFromRandom(5));
