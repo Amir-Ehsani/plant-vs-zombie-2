@@ -166,8 +166,9 @@ public final class PlantView extends EntityView<Plant> {
         String requested = entity.getVisualAttackClip();
         String name = normalize(entity.getName());
         String clip = findClip(requested);
-        if (usesPersistentPeashooterPlantFood()) {
-            clip = findClip("plantfood");
+        String persistentBoost = persistentPeaBoostClip();
+        if (persistentBoost != null) {
+            clip = persistentBoost;
         } else if (name.equals("megagatlingpea") && entity.isBoosted()
                 && findClip("attack_stage2") != null) {
             clip = findClip("attack_stage2");
@@ -231,6 +232,11 @@ public final class PlantView extends EntityView<Plant> {
             addUnique(clips, findClip("plantfood"));
             addUnique(clips, findClip("plantfood_loop"));
             addUnique(clips, findClip("plantfood_end"));
+            return clips;
+        }
+        if (name.equals("repeater")) {
+            addUnique(clips, findClip("plantfood"));
+            addUnique(clips, findClip("plantfood2"));
             return clips;
         }
         if (name.equals("squash")) {
@@ -502,8 +508,9 @@ public final class PlantView extends EntityView<Plant> {
 
     private String resolveIdleOrDamageClip(Board board) {
         String name = normalize(entity.getName());
-        if (usesPersistentPeashooterPlantFood()) {
-            return findClip("plantfood");
+        String persistentBoost = persistentPeaBoostClip();
+        if (persistentBoost != null) {
+            return persistentBoost;
         }
         if (name.equals("torchwood") && entity.hasBlueFlame()) {
             return firstClip("plantfood_t2", "plantfood", "plantfood_on_t2", "plantfood_on");
@@ -596,10 +603,18 @@ public final class PlantView extends EntityView<Plant> {
         return null;
     }
 
-    private boolean usesPersistentPeashooterPlantFood() {
-        return entity.isBoosted()
-            && normalize(entity.getName()).equals("peashooter")
-            && findClip("plantfood") != null;
+    private String persistentPeaBoostClip() {
+        if (!entity.isBoosted()) {
+            return null;
+        }
+        String name = normalize(entity.getName());
+        if (name.equals("peashooter")) {
+            return findClip("plantfood");
+        }
+        if (name.equals("repeater")) {
+            return firstClip("plantfood2", "plantfood");
+        }
+        return null;
     }
 
     private String resolveDamageClip() {
