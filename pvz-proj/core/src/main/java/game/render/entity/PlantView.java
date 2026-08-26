@@ -59,6 +59,7 @@ public final class PlantView extends EntityView<Plant> {
     private int specialIndex;
     private float specialTime;
     private float plantFoodEffectTime = -1f;
+    private int squashLandingDirection;
 
     public PlantView(Plant plant, EntityAnimationProfile profile) {
         super(plant, profile);
@@ -93,6 +94,7 @@ public final class PlantView extends EntityView<Plant> {
             return;
         }
         Vector2 position = geometry.entityToScreen(entity.getX(), entity.getY());
+        position.x += squashVisualOffset(geometry);
         drawFrozenBehind(batch, animations, position);
         drawPlant(batch, animations, position, board);
         drawActionEffects(batch, geometry, animations, board, position);
@@ -125,6 +127,7 @@ public final class PlantView extends EntityView<Plant> {
         String name = normalize(entity.getName());
         if (name.equals("squash") && normalize(requested).startsWith("jumpup")) {
             boolean left = normalize(requested).contains("left");
+            squashLandingDirection = left ? -1 : 1;
             startSequence(
                 firstClip("size_up", "turn"),
                 firstClip(left ? "jump_up_left" : "jump_up_right", "jump_up_right"),
@@ -348,6 +351,29 @@ public final class PlantView extends EntityView<Plant> {
             return null;
         }
         return specialSequence.get(specialIndex);
+    }
+
+    private float squashVisualOffset(BoardGeometry geometry) {
+        if (!normalize(entity.getName()).equals("squash") || squashLandingDirection == 0) {
+            return 0f;
+        }
+        String clip = currentSpecialClip();
+        if (clip == null) {
+            return geometry.getTileWidth() * squashLandingDirection;
+        }
+        String normalized = normalize(clip);
+        if (normalized.equals("sizeup") || normalized.equals("turn")) {
+            return 0f;
+        }
+        if (normalized.startsWith("jumpup")) {
+            float duration = Math.max(0.05f, profile.getDefinition().getClipDuration(clip));
+            float progress = Math.min(1f, Math.max(0f, specialTime / duration));
+            return geometry.getTileWidth() * squashLandingDirection * progress;
+        }
+        if (normalized.startsWith("jumpdown") || normalized.startsWith("plantfoodjumpdown")) {
+            return geometry.getTileWidth() * squashLandingDirection;
+        }
+        return 0f;
     }
 
     private void drawPlant(

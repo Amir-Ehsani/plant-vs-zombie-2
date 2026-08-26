@@ -111,13 +111,16 @@ abstract class LaneCombatPlantSupport extends LaneCombatAttackSupport {
         Zombie target = nearestZombie(collectCandidateZombies(plant, lane), plant, true);
         if (target == null || Math.abs(target.getX() - plant.getX()) > 1.25) return;
         state.actionPending = true;
-        String clip = target.getX() >= plant.getX() ? "jump_up_right" : "jump_up_left";
+        boolean jumpRight = target.getX() >= plant.getX();
+        String clip = jumpRight ? "jump_up_right" : "jump_up_left";
+        int landingX = (int) Math.round(plant.getX()) + (jumpRight ? 1 : -1);
+        landingX = Math.max(1, Math.min(lane.getWidth(), landingX));
         plant.triggerSpecialAnimation(clip);
         int delay = PlantActionTiming.meleeImpactTicks("squash", clip);
         int limit = plant.canCrushTwice() ? 2 : 1;
+        int finalLandingX = landingX;
         scheduleCombatAction(delay, () -> {
-            for (Zombie zombie : closestTargets(
-                    plant, collectCandidateZombies(plant, lane), limit, true)) {
+            for (Zombie zombie : squashLandingTargets(lane, finalLandingX, limit)) {
                 zombie.recordDamageSource(plant.getName(), plantCategory(plant), "crush");
                 zombie.kill();
                 state.crushCount++;
@@ -127,6 +130,23 @@ abstract class LaneCombatPlantSupport extends LaneCombatAttackSupport {
                 plantStates.remove(plant);
             });
         });
+    }
+
+    private List<Zombie> squashLandingTargets(Lane lane, int landingX, int limit) {
+        List<Zombie> targets = new ArrayList<>();
+        for (Zombie zombie : lane.getAllZombies()) {
+            if (!zombie.isAlive() || isHypnotized(zombie)) {
+                continue;
+            }
+            if (Math.abs(zombie.getX() - landingX) <= MELEE_RANGE) {
+                targets.add(zombie);
+            }
+        }
+        targets.sort(Comparator.comparingDouble(zombie -> Math.abs(zombie.getX() - landingX)));
+        if (targets.size() > limit) {
+            return new ArrayList<>(targets.subList(0, limit));
+        }
+        return targets;
     }
 
     private void handleTangleKelp(
