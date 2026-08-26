@@ -1,6 +1,8 @@
 package game.render.entity;
 
 import com.badlogic.gdx.graphics.g2d.Batch;
+import com.badlogic.gdx.graphics.g2d.TextureRegion;
+import com.badlogic.gdx.math.Rectangle;
 import game.animation.core.EntityAnimationProfile;
 import game.animation.core.EntityAnimationRegistry;
 import game.animation.core.PvzAnimationService;
@@ -12,6 +14,7 @@ import models.engine.board.Board;
 import models.engine.board.Lane;
 import models.engine.board.Position;
 import models.engine.board.Tile;
+import models.engine.board.TileType;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -24,6 +27,9 @@ import java.util.Set;
 
 public final class EntityRenderSystem {
     private static final float CHERRY_BOMB_PLAYBACK_RATE = 0.62f;
+    private static final float DOOM_SHROOM_ACTION_SCALE = 0.80f;
+    private static final float CRATER_WIDTH_RATIO = 0.64f;
+    private static final String CRATER_REGION = "IMAGE_EFFECTS_CRATER_CRATER_84X53";
     private final BoardGeometry geometry;
     private final PvzAnimationService animations;
     private final EntityAnimationRegistry registry;
@@ -34,6 +40,7 @@ public final class EntityRenderSystem {
     private final List<ZombieHeadVisual> deathHeads = new ArrayList<>();
     private final List<PlantActionVisual> plantActionVisuals = new ArrayList<>();
     private final List<PlantFieldEffectVisual> fieldEffectVisuals = new ArrayList<>();
+    private TextureRegion craterRegion;
 
     public EntityRenderSystem(BoardGeometry geometry, PvzAnimationService animations) {
         if (geometry == null || animations == null || animations.getCatalog() == null) {
@@ -54,7 +61,7 @@ public final class EntityRenderSystem {
         }
         animations.preload(profile.getPath());
         plantActionVisuals.add(new PlantActionVisual(
-            profile,
+            actionProfile(type, profile),
             clip,
             position.getX(),
             position.getY(),
@@ -82,6 +89,18 @@ public final class EntityRenderSystem {
         fieldEffectVisuals.add(new PlantFieldEffectVisual(
             definition, clip, positions, scale, delay, duration, loop
         ));
+    }
+
+    private EntityAnimationProfile actionProfile(
+        PlantType type, EntityAnimationProfile profile
+    ) {
+        if (type != null && type.getName() != null
+                && type.getName().trim().equalsIgnoreCase("Doom Shroom")) {
+            return new EntityAnimationProfile(
+                profile.getDefinition(), profile.getScale() * DOOM_SHROOM_ACTION_SCALE
+            );
+        }
+        return profile;
     }
 
     private float actionPlaybackRate(PlantType type) {
@@ -117,6 +136,7 @@ public final class EntityRenderSystem {
             return;
         }
         batch.begin();
+        renderTerrainOverlays(batch, board);
         renderFieldEffects(batch);
         for (int row = 1; row <= board.getHeight(); row++) {
             Lane lane = board.getLaneAt(row);
@@ -223,6 +243,40 @@ public final class EntityRenderSystem {
             visual.update(delta);
             if (visual.isFinished()) {
                 iterator.remove();
+            }
+        }
+    }
+
+    private void renderTerrainOverlays(Batch batch, Board board) {
+        if (craterRegion == null) {
+            craterRegion = animations.region(CRATER_REGION);
+        }
+        if (craterRegion == null) {
+            return;
+        }
+        for (int row = 1; row <= board.getHeight(); row++) {
+            Lane lane = board.getLaneAt(row);
+            if (lane == null) {
+                continue;
+            }
+            for (Tile tile : lane.getTiles()) {
+                if (tile.getTileType() != TileType.CRATER) {
+                    continue;
+                }
+                Rectangle bounds = geometry.getTileBounds(
+                    tile.getPosition().getY(), tile.getPosition().getX()
+                );
+                float width = bounds.width * CRATER_WIDTH_RATIO;
+                float aspect = craterRegion.getRegionHeight()
+                    / (float) Math.max(1, craterRegion.getRegionWidth());
+                float height = Math.min(bounds.height * 0.48f, width * aspect);
+                batch.draw(
+                    craterRegion,
+                    bounds.x + (bounds.width - width) * 0.5f,
+                    bounds.y + bounds.height * 0.16f,
+                    width,
+                    height
+                );
             }
         }
     }
