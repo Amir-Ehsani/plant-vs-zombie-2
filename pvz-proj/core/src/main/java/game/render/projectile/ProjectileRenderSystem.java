@@ -112,7 +112,7 @@ public final class ProjectileRenderSystem {
     }
 
     private void spawnForPlant(Board board, Plant plant, ProjectileVisualType baseType) {
-        List<ZombieSnapshot> targets = resolveTargets(plant);
+        List<ZombieSnapshot> targets = resolveTargets(plant, visualTargetSnapshots(board));
         if (targets.isEmpty()) {
             return;
         }
@@ -130,40 +130,54 @@ public final class ProjectileRenderSystem {
         }
     }
 
-    private List<ZombieSnapshot> resolveTargets(Plant plant) {
+    private List<ZombieSnapshot> resolveTargets(
+        Plant plant,
+        List<ZombieSnapshot> availableZombies
+    ) {
         String name = normalize(plant.getName());
         int lane = (int) Math.round(plant.getY());
         if (name.equals("threepeater") || name.equals("rotobaga")) {
             List<ZombieSnapshot> targets = new ArrayList<>();
-            addNearestTarget(targets, plant, lane - 1, false);
-            addNearestTarget(targets, plant, lane, false);
-            addNearestTarget(targets, plant, lane + 1, false);
+            addNearestTarget(targets, availableZombies, plant, lane - 1, false);
+            addNearestTarget(targets, availableZombies, plant, lane, false);
+            addNearestTarget(targets, availableZombies, plant, lane + 1, false);
             return targets;
         }
         if (name.equals("split pea")) {
             List<ZombieSnapshot> targets = new ArrayList<>();
-            addNearestTarget(targets, plant, lane, false);
-            addNearestTarget(targets, plant, lane, true);
+            addNearestTarget(targets, availableZombies, plant, lane, false);
+            addNearestTarget(targets, availableZombies, plant, lane, true);
             return targets;
         }
-        ZombieSnapshot target = nearestTarget(plant, lane, false);
+        ZombieSnapshot target = nearestTarget(availableZombies, plant, lane, false);
         return target == null ? Collections.emptyList() : Collections.singletonList(target);
     }
 
-    private void addNearestTarget(List<ZombieSnapshot> targets, Plant plant, int lane, boolean behind) {
-        ZombieSnapshot target = nearestTarget(plant, lane, behind);
+    private void addNearestTarget(
+        List<ZombieSnapshot> targets,
+        List<ZombieSnapshot> availableZombies,
+        Plant plant,
+        int lane,
+        boolean behind
+    ) {
+        ZombieSnapshot target = nearestTarget(availableZombies, plant, lane, behind);
         if (target != null && !targets.contains(target)) {
             targets.add(target);
         }
     }
 
-    private ZombieSnapshot nearestTarget(Plant plant, int lane, boolean behind) {
+    private ZombieSnapshot nearestTarget(
+        List<ZombieSnapshot> availableZombies,
+        Plant plant,
+        int lane,
+        boolean behind
+    ) {
         if (lane < 1 || lane > BoardGeometry.ROWS) {
             return null;
         }
         ZombieSnapshot selected = null;
         double distance = Double.MAX_VALUE;
-        for (ZombieSnapshot zombie : previousZombies) {
+        for (ZombieSnapshot zombie : availableZombies) {
             if (zombie.lane != lane) {
                 continue;
             }
@@ -252,8 +266,10 @@ public final class ProjectileRenderSystem {
             );
         }
         int start = Math.max(1, (int) Math.floor(plant.getX()) + 1);
-        int end = Math.min(board.getWidth(), (int) Math.ceil(zombieTarget.x));
-        for (int x = start; x <= end; x++) {
+        for (int x = start; x <= board.getWidth(); x++) {
+            if (x >= zombieTarget.x) {
+                break;
+            }
             Tile tile = lane.getTileAt(x);
             if (tile != null && tile.hasDamageableTerrain()) {
                 return ProjectileTarget.fixed(x, lane.getLaneId());
@@ -367,6 +383,27 @@ public final class ProjectileRenderSystem {
             impact.type.getImpactScale(),
             false
         );
+    }
+
+    private List<ZombieSnapshot> visualTargetSnapshots(Board board) {
+        List<ZombieSnapshot> result = new ArrayList<>();
+        Set<Zombie> seen = Collections.newSetFromMap(new IdentityHashMap<>());
+        if (board != null) {
+            for (Zombie zombie : board.getAllZombies()) {
+                if (zombie != null && zombie.isAlive() && seen.add(zombie)) {
+                    result.add(new ZombieSnapshot(zombie));
+                }
+            }
+        }
+        // Keep a removed target as a fallback so the projectile that delivered a
+        // killing blow can still be visualized, but always prefer the current
+        // position of zombies that are still alive.
+        for (ZombieSnapshot previous : previousZombies) {
+            if (previous.zombie != null && seen.add(previous.zombie)) {
+                result.add(previous);
+            }
+        }
+        return result;
     }
 
     private void snapshot(Board board) {
