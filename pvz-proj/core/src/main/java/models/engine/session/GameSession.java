@@ -97,6 +97,7 @@ public class GameSession extends GameSessionPlantSupport {
         nextSunProductionTick.clear();
         plantAgeTicks.clear();
         activePlantFoods.clear();
+        resetScheduledPlantActions();
         plantRechargeUntilTick.clear();
         pendingEvents.clear();
         glowingZombies.clear();
@@ -131,6 +132,7 @@ public class GameSession extends GameSessionPlantSupport {
 
         updateFallingSuns();
         updatePlantFoodEffects();
+        updateScheduledPlantActions();
         BoardTickResult boardResult = board.updateTicks();
         recordBoardEvents(boardResult);
         updatePlantSunProduction();

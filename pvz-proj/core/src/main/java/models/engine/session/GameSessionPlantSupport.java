@@ -41,6 +41,10 @@ import java.util.Set;
 
 
 abstract class GameSessionPlantSupport extends GameSessionEventSupport {
+    private static final int CHERRY_BOMB_IMPACT_DELAY_TICKS = 7;
+
+    private final List<ScheduledPlantAction> scheduledPlantActions = new ArrayList<>();
+
     protected GameSessionPlantSupport() {
         super();
     }
@@ -68,6 +72,41 @@ abstract class GameSessionPlantSupport extends GameSessionEventSupport {
                 board.getTotalZombiesKilled(),
                 board.getTotalPlantsDestroyed()
         );
+    }
+
+    protected void resetScheduledPlantActions() {
+        scheduledPlantActions.clear();
+    }
+
+    protected void updateScheduledPlantActions() {
+        if (tickManager == null || scheduledPlantActions.isEmpty()) {
+            return;
+        }
+        int currentTick = tickManager.getCurrentTick();
+        List<ScheduledPlantAction> ready = new ArrayList<>();
+        for (ScheduledPlantAction scheduled : scheduledPlantActions) {
+            if (scheduled.dueTick <= currentTick) {
+                ready.add(scheduled);
+            }
+        }
+        scheduledPlantActions.removeAll(ready);
+        for (ScheduledPlantAction scheduled : ready) {
+            scheduled.action.run();
+        }
+    }
+
+    private void schedulePlantAction(int delayTicks, Runnable action) {
+        if (action == null) {
+            return;
+        }
+        if (delayTicks <= 0 || tickManager == null) {
+            action.run();
+            return;
+        }
+        scheduledPlantActions.add(new ScheduledPlantAction(
+                tickManager.getCurrentTick() + delayTicks,
+                action
+        ));
     }
 
     protected void updateFallingSuns() {
@@ -309,7 +348,14 @@ abstract class GameSessionPlantSupport extends GameSessionEventSupport {
             return false;
         }
 
-        if (!executeImmediatePlantEffect(plant, position)) {
+        String normalizedName = normalizeName(plant.getName());
+        int impactDelay = immediatePlantImpactDelayTicks(normalizedName);
+        if (impactDelay > 0) {
+            schedulePlantAction(
+                    impactDelay,
+                    () -> executeImmediatePlantEffect(plant, position)
+            );
+        } else if (!executeImmediatePlantEffect(plant, position)) {
             return false;
         }
 
@@ -321,6 +367,13 @@ abstract class GameSessionPlantSupport extends GameSessionEventSupport {
             updateStateFromLevel();
         }
         return true;
+    }
+
+    private int immediatePlantImpactDelayTicks(String normalizedName) {
+        if ("cherry bomb".equals(normalizedName)) {
+            return CHERRY_BOMB_IMPACT_DELAY_TICKS;
+        }
+        return 0;
     }
 
     protected boolean executeImmediatePlantEffect(Plant plant, Position position) {
@@ -447,6 +500,16 @@ abstract class GameSessionPlantSupport extends GameSessionEventSupport {
             if (normalizeName(type.getCategory()).equals(normalizeName(category))) {
                 plantRechargeUntilTick.remove(normalizeName(type.getName()));
             }
+        }
+    }
+
+    private static final class ScheduledPlantAction {
+        private final int dueTick;
+        private final Runnable action;
+
+        private ScheduledPlantAction(int dueTick, Runnable action) {
+            this.dueTick = dueTick;
+            this.action = action;
         }
     }
 
