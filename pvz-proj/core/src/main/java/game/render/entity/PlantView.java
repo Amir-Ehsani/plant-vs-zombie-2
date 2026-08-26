@@ -25,6 +25,7 @@ public final class PlantView extends EntityView<Plant> {
     private final List<String> specialSequence = new ArrayList<>();
     private int previousAttackSerial;
     private int previousPlantFoodSerial;
+    private int previousSpecialSerial;
     private int specialIndex;
     private float specialTime;
 
@@ -32,6 +33,7 @@ public final class PlantView extends EntityView<Plant> {
         super(plant, profile);
         previousAttackSerial = plant.getVisualAttackSerial();
         previousPlantFoodSerial = plant.getVisualPlantFoodSerial();
+        previousSpecialSerial = plant.getVisualSpecialSerial();
     }
 
     @Override
@@ -61,6 +63,11 @@ public final class PlantView extends EntityView<Plant> {
     }
 
     private void detectVisualActions() {
+        int specialSerial = entity.getVisualSpecialSerial();
+        if (specialSerial != previousSpecialSerial) {
+            previousSpecialSerial = specialSerial;
+            startSpecialAnimation();
+        }
         int plantFoodSerial = entity.getVisualPlantFoodSerial();
         if (plantFoodSerial != previousPlantFoodSerial) {
             previousPlantFoodSerial = plantFoodSerial;
@@ -73,6 +80,15 @@ public final class PlantView extends EntityView<Plant> {
                 startAttackAnimation();
             }
         }
+    }
+
+    private void startSpecialAnimation() {
+        String requested = entity.getVisualSpecialClip();
+        String clip = findClip(requested);
+        if (clip == null) {
+            clip = firstClip("special", "attack", "intro");
+        }
+        startSequence(clip);
     }
 
     private void startAttackAnimation() {
@@ -111,6 +127,13 @@ public final class PlantView extends EntityView<Plant> {
     }
 
     private String resolvePlantFoodCoreClip() {
+        String name = normalize(entity.getName());
+        if (name.equals("seashroom")) {
+            return firstClip("pf", "plantfood");
+        }
+        if (name.equals("kiwibeast")) {
+            return firstClip("plantfood_stage3", "plantfood");
+        }
         double ratio = entity.getMaxHp() <= 0 ? 1.0 : entity.getHp() / (double) entity.getMaxHp();
         if (ratio <= 0.33 && findClip("plantfood3") != null) {
             return findClip("plantfood3");
@@ -118,7 +141,7 @@ public final class PlantView extends EntityView<Plant> {
         if (ratio <= 0.66 && findClip("plantfood2") != null) {
             return findClip("plantfood2");
         }
-        return firstClip("plantfood", "plantfood_stage3", "plantfood1");
+        return firstClip("plantfood", "plantfood_stage3", "plantfood1", "pf");
     }
 
     private void addUnique(List<String> clips, String clip) {
@@ -222,6 +245,14 @@ public final class PlantView extends EntityView<Plant> {
         if (usesPersistentPeashooterPlantFood()) {
             return findClip("plantfood");
         }
+        String staged = resolveStageClip();
+        if (staged != null) {
+            return staged;
+        }
+        String armored = resolveArmorClip();
+        if (armored != null) {
+            return armored;
+        }
         if (entity.isBoosted()) {
             String boostedIdle = firstClip("idle_plantfood", "plantfood_idle");
             if (boostedIdle != null) {
@@ -233,6 +264,46 @@ public final class PlantView extends EntityView<Plant> {
             return damageClip;
         }
         return profile.firstClip("idle", "idle2", "idle_stage1", "stage1_idle", "loop", "animation", "charge");
+    }
+
+    private String resolveStageClip() {
+        String name = normalize(entity.getName());
+        if (name.equals("sunshroom")) {
+            if (stateTime >= 72f) return firstClip("idle_stage3", "idle2_stage3");
+            if (stateTime >= 24f) return firstClip("idle_stage2", "idle2_stage2");
+            return firstClip("idle_stage1", "idle2_stage1");
+        }
+        if (name.equals("kiwibeast")) {
+            if (stateTime >= 72f) return firstClip("idle_stage3_", "idle_stage3_2");
+            if (stateTime >= 24f) return firstClip("idle_stage2_", "idle_stage2_2");
+            return firstClip("idle_stage1_", "idle_stage1_2");
+        }
+        if (name.equals("puffshroom")) {
+            if (stateTime >= 50f) return findClip("idle_stage4");
+            if (stateTime >= 35f) return firstClip("idle_stage3", "idle2_stage3");
+            if (stateTime >= 20f) return firstClip("idle_stage2", "idle2_stage2");
+            return firstClip("idle_stage1", "idle2_stage1");
+        }
+        if (name.equals("potatomine") || name.equals("primalpotatomine")) {
+            float armSeconds = name.equals("primalpotatomine") ? 5f : 15f;
+            if (stateTime < armSeconds) return firstClip("plant_idle", "plant");
+            return firstClip("idle", "idle2");
+        }
+        return null;
+    }
+
+    private String resolveArmorClip() {
+        if (entity.getArmorHp() <= 0) {
+            return null;
+        }
+        String name = normalize(entity.getName());
+        if (name.equals("pumpkin")) {
+            return firstClip("idle_plantfood", "idle_plantfood2", "idle");
+        }
+        if (name.equals("wallnut") || name.equals("explodeonut")) {
+            return firstClip("plantfood", "plantfood2", "plantfood3", "idle");
+        }
+        return null;
     }
 
     private boolean usesPersistentPeashooterPlantFood() {
