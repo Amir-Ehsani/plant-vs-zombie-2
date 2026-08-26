@@ -21,6 +21,7 @@ public final class PlantView extends EntityView<Plant> {
     private static final String OCTOPUS_PATH =
         "768/FULL/EFFECTS/ZOMBIE_OCTOPUS_PROJECTILE/ZOMBIE_OCTOPUS_PROJECTILE.PAM";
     private static final float BONK_CHOY_PLANT_FOOD_LOOPS = 3f;
+    private static final float CHOMPER_DIGEST_VISUAL_SECONDS = 40f;
     private static final String FIRE_PEA_ROW_PATH =
         "768/INITIAL/EFFECTS/FIREPEASHOOTER_FIRE/FIREPEASHOOTER_FIRE.PAM";
     private static final String PHAT_BEET_ATTACK_PULSE_PATH =
@@ -102,6 +103,41 @@ public final class PlantView extends EntityView<Plant> {
 
     private void startSpecialAnimation() {
         String requested = entity.getVisualSpecialClip();
+        String name = normalize(entity.getName());
+        if (name.equals("squash") && normalize(requested).startsWith("jumpup")) {
+            boolean left = normalize(requested).contains("left");
+            startSequence(
+                firstClip("size_up", "turn"),
+                firstClip(left ? "jump_up_left" : "jump_up_right", "jump_up_right"),
+                firstClip(left ? "jump_down_left" : "jump_down_right", "jump_down_right")
+            );
+            return;
+        }
+        if (name.equals("tanglekelp") && normalize(requested).equals("attacksubmerge")) {
+            startSequence(
+                firstClip("attack_submerge", "attack"),
+                findClip("attack"),
+                firstClip("attack_emerge", "idle")
+            );
+            return;
+        }
+        if (name.equals("endurian") && normalize(requested).startsWith("attackstart")) {
+            String suffix = resolveEndurianDamageSuffix();
+            startSequence(
+                firstClip("attack_start" + suffix, "attack_start"),
+                firstClip("attack_loop" + suffix, "attack_loop"),
+                firstClip("attack_end" + suffix, "attack_end")
+            );
+            return;
+        }
+        if (name.equals("chomper") && normalize(requested).equals("special")) {
+            startSequence(
+                findClip("special"),
+                firstClip("special_idle", "special"),
+                firstClip("special_end", "idle")
+            );
+            return;
+        }
         String clip = findClip(requested);
         if (clip == null) {
             clip = firstClip("special", "attack", "intro");
@@ -111,14 +147,26 @@ public final class PlantView extends EntityView<Plant> {
 
     private void startAttackAnimation() {
         String requested = entity.getVisualAttackClip();
+        String name = normalize(entity.getName());
         String clip = findClip(requested);
         if (usesPersistentPeashooterPlantFood()) {
             clip = findClip("plantfood");
+        } else if (name.equals("megagatlingpea") && entity.isBoosted()
+                && findClip("attack_stage2") != null) {
+            clip = findClip("attack_stage2");
         } else if (entity.isBoosted() && findClip("attack_plantfood") != null) {
             clip = findClip("attack_plantfood");
         }
         if (clip == null) {
             clip = findClip("attack");
+        }
+        if (name.equals("citron") && normalize(clip).equals("attack")) {
+            startSequence(clip, findClip("recovery"));
+            return;
+        }
+        if (name.equals("chomper") && normalize(clip).equals("bite")) {
+            startSequence(clip, findClip("bite_end"));
+            return;
         }
         startSequence(clip);
     }
@@ -166,6 +214,12 @@ public final class PlantView extends EntityView<Plant> {
             addUnique(clips, findClip("plantfood"));
             addUnique(clips, findClip("plantfood_loop"));
             addUnique(clips, findClip("plantfood_end"));
+            return clips;
+        }
+        if (name.equals("squash")) {
+            addUnique(clips, firstClip("size_up", "turn"));
+            addUnique(clips, firstClip("jump_up_right", "jump_up_left"));
+            addUnique(clips, firstClip("plantfood_jump_down_right", "plantfood_jump_down_left"));
             return clips;
         }
         String start = firstClip("plantfood_on", "plantfood_start", "plantfoodON");
@@ -242,6 +296,10 @@ public final class PlantView extends EntityView<Plant> {
         if (isBonkChoyPlantFoodCore(clip)) {
             duration *= BONK_CHOY_PLANT_FOOD_LOOPS;
         }
+        if (normalize(entity.getName()).equals("chomper")
+                && normalize(clip).equals("specialidle")) {
+            duration = CHOMPER_DIGEST_VISUAL_SECONDS;
+        }
         return duration;
     }
 
@@ -263,7 +321,7 @@ public final class PlantView extends EntityView<Plant> {
 
     private void drawPlant(Batch batch, PvzAnimationService animations, Vector2 position) {
         String specialClip = currentSpecialClip();
-        String clip = specialClip == null ? resolveIdleOrDamageClip() : specialClip;
+        String clip = specialClip == null ? resolveIdleOrDamageClip(board) : specialClip;
         float clipTime = specialClip == null ? timeForClip(clip) : specialTime;
         batch.setColor(resolveTint());
         animations.draw(
@@ -342,11 +400,17 @@ public final class PlantView extends EntityView<Plant> {
         }
     }
 
-    private String resolveIdleOrDamageClip() {
+    private String resolveIdleOrDamageClip(Board board) {
         if (usesPersistentPeashooterPlantFood()) {
             return findClip("plantfood");
         }
-        String staged = resolveStageClip();
+        if (normalize(entity.getName()).equals("megagatlingpea") && entity.isBoosted()) {
+            String stage2 = findClip("idle_stage2");
+            if (stage2 != null) {
+                return stage2;
+            }
+        }
+        String staged = resolveStageClip(board);
         if (staged != null) {
             return staged;
         }
@@ -367,8 +431,25 @@ public final class PlantView extends EntityView<Plant> {
         return profile.firstClip("idle", "idle2", "idle_stage1", "stage1_idle", "loop", "animation", "charge");
     }
 
-    private String resolveStageClip() {
+    private String resolveStageClip(Board board) {
         String name = normalize(entity.getName());
+        if (name.equals("peapod") && board != null) {
+            int x = Math.max(1, Math.min(board.getWidth(), (int) Math.round(entity.getX())));
+            int y = Math.max(1, Math.min(board.getHeight(), (int) Math.round(entity.getY())));
+            models.engine.board.Tile tile = board.getTileAt(new models.engine.board.Position(x, y));
+            int heads = 0;
+            if (tile != null) {
+                for (Plant layer : tile.getPlants()) {
+                    if (normalize(layer.getName()).equals("peapod")) {
+                        heads++;
+                    }
+                }
+            }
+            if (heads > 1) {
+                return firstClip("idle" + Math.min(5, heads), "idle");
+            }
+            return findClip("idle");
+        }
         if (name.equals("sunshroom")) {
             if (stateTime >= 72f) return firstClip("idle_stage3", "idle2_stage3");
             if (stateTime >= 24f) return firstClip("idle_stage2", "idle2_stage2");
@@ -428,6 +509,23 @@ public final class PlantView extends EntityView<Plant> {
             return firstClip("idle_damage", "idle2_damage", "damage");
         }
         return null;
+    }
+
+    private String resolveEndurianDamageSuffix() {
+        if (entity.getMaxHp() <= 0) {
+            return "";
+        }
+        double ratio = entity.getHp() / (double) entity.getMaxHp();
+        if (ratio <= 0.33 && findClip("attack_start_damage3") != null) {
+            return "_damage3";
+        }
+        if (ratio <= 0.66 && findClip("attack_start_damage2") != null) {
+            return "_damage2";
+        }
+        if (ratio <= 0.85 && findClip("attack_start_damage") != null) {
+            return "_damage";
+        }
+        return "";
     }
 
     private String firstClip(String... candidates) {
