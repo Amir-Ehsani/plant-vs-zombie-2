@@ -68,7 +68,7 @@ abstract class LaneCombatAttackSupport extends LaneCombatAbilitySupport {
             lanes.add(lane.getLaneId());
             lanes.add(lane.getLaneId() + 1);
         }
-        int scheduled = scheduleLaneShots(plant, lanes, false);
+        int scheduled = scheduleLaneShots(plant, lanes, false, 1);
         if (scheduled > 0) {
             plant.prepareAttackAnimation("attack");
             finishAttack(plant, state);
@@ -93,7 +93,7 @@ abstract class LaneCombatAttackSupport extends LaneCombatAbilitySupport {
             lanes.add(below);
             lanes.add(-below);
         }
-        int scheduled = scheduleLaneShots(plant, lanes, true);
+        int scheduled = scheduleLaneShots(plant, lanes, true, 3);
         if (scheduled > 0) {
             plant.prepareAttackAnimation("attack");
             finishAttack(plant, state);
@@ -101,12 +101,15 @@ abstract class LaneCombatAttackSupport extends LaneCombatAbilitySupport {
         return true;
     }
 
-    private int scheduleLaneShots(Plant plant, List<Integer> laneDescriptors, boolean diagonal) {
+    private int scheduleLaneShots(
+        Plant plant, List<Integer> laneDescriptors, boolean diagonal, int shotsPerDirection
+    ) {
         if (board == null || laneDescriptors == null) {
             return 0;
         }
         int scheduled = 0;
-        int damage = effectiveDamage(plant, 20);
+        int damage = effectiveDamage(plant, diagonal ? 10 : 20);
+        int repeats = Math.max(1, shotsPerDirection);
         for (int descriptor : laneDescriptors) {
             int laneNumber = Math.abs(descriptor);
             boolean behind = diagonal && descriptor < 0;
@@ -120,20 +123,22 @@ abstract class LaneCombatAttackSupport extends LaneCombatAbilitySupport {
             if (target == null) {
                 continue;
             }
-            int shotIndex = scheduled++;
-            int delay = PlantActionTiming.projectileImpactTicks(
-                plant.getName(), "attack", Math.abs(target.getX() - plant.getX()), shotIndex
-            );
-            scheduleCombatAction(delay, () -> {
-                Zombie impactTarget = behind
-                    ? nearestZombieBehind(new ArrayList<>(targetLane.getAllZombies()), plant)
-                    : selectPrimaryTarget(plant, new ArrayList<>(targetLane.getAllZombies()));
-                if (impactTarget == null) {
-                    return;
-                }
-                dealPlantDamage(plant, impactTarget, damage, resolveDamageType(plant), false);
-                applyOnHitEffects(plant, impactTarget);
-            });
+            for (int repeat = 0; repeat < repeats; repeat++) {
+                int shotIndex = scheduled++;
+                int delay = PlantActionTiming.projectileImpactTicks(
+                    plant.getName(), "attack", Math.abs(target.getX() - plant.getX()), shotIndex
+                );
+                scheduleCombatAction(delay, () -> {
+                    Zombie impactTarget = behind
+                        ? nearestZombieBehind(new ArrayList<>(targetLane.getAllZombies()), plant)
+                        : selectPrimaryTarget(plant, new ArrayList<>(targetLane.getAllZombies()));
+                    if (impactTarget == null) {
+                        return;
+                    }
+                    dealPlantDamage(plant, impactTarget, damage, resolveDamageType(plant), false);
+                    applyOnHitEffects(plant, impactTarget);
+                });
+            }
         }
         return scheduled;
     }
@@ -172,7 +177,7 @@ abstract class LaneCombatAttackSupport extends LaneCombatAbilitySupport {
     }
 
     private boolean handleStarfruitAttack(Plant plant, PlantRuntimeState state) {
-        List<Zombie> targets = closestTargets(plant, allLivingEnemyZombies(), 5, false);
+        List<Zombie> targets = starfruitDirectionalTargets(plant);
         if (targets.isEmpty()) {
             return true;
         }
@@ -191,6 +196,53 @@ abstract class LaneCombatAttackSupport extends LaneCombatAbilitySupport {
         plant.prepareAttackAnimation("attack");
         finishAttack(plant, state);
         return true;
+    }
+
+    private List<Zombie> starfruitDirectionalTargets(Plant plant) {
+        Zombie forward = null;
+        Zombie upperForward = null;
+        Zombie lowerForward = null;
+        Zombie upperBack = null;
+        Zombie lowerBack = null;
+        double forwardDistance = Double.MAX_VALUE;
+        double upperForwardDistance = Double.MAX_VALUE;
+        double lowerForwardDistance = Double.MAX_VALUE;
+        double upperBackDistance = Double.MAX_VALUE;
+        double lowerBackDistance = Double.MAX_VALUE;
+        for (Zombie zombie : allLivingEnemyZombies()) {
+            double dx = zombie.getX() - plant.getX();
+            int dy = (int) Math.round(zombie.getY() - plant.getY());
+            double distance = Math.hypot(dx, dy);
+            if (dy == 0 && dx >= 0 && distance < forwardDistance) {
+                forward = zombie;
+                forwardDistance = distance;
+            } else if (dy < 0 && dx >= 0 && distance < upperForwardDistance) {
+                upperForward = zombie;
+                upperForwardDistance = distance;
+            } else if (dy > 0 && dx >= 0 && distance < lowerForwardDistance) {
+                lowerForward = zombie;
+                lowerForwardDistance = distance;
+            } else if (dy < 0 && dx < 0 && distance < upperBackDistance) {
+                upperBack = zombie;
+                upperBackDistance = distance;
+            } else if (dy > 0 && dx < 0 && distance < lowerBackDistance) {
+                lowerBack = zombie;
+                lowerBackDistance = distance;
+            }
+        }
+        List<Zombie> result = new ArrayList<>();
+        addIfPresent(result, forward);
+        addIfPresent(result, upperForward);
+        addIfPresent(result, lowerForward);
+        addIfPresent(result, upperBack);
+        addIfPresent(result, lowerBack);
+        return result;
+    }
+
+    private void addIfPresent(List<Zombie> targets, Zombie zombie) {
+        if (zombie != null && !targets.contains(zombie)) {
+            targets.add(zombie);
+        }
     }
 
     private void scheduleDirectionalProjectile(
@@ -305,7 +357,7 @@ abstract class LaneCombatAttackSupport extends LaneCombatAbilitySupport {
 
         boolean butterShot = name.equals("kernel pult")
             && random.nextInt(100) < Math.min(100, 25 + plant.getButterChancePercent());
-        String attackClip = resolveAttackClip(name, state, butterShot);
+        String attackClip = resolveAttackClip(name, state, tile, butterShot);
         int shotCount = resolveShotCount(plant, tile);
         int damagePerShot = damage;
         boolean fireAtImpact = fireDamage;
@@ -323,7 +375,18 @@ abstract class LaneCombatAttackSupport extends LaneCombatAbilitySupport {
         finishAttack(plant, state);
     }
 
-    private String resolveAttackClip(String name, PlantRuntimeState state, boolean butterShot) {
+    private String resolveAttackClip(
+        String name, PlantRuntimeState state, Tile tile, boolean butterShot
+    ) {
+        if (name.equals("pea pod") && tile != null) {
+            int heads = 0;
+            for (Plant layer : tile.getPlants()) {
+                if (normalizeText(layer.getName()).equals("pea pod")) {
+                    heads++;
+                }
+            }
+            return heads <= 1 ? "attack" : "attack " + Math.min(5, heads);
+        }
         if (name.equals("kernel pult")) {
             return butterShot ? "attack2" : "attack";
         }
@@ -365,14 +428,19 @@ abstract class LaneCombatAttackSupport extends LaneCombatAbilitySupport {
             }
             return;
         }
-        String damageType = fireDamage ? "fire" : resolveDamageType(plant);
+        String damageType = name.equals("goo peashooter")
+            ? "poison armor bypass" : fireDamage ? "fire" : resolveDamageType(plant);
         dealPlantDamage(plant, target, damage, damageType, fireDamage);
         if (butterShot && name.equals("kernel pult") && target.isAlive()) {
             applyButterStun(target, DEFAULT_BUTTER_TICKS);
         }
         applyOnHitEffects(plant, target);
         applySplashDamage(plant, target, damage, fireDamage);
-        applyExtraTargets(plant, target, candidates, damage, fireDamage);
+        if (name.equals("bowling bulb")) {
+            applyBowlingBulbBounces(plant, target, damage);
+        } else {
+            applyExtraTargets(plant, target, candidates, damage, fireDamage);
+        }
         meltNearbyTerrain(name, plant);
     }
 
@@ -401,7 +469,7 @@ abstract class LaneCombatAttackSupport extends LaneCombatAbilitySupport {
         }
         if (name.equals("bowling bulb")) {
             int cycle = state.shotCycle % 3;
-            return cycle == 0 ? 40 : cycle == 1 ? 80 : 120;
+            return cycle == 0 ? 40 : cycle == 1 ? 120 : 180;
         }
         if (name.equals("cabbage pult") || name.equals("kernel pult")) {
             return 40;
@@ -487,6 +555,53 @@ abstract class LaneCombatAttackSupport extends LaneCombatAbilitySupport {
         damageArea(center, 1, 1, splash,
             fireDamage ? "fire splash" : "splash", plant, primary);
     }
+    private void applyBowlingBulbBounces(Plant plant, Zombie primary, int damage) {
+        if (board == null || primary == null) {
+            return;
+        }
+        Zombie previous = primary;
+        int lane = (int) Math.round(primary.getY());
+        for (int bounce = 0; bounce < 2; bounce++) {
+            Zombie next = nearestBowlingTarget(previous, lane, bounce);
+            if (next == null) {
+                break;
+            }
+            dealPlantDamage(plant, next, damage, "bowling bounce", false);
+            previous = next;
+            lane = (int) Math.round(next.getY());
+        }
+    }
+
+    private Zombie nearestBowlingTarget(Zombie previous, int lane, int bounceIndex) {
+        int preferred = bounceIndex % 2 == 0 ? lane - 1 : lane + 1;
+        Zombie target = nearestLivingInLane(preferred, previous);
+        if (target != null) {
+            return target;
+        }
+        int alternate = bounceIndex % 2 == 0 ? lane + 1 : lane - 1;
+        return nearestLivingInLane(alternate, previous);
+    }
+
+    private Zombie nearestLivingInLane(int laneNumber, Zombie previous) {
+        Lane lane = board.getLaneAt(laneNumber);
+        if (lane == null) {
+            return null;
+        }
+        Zombie selected = null;
+        double best = Double.MAX_VALUE;
+        for (Zombie zombie : lane.getAllZombies()) {
+            if (zombie == null || !zombie.isAlive() || isHypnotized(zombie) || zombie == previous) {
+                continue;
+            }
+            double distance = Math.abs(zombie.getX() - previous.getX());
+            if (distance < best) {
+                best = distance;
+                selected = zombie;
+            }
+        }
+        return selected;
+    }
+
     protected void applyExtraTargets(
         Plant plant,
         Zombie primary,
