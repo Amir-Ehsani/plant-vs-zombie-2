@@ -53,6 +53,8 @@ abstract class LaneCombatState {
         protected boolean hypnotized;
         protected Zombie hypnotizedTarget;
         protected int hypnotizedBiteTicks;
+        protected Zombie hostileDuelTarget;
+        protected int hostileDuelBiteTicks;
         protected int pendingLaneShift;
         protected int ageTicks;
         protected int lastDamageRevision;

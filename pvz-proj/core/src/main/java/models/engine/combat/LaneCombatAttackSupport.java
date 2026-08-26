@@ -828,13 +828,55 @@ abstract class LaneCombatAttackSupport extends LaneCombatAbilitySupport {
         if (plant != null && plant.isTransformedToCat()) plant = null;
         updateSnorkelState(zombie, tile, plant);
         if (handleAllstarZombieCollision(lane, zombie, state)
-            || handleHeavyZombieCollision(lane, zombie)) return;
+            || handleHeavyZombieCollision(lane, zombie)
+            || handleHypnotizedZombieCollision(lane, zombie, state)) return;
         if (plant != null && plant.isAlive() && !fliesOverPlant(zombie, plant)) {
             handleZombiePlantCollision(lane, zombie, state, plant);
         } else {
             moveZombieByAbility(zombie, state);
         }
     }
+    private boolean handleHypnotizedZombieCollision(
+            Lane lane, Zombie zombie, ZombieRuntimeState state
+    ) {
+        Zombie target = nearestHypnotizedZombie(lane, zombie);
+        if (target == null) {
+            state.hostileDuelTarget = null;
+            state.hostileDuelBiteTicks = 0;
+            return false;
+        }
+        if (state.hostileDuelTarget != target) {
+            state.hostileDuelTarget = target;
+            state.hostileDuelBiteTicks = HYPNOTIZED_BITE_WINDUP_TICKS;
+        }
+        if (state.hostileDuelBiteTicks > 0) {
+            state.hostileDuelBiteTicks--;
+            return true;
+        }
+        target.takeDamage(new Damage(
+                zombie.getType().getDamagePerTick(),
+                "zombie duel bite"
+        ));
+        state.hostileDuelBiteTicks = HYPNOTIZED_BITE_INTERVAL_TICKS;
+        return true;
+    }
+
+    private Zombie nearestHypnotizedZombie(Lane lane, Zombie zombie) {
+        Zombie target = null;
+        double minimum = Double.MAX_VALUE;
+        for (Zombie candidate : lane.getAllZombies()) {
+            if (candidate == zombie || !candidate.isAlive() || !isHypnotized(candidate)) {
+                continue;
+            }
+            double distance = Math.abs(candidate.getX() - zombie.getX());
+            if (distance <= MELEE_RANGE && distance < minimum) {
+                minimum = distance;
+                target = candidate;
+            }
+        }
+        return target;
+    }
+
     protected void updateHypnotizedZombie(
             Lane lane, Zombie zombie, ZombieRuntimeState state
     ) {
