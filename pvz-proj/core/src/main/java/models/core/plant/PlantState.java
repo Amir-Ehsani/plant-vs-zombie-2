@@ -62,7 +62,9 @@ abstract class PlantState extends GameEntity {
     protected Zombie transformedByWizard;
     protected int visualAttackSerial;
     protected int visualPlantFoodSerial;
+    protected int visualSpecialSerial;
     protected String visualAttackClip;
+    protected String visualSpecialClip;
     protected String pendingVisualAttackClip;
 
 
@@ -141,7 +143,9 @@ abstract class PlantState extends GameEntity {
         transformedByWizard = null;
         visualAttackSerial = 0;
         visualPlantFoodSerial = 0;
+        visualSpecialSerial = 0;
         visualAttackClip = "attack";
+        visualSpecialClip = "special";
         pendingVisualAttackClip = null;
     }
 
@@ -194,8 +198,14 @@ abstract class PlantState extends GameEntity {
     public int getVisualPlantFoodSerial() {
         return visualPlantFoodSerial;
     }
+    public int getVisualSpecialSerial() {
+        return visualSpecialSerial;
+    }
     public String getVisualAttackClip() {
         return visualAttackClip;
+    }
+    public String getVisualSpecialClip() {
+        return visualSpecialClip;
     }
     public int getCurrentSunCost() {
         return currentSunCost;

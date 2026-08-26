@@ -68,6 +68,14 @@ public class Plant extends PlantState {
         pendingVisualAttackClip = clip;
     }
 
+    public void triggerSpecialAnimation(String clip) {
+        if (clip == null || clip.isBlank()) {
+            return;
+        }
+        visualSpecialClip = clip;
+        visualSpecialSerial++;
+    }
+
     private void registerAttackVisual() {
         visualAttackClip = pendingVisualAttackClip == null ? "attack" : pendingVisualAttackClip;
         pendingVisualAttackClip = null;
