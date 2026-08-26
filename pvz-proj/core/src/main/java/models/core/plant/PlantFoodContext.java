@@ -374,6 +374,57 @@ public class PlantFoodContext {
         }
     }
 
+
+    public void triggerSamePlantBarrage(String plantName, int durationTicks, int cooldownRate) {
+        if (board == null || plantName == null) {
+            return;
+        }
+        List<Plant> affected = new ArrayList<>();
+        for (Plant candidate : board.getAllPlants()) {
+            if (candidate == null || !candidate.isAlive()
+                    || !normalize(candidate.getName()).equals(normalize(plantName))) {
+                continue;
+            }
+            candidate.resetCooldown();
+            candidate.setPlantFoodModifiers(1, Math.max(1, cooldownRate), false);
+            String clip = normalize(candidate.getName()).equals("sea shroom") ? "pf" : "plantfood";
+            candidate.triggerSpecialAnimation(clip);
+            affected.add(candidate);
+        }
+        if (durationTicks > 0) {
+            runDelayed(durationTicks, () -> {
+                for (Plant candidate : affected) {
+                    if (candidate != null && candidate.isAlive()) {
+                        candidate.resetPlantFoodModifiers();
+                    }
+                }
+            });
+        }
+    }
+
+    public void killRandomWaterZombies(Plant source, int count, String damageType) {
+        if (board == null || count <= 0) {
+            return;
+        }
+        List<Zombie> water = new ArrayList<>();
+        for (Zombie zombie : livingEnemies()) {
+            Tile tile = board.getTileContainingZombie(zombie);
+            if (tile != null && tile.getTileType().name().equals("WATER")) {
+                water.add(zombie);
+            }
+        }
+        Collections.shuffle(water, random);
+        for (int index = 0; index < Math.min(count, water.size()); index++) {
+            Zombie zombie = water.get(index);
+            zombie.recordDamageSource(
+                    source == null ? null : source.getName(),
+                    source == null || source.getType() == null ? null : source.getType().getCategory(),
+                    damageType
+            );
+            zombie.kill();
+        }
+    }
+
     public void resetPlantAges(String plantName) {
         if (board == null || plantName == null || plantAgeResetHandler == null) {
             return;

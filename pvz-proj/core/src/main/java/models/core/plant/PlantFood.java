@@ -215,7 +215,12 @@ public class PlantFood {
     ) {
         return switch (name) {
             case "sea shroom", "puff shroom" -> {
-                if (context != null) runAtPlantFoodImpact(context, plant, () -> context.resetPlantAges(plant.getName()));
+                if (context != null) {
+                    runAtPlantFoodImpact(context, plant, () -> {
+                        context.resetPlantAges(plant.getName());
+                        context.triggerSamePlantBarrage(plant.getName(), 30, 5);
+                    });
+                }
                 yield temporaryModifier(context, plant, 1, 5, false);
             }
             case "fume shroom" -> {
@@ -268,7 +273,7 @@ public class PlantFood {
             case "squash" -> contextAction(context, plant,
                     () -> context.killRandom(plant, 2, "plant food squash"));
             case "tangle kelp" -> contextAction(context, plant,
-                    () -> context.killRandom(plant, 3, "plant food tangle"));
+                    () -> context.killRandomWaterZombies(plant, 3, "plant food tangle"));
             case "iceberg lettuce" -> contextAction(context, plant,
                     () -> context.freezeAll(DEFAULT_FREEZE_TICKS));
             case "bonk choy" -> {
