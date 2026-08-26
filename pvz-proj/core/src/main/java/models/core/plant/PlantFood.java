@@ -218,7 +218,18 @@ public class PlantFood {
                 if (context != null) runAtPlantFoodImpact(context, plant, () -> context.resetPlantAges(plant.getName()));
                 yield temporaryModifier(context, plant, 1, 5, false);
             }
-            case "fume shroom" -> contextAction(context, plant, () -> context.pushLane(plant, 2.0));
+            case "fume shroom" -> {
+                if (context != null) {
+                    int start = PlantActionTiming.plantFoodImpactTicks(plant.getName());
+                    for (int pulse = 0; pulse < 5; pulse++) {
+                        int delay = start + pulse * 10;
+                        context.runDelayed(delay, () -> context.damageLane(
+                                plant, 300, "plant food fumes"));
+                    }
+                    context.runDelayed(start + 40, () -> context.pushLane(plant, 2.0));
+                }
+                yield false;
+            }
             case "cabbage pult" -> contextAction(context, plant,
                     () -> context.damageRandom(plant, 5, Math.max(40, damage), "plant food cabbage"));
             case "kernel pult" -> contextAction(context, plant, () -> context.butterAll(DEFAULT_STUN_TICKS));

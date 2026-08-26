@@ -211,7 +211,7 @@ abstract class LaneCombatPlantSupport extends LaneCombatAttackSupport {
 
     private boolean runCaulipower(Plant plant, Lane lane) {
         if (plant.getCooldownRemaining() != 0) return true;
-        Zombie target = strongestTarget(collectCandidateZombies(plant, lane), false);
+        Zombie target = randomLivingTarget();
         if (target == null) return true;
         plant.prepareAttackAnimation("attack");
         plant.attack();
@@ -223,7 +223,7 @@ abstract class LaneCombatPlantSupport extends LaneCombatAttackSupport {
 
     private boolean runElectricBlueberry(Plant plant, Lane lane) {
         if (plant.getCooldownRemaining() != 0) return true;
-        Zombie target = strongestTarget(collectCandidateZombies(plant, lane), false);
+        Zombie target = randomLivingTarget();
         if (target == null) return true;
         plant.prepareAttackAnimation("attack");
         plant.attack();
@@ -303,6 +303,22 @@ abstract class LaneCombatPlantSupport extends LaneCombatAttackSupport {
                 damageArea(new Position((int) Math.round(plant.getX()), lane.getLaneId()),
                         radius, radius, damage, "kiwibeast pulse", plant, null));
         return true;
+    }
+
+    private Zombie randomLivingTarget() {
+        if (board == null) {
+            return null;
+        }
+        List<Zombie> candidates = new ArrayList<>();
+        for (Zombie zombie : board.getAllZombies()) {
+            if (zombie != null && zombie.isAlive() && !isHypnotized(zombie)) {
+                candidates.add(zombie);
+            }
+        }
+        if (candidates.isEmpty()) {
+            return null;
+        }
+        return candidates.get(random.nextInt(candidates.size()));
     }
 
     private String plantCategory(Plant plant) {
