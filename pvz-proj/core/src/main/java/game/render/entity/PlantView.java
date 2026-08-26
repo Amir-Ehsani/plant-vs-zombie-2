@@ -23,6 +23,8 @@ public final class PlantView extends EntityView<Plant> {
         "768/FULL/EFFECTS/ZOMBIE_OCTOPUS_PROJECTILE/ZOMBIE_OCTOPUS_PROJECTILE.PAM";
     private static final float BONK_CHOY_PLANT_FOOD_LOOPS = 3f;
     private static final float CHOMPER_DIGEST_VISUAL_SECONDS = 40f;
+    private static final Color NUT_ARMOR_TINT = new Color(0.72f, 0.78f, 0.86f, 0.92f);
+    private static final float NUT_ARMOR_SHELL_SCALE = 1.08f;
     private static final String FIRE_PEA_ROW_PATH =
         "768/INITIAL/EFFECTS/FIREPEASHOOTER_FIRE/FIREPEASHOOTER_FIRE.PAM";
     private static final String PHAT_BEET_ATTACK_PULSE_PATH =
@@ -357,6 +359,20 @@ public final class PlantView extends EntityView<Plant> {
         String specialClip = currentSpecialClip();
         String clip = specialClip == null ? resolveIdleOrDamageClip(board) : specialClip;
         float clipTime = specialClip == null ? timeForClip(clip) : specialTime;
+        boolean loop = specialClip == null || shouldLoopSpecialClip(specialClip);
+        if (isNutArmored()) {
+            batch.setColor(NUT_ARMOR_TINT);
+            animations.draw(
+                batch,
+                profile.getPath(),
+                clip,
+                clipTime,
+                position.x,
+                position.y,
+                profile.getScale() * NUT_ARMOR_SHELL_SCALE,
+                loop
+            );
+        }
         batch.setColor(resolveTint());
         animations.draw(
             batch,
@@ -366,7 +382,7 @@ public final class PlantView extends EntityView<Plant> {
             position.x,
             position.y,
             profile.getScale(),
-            specialClip == null || shouldLoopSpecialClip(specialClip)
+            loop
         );
         batch.setColor(Color.WHITE);
     }
@@ -601,6 +617,14 @@ public final class PlantView extends EntityView<Plant> {
             return firstClip("plantfood", "plantfood2", "plantfood3", "idle");
         }
         return null;
+    }
+
+    private boolean isNutArmored() {
+        if (entity.getArmorHp() <= 0) {
+            return false;
+        }
+        String name = normalize(entity.getName());
+        return name.equals("wallnut") || name.equals("tallnut") || name.equals("explodeonut");
     }
 
     private String persistentPeaBoostClip() {
