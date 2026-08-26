@@ -386,7 +386,7 @@ public final class PlantView extends EntityView<Plant> {
         String clip = specialClip == null ? resolveIdleOrDamageClip(board) : specialClip;
         float clipTime = specialClip == null ? timeForClip(clip) : specialTime;
         boolean loop = specialClip == null || shouldLoopSpecialClip(specialClip);
-        if (isNutArmored()) {
+        if (shouldDrawFallbackNutArmor()) {
             batch.setColor(NUT_ARMOR_TINT);
             animations.draw(
                 batch,
@@ -645,12 +645,12 @@ public final class PlantView extends EntityView<Plant> {
         return null;
     }
 
-    private boolean isNutArmored() {
-        if (entity.getArmorHp() <= 0) {
+    private boolean shouldDrawFallbackNutArmor() {
+        if (entity.getArmorHp() <= 0 || resolveArmorClip() != null) {
             return false;
         }
         String name = normalize(entity.getName());
-        return name.equals("wallnut") || name.equals("tallnut") || name.equals("explodeonut");
+        return name.equals("tallnut");
     }
 
     private String persistentPeaBoostClip() {
