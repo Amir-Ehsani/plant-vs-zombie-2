@@ -351,9 +351,12 @@ abstract class LaneCombatAttackSupport extends LaneCombatAbilitySupport {
         Zombie target = selectPrimaryTarget(plant, candidates);
         if (target == null || !isChargeReady(name, plant, state)) return;
         int damage = effectiveDamage(plant, resolveBaseDamage(plant, state, tile));
-        boolean fireDamage = isFirePlant(plant) || hasTorchwoodBetween(plant, target, lane);
-        Plant torchwood = findTorchwoodBetween(plant, target, lane);
-        if (torchwood != null) damage *= torchwood.hasBlueFlame() ? 3 : 2;
+        boolean peaProjectile = isPeaProjectilePlant(name, plant);
+        Plant torchwood = peaProjectile ? findTorchwoodBetween(plant, target, lane) : null;
+        boolean fireDamage = isFirePlant(plant) || torchwood != null;
+        if (torchwood != null) {
+            damage *= torchwood.hasBlueFlame() ? 3 : 2;
+        }
 
         boolean butterShot = name.equals("kernel pult")
             && random.nextInt(100) < Math.min(100, 25 + plant.getButterChancePercent());
@@ -442,6 +445,23 @@ abstract class LaneCombatAttackSupport extends LaneCombatAbilitySupport {
             applyExtraTargets(plant, target, candidates, damage, fireDamage);
         }
         meltNearbyTerrain(name, plant);
+    }
+
+    private boolean isPeaProjectilePlant(String name, Plant plant) {
+        if (name == null || plant == null) {
+            return false;
+        }
+        String tags = plant.getType() == null ? "" : normalizeText(plant.getType().getTags());
+        return tags.contains("pea")
+                || name.equals("peashooter")
+                || name.equals("repeater")
+                || name.equals("threepeater")
+                || name.equals("split pea")
+                || name.equals("pea pod")
+                || name.equals("snow pea")
+                || name.equals("fire peashooter")
+                || name.equals("goo peashooter")
+                || name.equals("mega gatling pea");
     }
 
     private boolean isChargeReady(String name, Plant plant, PlantRuntimeState state) {
