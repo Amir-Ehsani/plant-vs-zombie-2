@@ -69,6 +69,7 @@ abstract class LaneCombatState {
         protected int shotCycle;
         protected int crushCount;
         protected boolean hasAttacked;
+        protected boolean actionPending;
         protected boolean deathEffectHandled;
     }
 
@@ -78,6 +79,8 @@ abstract class LaneCombatState {
     protected final Map<Plant, PlantRuntimeState> plantStates;
     protected final Map<String, Integer> familyBoostTicks;
     protected final Set<Zombie> processedZombiesThisBoardTick;
+    private final List<PendingCombatAction> pendingCombatActions;
+    private int combatTick;
 
 
     protected LaneCombatState() {
@@ -95,10 +98,14 @@ abstract class LaneCombatState {
         this.plantStates = new IdentityHashMap<>();
         this.familyBoostTicks = new LinkedHashMap<>();
         this.processedZombiesThisBoardTick = Collections.newSetFromMap(new IdentityHashMap<>());
+        this.pendingCombatActions = new ArrayList<>();
+        this.combatTick = 0;
     }
 
 
     public void beginBoardTick() {
+        combatTick++;
+        runReadyCombatActions();
         processedZombiesThisBoardTick.clear();
         for (String category : new ArrayList<>(familyBoostTicks.keySet())) {
             int remaining = familyBoostTicks.get(category) - 1;
@@ -130,6 +137,44 @@ abstract class LaneCombatState {
         }
         zombieStates.keySet().removeIf(zombie -> zombie == null || !zombie.isAlive());
         plantStates.keySet().removeIf(plant -> plant == null || !plant.isAlive());
+    }
+
+
+    protected void scheduleCombatAction(int delayTicks, Runnable action) {
+        if (action == null) {
+            return;
+        }
+        if (delayTicks <= 0) {
+            action.run();
+            return;
+        }
+        pendingCombatActions.add(new PendingCombatAction(combatTick + delayTicks, action));
+    }
+
+    private void runReadyCombatActions() {
+        if (pendingCombatActions.isEmpty()) {
+            return;
+        }
+        List<PendingCombatAction> ready = new ArrayList<>();
+        for (PendingCombatAction pending : pendingCombatActions) {
+            if (pending.dueTick <= combatTick) {
+                ready.add(pending);
+            }
+        }
+        pendingCombatActions.removeAll(ready);
+        for (PendingCombatAction pending : ready) {
+            pending.action.run();
+        }
+    }
+
+    private static final class PendingCombatAction {
+        private final int dueTick;
+        private final Runnable action;
+
+        private PendingCombatAction(int dueTick, Runnable action) {
+            this.dueTick = dueTick;
+            this.action = action;
+        }
     }
 
     public void applyFreeze(Zombie zombie, int ticks) {
