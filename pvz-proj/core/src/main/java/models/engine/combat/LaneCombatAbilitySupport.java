@@ -330,19 +330,29 @@ abstract class LaneCombatAbilitySupport extends LaneCombatTargetSupport {
             double eatMultiplier = (zombieName.equals("news paper")
                     || zombieName.equals("newspaper"))
                     && !zombie.hasArmor() ? 2.0 : 1.0;
+            int hpBefore = plant.getHp() + plant.getArmorHp();
             zombie.attack(plant, eatMultiplier);
+            String bittenPlantName = normalizeText(plant.getName());
+            int hpAfter = plant.getHp() + plant.getArmorHp();
+            if (bittenPlantName.equals("sun bean") && hpAfter < hpBefore && board != null) {
+                board.restoreSun(5 + Math.max(0, plant.getSunDropBonus()));
+            }
         }
 
-        if (plant.getReflectDamage() > 0 && zombie.isAlive()) {
+        String plantName = normalizeText(plant.getName());
+        int reflectedDamage = plant.getReflectDamage();
+        if (plantName.equals("endurian")) {
+            reflectedDamage = Math.max(20, reflectedDamage);
+        }
+        if (reflectedDamage > 0 && zombie.isAlive()) {
             zombie.recordDamageSource(
                     plant.getName(),
                     plant.getType() == null ? "" : plant.getType().getCategory(),
                     "reflected"
             );
-            zombie.takeDamage(new Damage(plant.getReflectDamage(), "reflected"));
+            zombie.takeDamage(new Damage(reflectedDamage, "reflected"));
         }
 
-        String plantName = normalizeText(plant.getName());
         if (plantName.equals("hypno shroom") && zombie.isAlive()) {
             if (plant.hasPlantFoodHypnoGargantuar()) {
                 ZombieFactory factory = new ZombieFactory();
