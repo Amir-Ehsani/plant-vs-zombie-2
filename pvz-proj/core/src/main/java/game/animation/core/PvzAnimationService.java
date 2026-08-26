@@ -82,6 +82,21 @@ public final class PvzAnimationService implements Disposable {
         boolean loop,
         Map<String, Boolean> visibility
     ) {
+        return draw(batch, pamPath, clip, stateTime, x, y, scale, scale, loop, visibility);
+    }
+
+    public boolean draw(
+        Batch batch,
+        String pamPath,
+        String clip,
+        float stateTime,
+        float x,
+        float y,
+        float scaleX,
+        float scaleY,
+        boolean loop,
+        Map<String, Boolean> visibility
+    ) {
         if (!canDraw(pamPath, clip)) {
             return false;
         }
@@ -92,8 +107,8 @@ public final class PvzAnimationService implements Disposable {
             stateTime,
             x,
             y,
-            scale,
-            scale,
+            scaleX,
+            scaleY,
             loop,
             visibility == null || visibility.isEmpty() ? null : visibility
         );

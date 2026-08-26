@@ -778,7 +778,7 @@ abstract class LaneCombatAttackSupport extends LaneCombatAbilitySupport {
         }
         updateZombieSpeed(zombie, state);
         if (state.hypnotized) {
-            updateHypnotizedZombie(lane, zombie);
+            updateHypnotizedZombie(lane, zombie, state);
             return;
         }
         moveOrAttackWithZombie(lane, zombie, state);
@@ -835,7 +835,9 @@ abstract class LaneCombatAttackSupport extends LaneCombatAbilitySupport {
             moveZombieByAbility(zombie, state);
         }
     }
-    protected void updateHypnotizedZombie(Lane lane, Zombie zombie) {
+    protected void updateHypnotizedZombie(
+            Lane lane, Zombie zombie, ZombieRuntimeState state
+    ) {
         Zombie target = null;
         double minimum = Double.MAX_VALUE;
         for (Zombie candidate : lane.getAllZombies()) {
@@ -849,11 +851,25 @@ abstract class LaneCombatAttackSupport extends LaneCombatAbilitySupport {
                 target = candidate;
             }
         }
-        if (target != null && minimum <= MELEE_RANGE) {
-            target.takeDamage(new Damage(zombie.getType().getDamagePerTick(), "hypnotized bite"));
-        } else {
+        if (target == null || minimum > MELEE_RANGE) {
+            state.hypnotizedTarget = null;
+            state.hypnotizedBiteTicks = 0;
             zombie.moveBy(zombie.getCurrentSpeed(), 0);
+            return;
         }
+        if (state.hypnotizedTarget != target) {
+            state.hypnotizedTarget = target;
+            state.hypnotizedBiteTicks = HYPNOTIZED_BITE_WINDUP_TICKS;
+        }
+        if (state.hypnotizedBiteTicks > 0) {
+            state.hypnotizedBiteTicks--;
+            return;
+        }
+        target.takeDamage(new Damage(
+                zombie.getType().getDamagePerTick(),
+                "hypnotized bite"
+        ));
+        state.hypnotizedBiteTicks = HYPNOTIZED_BITE_INTERVAL_TICKS;
     }
     protected void observeZombieDamage(Zombie zombie, ZombieRuntimeState state) {
         if (zombie.getDamageRevision() == state.lastDamageRevision) {

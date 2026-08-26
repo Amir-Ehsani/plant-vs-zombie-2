@@ -88,7 +88,9 @@ public final class ZombieView extends EntityView<Zombie> {
         String clip = resolveClip(effects);
         lastClip = clip;
         Vector2 position = geometry.entityToScreen(visualX, entity.getY());
-        float renderX = position.x + eatingOffset(geometry, clip);
+        boolean reversed = isReversed(effects);
+        float direction = reversed ? -1f : 1f;
+        float renderX = position.x + eatingOffset(geometry, clip) * direction;
 
         batch.setColor(resolveTint(effects));
         animations.draw(
@@ -98,6 +100,7 @@ public final class ZombieView extends EntityView<Zombie> {
             timeForClip(clip),
             renderX,
             position.y,
+            profile.getScale() * direction,
             profile.getScale(),
             true,
             resolveVisibility(animations, effects)
@@ -351,6 +354,12 @@ public final class ZombieView extends EntityView<Zombie> {
 
     private boolean isMovementBlocked(List<String> effects) {
         return hasEffect(effects, "frozen") || hasEffect(effects, "buttered");
+    }
+
+    private boolean isReversed(List<String> effects) {
+        return hasEffect(effects, "hypnotized")
+            || hasEffect(effects, "charmed")
+            || hasEffect(effects, "confused");
     }
 
     private boolean hasNewspaperArmor() {

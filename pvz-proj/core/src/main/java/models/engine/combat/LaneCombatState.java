@@ -38,6 +38,8 @@ abstract class LaneCombatState {
     protected static final int DEFAULT_PRIMAL_POTATO_ARM_TICKS = 5 * TICKS_PER_SECOND;
     protected static final int DEFAULT_SHROOM_LIFESPAN_TICKS = 60 * TICKS_PER_SECOND;
     protected static final int DEFAULT_CHOMPER_DIGEST_TICKS = 40 * TICKS_PER_SECOND;
+    protected static final int HYPNOTIZED_BITE_WINDUP_TICKS = 5;
+    protected static final int HYPNOTIZED_BITE_INTERVAL_TICKS = 8;
 
     protected static final class ZombieRuntimeState {
         protected int frozenTicks;
@@ -49,6 +51,8 @@ abstract class LaneCombatState {
         protected int butterTicks;
         protected int electricStrikeTicks;
         protected boolean hypnotized;
+        protected Zombie hypnotizedTarget;
+        protected int hypnotizedBiteTicks;
         protected int pendingLaneShift;
         protected int ageTicks;
         protected int lastDamageRevision;
@@ -240,7 +244,10 @@ abstract class LaneCombatState {
         if (zombie == null || !zombie.isAlive()) {
             return;
         }
-        stateOf(zombie).hypnotized = true;
+        ZombieRuntimeState state = stateOf(zombie);
+        state.hypnotized = true;
+        state.hypnotizedTarget = null;
+        state.hypnotizedBiteTicks = 0;
     }
 
     public boolean isHypnotized(Zombie zombie) {
