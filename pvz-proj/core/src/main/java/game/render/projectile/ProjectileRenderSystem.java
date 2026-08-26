@@ -204,6 +204,12 @@ public final class ProjectileRenderSystem {
             && "attack2".equalsIgnoreCase(plant.getVisualAttackClip())) {
             return ProjectileVisualType.KERNEL_BUTTER;
         }
+        if (normalize(plant.getName()).equals("bowling bulb")) {
+            String clip = normalize(plant.getVisualAttackClip());
+            if (clip.equals("special2")) return ProjectileVisualType.BOWLING_MEDIUM;
+            if (clip.equals("special3")) return ProjectileVisualType.BOWLING_LARGE;
+            return ProjectileVisualType.BOWLING_SMALL;
+        }
         return resolveTorchwoodType(board, plant, target, baseType);
     }
 
@@ -250,7 +256,15 @@ public final class ProjectileRenderSystem {
         ZombieSnapshot zombieTarget,
         ProjectileVisualType type
     ) {
-        if (type.isLobbed() || type == ProjectileVisualType.FUME || type == ProjectileVisualType.CACTUS) {
+        if (type.isLobbed()
+            || type == ProjectileVisualType.FUME
+            || type == ProjectileVisualType.CACTUS
+            || type == ProjectileVisualType.HOMING_THISTLE
+            || type == ProjectileVisualType.ROTOBAGA
+            || type == ProjectileVisualType.STARFRUIT
+            || type == ProjectileVisualType.BOWLING_SMALL
+            || type == ProjectileVisualType.BOWLING_MEDIUM
+            || type == ProjectileVisualType.BOWLING_LARGE) {
             return ProjectileTarget.fromZombie(
                 zombieTarget.zombie,
                 zombieTarget.x,
@@ -441,7 +455,9 @@ public final class ProjectileRenderSystem {
                 projectile.getPath(),
                 chooseClip(projectile, type.getProjectileClip(), "animation", "animation2", "idle"),
                 impact == null ? null : impact.getPath(),
-                impact == null ? null : chooseClip(impact, "animation", "animation2", "idle")
+                impact == null || type.getImpactClip() == null
+                    ? null
+                    : chooseClip(impact, type.getImpactClip(), "animation", "animation2", "idle")
             ));
         }
     }
