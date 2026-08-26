@@ -406,8 +406,12 @@ public final class PlantView extends EntityView<Plant> {
     }
 
     private String resolveIdleOrDamageClip(Board board) {
+        String name = normalize(entity.getName());
         if (usesPersistentPeashooterPlantFood()) {
             return findClip("plantfood");
+        }
+        if (name.equals("torchwood") && entity.hasBlueFlame()) {
+            return firstClip("plantfood_t2", "plantfood", "plantfood_on_t2", "plantfood_on");
         }
         if (normalize(entity.getName()).equals("megagatlingpea") && entity.isBoosted()) {
             String stage2 = findClip("idle_stage2");
