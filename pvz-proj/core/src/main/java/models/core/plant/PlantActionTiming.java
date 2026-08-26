@@ -62,7 +62,7 @@ public final class PlantActionTiming {
         return switch (normalize(plantName)) {
             case "magnet shroom" -> 4;
             case "caulipower" -> 9;
-            case "electric blueberry" -> 9;
+            case "electric blueberry" -> 12;
             case "gold bloom" -> 13;
             case "grave buster" -> 8;
             case "hot potato" -> 18;

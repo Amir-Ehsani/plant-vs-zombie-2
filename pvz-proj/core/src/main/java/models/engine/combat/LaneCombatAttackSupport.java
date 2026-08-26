@@ -811,6 +811,9 @@ abstract class LaneCombatAttackSupport extends LaneCombatAbilitySupport {
             zombie.setCurrentSpeed(0);
             return false;
         }
+        if (state.electricStrikeTicks > 0) {
+            state.electricStrikeTicks--;
+        }
         return true;
     }
     private void updateZombieSpeed(Zombie zombie, ZombieRuntimeState state) {

@@ -25,6 +25,19 @@ public final class ZombieView extends EntityView<Zombie> {
     private static final float TELEPORT_SNAP_DISTANCE = 1.25f;
     private static final double ARM_DETACH_HEALTH_RATIO = 0.50;
     private static final float ASH_VISUAL_SCALE = 0.50f;
+    private static final float ELECTRIC_ASH_VISUAL_SCALE = 0.72f;
+    private static final float ELECTRIC_CLOUD_SCALE = 0.58f;
+    private static final String ELECTRIC_CLOUD_PATH =
+        "768/INITIAL/EFFECTS/ELECTRICBLUEBERRY_CLOUD_PROJECTILE/"
+            + "ELECTRICBLUEBERRY_CLOUD_PROJECTILE.PAM";
+    private static final String ELECTRIC_ASH_PATH =
+        "768/INITIAL/EFFECTS/ZOMBIE_ASH/ZOMBIE_ASH.PAM";
+    private static final String ELECTRIC_BIG_ASH_PATH =
+        "768/INITIAL/EFFECTS/ZOMBIE_BIG_ASH/ZOMBIE_BIG_ASH.PAM";
+    private static final String ELECTRIC_GARGANTUAR_ASH_PATH =
+        "768/INITIAL/EFFECTS/ZOMBIE_GARGANTUAR_ASH/ZOMBIE_GARGANTUAR_ASH.PAM";
+    private static final String ELECTRIC_IMP_ASH_PATH =
+        "768/INITIAL/EFFECTS/ZOMBIE_IMP_ASH/ZOMBIE_IMP_ASH.PAM";
     private static final String ASH_PATH =
         "768/FULL/EFFECTS/ZOMBIE_BIGHEAD_ASH/ZOMBIE_BIGHEAD_ASH.PAM";
     private static final String GARGANTUAR_ASH_PATH =
@@ -41,6 +54,9 @@ public final class ZombieView extends EntityView<Zombie> {
     private String detachedArmPart;
     private String detachedHeadPart;
     private String lastClip;
+    private float electricStrikeTime;
+    private boolean electricStrikeActive;
+    private boolean electricCloudPreloaded;
 
     public ZombieView(Zombie zombie, EntityAnimationProfile profile) {
         super(zombie, profile);
@@ -53,6 +69,7 @@ public final class ZombieView extends EntityView<Zombie> {
         super.update(delta, board);
         updateMovementState(delta);
         updateVisualPosition(delta);
+        updateElectricStrike(delta, board);
         detectArmDetach();
     }
 
@@ -86,6 +103,7 @@ public final class ZombieView extends EntityView<Zombie> {
             resolveVisibility(animations, effects)
         );
         batch.setColor(Color.WHITE);
+        drawElectricStrike(batch, geometry, animations, position);
     }
 
     ZombiePartVisual takeDetachedArmVisual(PvzAnimationService animations) {
@@ -112,6 +130,12 @@ public final class ZombieView extends EntityView<Zombie> {
     }
 
     ZombieDeathVisual createDeathVisual(PvzAnimationService animations) {
+        if (isElectricBurnDeath()) {
+            ZombieDeathVisual burn = createElectricBurnDeathVisual(animations);
+            if (burn != null) {
+                return burn;
+            }
+        }
         if (isExplosiveDeath()) {
             ZombieDeathVisual ash = createAshDeathVisual(animations);
             if (ash != null) {
@@ -133,7 +157,8 @@ public final class ZombieView extends EntityView<Zombie> {
     }
 
     ZombieHeadVisual createDeathHeadVisual(PvzAnimationService animations) {
-        if (isExplosiveDeath() || animations == null || !profile.getDefinition().hasClip("particles")) {
+        if (isExplosiveDeath() || isElectricBurnDeath() || animations == null
+                || !profile.getDefinition().hasClip("particles")) {
             return null;
         }
         String headPart = resolveDetachedHeadPart(animations);
@@ -146,6 +171,41 @@ public final class ZombieView extends EntityView<Zombie> {
             visualX,
             (int) Math.round(entity.getY())
         );
+    }
+
+    private ZombieDeathVisual createElectricBurnDeathVisual(PvzAnimationService animations) {
+        if (animations == null || animations.getCatalog() == null) {
+            return null;
+        }
+        AnimationDefinition definition = animations.getCatalog().findByPath(resolveElectricAshPath());
+        if (definition == null) {
+            definition = animations.getCatalog().findByPath(ELECTRIC_ASH_PATH);
+        }
+        if (definition == null) {
+            return null;
+        }
+        animations.preload(definition.getPath());
+        return ZombieDeathVisual.effect(
+            definition,
+            "animation",
+            visualX,
+            (int) Math.round(entity.getY()),
+            profile.getScale() * ELECTRIC_ASH_VISUAL_SCALE
+        );
+    }
+
+    private String resolveElectricAshPath() {
+        String id = entity.getType() == null ? "" : normalize(entity.getType().getId());
+        if (id.contains("gargantuar")) {
+            return ELECTRIC_GARGANTUAR_ASH_PATH;
+        }
+        if (id.contains("imp")) {
+            return ELECTRIC_IMP_ASH_PATH;
+        }
+        if (profile.getScale() > 0.58f) {
+            return ELECTRIC_BIG_ASH_PATH;
+        }
+        return ELECTRIC_ASH_PATH;
     }
 
     private ZombieDeathVisual createAshDeathVisual(PvzAnimationService animations) {
@@ -180,6 +240,11 @@ public final class ZombieView extends EntityView<Zombie> {
         return ASH_PATH;
     }
 
+    private boolean isElectricBurnDeath() {
+        String damageType = normalize(entity.getLastDamageType());
+        return damageType.contains("electric") || damageType.contains("lightning");
+    }
+
     private boolean isExplosiveDeath() {
         String category = normalize(entity.getLastDamageSourcePlantCategory());
         String damageType = normalize(entity.getLastDamageType());
@@ -190,6 +255,42 @@ public final class ZombieView extends EntityView<Zombie> {
             || damageType.contains("potatomine")
             || damageType.contains("doomshroom")
             || damageType.contains("jalapeno");
+    }
+
+    private void updateElectricStrike(float delta, Board board) {
+        List<String> effects = board == null ? List.of() : board.getZombieEffects(entity);
+        boolean active = hasEffect(effects, "electric-strike");
+        if (active && !electricStrikeActive) {
+            electricStrikeTime = 0f;
+        }
+        if (active && delta > 0f) {
+            electricStrikeTime += delta;
+        }
+        electricStrikeActive = active;
+    }
+
+    private void drawElectricStrike(
+        Batch batch, BoardGeometry geometry, PvzAnimationService animations, Vector2 position
+    ) {
+        if (!electricStrikeActive || animations == null) {
+            return;
+        }
+        if (!electricCloudPreloaded) {
+            animations.preload(ELECTRIC_CLOUD_PATH);
+            electricCloudPreloaded = true;
+        }
+        String clip = electricStrikeTime < 0.9f ? "start" : "attack";
+        float clipTime = clip.equals("start") ? electricStrikeTime : electricStrikeTime - 0.9f;
+        animations.draw(
+            batch,
+            ELECTRIC_CLOUD_PATH,
+            clip,
+            clipTime,
+            position.x,
+            position.y + geometry.getTileHeight() * 0.42f,
+            ELECTRIC_CLOUD_SCALE,
+            false
+        );
     }
 
     private void detectArmDetach() {
@@ -274,6 +375,11 @@ public final class ZombieView extends EntityView<Zombie> {
         }
         if (hasEffect(effects, "poisoned")) {
             return new Color(0.70f, 1f, 0.65f, 1f);
+        }
+        if (hasEffect(effects, "electric-strike")) {
+            return ((int) (electricStrikeTime * 14f) & 1) == 0
+                ? new Color(0.82f, 0.94f, 1f, 1f)
+                : new Color(1f, 1f, 1f, 1f);
         }
         if (hasEffect(effects, "hypnotized")) {
             return new Color(0.82f, 0.62f, 1f, 1f);

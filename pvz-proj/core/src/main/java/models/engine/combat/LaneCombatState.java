@@ -47,6 +47,7 @@ abstract class LaneCombatState {
         protected String poisonSourcePlantName;
         protected String poisonSourcePlantCategory;
         protected int butterTicks;
+        protected int electricStrikeTicks;
         protected boolean hypnotized;
         protected int pendingLaneShift;
         protected int ageTicks;
@@ -227,6 +228,14 @@ abstract class LaneCombatState {
         zombie.setCurrentSpeed(0);
     }
 
+    protected void markElectricStrike(Zombie zombie, int ticks) {
+        if (zombie == null || !zombie.isAlive() || ticks <= 0) {
+            return;
+        }
+        ZombieRuntimeState state = stateOf(zombie);
+        state.electricStrikeTicks = Math.max(state.electricStrikeTicks, ticks);
+    }
+
     public void hypnotize(Zombie zombie) {
         if (zombie == null || !zombie.isAlive()) {
             return;
@@ -257,6 +266,9 @@ abstract class LaneCombatState {
         }
         if (state.butterTicks > 0) {
             effects.add("buttered(" + state.butterTicks + " ticks)");
+        }
+        if (state.electricStrikeTicks > 0) {
+            effects.add("electric-strike(" + state.electricStrikeTicks + " ticks)");
         }
         if (state.hypnotized) {
             effects.add("hypnotized");

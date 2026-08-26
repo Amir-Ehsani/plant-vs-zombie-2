@@ -228,9 +228,11 @@ abstract class LaneCombatPlantSupport extends LaneCombatAttackSupport {
         if (target == null) return true;
         plant.prepareAttackAnimation("attack");
         plant.attack();
-        scheduleCombatAction(PlantActionTiming.specialImpactTicks("electric blueberry"), () -> {
+        int impactDelay = PlantActionTiming.specialImpactTicks("electric blueberry");
+        markElectricStrike(target, impactDelay);
+        scheduleCombatAction(impactDelay, () -> {
             if (target.isAlive()) {
-                target.recordDamageSource(plant.getName(), plantCategory(plant), "electric");
+                target.recordDamageSource(plant.getName(), plantCategory(plant), "electric burn");
                 target.kill();
             }
         });
