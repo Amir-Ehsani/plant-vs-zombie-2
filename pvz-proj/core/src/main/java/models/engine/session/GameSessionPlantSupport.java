@@ -181,6 +181,10 @@ abstract class GameSessionPlantSupport extends GameSessionEventSupport {
     private List<Position> plantFoodSunPositions(Plant source) {
         int centerX = Math.max(1, Math.min(board.getWidth(), (int) Math.round(source.getX())));
         int centerY = Math.max(1, Math.min(board.getHeight(), (int) Math.round(source.getY())));
+        return sunBurstPositions(centerX, centerY);
+    }
+
+    private List<Position> sunBurstPositions(int centerX, int centerY) {
         int[][] offsets = {
             {-1, 0}, {1, 0}, {0, 1}, {0, -1},
             {-1, 1}, {1, 1}, {-1, -1}, {1, -1}, {0, 0}
@@ -194,6 +198,43 @@ abstract class GameSessionPlantSupport extends GameSessionEventSupport {
             }
         }
         return positions;
+    }
+
+    private void spawnImmediateSunBurst(Position center, int amount) {
+        if (center == null || amount <= 0) {
+            return;
+        }
+        if (board == null || sunManager == null) {
+            totalSunAmount += amount;
+            totalSunProduced += amount;
+            return;
+        }
+        int centerX = Math.max(1, Math.min(board.getWidth(), center.getX()));
+        int centerY = Math.max(1, Math.min(board.getHeight(), center.getY()));
+        List<Position> positions = sunBurstPositions(centerX, centerY);
+        if (positions.isEmpty()) {
+            totalSunAmount += amount;
+            totalSunProduced += amount;
+            return;
+        }
+        int sunCount = positions.size();
+        int fullQuanta = amount / 25;
+        int remainder = amount % 25;
+        int baseQuanta = fullQuanta / sunCount;
+        int extraQuanta = fullQuanta % sunCount;
+        for (int index = 0; index < sunCount; index++) {
+            int sunAmount = baseQuanta * 25;
+            if (index < extraQuanta) {
+                sunAmount += 25;
+            }
+            if (index == 0) {
+                sunAmount += remainder;
+            }
+            if (sunAmount > 0) {
+                sunManager.spawnLooseSun(positions.get(index), sunAmount);
+            }
+        }
+        totalSunProduced += amount;
     }
 
     protected void updatePlantFoodEffects() {
@@ -429,8 +470,7 @@ abstract class GameSessionPlantSupport extends GameSessionEventSupport {
     private Boolean executeResourceOrTerrainPlant(String name, Plant plant, Position position) {
         if (name.equals("gold bloom")) {
             int produced = 375 + plant.getSunProductionBonus();
-            totalSunAmount += produced;
-            totalSunProduced += produced;
+            spawnImmediateSunBurst(position, produced);
             return true;
         }
         if (name.equals("grave buster")) return board.removeTerrain(position, TileType.GRAVE);
