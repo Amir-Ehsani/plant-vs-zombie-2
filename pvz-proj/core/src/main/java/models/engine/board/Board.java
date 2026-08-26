@@ -218,12 +218,12 @@ public class Board extends BoardSupport {
             throw new IllegalArgumentException("Damage center, radii and amount are invalid.");
         }
 
+        double xReach = xRadius + 0.5;
+        double yReach = yRadius + 0.5;
         for (Zombie zombie : new ArrayList<>(getAllZombies())) {
-            int x = Math.max(1, Math.min(width, (int) Math.ceil(zombie.getX())));
-            int y = Math.max(1, Math.min(height, (int) Math.round(zombie.getY())));
-
-            if (Math.abs(x - center.getX()) <= xRadius
-                    && Math.abs(y - center.getY()) <= yRadius) {
+            double xDistance = Math.abs(zombie.getX() - center.getX());
+            double yDistance = Math.abs(zombie.getY() - center.getY());
+            if (xDistance <= xReach && yDistance <= yReach) {
                 zombie.recordDamageSource(sourcePlantName, sourcePlantCategory, damageType);
                 zombie.takeDamage(new Damage(damage, damageType));
             }
