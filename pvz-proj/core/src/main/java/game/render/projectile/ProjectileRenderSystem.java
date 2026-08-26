@@ -8,6 +8,7 @@ import game.animation.core.EntityAnimationRegistry;
 import game.animation.core.PvzAnimationService;
 import game.render.BoardGeometry;
 import models.core.plant.Plant;
+import models.core.plant.PlantActionTiming;
 import models.core.zombie.Zombie;
 import models.engine.board.Board;
 import models.engine.board.Lane;
@@ -33,6 +34,7 @@ public final class ProjectileRenderSystem {
     private final PvzAnimationService animations;
     private final EntityAnimationRegistry entityAnimations;
     private final Map<Plant, Integer> previousCooldowns = new IdentityHashMap<>();
+    private final Map<Plant, Integer> previousPlantFoodSerials = new IdentityHashMap<>();
     private final List<ZombieSnapshot> previousZombies = new ArrayList<>();
     private final List<VisualProjectile> projectiles = new ArrayList<>();
     private final List<ImpactVisual> impacts = new ArrayList<>();
@@ -65,6 +67,7 @@ public final class ProjectileRenderSystem {
         }
 
         detectPlantShots(board);
+        detectPlantFoodShots(board);
         snapshot(board);
         lastObservedTick = currentTick;
     }
@@ -100,6 +103,98 @@ public final class ProjectileRenderSystem {
             }
             spawnForPlant(board, plant, baseType);
         }
+    }
+
+    private void detectPlantFoodShots(Board board) {
+        for (Plant plant : board.getAllPlants()) {
+            Integer previous = previousPlantFoodSerials.get(plant);
+            if (previous == null || plant.getVisualPlantFoodSerial() == previous) {
+                continue;
+            }
+            spawnPlantFoodProjectiles(board, plant);
+        }
+    }
+
+    private void spawnPlantFoodProjectiles(Board board, Plant plant) {
+        String name = normalize(plant.getName());
+        List<ZombieSnapshot> zombies = visualTargetSnapshots(board);
+        if (zombies.isEmpty()) {
+            return;
+        }
+        float impactSeconds = PlantActionTiming.plantFoodImpactTicks(plant.getName()) / 10f;
+        if (name.equals("repeater")) {
+            spawnPlantFoodShot(plant, nearestTarget(zombies, plant, (int) Math.round(plant.getY()), false),
+                ProjectileVisualType.REPEATER_GIANT, impactSeconds, 0f);
+        } else if (name.equals("pea pod")) {
+            int heads = countPlantLayers(board, plant);
+            ZombieSnapshot target = nearestTarget(zombies, plant, (int) Math.round(plant.getY()), false);
+            for (int index = 0; index < heads; index++) {
+                spawnPlantFoodShot(plant, target, ProjectileVisualType.PEAPOD_GIANT, impactSeconds, index * 0.07f);
+            }
+        } else if (name.equals("citron")) {
+            spawnPlantFoodShot(plant, nearestTarget(zombies, plant, (int) Math.round(plant.getY()), false),
+                ProjectileVisualType.CITRON_PLANT_FOOD, impactSeconds, 0f);
+        } else if (name.equals("bowling bulb")) {
+            spawnPlantFoodFan(plant, zombies, ProjectileVisualType.BOWLING_PLANT_FOOD, 3, impactSeconds);
+        } else if (name.equals("cabbage pult")) {
+            spawnPlantFoodFan(plant, zombies, ProjectileVisualType.CABBAGE_PLANT_FOOD, 5, impactSeconds);
+        } else if (name.equals("kernel pult")) {
+            spawnPlantFoodFan(plant, zombies, ProjectileVisualType.KERNEL_BUTTER, zombies.size(), impactSeconds);
+        } else if (name.equals("melon pult")) {
+            spawnPlantFoodFan(plant, zombies, ProjectileVisualType.MELON_PLANT_FOOD, 3, impactSeconds);
+        } else if (name.equals("winter melon")) {
+            spawnPlantFoodFan(plant, zombies, ProjectileVisualType.WINTER_MELON_PLANT_FOOD, 3, impactSeconds);
+        } else if (name.equals("pepper pult")) {
+            spawnPlantFoodFan(plant, zombies, ProjectileVisualType.PEPPER_PLANT_FOOD, 3, impactSeconds);
+        }
+    }
+
+    private void spawnPlantFoodFan(
+        Plant plant, List<ZombieSnapshot> zombies, ProjectileVisualType type, int count, float impactSeconds
+    ) {
+        List<ZombieSnapshot> targets = new ArrayList<>(zombies);
+        targets.sort(Comparator.comparingDouble(zombie ->
+            Math.hypot(zombie.x - plant.getX(), zombie.y - plant.getY())));
+        int limit = Math.min(Math.max(0, count), targets.size());
+        for (int index = 0; index < limit; index++) {
+            spawnPlantFoodShot(plant, targets.get(index), type, impactSeconds, index * 0.05f);
+        }
+    }
+
+    private void spawnPlantFoodShot(
+        Plant plant, ZombieSnapshot target, ProjectileVisualType type, float impactSeconds, float stagger
+    ) {
+        if (target == null) {
+            return;
+        }
+        VisualDefinition definition = definitions.get(type);
+        if (definition == null || definition.projectilePath == null) {
+            return;
+        }
+        float release = Math.min(Math.max(0.05f, impactSeconds * 0.45f + stagger),
+            Math.max(0.05f, impactSeconds - 0.08f));
+        float duration = Math.max(0.08f, impactSeconds + stagger - release);
+        float startX = (float) plant.getX() + type.getSpawnXOffset();
+        float startY = (float) plant.getY() + type.getSpawnYOffset();
+        projectiles.add(new VisualProjectile(
+            type, definition, startX, startY,
+            ProjectileTarget.fromZombie(target.zombie, target.x, target.y), duration, release
+        ));
+    }
+
+    private int countPlantLayers(Board board, Plant source) {
+        Position position = new Position((int) Math.round(source.getX()), (int) Math.round(source.getY()));
+        Tile tile = board.getTileAt(position);
+        if (tile == null) {
+            return 1;
+        }
+        int count = 0;
+        for (Plant candidate : tile.getPlants()) {
+            if (normalize(candidate.getName()).equals(normalize(source.getName()))) {
+                count++;
+            }
+        }
+        return Math.max(1, count);
     }
 
     private boolean didAttack(Plant plant, int previousCooldown) {
@@ -504,8 +599,10 @@ public final class ProjectileRenderSystem {
 
     private void snapshot(Board board) {
         previousCooldowns.clear();
+        previousPlantFoodSerials.clear();
         for (Plant plant : board.getAllPlants()) {
             previousCooldowns.put(plant, plant.getCooldownRemaining());
+            previousPlantFoodSerials.put(plant, plant.getVisualPlantFoodSerial());
         }
         previousZombies.clear();
         Set<Zombie> seen = Collections.newSetFromMap(new IdentityHashMap<>());
@@ -519,6 +616,7 @@ public final class ProjectileRenderSystem {
 
     private void clearModelSnapshots() {
         previousCooldowns.clear();
+        previousPlantFoodSerials.clear();
         previousZombies.clear();
     }
 

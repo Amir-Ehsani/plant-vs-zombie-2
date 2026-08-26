@@ -48,7 +48,25 @@ public enum ProjectileVisualType {
     FUME("FUMESHROOM_BUBBLES", "FUMESHROOM_BUBBLES_HIT", "animation", "animation", false,
         0.56f, 0.48f, 0.36f, -0.13f, 0.35f),
     CACTUS("T_CACTUS_PROJECTILE", "CACTUS_PROJECTILE_HIT", "animation", "animation", false,
-        0.52f, 0.46f, 0.38f, -0.16f, 0.36f);
+        0.52f, 0.46f, 0.38f, -0.16f, 0.36f),
+    REPEATER_GIANT("REPEATER_PLANTFOOD_GIANTPEA", "SPLAT_PEA", "animation", "animation", false,
+        0.72f, 0.52f, 0.43f, -0.20f, 0.34f),
+    PEAPOD_GIANT("PEAPOD_PLANTFOOD_GIANTPEA", "SPLAT_PEA", "animation", "animation", false,
+        0.74f, 0.52f, 0.43f, -0.20f, 0.34f),
+    CITRON_PLANT_FOOD("CITRON_PLANTFOOD_ORB", "CITRON_PLANTFOOD_ORB_HIT",
+        "Plantfood_Citron_Plasma_Orb", "animation", false, 0.78f, 0.64f, 0.43f, -0.20f, 0.30f),
+    BOWLING_PLANT_FOOD("BOWLINGBULB_PLANTFOOD_PROJECTILE",
+        "BOWLINGBULB_PLANTFOOD_PROJECTILE", "animation", "explosion", false,
+        0.76f, 0.72f, 0.32f, -0.16f, 0.32f),
+    CABBAGE_PLANT_FOOD("CABBAGEPULT_PLANTFOOD_PROJECTILE",
+        "CABBAGEPULT_PLANTFOOD_PROJECTILE", "plantfood_cabbage", "plantfood_cabbageExplode", true,
+        0.62f, 0.62f, 0.18f, -0.45f, 0.40f),
+    MELON_PLANT_FOOD("T_MELON_PROJECTILE", "MELON_EXPLODE", "animation",
+        "plantfood_MelonExplode", true, 0.74f, 0.70f, 0.16f, -0.46f, 0.40f),
+    WINTER_MELON_PLANT_FOOD("T_WINTERMELON_PROJECTILE", "WINTERMELON_EXPLODE",
+        "animation", "plantfood_WintermelonExplode", true, 0.74f, 0.70f, 0.16f, -0.46f, 0.40f),
+    PEPPER_PLANT_FOOD("T_PEPPERPULT_PROJECTILE", "PEPPERPULT_PROJECTILE_PF_SPLAT",
+        "animation", "animation", true, 0.68f, 0.62f, 0.18f, -0.43f, 0.40f);
 
     private final String animationName;
     private final String impactAnimationName;
