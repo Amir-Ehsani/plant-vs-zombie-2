@@ -651,7 +651,10 @@ abstract class LaneCombatAttackSupport extends LaneCombatAbilitySupport {
             + Math.max(0, plant.getPierceCount())
             + Math.max(0, plant.getBounces());
         String category = normalizeCategory(plant);
-        if (category.equals("strike through") && additional == 0) {
+        String plantName = normalizeText(plant.getName());
+        if (plantName.equals("fume shroom")) {
+            additional = Integer.MAX_VALUE;
+        } else if (category.equals("strike through") && additional == 0) {
             additional = 2;
         }
         if (additional <= 0) {
@@ -661,7 +664,8 @@ abstract class LaneCombatAttackSupport extends LaneCombatAbilitySupport {
         List<Zombie> ordered = new ArrayList<>();
         for (Zombie zombie : candidates) {
             if (zombie != null && zombie != primary && zombie.isAlive()
-                && !isHypnotized(zombie)) {
+                && !isHypnotized(zombie)
+                && Math.abs(zombie.getX() - plant.getX()) <= resolveMaximumRange(plant)) {
                 ordered.add(zombie);
             }
         }

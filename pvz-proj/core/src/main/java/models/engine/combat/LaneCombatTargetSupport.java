@@ -366,6 +366,9 @@ abstract class LaneCombatTargetSupport extends LaneCombatTerrainSupport {
         if (name.equals("wasabi whip")) {
             return 2 + bonus;
         }
+        if (name.equals("fume shroom")) {
+            return 4 + bonus;
+        }
         return Double.MAX_VALUE;
     }
 
