@@ -225,7 +225,7 @@ abstract class GameControllerLevelSupport extends GameControllerStatusSupport {
             case NIGHT_OPS -> new NightOpsRule();
             case DEAD_LINE -> new DeadLineRule(3.0);
             case LOVE_YOUR_PLANTS -> new LoveYourPlantsRule(4);
-            case PLANT_WHAT_YOU_GET -> new PlantWhatYouGetRule(900);
+            case PLANT_WHAT_YOU_GET -> new PlantWhatYouGetRule(2000);
             default -> new NoSpecialRule();
         };
     }
