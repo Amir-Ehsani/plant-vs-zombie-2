@@ -24,7 +24,7 @@ public final class ZombieView extends EntityView<Zombie> {
     private static final float VISUAL_FOLLOW_RATE = 18f;
     private static final float TELEPORT_SNAP_DISTANCE = 1.25f;
     private static final double ARM_DETACH_HEALTH_RATIO = 0.50;
-    private static final float ASH_VISUAL_SCALE = 0.64f;
+    private static final float ASH_VISUAL_SCALE = 0.50f;
     private static final String ASH_PATH =
         "768/FULL/EFFECTS/ZOMBIE_BIGHEAD_ASH/ZOMBIE_BIGHEAD_ASH.PAM";
     private static final String GARGANTUAR_ASH_PATH =
