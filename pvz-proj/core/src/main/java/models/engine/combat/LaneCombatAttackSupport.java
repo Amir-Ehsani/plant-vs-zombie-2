@@ -350,6 +350,9 @@ abstract class LaneCombatAttackSupport extends LaneCombatAbilitySupport {
         List<Zombie> candidates = collectCandidateZombies(plant, lane);
         Zombie target = selectPrimaryTarget(plant, candidates);
         if (target == null || !isChargeReady(name, plant, state)) return;
+        if (name.equals("bowling bulb")) {
+            prepareBowlingBulbShot(state);
+        }
         int damage = effectiveDamage(plant, resolveBaseDamage(plant, state, tile));
         boolean peaProjectile = isPeaProjectilePlant(name, plant);
         Plant torchwood = peaProjectile ? findTorchwoodBetween(plant, target, lane) : null;
@@ -378,6 +381,20 @@ abstract class LaneCombatAttackSupport extends LaneCombatAbilitySupport {
         finishAttack(plant, state);
     }
 
+    private void prepareBowlingBulbShot(PlantRuntimeState state) {
+        if (state.bowlingOrangeRechargeTicks <= 0) {
+            state.bowlingShotTier = 3;
+            state.bowlingOrangeRechargeTicks = 10 * TICKS_PER_SECOND;
+            return;
+        }
+        if (state.bowlingBlueRechargeTicks <= 0) {
+            state.bowlingShotTier = 2;
+            state.bowlingBlueRechargeTicks = 5 * TICKS_PER_SECOND;
+            return;
+        }
+        state.bowlingShotTier = 1;
+    }
+
     private String resolveAttackClip(
         String name, PlantRuntimeState state, Tile tile, boolean butterShot
     ) {
@@ -394,8 +411,8 @@ abstract class LaneCombatAttackSupport extends LaneCombatAbilitySupport {
             return butterShot ? "attack2" : "attack";
         }
         if (name.equals("bowling bulb")) {
-            int cycle = state.shotCycle % 3;
-            return cycle == 0 ? "special" : cycle == 1 ? "special2" : "special3";
+            return state.bowlingShotTier >= 3 ? "special3"
+                    : state.bowlingShotTier == 2 ? "special2" : "special";
         }
         if (name.equals("fume shroom")) {
             return "special";
@@ -488,8 +505,7 @@ abstract class LaneCombatAttackSupport extends LaneCombatAbilitySupport {
             return 400;
         }
         if (name.equals("bowling bulb")) {
-            int cycle = state.shotCycle % 3;
-            return cycle == 0 ? 40 : cycle == 1 ? 120 : 180;
+            return state.bowlingShotTier >= 3 ? 180 : state.bowlingShotTier == 2 ? 120 : 40;
         }
         if (name.equals("cabbage pult") || name.equals("kernel pult")) {
             return 40;

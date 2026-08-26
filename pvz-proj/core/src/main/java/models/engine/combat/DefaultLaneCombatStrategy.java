@@ -116,6 +116,8 @@ public class DefaultLaneCombatStrategy extends LaneCombatPlantSupport implements
 
                 PlantRuntimeState state = plantStateOf(plant);
                 state.ageTicks++;
+                state.bowlingBlueRechargeTicks = Math.max(0, state.bowlingBlueRechargeTicks - 1);
+                state.bowlingOrangeRechargeTicks = Math.max(0, state.bowlingOrangeRechargeTicks - 1);
                 plant.tickCooldown();
                 if (plant.consumeExplosiveArmorBreak()) {
                     damageArea(tile.getPosition(), 1, 1,

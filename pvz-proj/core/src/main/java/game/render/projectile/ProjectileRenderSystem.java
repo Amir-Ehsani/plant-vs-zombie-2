@@ -395,7 +395,7 @@ public final class ProjectileRenderSystem {
         if (name.equals("rotobaga")) return 12;
         if (name.equals("starfruit")) return 5;
         if (name.equals("split pea")) return 3;
-        if (name.equals("bowling bulb")) return 3;
+        if (name.equals("bowling bulb")) return 1;
         if (!name.equals("pea pod")) return 1;
 
         Position position = new Position((int) Math.round(plant.getX()), (int) Math.round(plant.getY()));

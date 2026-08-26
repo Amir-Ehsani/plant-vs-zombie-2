@@ -67,6 +67,9 @@ abstract class LaneCombatState {
         protected int ageTicks;
         protected int digestTicks;
         protected int shotCycle;
+        protected int bowlingBlueRechargeTicks;
+        protected int bowlingOrangeRechargeTicks;
+        protected int bowlingShotTier;
         protected int crushCount;
         protected boolean hasAttacked;
         protected boolean actionPending;
