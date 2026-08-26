@@ -335,6 +335,10 @@ public class PlantFoodContext {
                     position.getY()
             );
             clone.setLevel(source.getLevel());
+            String sourceName = normalize(source.getName());
+            if (sourceName.equals("potato mine") || sourceName.equals("primal potato mine")) {
+                clone.finishArming();
+            }
             if (board.placePlant(clone, position)) {
                 created++;
                 if (plantPlacedHandler != null) {
