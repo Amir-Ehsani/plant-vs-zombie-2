@@ -20,6 +20,7 @@ public final class PlantView extends EntityView<Plant> {
         "768/FULL/EFFECTS/FROSTBITE_ICE_BLOCK_PLANT/FROSTBITE_ICE_BLOCK_PLANT.PAM";
     private static final String OCTOPUS_PATH =
         "768/FULL/EFFECTS/ZOMBIE_OCTOPUS_PROJECTILE/ZOMBIE_OCTOPUS_PROJECTILE.PAM";
+    private static final float BONK_CHOY_PLANT_FOOD_LOOPS = 3f;
 
     private final List<String> specialSequence = new ArrayList<>();
     private int previousAttackSerial;
@@ -145,7 +146,7 @@ public final class PlantView extends EntityView<Plant> {
         }
         specialTime += delta;
         String clip = currentSpecialClip();
-        float duration = Math.max(0.05f, profile.getDefinition().getClipDuration(clip));
+        float duration = specialClipDuration(clip);
         if (specialTime < duration) {
             return;
         }
@@ -155,6 +156,23 @@ public final class PlantView extends EntityView<Plant> {
             specialSequence.clear();
             specialIndex = 0;
         }
+    }
+
+    private float specialClipDuration(String clip) {
+        float duration = Math.max(0.05f, profile.getDefinition().getClipDuration(clip));
+        if (isBonkChoyPlantFoodCore(clip)) {
+            duration *= BONK_CHOY_PLANT_FOOD_LOOPS;
+        }
+        return duration;
+    }
+
+    private boolean shouldLoopSpecialClip(String clip) {
+        return isBonkChoyPlantFoodCore(clip);
+    }
+
+    private boolean isBonkChoyPlantFoodCore(String clip) {
+        return normalize(entity.getName()).equals("bonkchoy")
+            && normalize(clip).equals("plantfood");
     }
 
     private String currentSpecialClip() {
@@ -177,7 +195,7 @@ public final class PlantView extends EntityView<Plant> {
             position.x,
             position.y,
             profile.getScale(),
-            specialClip == null
+            specialClip == null || shouldLoopSpecialClip(specialClip)
         );
         batch.setColor(Color.WHITE);
     }

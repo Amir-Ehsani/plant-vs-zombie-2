@@ -23,6 +23,7 @@ import java.util.Map;
 import java.util.Set;
 
 public final class EntityRenderSystem {
+    private static final float CHERRY_BOMB_PLAYBACK_RATE = 0.62f;
     private final BoardGeometry geometry;
     private final PvzAnimationService animations;
     private final EntityAnimationRegistry registry;
@@ -55,8 +56,17 @@ public final class EntityRenderSystem {
             profile,
             clip,
             position.getX(),
-            position.getY()
+            position.getY(),
+            actionPlaybackRate(type)
         ));
+    }
+
+    private float actionPlaybackRate(PlantType type) {
+        if (type != null && type.getName() != null
+            && type.getName().trim().equalsIgnoreCase("Cherry Bomb")) {
+            return CHERRY_BOMB_PLAYBACK_RATE;
+        }
+        return 1f;
     }
 
     public void update(float delta, Board board) {

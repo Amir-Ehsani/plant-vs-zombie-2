@@ -14,14 +14,27 @@ final class PlantActionVisual {
     private final int column;
     private final int lane;
     private final float duration;
+    private final float playbackRate;
     private float elapsed;
 
     PlantActionVisual(EntityAnimationProfile profile, String clip, int column, int lane) {
+        this(profile, clip, column, lane, 1f);
+    }
+
+    PlantActionVisual(
+        EntityAnimationProfile profile,
+        String clip,
+        int column,
+        int lane,
+        float playbackRate
+    ) {
         this.profile = profile;
         this.clip = clip;
         this.column = column;
         this.lane = lane;
-        duration = Math.max(MIN_DURATION, profile.getDefinition().getClipDuration(clip));
+        this.playbackRate = Math.max(0.05f, playbackRate);
+        float clipDuration = Math.max(MIN_DURATION, profile.getDefinition().getClipDuration(clip));
+        duration = clipDuration / this.playbackRate;
     }
 
     void update(float delta) {
@@ -44,7 +57,7 @@ final class PlantActionVisual {
             batch,
             profile.getPath(),
             clip,
-            elapsed,
+            elapsed * playbackRate,
             position.x,
             position.y,
             profile.getScale(),
