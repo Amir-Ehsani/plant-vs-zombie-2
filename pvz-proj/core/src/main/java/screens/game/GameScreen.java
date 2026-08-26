@@ -26,6 +26,8 @@ import game.hud.CompactSeedBank;
 import game.input.GameplayInputMode;
 import game.input.GameplayInteractionSystem;
 import game.input.InteractionOverlayRenderer;
+import game.modes.AdventureLevelModeAdapter;
+import game.modes.LevelModeAdapter;
 import game.render.BoardBackgroundCatalog;
 import game.render.BoardGeometry;
 import game.render.BoardRenderer;
@@ -83,6 +85,7 @@ public final class GameScreen extends BaseScreen {
     private final CompactSeedBank compactSeedBank;
     private final GameplayInteractionSystem interactions;
     private final InteractionOverlayRenderer interactionOverlay;
+    private final LevelModeAdapter levelModeAdapter;
     private final Vector2 cursorWorld;
     private Button shovelButton;
 
@@ -145,8 +148,16 @@ public final class GameScreen extends BaseScreen {
             controller,
             game.getAuthController().getLoggedInUser()
         );
+        levelModeAdapter = new AdventureLevelModeAdapter(
+            controller,
+            boardGeometry,
+            shapes,
+            stage,
+            game.getSkin()
+        );
         buildHud();
         buildInteractionControls();
+        levelModeAdapter.setup();
         loadStageAssets();
         debugMessage = "Adventure session connected";
         pauseDialog = null;
@@ -173,6 +184,7 @@ public final class GameScreen extends BaseScreen {
         batch.setProjectionMatrix(stage.getCamera().combined);
         shapes.setProjectionMatrix(stage.getCamera().combined);
         drawBackground();
+        levelModeAdapter.renderOverlay();
         drawGrid();
         drawInteractionTileHighlight();
         drawLawnMowers();
@@ -207,6 +219,7 @@ public final class GameScreen extends BaseScreen {
 
     @Override
     public void dispose() {
+        levelModeAdapter.dispose();
         super.dispose();
         animations.dispose();
         batch.dispose();
@@ -421,6 +434,7 @@ public final class GameScreen extends BaseScreen {
         animations.update();
         updateCursorWorld();
         gameplayClock.update(delta);
+        levelModeAdapter.update();
         int currentTick = gameplayClock.getCurrentTick();
         float visualDelta = gameplayClock.isPaused() ? 0f : delta * gameplayClock.getGameSpeed();
         visualStateTime += visualDelta;
@@ -579,7 +593,8 @@ public final class GameScreen extends BaseScreen {
             batch,
             session,
             visualStateTime,
-            interactions.getSelectedPlantName()
+            interactions.getSelectedPlantName(),
+            controller::isPlantBoostedForGameplay
         );
         disableAlphaBlending();
     }
