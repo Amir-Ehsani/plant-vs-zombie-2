@@ -37,6 +37,18 @@ public final class PlantView extends EntityView<Plant> {
         "768/INITIAL/EFFECTS/POTATOMINE_EXPLOSION/POTATOMINE_EXPLOSION.PAM";
     private static final String PRIMAL_POTATO_MINE_EXPLOSION_PATH =
         "768/INITIAL/EFFECTS/PRIMAL_POTATOMINE_EXPLOSION/PRIMAL_POTATOMINE_EXPLOSION.PAM";
+    private static final String SNOW_PEA_PLANT_FOOD_SLOW_PATH =
+        "768/INITIAL/EFFECTS/SNOWPEA_PLANTFOOD_SLOW/SNOWPEA_PLANTFOOD_SLOW.PAM";
+    private static final String GOO_PEA_PLANT_FOOD_TILE_PATH =
+        "768/INITIAL/EFFECTS/GOOPEASHOOTER_PLANTFOOD_TILE/GOOPEASHOOTER_PLANTFOOD_TILE.PAM";
+    private static final String FUME_SHROOM_BUBBLES_PATH =
+        "768/INITIAL/EFFECTS/FUMESHROOM_BUBBLES/FUMESHROOM_BUBBLES.PAM";
+    private static final String CITRON_PLANT_FOOD_SHOCK_PATH =
+        "768/FULL/EFFECTS/CITRON_PLANTFOOD_SHOCK/CITRON_PLANTFOOD_SHOCK.PAM";
+    private static final String SUN_BEAN_OVERLAY_ONE_PATH =
+        "768/FULL/EFFECTS/SUNBEAN_PLANTFOOD_EFFECT_OVERLAY1/SUNBEAN_PLANTFOOD_EFFECT_OVERLAY1.PAM";
+    private static final String SUN_BEAN_OVERLAY_TWO_PATH =
+        "768/FULL/EFFECTS/SUNBEAN_PLANTFOOD_EFFECT_OVERLAY2/SUNBEAN_PLANTFOOD_EFFECT_OVERLAY2.PAM";
 
     private final List<String> specialSequence = new ArrayList<>();
     private int previousAttackSerial;
@@ -361,6 +373,7 @@ public final class PlantView extends EntityView<Plant> {
         if (name.equals("firepeashooter") && plantFoodEffectTime >= 0.40f && plantFoodEffectTime <= 3.40f) {
             drawFirePeashooterLane(batch, geometry, animations, board);
         }
+        drawPlantFoodFieldEffects(batch, geometry, animations, board, position, name);
         String clip = currentSpecialClip();
         if (clip == null) {
             return;
@@ -382,6 +395,68 @@ public final class PlantView extends EntityView<Plant> {
             String path = normalize(clip).contains("plantfood")
                 ? KIWIBEAST_PF_PULSE_PATH : KIWIBEAST_ATTACK_PULSE_PATH;
             animations.draw(batch, path, "animation", specialTime, position.x, position.y, 0.54f, false);
+        }
+    }
+
+    private void drawPlantFoodFieldEffects(
+        Batch batch,
+        BoardGeometry geometry,
+        PvzAnimationService animations,
+        Board board,
+        Vector2 position,
+        String name
+    ) {
+        if (plantFoodEffectTime < 0f) {
+            return;
+        }
+        if (name.equals("snowpea") && plantFoodEffectTime <= 3.5f) {
+            drawLanePlantFoodEffect(batch, geometry, animations, board,
+                SNOW_PEA_PLANT_FOOD_SLOW_PATH, snowPeaPlantFoodClip(), 0.47f, true);
+        } else if (name.equals("goopeashooter") && plantFoodEffectTime >= 0.5f
+                && plantFoodEffectTime <= 3.2f) {
+            drawLanePlantFoodEffect(batch, geometry, animations, board,
+                GOO_PEA_PLANT_FOOD_TILE_PATH, "animation", 0.46f, true);
+        } else if (name.equals("fumeshroom") && plantFoodEffectTime >= 0.8f
+                && plantFoodEffectTime <= 4.8f) {
+            animations.draw(batch, FUME_SHROOM_BUBBLES_PATH, "plantfood",
+                plantFoodEffectTime - 0.8f, position.x, position.y, 0.58f, true);
+        } else if (name.equals("citron") && plantFoodEffectTime >= 0.8f
+                && plantFoodEffectTime <= 1.8f) {
+            drawLanePlantFoodEffect(batch, geometry, animations, board,
+                CITRON_PLANT_FOOD_SHOCK_PATH, "animation", 0.52f, false);
+        } else if (name.equals("sunbean") && plantFoodEffectTime <= 2.3f) {
+            animations.draw(batch, SUN_BEAN_OVERLAY_ONE_PATH, "animation", plantFoodEffectTime,
+                position.x, position.y, 0.50f, false);
+            animations.draw(batch, SUN_BEAN_OVERLAY_TWO_PATH, "animation", plantFoodEffectTime,
+                position.x, position.y, 0.50f, false);
+        }
+    }
+
+    private String snowPeaPlantFoodClip() {
+        if (plantFoodEffectTime < 0.5f) {
+            return "plantfood_on";
+        }
+        if (plantFoodEffectTime > 3.0f) {
+            return "plantfood_off";
+        }
+        return "plantfood_idle";
+    }
+
+    private void drawLanePlantFoodEffect(
+        Batch batch,
+        BoardGeometry geometry,
+        PvzAnimationService animations,
+        Board board,
+        String path,
+        String clip,
+        float scale,
+        boolean loop
+    ) {
+        int lane = Math.max(1, Math.min(board.getHeight(), (int) Math.round(entity.getY())));
+        int startColumn = Math.max(1, (int) Math.floor(entity.getX()) + 1);
+        for (int column = startColumn; column <= board.getWidth(); column++) {
+            Vector2 tile = geometry.entityToScreen(column, lane);
+            animations.draw(batch, path, clip, plantFoodEffectTime, tile.x, tile.y, scale, loop);
         }
     }
 
