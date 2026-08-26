@@ -155,14 +155,14 @@ public class PlantFoodContext {
         if (source == null || damage <= 0) {
             return;
         }
-        schedule(delayTicks, () -> {
+        runDelayed(delayTicks, () -> {
             if (source.isAlive()) {
                 damageArea(source, xRadius, yRadius, damage, damageType);
             }
         });
     }
 
-    private void schedule(int delayTicks, Runnable action) {
+    public void runDelayed(int delayTicks, Runnable action) {
         if (action == null) {
             return;
         }
