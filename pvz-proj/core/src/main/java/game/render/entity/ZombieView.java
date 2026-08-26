@@ -38,6 +38,7 @@ public final class ZombieView extends EntityView<Zombie> {
     private boolean armDetached;
     private boolean armDetachPending;
     private String detachedArmPart;
+    private String detachedHeadPart;
     private String lastClip;
 
     public ZombieView(Zombie zombie, EntityAnimationProfile profile) {
@@ -125,7 +126,24 @@ public final class ZombieView extends EntityView<Zombie> {
             clip,
             visualX,
             (int) Math.round(entity.getY()),
-            armDetached ? detachedArmPart : null
+            armDetached ? detachedArmPart : null,
+            resolveDetachedHeadPart(animations)
+        );
+    }
+
+    ZombieHeadVisual createDeathHeadVisual(PvzAnimationService animations) {
+        if (isExplosiveDeath() || animations == null || !profile.getDefinition().hasClip("particles")) {
+            return null;
+        }
+        String headPart = resolveDetachedHeadPart(animations);
+        if (headPart == null) {
+            return null;
+        }
+        return new ZombieHeadVisual(
+            profile,
+            headPart,
+            visualX,
+            (int) Math.round(entity.getY())
         );
     }
 
@@ -283,6 +301,13 @@ public final class ZombieView extends EntityView<Zombie> {
             if (armPart != null) visibility.put(armPart, false);
         }
         return visibility;
+    }
+
+    private String resolveDetachedHeadPart(PvzAnimationService animations) {
+        if (detachedHeadPart == null) {
+            detachedHeadPart = animations.findDetachableHeadPart(profile.getPath());
+        }
+        return detachedHeadPart;
     }
 
     private String resolveDetachedArmPart(PvzAnimationService animations) {

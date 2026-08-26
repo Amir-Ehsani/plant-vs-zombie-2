@@ -27,6 +27,7 @@ public final class PvzAnimationService implements Disposable {
     private final Map<String, Set<String>> partNamesCache = new LinkedHashMap<>();
     private final Map<String, Map<String, Boolean>> visibilityCache = new LinkedHashMap<>();
     private final Map<String, String> detachableArmCache = new LinkedHashMap<>();
+    private final Map<String, String> detachableHeadCache = new LinkedHashMap<>();
 
     private TextureBank textureBank;
     private PamPlayer pamPlayer;
@@ -148,6 +149,30 @@ public final class PvzAnimationService implements Disposable {
         return selected;
     }
 
+    public String findDetachableHeadPart(String pamPath) {
+        if (!available || pamPath == null || pamPath.isBlank()) {
+            return null;
+        }
+        String cached = detachableHeadCache.get(pamPath);
+        if (cached != null) {
+            return cached.isEmpty() ? null : cached;
+        }
+        String selected = null;
+        int bestScore = Integer.MIN_VALUE;
+        for (String partName : partNames(pamPath)) {
+            int score = headPartScore(partName);
+            if (score > bestScore) {
+                bestScore = score;
+                selected = partName;
+            }
+        }
+        if (bestScore < 0) {
+            selected = null;
+        }
+        detachableHeadCache.put(pamPath, selected == null ? "" : selected);
+        return selected;
+    }
+
     public TextureRegion region(String imageResourceId) {
         if (!available || imageResourceId == null || imageResourceId.isBlank()) {
             return null;
@@ -223,6 +248,7 @@ public final class PvzAnimationService implements Disposable {
         partNamesCache.clear();
         visibilityCache.clear();
         detachableArmCache.clear();
+        detachableHeadCache.clear();
         available = false;
     }
 
@@ -373,6 +399,20 @@ public final class PvzAnimationService implements Disposable {
         if (normalized.contains("frontarm") || normalized.contains("armfront")) score += 80;
         if (normalized.contains("upperarm") || normalized.contains("armupper")) score += 70;
         if (normalized.endsWith("arm")) score += 35;
+        return score;
+    }
+
+    private int headPartScore(String partName) {
+        String normalized = normalizeToken(partName);
+        if (!normalized.contains("head") || normalized.contains("headwear")) {
+            return -1;
+        }
+        int score = 20 - Math.min(20, normalized.length() / 4);
+        if (normalized.equals("head") || normalized.endsWith("head")) score += 140;
+        if (normalized.contains("zombiehead") || normalized.contains("headzombie")) score += 120;
+        if (normalized.contains("head1") || normalized.contains("head01")) score += 90;
+        if (normalized.contains("helmet") || normalized.contains("hat") || normalized.contains("hair")) score -= 80;
+        if (normalized.contains("eye") || normalized.contains("jaw") || normalized.contains("mouth")) score -= 100;
         return score;
     }
 

@@ -28,7 +28,8 @@ final class ZombieDeathVisual {
         String clip,
         double boardX,
         int lane,
-        String hiddenPart
+        String hiddenPart,
+        String hiddenHeadPart
     ) {
         this(
             profile.getDefinition(),
@@ -37,7 +38,8 @@ final class ZombieDeathVisual {
             boardX,
             lane,
             profile.getScale(),
-            hiddenPart
+            hiddenPart,
+            hiddenHeadPart
         );
     }
 
@@ -48,7 +50,8 @@ final class ZombieDeathVisual {
         double boardX,
         int lane,
         float scale,
-        String hiddenPart
+        String hiddenPart,
+        String hiddenHeadPart
     ) {
         path = definition.getPath();
         this.clip = clip;
@@ -56,9 +59,7 @@ final class ZombieDeathVisual {
         this.boardX = boardX;
         this.lane = lane;
         this.scale = scale;
-        visibility = hiddenPart == null
-            ? Collections.emptyMap()
-            : Collections.singletonMap(hiddenPart, false);
+        visibility = hiddenVisibility(hiddenPart, hiddenHeadPart);
         float clipDuration = definition.getClipDuration(clip);
         duration = clipDuration > 0f ? clipDuration : FALLBACK_DURATION;
     }
@@ -80,8 +81,23 @@ final class ZombieDeathVisual {
             boardX,
             lane,
             scale,
+            null,
             null
         );
+    }
+
+    private static Map<String, Boolean> hiddenVisibility(String hiddenPart, String hiddenHeadPart) {
+        if (hiddenPart == null && hiddenHeadPart == null) {
+            return Collections.emptyMap();
+        }
+        Map<String, Boolean> hidden = new java.util.LinkedHashMap<>();
+        if (hiddenPart != null) {
+            hidden.put(hiddenPart, false);
+        }
+        if (hiddenHeadPart != null) {
+            hidden.put(hiddenHeadPart, false);
+        }
+        return Collections.unmodifiableMap(hidden);
     }
 
     void update(float delta) {

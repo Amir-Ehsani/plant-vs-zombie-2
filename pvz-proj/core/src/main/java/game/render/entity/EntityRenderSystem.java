@@ -30,6 +30,7 @@ public final class EntityRenderSystem {
     private final Map<Zombie, ZombieView> zombieViews = new IdentityHashMap<>();
     private final List<ZombiePartVisual> detachedParts = new ArrayList<>();
     private final List<ZombieDeathVisual> deathVisuals = new ArrayList<>();
+    private final List<ZombieHeadVisual> deathHeads = new ArrayList<>();
     private final List<PlantActionVisual> plantActionVisuals = new ArrayList<>();
 
     public EntityRenderSystem(BoardGeometry geometry, PvzAnimationService animations) {
@@ -70,6 +71,7 @@ public final class EntityRenderSystem {
         captureRemovedZombieDeaths(activeZombies);
         updateDetachedParts(delta);
         updateDeathVisuals(delta);
+        updateDeathHeads(delta);
         updatePlantActionVisuals(delta);
 
         plantViews.keySet().removeIf(plant -> !activePlants.contains(plant));
@@ -91,6 +93,7 @@ public final class EntityRenderSystem {
             renderZombiesInLane(batch, board, lane);
             renderDetachedPartsInLane(batch, row);
             renderDeathsInLane(batch, row);
+            renderDeathHeadsInLane(batch, row);
         }
         batch.end();
     }
@@ -126,9 +129,14 @@ public final class EntityRenderSystem {
             if (activeZombies.contains(zombie) || zombie == null || zombie.isAlive()) {
                 continue;
             }
-            ZombieDeathVisual death = entry.getValue().createDeathVisual(animations);
+            ZombieView view = entry.getValue();
+            ZombieDeathVisual death = view.createDeathVisual(animations);
             if (death != null) {
                 deathVisuals.add(death);
+            }
+            ZombieHeadVisual head = view.createDeathHeadVisual(animations);
+            if (head != null) {
+                deathHeads.add(head);
             }
         }
     }
@@ -148,6 +156,17 @@ public final class EntityRenderSystem {
             ZombieDeathVisual death = iterator.next();
             death.update(delta);
             if (death.isFinished()) iterator.remove();
+        }
+    }
+
+    private void updateDeathHeads(float delta) {
+        Iterator<ZombieHeadVisual> iterator = deathHeads.iterator();
+        while (iterator.hasNext()) {
+            ZombieHeadVisual head = iterator.next();
+            head.update(delta);
+            if (head.isFinished()) {
+                iterator.remove();
+            }
         }
     }
 
@@ -204,6 +223,14 @@ public final class EntityRenderSystem {
         for (ZombieDeathVisual death : deathVisuals) {
             if (death.getLane() == row) {
                 death.render(batch, geometry, animations);
+            }
+        }
+    }
+
+    private void renderDeathHeadsInLane(Batch batch, int row) {
+        for (ZombieHeadVisual head : deathHeads) {
+            if (head.getLane() == row) {
+                head.render(batch, geometry, animations);
             }
         }
     }
