@@ -75,7 +75,7 @@ public final class PlantView extends EntityView<Plant> {
         }
         Vector2 position = geometry.entityToScreen(entity.getX(), entity.getY());
         drawFrozenBehind(batch, animations, position);
-        drawPlant(batch, animations, position);
+        drawPlant(batch, animations, position, board);
         drawActionEffects(batch, geometry, animations, board, position);
         drawFrozenFront(batch, animations, position);
         drawOctopus(batch, animations, position);
@@ -319,7 +319,12 @@ public final class PlantView extends EntityView<Plant> {
         return specialSequence.get(specialIndex);
     }
 
-    private void drawPlant(Batch batch, PvzAnimationService animations, Vector2 position) {
+    private void drawPlant(
+        Batch batch,
+        PvzAnimationService animations,
+        Vector2 position,
+        Board board
+    ) {
         String specialClip = currentSpecialClip();
         String clip = specialClip == null ? resolveIdleOrDamageClip(board) : specialClip;
         float clipTime = specialClip == null ? timeForClip(clip) : specialTime;
