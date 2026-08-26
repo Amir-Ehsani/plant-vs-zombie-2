@@ -37,6 +37,7 @@ import models.account.PlantData;
 import models.account.Settings;
 import models.account.User;
 import models.core.plant.PlantType;
+import models.core.plant.PlantActionTiming;
 import models.engine.board.Board;
 import models.engine.board.Position;
 import models.engine.session.GameSession;
@@ -753,12 +754,66 @@ public final class GameScreen extends BaseScreen {
             || inputMode != GameplayInputMode.PLANTING
             || !interactions.wasSuccessful()
             || plantName == null
-            || position == null
-            || !plantName.trim().equalsIgnoreCase("Cherry Bomb")) {
+            || position == null) {
             return;
         }
         PlantType type = session.getPlantType(plantName);
-        entityRenderSystem.playPlantAction(type, position, "attack");
+        if (type == null || !isImmediatePlantVisual(plantName)) {
+            return;
+        }
+        entityRenderSystem.playPlantAction(
+            type,
+            position,
+            PlantActionTiming.immediateActionClip(plantName)
+        );
+        playImmediateFieldEffects(plantName, position);
+    }
+
+    private boolean isImmediatePlantVisual(String plantName) {
+        String normalized = plantName == null ? "" : plantName.trim().toLowerCase()
+            .replace('-', ' ').replace('_', ' ').replaceAll("\s+", " ");
+        return normalized.equals("gold bloom")
+            || normalized.equals("cherry bomb")
+            || normalized.equals("grapeshot")
+            || normalized.equals("jalapeno")
+            || normalized.equals("doom shroom")
+            || normalized.equals("ice shroom")
+            || normalized.equals("hot potato")
+            || normalized.equals("grave buster")
+            || normalized.endsWith(" mint");
+    }
+
+    private void playImmediateFieldEffects(String plantName, Position position) {
+        String normalized = plantName.trim().toLowerCase()
+            .replace('-', ' ').replace('_', ' ').replaceAll("\s+", " ");
+        float delay = PlantActionTiming.specialImpactTicks(plantName) / 10f;
+        if (normalized.equals("jalapeno")) {
+            List<Position> lane = new ArrayList<>();
+            for (int column = 1; column <= session.getBoard().getWidth(); column++) {
+                lane.add(new Position(column, position.getY()));
+            }
+            entityRenderSystem.playFieldEffect(
+                "768/INITIAL/EFFECTS/JALAPENO_FIRE/JALAPENO_FIRE.PAM",
+                "idle2", lane, 0.50f, delay, 1.33f, true
+            );
+        } else if (normalized.equals("ice shroom")) {
+            List<Position> tiles = new ArrayList<>();
+            for (int row = 1; row <= session.getBoard().getHeight(); row++) {
+                for (int column = 1; column <= session.getBoard().getWidth(); column++) {
+                    tiles.add(new Position(column, row));
+                }
+            }
+            entityRenderSystem.playFieldEffect(
+                "768/FULL/EFFECTS/ICESHROOM_TILE_FX/ICESHROOM_TILE_FX.PAM",
+                "spawn", tiles, 0.46f, delay, 0f, false
+            );
+        } else if (normalized.equals("hot potato")) {
+            entityRenderSystem.playFieldEffect(
+                "768/FULL/EFFECTS/HOTPOTATO_ICEBLOCK_STEAMFX/HOTPOTATO_ICEBLOCK_STEAMFX.PAM",
+                "animation", java.util.Collections.singletonList(position), 0.48f, delay, 0f, false
+            );
+        }
+
     }
 
     private void updateHoveredTile(int screenX, int screenY) {

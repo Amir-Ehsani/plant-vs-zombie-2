@@ -33,6 +33,7 @@ public final class EntityRenderSystem {
     private final List<ZombieDeathVisual> deathVisuals = new ArrayList<>();
     private final List<ZombieHeadVisual> deathHeads = new ArrayList<>();
     private final List<PlantActionVisual> plantActionVisuals = new ArrayList<>();
+    private final List<PlantFieldEffectVisual> fieldEffectVisuals = new ArrayList<>();
 
     public EntityRenderSystem(BoardGeometry geometry, PvzAnimationService animations) {
         if (geometry == null || animations == null || animations.getCatalog() == null) {
@@ -61,6 +62,28 @@ public final class EntityRenderSystem {
         ));
     }
 
+    public void playFieldEffect(
+        String path,
+        String clip,
+        List<Position> positions,
+        float scale,
+        float delay,
+        float duration,
+        boolean loop
+    ) {
+        if (path == null || clip == null || positions == null || positions.isEmpty()) {
+            return;
+        }
+        game.animation.core.AnimationDefinition definition = animations.getCatalog().findByPath(path);
+        if (definition == null || !definition.hasClip(clip)) {
+            return;
+        }
+        animations.preload(definition.getPath());
+        fieldEffectVisuals.add(new PlantFieldEffectVisual(
+            definition, clip, positions, scale, delay, duration, loop
+        ));
+    }
+
     private float actionPlaybackRate(PlantType type) {
         if (type != null && type.getName() != null
             && type.getName().trim().equalsIgnoreCase("Cherry Bomb")) {
@@ -83,6 +106,7 @@ public final class EntityRenderSystem {
         updateDeathVisuals(delta);
         updateDeathHeads(delta);
         updatePlantActionVisuals(delta);
+        updateFieldEffectVisuals(delta);
 
         plantViews.keySet().removeIf(plant -> !activePlants.contains(plant));
         zombieViews.keySet().removeIf(zombie -> !activeZombies.contains(zombie));
@@ -93,6 +117,7 @@ public final class EntityRenderSystem {
             return;
         }
         batch.begin();
+        renderFieldEffects(batch);
         for (int row = 1; row <= board.getHeight(); row++) {
             Lane lane = board.getLaneAt(row);
             if (lane == null) {
@@ -188,6 +213,23 @@ public final class EntityRenderSystem {
             if (visual.isFinished()) {
                 iterator.remove();
             }
+        }
+    }
+
+    private void updateFieldEffectVisuals(float delta) {
+        Iterator<PlantFieldEffectVisual> iterator = fieldEffectVisuals.iterator();
+        while (iterator.hasNext()) {
+            PlantFieldEffectVisual visual = iterator.next();
+            visual.update(delta);
+            if (visual.isFinished()) {
+                iterator.remove();
+            }
+        }
+    }
+
+    private void renderFieldEffects(Batch batch) {
+        for (PlantFieldEffectVisual visual : fieldEffectVisuals) {
+            visual.render(batch, geometry, animations);
         }
     }
 
