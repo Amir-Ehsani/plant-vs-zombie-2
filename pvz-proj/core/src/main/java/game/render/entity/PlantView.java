@@ -549,7 +549,9 @@ public final class PlantView extends EntityView<Plant> {
             return findClip("idle");
         }
         if (name.equals("sunshroom")) {
-            if (stateTime >= 72f) return firstClip("idle_stage3", "idle2_stage3");
+            if (entity.isGrowthFinished() || stateTime >= 72f) {
+                return firstClip("idle_stage3", "idle2_stage3");
+            }
             if (stateTime >= 24f) return firstClip("idle_stage2", "idle2_stage2");
             return firstClip("idle_stage1", "idle2_stage1");
         }
@@ -566,7 +568,9 @@ public final class PlantView extends EntityView<Plant> {
         }
         if (name.equals("potatomine") || name.equals("primalpotatomine")) {
             float armSeconds = name.equals("primalpotatomine") ? 5f : 15f;
-            if (stateTime < armSeconds) return firstClip("plant_idle", "plant");
+            if (!entity.isArmingFinished() && stateTime < armSeconds) {
+                return firstClip("plant_idle", "plant");
+            }
             return firstClip("idle", "idle2");
         }
         return null;

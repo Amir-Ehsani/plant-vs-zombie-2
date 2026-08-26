@@ -59,6 +59,8 @@ abstract class PlantState extends GameEntity {
     protected boolean plantFoodHypnoGargantuar;
     protected boolean explosiveArmor;
     protected boolean explosiveArmorBreakPending;
+    protected boolean growthFinished;
+    protected boolean armingFinished;
     protected int iceHits;
     protected int octopusHits;
     protected Zombie transformedByWizard;
@@ -142,6 +144,8 @@ abstract class PlantState extends GameEntity {
         plantFoodHypnoGargantuar = false;
         explosiveArmor = false;
         explosiveArmorBreakPending = false;
+        growthFinished = false;
+        armingFinished = false;
         iceHits = 0;
         octopusHits = 0;
         transformedByWizard = null;
@@ -300,6 +304,13 @@ abstract class PlantState extends GameEntity {
     }
     public int getGrowTimeTicks() {
         return growTimeTicks;
+    }
+    public boolean isGrowthFinished() {
+        return growthFinished;
+    }
+
+    public boolean isArmingFinished() {
+        return armingFinished;
     }
     public int getProductionTimeTicks() {
         return productionTimeTicks;

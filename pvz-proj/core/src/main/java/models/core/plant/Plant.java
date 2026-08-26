@@ -169,10 +169,12 @@ public class Plant extends PlantState {
 
     public void finishGrowth() {
         growTimeTicks = 0;
+        growthFinished = true;
     }
 
     public void finishArming() {
         armTimeTicks = 0;
+        armingFinished = true;
     }
 
     public void enableBlueFlame() {

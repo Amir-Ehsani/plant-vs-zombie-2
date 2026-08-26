@@ -58,7 +58,8 @@ abstract class LaneCombatPlantSupport extends LaneCombatAttackSupport {
             PlantRuntimeState state, Set<Plant> consumedPlants
     ) {
         if (!name.equals("potato mine") && !name.equals("primal potato mine")) return null;
-        int armTicks = plant.getArmTimeTicks() > 0 ? plant.getArmTimeTicks()
+        int armTicks = plant.isArmingFinished() ? 0
+                : plant.getArmTimeTicks() > 0 ? plant.getArmTimeTicks()
                 : name.equals("primal potato mine")
                 ? DEFAULT_PRIMAL_POTATO_ARM_TICKS : DEFAULT_POTATO_ARM_TICKS;
         if (state.ageTicks < armTicks || state.actionPending) return true;
