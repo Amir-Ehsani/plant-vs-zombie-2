@@ -337,6 +337,9 @@ abstract class LaneCombatAbilitySupport extends LaneCombatTargetSupport {
             if (bittenPlantName.equals("sun bean") && hpAfter < hpBefore && board != null) {
                 board.restoreSun(5 + Math.max(0, plant.getSunDropBonus()));
             }
+            if (bittenPlantName.equals("endurian") && hpAfter < hpBefore) {
+                plant.triggerSpecialAnimation("attack_start");
+            }
         }
 
         String plantName = normalizeText(plant.getName());
