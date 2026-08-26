@@ -23,6 +23,7 @@ public class PlantFoodContext {
     private final Random random;
     private final IntConsumer sunAdder;
     private final BiConsumer<Plant, Integer> sunBurstSpawner;
+    private final BiConsumer<Integer, Runnable> delayedActionScheduler;
     private final Consumer<BoardTickResult> resultRecorder;
     private final Consumer<Plant> plantPlacedHandler;
     private final Consumer<Plant> plantAgeResetHandler;
@@ -42,6 +43,7 @@ public class PlantFoodContext {
                 random,
                 sunAdder,
                 null,
+                null,
                 resultRecorder,
                 plantPlacedHandler,
                 plantAgeResetHandler
@@ -58,11 +60,36 @@ public class PlantFoodContext {
             Consumer<Plant> plantPlacedHandler,
             Consumer<Plant> plantAgeResetHandler
     ) {
+        this(
+                board,
+                plantFactory,
+                random,
+                sunAdder,
+                sunBurstSpawner,
+                null,
+                resultRecorder,
+                plantPlacedHandler,
+                plantAgeResetHandler
+        );
+    }
+
+    public PlantFoodContext(
+            Board board,
+            PlantFactory plantFactory,
+            Random random,
+            IntConsumer sunAdder,
+            BiConsumer<Plant, Integer> sunBurstSpawner,
+            BiConsumer<Integer, Runnable> delayedActionScheduler,
+            Consumer<BoardTickResult> resultRecorder,
+            Consumer<Plant> plantPlacedHandler,
+            Consumer<Plant> plantAgeResetHandler
+    ) {
         this.board = board;
         this.plantFactory = plantFactory;
         this.random = random == null ? new Random() : random;
         this.sunAdder = sunAdder;
         this.sunBurstSpawner = sunBurstSpawner;
+        this.delayedActionScheduler = delayedActionScheduler;
         this.resultRecorder = resultRecorder;
         this.plantPlacedHandler = plantPlacedHandler;
         this.plantAgeResetHandler = plantAgeResetHandler;
@@ -115,6 +142,35 @@ public class PlantFoodContext {
                 source.getName(),
                 source.getType() == null ? "" : source.getType().getCategory()
         ));
+    }
+
+    public void damageAreaDelayed(
+            Plant source,
+            int xRadius,
+            int yRadius,
+            int damage,
+            String damageType,
+            int delayTicks
+    ) {
+        if (source == null || damage <= 0) {
+            return;
+        }
+        schedule(delayTicks, () -> {
+            if (source.isAlive()) {
+                damageArea(source, xRadius, yRadius, damage, damageType);
+            }
+        });
+    }
+
+    private void schedule(int delayTicks, Runnable action) {
+        if (action == null) {
+            return;
+        }
+        if (delayTicks <= 0 || delayedActionScheduler == null) {
+            action.run();
+            return;
+        }
+        delayedActionScheduler.accept(delayTicks, action);
     }
 
     public void damageRandom(Plant source, int count, int damage, String damageType) {

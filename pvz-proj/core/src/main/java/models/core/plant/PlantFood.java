@@ -8,6 +8,7 @@ public class PlantFood {
     private static final int DEFAULT_FREEZE_TICKS = 50;
     private static final int DEFAULT_STUN_TICKS = 30;
     private static final int DEFAULT_POISON_TICKS = 50;
+    private static final int BONK_CHOY_PLANT_FOOD_IMPACT_DELAY_TICKS = 10;
 
     private final int duration;
     private final int healAmount;
@@ -220,7 +221,14 @@ public class PlantFood {
                     () -> context.freezeAll(DEFAULT_FREEZE_TICKS));
             case "bonk choy" -> {
                 if (context != null) {
-                    context.damageArea(plant, 1, 1, Math.max(150, damage * 10), "plant food punch");
+                    context.damageAreaDelayed(
+                            plant,
+                            1,
+                            1,
+                            Math.max(150, damage * 10),
+                            "plant food punch",
+                            BONK_CHOY_PLANT_FOOD_IMPACT_DELAY_TICKS
+                    );
                 }
                 yield temporaryModifier(plant, 1, 5, false);
             }

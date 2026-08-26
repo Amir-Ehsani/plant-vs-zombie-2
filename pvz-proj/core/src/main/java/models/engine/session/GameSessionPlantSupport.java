@@ -130,6 +130,7 @@ abstract class GameSessionPlantSupport extends GameSessionEventSupport {
                     }
                 },
                 this::spawnPlantFoodSunBurst,
+                this::schedulePlantAction,
                 this::recordBoardEvents,
                 plant -> {
                     if (plant != null) {
