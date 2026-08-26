@@ -90,6 +90,7 @@ abstract class GameSessionPlantSupport extends GameSessionEventSupport {
                         totalSunProduced += amount;
                     }
                 },
+                this::spawnPlantFoodSunBurst,
                 this::recordBoardEvents,
                 plant -> {
                     if (plant != null) {
@@ -103,6 +104,52 @@ abstract class GameSessionPlantSupport extends GameSessionEventSupport {
                     }
                 }
         );
+    }
+
+    private void spawnPlantFoodSunBurst(Plant source, int amount) {
+        if (source == null || amount <= 0 || board == null || sunManager == null) {
+            return;
+        }
+        List<Position> positions = plantFoodSunPositions(source);
+        if (positions.isEmpty()) {
+            return;
+        }
+        int sunCount = Math.min(positions.size(), Math.max(1, (amount + 24) / 25));
+        int fullQuanta = amount / 25;
+        int remainder = amount % 25;
+        int baseQuanta = fullQuanta / sunCount;
+        int extraQuanta = fullQuanta % sunCount;
+        for (int index = 0; index < sunCount; index++) {
+            int sunAmount = baseQuanta * 25;
+            if (index < extraQuanta) {
+                sunAmount += 25;
+            }
+            if (index == 0) {
+                sunAmount += remainder;
+            }
+            if (sunAmount > 0) {
+                sunManager.spawnLooseSun(positions.get(index), sunAmount);
+            }
+        }
+        totalSunProduced += amount;
+    }
+
+    private List<Position> plantFoodSunPositions(Plant source) {
+        int centerX = Math.max(1, Math.min(board.getWidth(), (int) Math.round(source.getX())));
+        int centerY = Math.max(1, Math.min(board.getHeight(), (int) Math.round(source.getY())));
+        int[][] offsets = {
+            {-1, 0}, {1, 0}, {0, 1}, {0, -1},
+            {-1, 1}, {1, 1}, {-1, -1}, {1, -1}, {0, 0}
+        };
+        List<Position> positions = new ArrayList<>();
+        for (int[] offset : offsets) {
+            int x = centerX + offset[0];
+            int y = centerY + offset[1];
+            if (x >= 1 && x <= board.getWidth() && y >= 1 && y <= board.getHeight()) {
+                positions.add(new Position(x, y));
+            }
+        }
+        return positions;
     }
 
     protected void updatePlantFoodEffects() {

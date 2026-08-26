@@ -14,6 +14,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Random;
 import java.util.function.Consumer;
+import java.util.function.BiConsumer;
 import java.util.function.IntConsumer;
 
 public class PlantFoodContext {
@@ -21,6 +22,7 @@ public class PlantFoodContext {
     private final PlantFactory plantFactory;
     private final Random random;
     private final IntConsumer sunAdder;
+    private final BiConsumer<Plant, Integer> sunBurstSpawner;
     private final Consumer<BoardTickResult> resultRecorder;
     private final Consumer<Plant> plantPlacedHandler;
     private final Consumer<Plant> plantAgeResetHandler;
@@ -34,10 +36,33 @@ public class PlantFoodContext {
             Consumer<Plant> plantPlacedHandler,
             Consumer<Plant> plantAgeResetHandler
     ) {
+        this(
+                board,
+                plantFactory,
+                random,
+                sunAdder,
+                null,
+                resultRecorder,
+                plantPlacedHandler,
+                plantAgeResetHandler
+        );
+    }
+
+    public PlantFoodContext(
+            Board board,
+            PlantFactory plantFactory,
+            Random random,
+            IntConsumer sunAdder,
+            BiConsumer<Plant, Integer> sunBurstSpawner,
+            Consumer<BoardTickResult> resultRecorder,
+            Consumer<Plant> plantPlacedHandler,
+            Consumer<Plant> plantAgeResetHandler
+    ) {
         this.board = board;
         this.plantFactory = plantFactory;
         this.random = random == null ? new Random() : random;
         this.sunAdder = sunAdder;
+        this.sunBurstSpawner = sunBurstSpawner;
         this.resultRecorder = resultRecorder;
         this.plantPlacedHandler = plantPlacedHandler;
         this.plantAgeResetHandler = plantAgeResetHandler;
@@ -51,6 +76,17 @@ public class PlantFoodContext {
         if (amount > 0 && sunAdder != null) {
             sunAdder.accept(amount);
         }
+    }
+
+    public void spawnSunBurst(Plant source, int amount) {
+        if (source == null || amount <= 0) {
+            return;
+        }
+        if (sunBurstSpawner != null) {
+            sunBurstSpawner.accept(source, amount);
+            return;
+        }
+        addSun(amount);
     }
 
     public void damageLane(Plant source, int damage, String damageType) {

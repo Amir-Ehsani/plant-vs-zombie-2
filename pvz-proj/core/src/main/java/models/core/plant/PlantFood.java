@@ -115,14 +115,14 @@ public class PlantFood {
             String name, Plant plant, PlantFoodContext context, int damage
     ) {
         return switch (name) {
-            case "sunflower" -> addSunEffect(context, 150);
-            case "twin sunflower" -> addSunEffect(context, 250);
+            case "sunflower" -> spawnSunBurstEffect(context, plant, 150);
+            case "twin sunflower" -> spawnSunBurstEffect(context, plant, 250);
             case "sun shroom" -> {
                 plant.finishGrowth();
-                addSun(context, 225);
+                spawnSunBurst(context, plant, 225);
                 yield false;
             }
-            case "primal sunflower" -> addSunEffect(context, 225);
+            case "primal sunflower" -> spawnSunBurstEffect(context, plant, 225);
             case "peashooter", "rotobaga", "split pea", "starfruit", "cat tail" ->
                     temporaryModifier(plant, 1, 5, false);
             case "repeater" -> {
@@ -274,9 +274,15 @@ public class PlantFood {
         return true;
     }
 
-    private boolean addSunEffect(PlantFoodContext context, int amount) {
-        addSun(context, amount);
+    private boolean spawnSunBurstEffect(PlantFoodContext context, Plant plant, int amount) {
+        spawnSunBurst(context, plant, amount);
         return false;
+    }
+
+    private void spawnSunBurst(PlantFoodContext context, Plant plant, int amount) {
+        if (context != null) {
+            context.spawnSunBurst(plant, amount);
+        }
     }
 
     private boolean addArmorEffect(Plant plant, int amount) {
@@ -287,12 +293,6 @@ public class PlantFood {
     private boolean contextAction(PlantFoodContext context, Runnable action) {
         if (context != null) action.run();
         return false;
-    }
-
-    private void addSun(PlantFoodContext context, int amount) {
-        if (context != null) {
-            context.addSun(amount);
-        }
     }
 
     private void reducePlantCooldown(Plant plant) {
