@@ -392,7 +392,7 @@ public final class ProjectileRenderSystem {
         String name = normalize(plant.getName());
         if (name.equals("repeater")) return 2;
         if (name.equals("mega gatling pea")) return 4;
-        if (name.equals("rotobaga")) return 12;
+        if (name.equals("rotobaga")) return 4;
         if (name.equals("starfruit")) return 5;
         if (name.equals("split pea")) return 3;
         if (name.equals("bowling bulb")) return 1;

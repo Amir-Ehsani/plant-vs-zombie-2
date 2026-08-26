@@ -93,7 +93,7 @@ abstract class LaneCombatAttackSupport extends LaneCombatAbilitySupport {
             lanes.add(below);
             lanes.add(-below);
         }
-        int scheduled = scheduleLaneShots(plant, lanes, true, 3);
+        int scheduled = scheduleLaneShots(plant, lanes, true, 1);
         if (scheduled > 0) {
             plant.prepareAttackAnimation("attack");
             finishAttack(plant, state);
