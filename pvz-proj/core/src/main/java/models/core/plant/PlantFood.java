@@ -102,6 +102,9 @@ public class PlantFood {
 
     private boolean applyPlantEffect(Plant plant, PlantFoodContext context) {
         String name = normalize(plant.getName());
+        if (hasNoPlantFoodEffect(name)) {
+            return false;
+        }
         int damage = Math.max(1, plant.getAttackDamage());
         Boolean result = applySunAndBasicPeaEffect(name, plant, context, damage);
         if (result == null) result = applyAdvancedPeaEffect(name, plant, context, damage);
@@ -112,6 +115,18 @@ public class PlantFood {
         plant.heal(healAmount);
         plant.setPlantFoodModifiers(2, 2, false);
         return true;
+    }
+
+
+    private boolean hasNoPlantFoodEffect(String name) {
+        return switch (name) {
+            case "gold bloom", "cherry bomb", "grapeshot", "jalapeno", "doom shroom",
+                    "imitater", "ice shroom", "hot potato", "grave buster",
+                    "enlighten mint", "appease mint", "arma mint", "bombard mint",
+                    "enforce mint", "reinforce mint", "enchant mint", "pierce mint",
+                    "cattail mint" -> true;
+            default -> false;
+        };
     }
 
     private Boolean applySunAndBasicPeaEffect(

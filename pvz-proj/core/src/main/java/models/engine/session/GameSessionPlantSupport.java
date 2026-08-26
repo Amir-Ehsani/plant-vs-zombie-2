@@ -511,11 +511,34 @@ abstract class GameSessionPlantSupport extends GameSessionEventSupport {
     protected void activateFamily(String category, int duration) {
         board.activatePlantFamilyBoost(category, duration);
         resetFamilyRecharge(category);
-        for (Plant plant : board.getAllPlants()) {
-            if (plant.getType() != null
-                    && normalizeName(plant.getType().getCategory()).equals(normalizeName(category))) {
-                plant.resetCooldown();
+        PlantFoodContext context = createPlantFoodContext();
+        for (Plant plant : new ArrayList<>(board.getAllPlants())) {
+            if (!belongsToFamily(plant, category) || isPowerMint(plant)) {
+                continue;
             }
+            plant.resetCooldown();
+            activateMintPlantFood(plant, context);
+        }
+    }
+
+    private boolean belongsToFamily(Plant plant, String category) {
+        return plant != null && plant.isAlive() && plant.getType() != null
+                && normalizeName(plant.getType().getCategory()).equals(normalizeName(category));
+    }
+
+    private boolean isPowerMint(Plant plant) {
+        return plant != null && normalizeName(plant.getName()).endsWith("mint");
+    }
+
+    private void activateMintPlantFood(Plant plant, PlantFoodContext context) {
+        PlantFood previous = activePlantFoods.remove(plant);
+        if (previous != null) {
+            previous.expire();
+        }
+        PlantFood plantFood = new PlantFood();
+        plant.usePlantFood(plantFood, context);
+        if (plantFood.isActive()) {
+            activePlantFoods.put(plant, plantFood);
         }
     }
 
