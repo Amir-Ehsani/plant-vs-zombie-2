@@ -21,6 +21,16 @@ public final class PlantView extends EntityView<Plant> {
     private static final String OCTOPUS_PATH =
         "768/FULL/EFFECTS/ZOMBIE_OCTOPUS_PROJECTILE/ZOMBIE_OCTOPUS_PROJECTILE.PAM";
     private static final float BONK_CHOY_PLANT_FOOD_LOOPS = 3f;
+    private static final String FIRE_PEA_ROW_PATH =
+        "768/INITIAL/EFFECTS/FIREPEASHOOTER_FIRE/FIREPEASHOOTER_FIRE.PAM";
+    private static final String PHAT_BEET_ATTACK_PULSE_PATH =
+        "768/FULL/EFFECTS/PHATBEETS_ATTACK_PULSE/PHATBEETS_ATTACK_PULSE.PAM";
+    private static final String PHAT_BEET_PF_PULSE_PATH =
+        "768/FULL/EFFECTS/PHATBEETS_PF_PULSE/PHATBEETS_PF_PULSE.PAM";
+    private static final String KIWIBEAST_ATTACK_PULSE_PATH =
+        "768/INITIAL/EFFECTS/KIWIBEAST_ATTACK_PULSE/KIWIBEAST_ATTACK_PULSE.PAM";
+    private static final String KIWIBEAST_PF_PULSE_PATH =
+        "768/INITIAL/EFFECTS/KIWIBEAST_PF_PULSE/KIWIBEAST_PF_PULSE.PAM";
 
     private final List<String> specialSequence = new ArrayList<>();
     private int previousAttackSerial;
@@ -28,6 +38,7 @@ public final class PlantView extends EntityView<Plant> {
     private int previousSpecialSerial;
     private int specialIndex;
     private float specialTime;
+    private float plantFoodEffectTime = -1f;
 
     public PlantView(Plant plant, EntityAnimationProfile profile) {
         super(plant, profile);
@@ -40,6 +51,12 @@ public final class PlantView extends EntityView<Plant> {
     public void update(float delta, Board board) {
         detectVisualActions();
         updateSpecialAnimation(delta);
+        if (plantFoodEffectTime >= 0f && delta > 0f) {
+            plantFoodEffectTime += delta;
+            if (plantFoodEffectTime > 6f) {
+                plantFoodEffectTime = -1f;
+            }
+        }
         if (!entity.isDisabled()) {
             super.update(delta, board);
         }
@@ -58,6 +75,7 @@ public final class PlantView extends EntityView<Plant> {
         Vector2 position = geometry.entityToScreen(entity.getX(), entity.getY());
         drawFrozenBehind(batch, animations, position);
         drawPlant(batch, animations, position);
+        drawActionEffects(batch, geometry, animations, board, position);
         drawFrozenFront(batch, animations, position);
         drawOctopus(batch, animations, position);
     }
@@ -106,12 +124,50 @@ public final class PlantView extends EntityView<Plant> {
     }
 
     private void startPlantFoodAnimation() {
+        plantFoodEffectTime = 0f;
         List<String> clips = buildPlantFoodSequence();
         startSequence(clips.toArray(new String[0]));
     }
 
     private List<String> buildPlantFoodSequence() {
         List<String> clips = new ArrayList<>();
+        String name = normalize(entity.getName());
+        if (name.equals("caulipower")) {
+            addUnique(clips, firstClip("plantfood_start", "plantfood_on"));
+            addUnique(clips, findClip("plantfood_loop"));
+            addUnique(clips, findClip("plantfood_loop2"));
+            addUnique(clips, firstClip("plantfood_end", "plantfood_off"));
+            return clips;
+        }
+        if (name.equals("magnetshroom")) {
+            addUnique(clips, findClip("plantfood_on"));
+            addUnique(clips, findClip("plantfood_collection"));
+            addUnique(clips, findClip("plantfood"));
+            addUnique(clips, findClip("plantfood_off"));
+            return clips;
+        }
+        if (name.equals("bowlingbulb")) {
+            addUnique(clips, findClip("plantfood_on"));
+            addUnique(clips, firstClip("plantfood_idle", "plantfood"));
+            addUnique(clips, findClip("plantfood1"));
+            addUnique(clips, findClip("plantfood2"));
+            addUnique(clips, findClip("plantfood3"));
+            return clips;
+        }
+        if (name.equals("chomper")) {
+            addUnique(clips, findClip("plantfood_on"));
+            addUnique(clips, findClip("plantfood"));
+            addUnique(clips, findClip("plantfood_off"));
+            addUnique(clips, findClip("burp"));
+            addUnique(clips, findClip("burp_end"));
+            return clips;
+        }
+        if (name.equals("cattail")) {
+            addUnique(clips, findClip("plantfood"));
+            addUnique(clips, findClip("plantfood_loop"));
+            addUnique(clips, findClip("plantfood_end"));
+            return clips;
+        }
         String start = firstClip("plantfood_on", "plantfood_start", "plantfoodON");
         String core = resolvePlantFoodCoreClip();
         String loop = firstClip("plantfood_loop", "plantfood_idle");
@@ -221,6 +277,51 @@ public final class PlantView extends EntityView<Plant> {
             specialClip == null || shouldLoopSpecialClip(specialClip)
         );
         batch.setColor(Color.WHITE);
+    }
+
+    private void drawActionEffects(
+        Batch batch,
+        BoardGeometry geometry,
+        PvzAnimationService animations,
+        Board board,
+        Vector2 position
+    ) {
+        if (board == null) {
+            return;
+        }
+        String name = normalize(entity.getName());
+        if (name.equals("firepeashooter") && plantFoodEffectTime >= 0.40f && plantFoodEffectTime <= 3.40f) {
+            drawFirePeashooterLane(batch, geometry, animations, board);
+        }
+        String clip = currentSpecialClip();
+        if (clip == null) {
+            return;
+        }
+        if (name.equals("phatbeet")) {
+            String path = normalize(clip).contains("plantfood")
+                ? PHAT_BEET_PF_PULSE_PATH : PHAT_BEET_ATTACK_PULSE_PATH;
+            animations.draw(batch, path, "animation", specialTime, position.x, position.y, 0.52f, false);
+        } else if (name.equals("kiwibeast")) {
+            String path = normalize(clip).contains("plantfood")
+                ? KIWIBEAST_PF_PULSE_PATH : KIWIBEAST_ATTACK_PULSE_PATH;
+            animations.draw(batch, path, "animation", specialTime, position.x, position.y, 0.54f, false);
+        }
+    }
+
+    private void drawFirePeashooterLane(
+        Batch batch,
+        BoardGeometry geometry,
+        PvzAnimationService animations,
+        Board board
+    ) {
+        int lane = Math.max(1, Math.min(board.getHeight(), (int) Math.round(entity.getY())));
+        int startColumn = Math.max(1, (int) Math.floor(entity.getX()) + 1);
+        float effectTime = Math.max(0f, plantFoodEffectTime - 0.40f);
+        String clip = effectTime < 0.66f ? "idle" : effectTime < 2.65f ? "idle2" : "idle3";
+        for (int column = startColumn; column <= board.getWidth(); column++) {
+            Vector2 tile = geometry.entityToScreen(column, lane);
+            animations.draw(batch, FIRE_PEA_ROW_PATH, clip, effectTime, tile.x, tile.y, 0.48f, clip.equals("idle2"));
+        }
     }
 
     private void drawFrozenBehind(Batch batch, PvzAnimationService animations, Vector2 position) {
