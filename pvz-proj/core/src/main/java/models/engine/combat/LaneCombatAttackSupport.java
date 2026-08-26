@@ -836,10 +836,11 @@ abstract class LaneCombatAttackSupport extends LaneCombatAbilitySupport {
         Zombie target = null;
         double minimum = Double.MAX_VALUE;
         for (Zombie candidate : lane.getAllZombies()) {
-            if (candidate == zombie || !candidate.isAlive() || isHypnotized(candidate)) {
+            if (candidate == zombie || !candidate.isAlive() || isHypnotized(candidate)
+                    || candidate.getX() < zombie.getX()) {
                 continue;
             }
-            double distance = Math.abs(candidate.getX() - zombie.getX());
+            double distance = candidate.getX() - zombie.getX();
             if (distance < minimum) {
                 minimum = distance;
                 target = candidate;
