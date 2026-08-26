@@ -44,7 +44,7 @@ public final class PlantActionTiming {
             return 4;
         }
         if (name.equals("squash")) {
-            return 5;
+            return 22;
         }
         if (name.equals("tangle kelp")) {
             return 8;
@@ -104,7 +104,7 @@ public final class PlantActionTiming {
             case "melon pult", "winter melon" -> 11;
             case "pepper pult" -> 12;
             case "potato mine", "primal potato mine" -> 6;
-            case "squash" -> 8;
+            case "squash" -> 20;
             case "tangle kelp" -> 11;
             case "iceberg lettuce" -> 7;
             case "bonk choy" -> 10;

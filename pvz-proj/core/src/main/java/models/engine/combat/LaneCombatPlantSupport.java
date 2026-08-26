@@ -122,8 +122,10 @@ abstract class LaneCombatPlantSupport extends LaneCombatAttackSupport {
                 zombie.kill();
                 state.crushCount++;
             }
-            tile.removePlant(plant);
-            plantStates.remove(plant);
+            scheduleCombatAction(6, () -> {
+                tile.removePlant(plant);
+                plantStates.remove(plant);
+            });
         });
     }
 

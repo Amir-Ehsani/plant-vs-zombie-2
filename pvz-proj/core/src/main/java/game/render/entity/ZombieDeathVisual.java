@@ -18,8 +18,14 @@ final class ZombieDeathVisual {
     private final String particleClip;
     private final double boardX;
     private final int lane;
-    private final float scale;
+    private static final float SQUASH_DURATION = 1.20f;
+    private static final float SQUASH_SETTLE_SECONDS = 0.18f;
+    private static final float SQUASH_HEIGHT_RATIO = 0.22f;
+
+    private final float scaleX;
+    private final float scaleY;
     private final float duration;
+    private final boolean squashed;
     private final Map<String, Boolean> visibility;
     private float elapsed;
 
@@ -38,6 +44,8 @@ final class ZombieDeathVisual {
             boardX,
             lane,
             profile.getScale(),
+            profile.getScale(),
+            false,
             hiddenPart,
             hiddenHeadPart
         );
@@ -49,7 +57,9 @@ final class ZombieDeathVisual {
         String particleClip,
         double boardX,
         int lane,
-        float scale,
+        float scaleX,
+        float scaleY,
+        boolean squashed,
         String hiddenPart,
         String hiddenHeadPart
     ) {
@@ -58,10 +68,13 @@ final class ZombieDeathVisual {
         this.particleClip = particleClip;
         this.boardX = boardX;
         this.lane = lane;
-        this.scale = scale;
+        this.scaleX = scaleX;
+        this.scaleY = scaleY;
+        this.squashed = squashed;
         visibility = hiddenVisibility(hiddenPart, hiddenHeadPart);
         float clipDuration = definition.getClipDuration(clip);
-        duration = clipDuration > 0f ? clipDuration : FALLBACK_DURATION;
+        duration = squashed ? SQUASH_DURATION
+            : (clipDuration > 0f ? clipDuration : FALLBACK_DURATION);
     }
 
     static ZombieDeathVisual effect(
@@ -81,6 +94,32 @@ final class ZombieDeathVisual {
             boardX,
             lane,
             scale,
+            scale,
+            false,
+            null,
+            null
+        );
+    }
+
+    static ZombieDeathVisual squashed(
+        EntityAnimationProfile profile,
+        String clip,
+        double boardX,
+        int lane
+    ) {
+        if (profile == null || clip == null || !profile.getDefinition().hasClip(clip)) {
+            return null;
+        }
+        float scale = profile.getScale();
+        return new ZombieDeathVisual(
+            profile.getDefinition(),
+            clip,
+            null,
+            boardX,
+            lane,
+            scale * 1.08f,
+            scale * SQUASH_HEIGHT_RATIO,
+            true,
             null,
             null
         );
@@ -116,6 +155,11 @@ final class ZombieDeathVisual {
 
     void render(Batch batch, BoardGeometry geometry, PvzAnimationService animations) {
         Vector2 position = geometry.entityToScreen(boardX, lane);
+        float renderScaleY = scaleY;
+        if (squashed) {
+            float progress = Math.min(1f, elapsed / SQUASH_SETTLE_SECONDS);
+            renderScaleY = scaleX + (scaleY - scaleX) * progress;
+        }
         animations.draw(
             batch,
             path,
@@ -123,8 +167,9 @@ final class ZombieDeathVisual {
             elapsed,
             position.x,
             position.y,
-            scale,
-            false,
+            scaleX,
+            renderScaleY,
+            squashed,
             visibility
         );
         if (particleClip != null) {
@@ -138,7 +183,8 @@ final class ZombieDeathVisual {
                 elapsed,
                 position.x,
                 position.y,
-                scale,
+                scaleX,
+                scaleY,
                 false,
                 visibility
             );

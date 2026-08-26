@@ -133,6 +133,15 @@ public final class ZombieView extends EntityView<Zombie> {
     }
 
     ZombieDeathVisual createDeathVisual(PvzAnimationService animations) {
+        if (isCrushDeath()) {
+            String flattenedClip = profile.firstClip("idle", "walk", "eat", "play");
+            ZombieDeathVisual squashed = ZombieDeathVisual.squashed(
+                profile, flattenedClip, visualX, (int) Math.round(entity.getY())
+            );
+            if (squashed != null) {
+                return squashed;
+            }
+        }
         if (isElectricBurnDeath()) {
             ZombieDeathVisual burn = createElectricBurnDeathVisual(animations);
             if (burn != null) {
@@ -160,7 +169,7 @@ public final class ZombieView extends EntityView<Zombie> {
     }
 
     ZombieHeadVisual createDeathHeadVisual(PvzAnimationService animations) {
-        if (isExplosiveDeath() || isElectricBurnDeath() || animations == null
+        if (isCrushDeath() || isExplosiveDeath() || isElectricBurnDeath() || animations == null
                 || !profile.getDefinition().hasClip("particles")) {
             return null;
         }
@@ -246,6 +255,11 @@ public final class ZombieView extends EntityView<Zombie> {
     private boolean isElectricBurnDeath() {
         String damageType = normalize(entity.getLastDamageType());
         return damageType.contains("electric") || damageType.contains("lightning");
+    }
+
+    private boolean isCrushDeath() {
+        String damageType = normalize(entity.getLastDamageType());
+        return damageType.contains("crush") || damageType.contains("squash");
     }
 
     private boolean isExplosiveDeath() {
