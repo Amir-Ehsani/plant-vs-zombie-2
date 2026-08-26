@@ -8,10 +8,12 @@ import models.core.plant.PlantFoodContext;
 import models.core.plant.PlantActionTiming;
 import models.core.plant.PlantRegistry;
 import models.core.plant.PlantType;
+import models.core.projectile.Damage;
 import models.core.zombie.Zombie;
 import models.core.zombie.ZombieFactory;
 import models.engine.board.Board;
 import models.engine.board.BoardResourceHandler;
+import models.engine.board.Lane;
 import models.engine.board.Position;
 import models.engine.board.Tile;
 import models.engine.board.TileType;
@@ -30,6 +32,7 @@ import models.level.wave.Wave;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
@@ -416,6 +419,7 @@ abstract class GameSessionPlantSupport extends GameSessionEventSupport {
         if (handled == null) handled = executeLaneOrGlobalPlant(name, plant, position, damage);
         if (handled != null) return handled;
         if (name.endsWith(" mint")) {
+            activateMintEntranceEffect(name, plant, position);
             activateMint(name, plant);
             return true;
         }
@@ -511,6 +515,70 @@ abstract class GameSessionPlantSupport extends GameSessionEventSupport {
         return plant.getType() == null ? "" : plant.getType().getCategory();
     }
 
+
+
+    private void activateMintEntranceEffect(
+            String normalizedName, Plant plant, Position position
+    ) {
+        if (normalizedName.equals("appease mint")) {
+            activateAppeaseMintVolley(plant, position);
+        }
+    }
+
+    private void activateAppeaseMintVolley(Plant plant, Position position) {
+        for (int volley = 0; volley < 3; volley++) {
+            int delay = volley * 4;
+            schedulePlantAction(delay, () -> fireAppeaseMintHugePea(plant, position));
+        }
+    }
+
+    private void fireAppeaseMintHugePea(Plant plant, Position position) {
+        Lane lane = board == null ? null : board.getLaneAt(position.getY());
+        if (lane == null) {
+            return;
+        }
+        List<Zombie> targets = new ArrayList<>();
+        for (Zombie zombie : lane.getAllZombies()) {
+            if (zombie != null && zombie.isAlive() && !board.isHypnotized(zombie)
+                    && zombie.getX() >= position.getX()) {
+                targets.add(zombie);
+            }
+        }
+        targets.sort(Comparator.comparingDouble(Zombie::getX));
+        if (targets.isEmpty()) {
+            return;
+        }
+
+        Zombie primary = targets.get(0);
+        primary.recordDamageSource(plant.getName(), plantCategory(plant), "appease mint huge pea");
+        primary.takeDamage(new Damage(300, "appease mint huge pea"));
+        splashAppeaseMintChildren(plant, primary);
+        recordBoardEvents(board.removeDeadEntities());
+    }
+
+    private void splashAppeaseMintChildren(Plant plant, Zombie impactTarget) {
+        List<Zombie> nearby = new ArrayList<>();
+        for (Zombie zombie : board.getAllZombies()) {
+            if (zombie == null || zombie == impactTarget || !zombie.isAlive()
+                    || board.isHypnotized(zombie)) {
+                continue;
+            }
+            if (Math.abs(zombie.getX() - impactTarget.getX()) <= 2.25
+                    && Math.abs(zombie.getY() - impactTarget.getY()) <= 1.25) {
+                nearby.add(zombie);
+            }
+        }
+        nearby.sort(Comparator.comparingDouble(zombie ->
+                Math.hypot(zombie.getX() - impactTarget.getX(),
+                        zombie.getY() - impactTarget.getY())));
+        int childCount = Math.min(6, nearby.size());
+        for (int index = 0; index < childCount; index++) {
+            Zombie zombie = nearby.get(index);
+            zombie.recordDamageSource(plant.getName(), plantCategory(plant),
+                    "appease mint child pea");
+            zombie.takeDamage(new Damage(100, "appease mint child pea"));
+        }
+    }
 
     protected void activateMint(String normalizedName, Plant plant) {
         int duration = Math.max(100, plant.getDurationTicks());
