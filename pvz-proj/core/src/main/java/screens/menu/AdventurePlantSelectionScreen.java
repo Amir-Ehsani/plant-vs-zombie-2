@@ -378,8 +378,11 @@ public class AdventurePlantSelectionScreen extends BaseMenuScreen {
         if (user == null || level == null) {
             return result;
         }
+        boolean debugMode = user.getSettings() != null && user.getSettings().isDebugMode();
         for (PlantData data : user.getCollection().getOwnedPlants()) {
-            if (data != null && data.isUnlocked() && level.isPlantAllowed(data.getName())) {
+            if (data != null
+                    && data.isUnlocked()
+                    && (debugMode || level.isPlantAllowed(data.getName()))) {
                 result.add(data);
             }
         }

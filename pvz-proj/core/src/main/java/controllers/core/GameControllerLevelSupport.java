@@ -158,11 +158,17 @@ abstract class GameControllerLevelSupport extends GameControllerStatusSupport {
     protected Level createAdventureLevel(String chapterName, int levelNumber) {
         int difficulty = currentDifficultyLevel();
         ZombieRegistry zombieRegistry = DefaultZombieRegistry.getInstance();
-        List<String> allowedPlants = AdventureContentCatalog.plantNamesUnlockedThrough(
-                chapterName,
-                levelNumber,
-                plantRegistry
-        );
+        User user = authController == null ? null : authController.getLoggedInUser();
+        boolean debugMode = user != null
+                && user.getSettings() != null
+                && user.getSettings().isDebugMode();
+        List<String> allowedPlants = debugMode
+                ? new ArrayList<>(plantRegistry.getAllPlantNames())
+                : AdventureContentCatalog.plantNamesUnlockedThrough(
+                        chapterName,
+                        levelNumber,
+                        plantRegistry
+                );
         List<String> allowedZombies = AdventureContentCatalog.zombieNamesUnlockedThrough(
                 chapterName,
                 levelNumber,
@@ -184,7 +190,7 @@ abstract class GameControllerLevelSupport extends GameControllerStatusSupport {
 
         LevelRule rule = levelNumber == 1
                 ? new NoSpecialRule()
-                : createSpecialRule(chapterName, levelNumber, allowedPlants, difficulty);
+                : createSpecialRule(chapterName, levelNumber, allowedPlants, difficulty, debugMode);
         LevelType levelType = levelNumber == 1 ? LevelType.NORMAL : LevelType.SPECIAL;
 
         Level level = new Level(
@@ -204,7 +210,8 @@ abstract class GameControllerLevelSupport extends GameControllerStatusSupport {
             String chapterName,
             int levelNumber,
             List<String> allowedPlants,
-            int difficulty
+            int difficulty,
+            boolean debugMode
     ) {
         SpecialLevelType type = AdventureLevelCatalog.specialTypeFor(chapterName, levelNumber);
 
@@ -213,8 +220,8 @@ abstract class GameControllerLevelSupport extends GameControllerStatusSupport {
             case LOCKED_PLANTS -> new LockedPlantsRule(
                     8,
                     3,
-                    Arrays.asList("Cherry Bomb", "Potato Mine"),
-                    lockedPlantFamilies()
+                    debugMode ? new ArrayList<>() : Arrays.asList("Cherry Bomb", "Potato Mine"),
+                    debugMode ? new LinkedHashMap<>() : lockedPlantFamilies()
             );
             case SAVE_OUR_SEEDS -> new SaveOurSeedsRule(protectedSeedPositions());
             case TIMED_WAR -> new TimedWarRule(
