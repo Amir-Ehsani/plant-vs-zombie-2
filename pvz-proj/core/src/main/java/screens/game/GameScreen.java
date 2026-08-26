@@ -725,7 +725,11 @@ public final class GameScreen extends BaseScreen {
         if (button != Input.Buttons.LEFT || hoveredTile == null) {
             return false;
         }
-        if (interactions.handleTileClick(hoveredTile)) {
+        GameplayInputMode inputMode = interactions.getMode();
+        String selectedPlantName = interactions.getSelectedPlantName();
+        Position targetPosition = hoveredTile;
+        if (interactions.handleTileClick(targetPosition)) {
+            playImmediatePlantVisual(inputMode, selectedPlantName, targetPosition);
             showInteractionResult();
             refreshGameHud();
             return true;
@@ -738,6 +742,23 @@ public final class GameScreen extends BaseScreen {
         }
         refreshGameHud();
         return true;
+    }
+
+    private void playImmediatePlantVisual(
+        GameplayInputMode inputMode,
+        String plantName,
+        Position position
+    ) {
+        if (entityRenderSystem == null
+            || inputMode != GameplayInputMode.PLANTING
+            || !interactions.wasSuccessful()
+            || plantName == null
+            || position == null
+            || !plantName.trim().equalsIgnoreCase("Cherry Bomb")) {
+            return;
+        }
+        PlantType type = session.getPlantType(plantName);
+        entityRenderSystem.playPlantAction(type, position, "attack");
     }
 
     private void updateHoveredTile(int screenX, int screenY) {

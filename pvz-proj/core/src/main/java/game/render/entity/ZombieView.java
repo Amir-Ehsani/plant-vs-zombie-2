@@ -3,6 +3,7 @@ package game.render.entity;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.g2d.Batch;
 import com.badlogic.gdx.math.Vector2;
+import game.animation.core.AnimationDefinition;
 import game.animation.core.EntityAnimationProfile;
 import game.animation.core.PvzAnimationService;
 import game.render.BoardGeometry;
@@ -23,6 +24,12 @@ public final class ZombieView extends EntityView<Zombie> {
     private static final float VISUAL_FOLLOW_RATE = 18f;
     private static final float TELEPORT_SNAP_DISTANCE = 1.25f;
     private static final double ARM_DETACH_HEALTH_RATIO = 0.50;
+    private static final String ASH_PATH =
+        "768/FULL/EFFECTS/ZOMBIE_BIGHEAD_ASH/ZOMBIE_BIGHEAD_ASH.PAM";
+    private static final String GARGANTUAR_ASH_PATH =
+        "768/FULL/EFFECTS/ZOMBIE_BIGHEAD_GARGANTUAR_ASH/ZOMBIE_BIGHEAD_GARGANTUAR_ASH.PAM";
+    private static final String IMP_ASH_PATH =
+        "768/FULL/EFFECTS/ZOMBIE_BIGHEAD_IMP_ASH/ZOMBIE_BIGHEAD_IMP_ASH.PAM";
 
     private double lastX;
     private float visualX;
@@ -102,7 +109,13 @@ public final class ZombieView extends EntityView<Zombie> {
         );
     }
 
-    ZombieDeathVisual createDeathVisual() {
+    ZombieDeathVisual createDeathVisual(PvzAnimationService animations) {
+        if (isExplosiveDeath()) {
+            ZombieDeathVisual ash = createAshDeathVisual(animations);
+            if (ash != null) {
+                return ash;
+            }
+        }
         String clip = deathClip();
         if (clip == null) {
             return null;
@@ -114,6 +127,50 @@ public final class ZombieView extends EntityView<Zombie> {
             (int) Math.round(entity.getY()),
             armDetached ? detachedArmPart : null
         );
+    }
+
+    private ZombieDeathVisual createAshDeathVisual(PvzAnimationService animations) {
+        if (animations == null || animations.getCatalog() == null) {
+            return null;
+        }
+        AnimationDefinition definition = animations.getCatalog().findByPath(resolveAshPath());
+        if (definition == null) {
+            definition = animations.getCatalog().findByPath(ASH_PATH);
+        }
+        if (definition == null) {
+            return null;
+        }
+        animations.preload(definition.getPath());
+        return ZombieDeathVisual.effect(
+            definition,
+            "animation",
+            visualX,
+            (int) Math.round(entity.getY()),
+            profile.getScale()
+        );
+    }
+
+    private String resolveAshPath() {
+        String id = entity.getType() == null ? "" : normalize(entity.getType().getId());
+        if (id.contains("gargantuar")) {
+            return GARGANTUAR_ASH_PATH;
+        }
+        if (id.contains("imp")) {
+            return IMP_ASH_PATH;
+        }
+        return ASH_PATH;
+    }
+
+    private boolean isExplosiveDeath() {
+        String category = normalize(entity.getLastDamageSourcePlantCategory());
+        String damageType = normalize(entity.getLastDamageType());
+        return category.contains("explosive")
+            || damageType.contains("explosion")
+            || damageType.contains("cherrybomb")
+            || damageType.contains("grapeshot")
+            || damageType.contains("potatomine")
+            || damageType.contains("doomshroom")
+            || damageType.contains("jalapeno");
     }
 
     private void detectArmDetach() {

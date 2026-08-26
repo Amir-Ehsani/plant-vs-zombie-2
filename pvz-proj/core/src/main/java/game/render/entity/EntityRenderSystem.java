@@ -6,9 +6,11 @@ import game.animation.core.EntityAnimationRegistry;
 import game.animation.core.PvzAnimationService;
 import game.render.BoardGeometry;
 import models.core.plant.Plant;
+import models.core.plant.PlantType;
 import models.core.zombie.Zombie;
 import models.engine.board.Board;
 import models.engine.board.Lane;
+import models.engine.board.Position;
 import models.engine.board.Tile;
 
 import java.util.ArrayList;
@@ -28,6 +30,7 @@ public final class EntityRenderSystem {
     private final Map<Zombie, ZombieView> zombieViews = new IdentityHashMap<>();
     private final List<ZombiePartVisual> detachedParts = new ArrayList<>();
     private final List<ZombieDeathVisual> deathVisuals = new ArrayList<>();
+    private final List<PlantActionVisual> plantActionVisuals = new ArrayList<>();
 
     public EntityRenderSystem(BoardGeometry geometry, PvzAnimationService animations) {
         if (geometry == null || animations == null || animations.getCatalog() == null) {
@@ -36,6 +39,23 @@ public final class EntityRenderSystem {
         this.geometry = geometry;
         this.animations = animations;
         registry = new EntityAnimationRegistry(animations.getCatalog());
+    }
+
+    public void playPlantAction(PlantType type, Position position, String clip) {
+        if (type == null || position == null || clip == null || clip.isBlank()) {
+            return;
+        }
+        EntityAnimationProfile profile = registry.forPlantType(type);
+        if (profile == null || !profile.getDefinition().hasClip(clip)) {
+            return;
+        }
+        animations.preload(profile.getPath());
+        plantActionVisuals.add(new PlantActionVisual(
+            profile,
+            clip,
+            position.getX(),
+            position.getY()
+        ));
     }
 
     public void update(float delta, Board board) {
@@ -50,6 +70,7 @@ public final class EntityRenderSystem {
         captureRemovedZombieDeaths(activeZombies);
         updateDetachedParts(delta);
         updateDeathVisuals(delta);
+        updatePlantActionVisuals(delta);
 
         plantViews.keySet().removeIf(plant -> !activePlants.contains(plant));
         zombieViews.keySet().removeIf(zombie -> !activeZombies.contains(zombie));
@@ -66,6 +87,7 @@ public final class EntityRenderSystem {
                 continue;
             }
             renderPlantsInLane(batch, board, lane);
+            renderPlantActionsInLane(batch, row);
             renderZombiesInLane(batch, board, lane);
             renderDetachedPartsInLane(batch, row);
             renderDeathsInLane(batch, row);
@@ -104,7 +126,7 @@ public final class EntityRenderSystem {
             if (activeZombies.contains(zombie) || zombie == null || zombie.isAlive()) {
                 continue;
             }
-            ZombieDeathVisual death = entry.getValue().createDeathVisual();
+            ZombieDeathVisual death = entry.getValue().createDeathVisual(animations);
             if (death != null) {
                 deathVisuals.add(death);
             }
@@ -129,6 +151,17 @@ public final class EntityRenderSystem {
         }
     }
 
+    private void updatePlantActionVisuals(float delta) {
+        Iterator<PlantActionVisual> iterator = plantActionVisuals.iterator();
+        while (iterator.hasNext()) {
+            PlantActionVisual visual = iterator.next();
+            visual.update(delta);
+            if (visual.isFinished()) {
+                iterator.remove();
+            }
+        }
+    }
+
     private void renderPlantsInLane(Batch batch, Board board, Lane lane) {
         for (Tile tile : lane.getTiles()) {
             List<Plant> plants = new ArrayList<>(tile.getPlants());
@@ -138,6 +171,14 @@ public final class EntityRenderSystem {
                 if (view != null) {
                     view.render(batch, geometry, animations, board);
                 }
+            }
+        }
+    }
+
+    private void renderPlantActionsInLane(Batch batch, int row) {
+        for (PlantActionVisual visual : plantActionVisuals) {
+            if (visual.getLane() == row) {
+                visual.render(batch, geometry, animations);
             }
         }
     }
