@@ -173,6 +173,63 @@ public class PlantFoodContext {
         delayedActionScheduler.accept(delayTicks, action);
     }
 
+    public void damageNearestInLane(Plant source, int damage, String damageType) {
+        if (board == null || source == null || damage <= 0) {
+            return;
+        }
+        Lane lane = board.getLaneAt(laneOf(source));
+        if (lane == null) {
+            return;
+        }
+        Zombie nearest = null;
+        double best = Double.MAX_VALUE;
+        for (Zombie zombie : lane.getAllZombies()) {
+            if (zombie == null || !zombie.isAlive() || board.isHypnotized(zombie)
+                    || zombie.getX() < source.getX()) {
+                continue;
+            }
+            double distance = zombie.getX() - source.getX();
+            if (distance < best) {
+                best = distance;
+                nearest = zombie;
+            }
+        }
+        if (nearest != null) {
+            nearest.recordDamageSource(source.getName(),
+                    source.getType() == null ? "" : source.getType().getCategory(), damageType);
+            nearest.takeDamage(new Damage(damage, damageType));
+            if (!nearest.isAlive()) {
+                record(board.removeDeadEntities());
+            }
+        }
+    }
+
+    public void damageRandomWithSplash(
+            Plant source, int count, int directDamage, int splashDamage, String damageType
+    ) {
+        if (board == null || source == null || count <= 0 || directDamage <= 0) {
+            return;
+        }
+        List<Zombie> targets = livingEnemies();
+        Collections.shuffle(targets, random);
+        int limit = Math.min(count, targets.size());
+        for (int index = 0; index < limit; index++) {
+            Zombie target = targets.get(index);
+            Position center = new Position(
+                    Math.max(1, Math.min(board.getWidth(), (int) Math.ceil(target.getX()))),
+                    Math.max(1, Math.min(board.getHeight(), (int) Math.round(target.getY())))
+            );
+            target.recordDamageSource(source.getName(),
+                    source.getType() == null ? "" : source.getType().getCategory(), damageType);
+            target.takeDamage(new Damage(directDamage, damageType));
+            if (splashDamage > 0) {
+                record(board.damageZombiesInArea(center, 1, 1, splashDamage, damageType + " splash",
+                        source.getName(), source.getType() == null ? "" : source.getType().getCategory()));
+            }
+        }
+        record(board.removeDeadEntities());
+    }
+
     public void damageRandom(Plant source, int count, int damage, String damageType) {
         if (board == null || source == null || count <= 0 || damage <= 0) {
             return;

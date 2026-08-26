@@ -152,7 +152,7 @@ public class PlantFood {
             case "repeater" -> {
                 applyTemporaryModifiers(context, plant, 1, 5, false);
                 if (context != null) runAtPlantFoodImpact(context, plant,
-                        () -> context.damageLane(plant, damage * 20, "plant food giant pea"));
+                        () -> context.damageNearestInLane(plant, damage * 20, "plant food giant pea"));
                 yield true;
             }
             case "threepeater" -> temporaryModifier(context, plant, 1, 5, false);
@@ -170,8 +170,12 @@ public class PlantFood {
         return switch (name) {
             case "pea pod" -> {
                 if (context != null) {
-                    runAtPlantFoodImpact(context, plant, () -> context.damageLane(plant,
-                            damage * 20 * context.countPlantLayers(plant), "plant food giant pea"));
+                    runAtPlantFoodImpact(context, plant, () -> {
+                        int heads = context.countPlantLayers(plant);
+                        for (int index = 0; index < heads; index++) {
+                            context.damageNearestInLane(plant, damage * 20, "plant food giant pea");
+                        }
+                    });
                 }
                 yield false;
             }
@@ -181,7 +185,8 @@ public class PlantFood {
             case "electric blueberry" -> contextAction(context, plant,
                     () -> context.killRandom(plant, 3, "plant food lightning"));
             case "bowling bulb" -> contextAction(context, plant,
-                    () -> context.damageRandom(plant, 3, Math.max(540, damage * 3), "plant food bulb"));
+                    () -> context.damageRandomWithSplash(plant, 3,
+                            Math.max(540, damage * 3), Math.max(180, damage), "plant food bulb"));
             case "cactus" -> temporaryModifier(context, plant, 3, 3, true);
             case "fire peashooter" -> {
                 if (context != null) {
