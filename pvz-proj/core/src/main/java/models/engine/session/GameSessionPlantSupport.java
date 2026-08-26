@@ -5,6 +5,7 @@ import models.core.plant.Plant;
 import models.core.plant.PlantFactory;
 import models.core.plant.PlantFood;
 import models.core.plant.PlantFoodContext;
+import models.core.plant.PlantActionTiming;
 import models.core.plant.PlantRegistry;
 import models.core.plant.PlantType;
 import models.core.zombie.Zombie;
@@ -41,7 +42,7 @@ import java.util.Set;
 
 
 abstract class GameSessionPlantSupport extends GameSessionEventSupport {
-    private static final int CHERRY_BOMB_IMPACT_DELAY_TICKS = 7;
+    private static final int SUN_PRODUCTION_PENDING = -2;
 
     private final List<ScheduledPlantAction> scheduledPlantActions = new ArrayList<>();
 
@@ -255,15 +256,47 @@ abstract class GameSessionPlantSupport extends GameSessionEventSupport {
 
             Position position = new Position((int) plant.getX(), (int) plant.getY());
             int amount = resolvePlantSunAmount(plant);
-            if (spawnPlantSun(position, amount)) {
-                nextSunProductionTick.put(plant, -1);
-                pendingEvents.add(GameEvent.plantSunProduced(
-                        plant.getName(),
-                        position,
-                        amount
-                ));
-            }
+            int impactDelay = PlantActionTiming.sunProductionImpactTicks(plant.getName());
+            plant.triggerSpecialAnimation(sunProductionClip(plant));
+            nextSunProductionTick.put(plant, SUN_PRODUCTION_PENDING);
+            schedulePlantAction(impactDelay, () -> {
+                if (!plant.isAlive() || !board.getAllPlants().contains(plant)) {
+                    nextSunProductionTick.remove(plant);
+                    return;
+                }
+                if (spawnPlantSun(position, amount)) {
+                    nextSunProductionTick.put(plant, -1);
+                    pendingEvents.add(GameEvent.plantSunProduced(
+                            plant.getName(),
+                            position,
+                            amount
+                    ));
+                } else {
+                    nextSunProductionTick.put(
+                            plant,
+                            tickManager.getCurrentTick() + productionInterval(plant)
+                    );
+                }
+            });
         }
+    }
+
+    private String sunProductionClip(Plant plant) {
+        String name = normalizeName(plant == null ? null : plant.getName());
+        if (name.equals("sun shroom")) {
+            int growTicks = plant.getGrowTimeTicks() > 0
+                    ? plant.getGrowTimeTicks()
+                    : DEFAULT_SUN_SHROOM_GROW_TICKS;
+            int age = plantAgeTicks.getOrDefault(plant, 0);
+            if (age >= growTicks) {
+                return "special_stage3";
+            }
+            if (age >= Math.max(1, growTicks / 3)) {
+                return "special_stage2";
+            }
+            return "special_stage1";
+        }
+        return "special";
     }
 
     protected int resolvePlantSunAmount(Plant plant) {
@@ -350,7 +383,7 @@ abstract class GameSessionPlantSupport extends GameSessionEventSupport {
         }
 
         String normalizedName = normalizeName(plant.getName());
-        int impactDelay = immediatePlantImpactDelayTicks(normalizedName);
+        int impactDelay = PlantActionTiming.specialImpactTicks(normalizedName);
         if (impactDelay > 0) {
             schedulePlantAction(
                     impactDelay,
@@ -368,13 +401,6 @@ abstract class GameSessionPlantSupport extends GameSessionEventSupport {
             updateStateFromLevel();
         }
         return true;
-    }
-
-    private int immediatePlantImpactDelayTicks(String normalizedName) {
-        if ("cherry bomb".equals(normalizedName)) {
-            return CHERRY_BOMB_IMPACT_DELAY_TICKS;
-        }
-        return 0;
     }
 
     protected boolean executeImmediatePlantEffect(Plant plant, Position position) {
