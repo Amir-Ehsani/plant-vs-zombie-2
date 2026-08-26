@@ -77,7 +77,9 @@ public final class PlantView extends EntityView<Plant> {
     private void startAttackAnimation() {
         String requested = entity.getVisualAttackClip();
         String clip = findClip(requested);
-        if (entity.isBoosted() && findClip("attack_plantfood") != null) {
+        if (usesPersistentPeashooterPlantFood()) {
+            clip = findClip("plantfood");
+        } else if (entity.isBoosted() && findClip("attack_plantfood") != null) {
             clip = findClip("attack_plantfood");
         }
         if (clip == null) {
@@ -199,6 +201,9 @@ public final class PlantView extends EntityView<Plant> {
     }
 
     private String resolveIdleOrDamageClip() {
+        if (usesPersistentPeashooterPlantFood()) {
+            return findClip("plantfood");
+        }
         if (entity.isBoosted()) {
             String boostedIdle = firstClip("idle_plantfood", "plantfood_idle");
             if (boostedIdle != null) {
@@ -210,6 +215,12 @@ public final class PlantView extends EntityView<Plant> {
             return damageClip;
         }
         return profile.firstClip("idle", "idle2", "idle_stage1", "stage1_idle", "loop", "animation", "charge");
+    }
+
+    private boolean usesPersistentPeashooterPlantFood() {
+        return entity.isBoosted()
+            && normalize(entity.getName()).equals("peashooter")
+            && findClip("plantfood") != null;
     }
 
     private String resolveDamageClip() {
