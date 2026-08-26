@@ -321,7 +321,13 @@ public final class PlantView extends EntityView<Plant> {
     }
 
     private boolean shouldLoopSpecialClip(String clip) {
-        return isBonkChoyPlantFoodCore(clip);
+        return isBonkChoyPlantFoodCore(clip)
+            || isChomperDigestLoop(clip);
+    }
+
+    private boolean isChomperDigestLoop(String clip) {
+        return normalize(entity.getName()).equals("chomper")
+            && normalize(clip).equals("specialidle");
     }
 
     private boolean isBonkChoyPlantFoodCore(String clip) {
