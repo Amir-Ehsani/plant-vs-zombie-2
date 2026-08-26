@@ -169,8 +169,15 @@ public class PlantFood {
                     () -> context.damageRandom(plant, 3, Math.max(540, damage * 3), "plant food bulb"));
             case "cactus" -> temporaryModifier(context, plant, 3, 3, true);
             case "fire peashooter" -> {
-                if (context != null) runAtPlantFoodImpact(context, plant, () -> context.damageLane(plant,
-                        Math.max(200, damage * 5), "plant food fire"));
+                if (context != null) {
+                    int start = PlantActionTiming.plantFoodImpactTicks(plant.getName());
+                    int pulseDamage = Math.max(300, damage * 3);
+                    for (int pulse = 0; pulse < 6; pulse++) {
+                        int delay = start + pulse * 5;
+                        context.runDelayed(delay, () -> context.damageLane(
+                                plant, pulseDamage, "plant food fire"));
+                    }
+                }
                 yield temporaryModifier(context, plant, 1, 5, false);
             }
             case "goo peashooter" -> {
@@ -240,10 +247,14 @@ public class PlantFood {
                     () -> context.freezeAll(DEFAULT_FREEZE_TICKS));
             case "bonk choy" -> {
                 if (context != null) {
-                    context.damageAreaDelayed(
-                            plant, 1, 1, Math.max(150, damage * 10),
-                            "plant food punch", PlantActionTiming.plantFoodImpactTicks(plant.getName())
-                    );
+                    int start = PlantActionTiming.plantFoodImpactTicks(plant.getName());
+                    int totalDamage = Math.max(1500, damage * 100);
+                    int pulseDamage = Math.max(1, totalDamage / 6);
+                    for (int pulse = 0; pulse < 6; pulse++) {
+                        int delay = start + pulse * 4;
+                        context.runDelayed(delay, () -> context.damageArea(
+                                plant, 1, 1, pulseDamage, "plant food punch"));
+                    }
                 }
                 yield temporaryModifier(context, plant, 1, 5, false);
             }
@@ -251,8 +262,18 @@ public class PlantFood {
                     () -> context.damageArea(plant, 1, 1, Math.max(300, damage * 20), "plant food sonic"));
             case "chomper" -> contextAction(context, plant,
                     () -> context.killRandom(plant, 3, "plant food chomp"));
-            case "wasabi whip" -> contextAction(context, plant,
-                    () -> context.damageArea(plant, 1, 1, Math.max(400, damage * 10), "plant food whip"));
+            case "wasabi whip" -> {
+                if (context != null) {
+                    int start = PlantActionTiming.plantFoodImpactTicks(plant.getName());
+                    int pulseDamage = Math.max(300, damage * 8);
+                    for (int pulse = 0; pulse < 5; pulse++) {
+                        int delay = start + pulse * 2;
+                        context.runDelayed(delay, () -> context.damageArea(
+                                plant, 1, 1, pulseDamage, "plant food whip"));
+                    }
+                }
+                yield false;
+            }
             case "kiwibeast" -> contextAction(context, plant,
                     () -> context.damageArea(plant, 1, 1, Math.max(450, damage * 10), "plant food slam"));
             default -> null;
