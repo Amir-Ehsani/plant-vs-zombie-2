@@ -7,6 +7,7 @@ import game.animation.core.EntityAnimationProfile;
 import game.animation.core.PvzAnimationService;
 import game.render.BoardGeometry;
 import models.core.plant.Plant;
+import models.core.plant.PlantActionTiming;
 import models.engine.board.Board;
 
 import java.util.ArrayList;
@@ -32,6 +33,10 @@ public final class PlantView extends EntityView<Plant> {
         "768/INITIAL/EFFECTS/KIWIBEAST_ATTACK_PULSE/KIWIBEAST_ATTACK_PULSE.PAM";
     private static final String KIWIBEAST_PF_PULSE_PATH =
         "768/INITIAL/EFFECTS/KIWIBEAST_PF_PULSE/KIWIBEAST_PF_PULSE.PAM";
+    private static final String POTATO_MINE_EXPLOSION_PATH =
+        "768/INITIAL/EFFECTS/POTATOMINE_EXPLOSION/POTATOMINE_EXPLOSION.PAM";
+    private static final String PRIMAL_POTATO_MINE_EXPLOSION_PATH =
+        "768/INITIAL/EFFECTS/PRIMAL_POTATOMINE_EXPLOSION/PRIMAL_POTATOMINE_EXPLOSION.PAM";
 
     private final List<String> specialSequence = new ArrayList<>();
     private int previousAttackSerial;
@@ -360,7 +365,16 @@ public final class PlantView extends EntityView<Plant> {
         if (clip == null) {
             return;
         }
-        if (name.equals("phatbeet")) {
+        if ((name.equals("potatomine") || name.equals("primalpotatomine"))
+                && normalize(clip).equals("attack")) {
+            float impactDelay = PlantActionTiming.meleeImpactTicks(entity.getName(), clip) / 10f;
+            if (specialTime >= impactDelay) {
+                String path = name.equals("primalpotatomine")
+                    ? PRIMAL_POTATO_MINE_EXPLOSION_PATH : POTATO_MINE_EXPLOSION_PATH;
+                animations.draw(batch, path, "animation", specialTime - impactDelay,
+                    position.x, position.y, name.equals("primalpotatomine") ? 0.62f : 0.56f, false);
+            }
+        } else if (name.equals("phatbeet")) {
             String path = normalize(clip).contains("plantfood")
                 ? PHAT_BEET_PF_PULSE_PATH : PHAT_BEET_ATTACK_PULSE_PATH;
             animations.draw(batch, path, "animation", specialTime, position.x, position.y, 0.52f, false);

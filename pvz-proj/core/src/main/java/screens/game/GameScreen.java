@@ -787,7 +787,26 @@ public final class GameScreen extends BaseScreen {
         String normalized = plantName.trim().toLowerCase()
             .replace('-', ' ').replace('_', ' ').replaceAll("\s+", " ");
         float delay = PlantActionTiming.specialImpactTicks(plantName) / 10f;
-        if (normalized.equals("jalapeno")) {
+        if (normalized.equals("cherry bomb")) {
+            entityRenderSystem.playFieldEffect(
+                "768/FULL/EFFECTS/CHERRYBOMB_EXPLOSION_REAR/CHERRYBOMB_EXPLOSION_REAR.PAM",
+                "explosion", java.util.Collections.singletonList(position), 0.58f, delay, 0f, false
+            );
+            entityRenderSystem.playFieldEffect(
+                "768/FULL/EFFECTS/CHERRYBOMB_EXPLOSION_TOP/CHERRYBOMB_EXPLOSION_TOP.PAM",
+                "explosion", java.util.Collections.singletonList(position), 0.58f, delay, 0f, false
+            );
+        } else if (normalized.equals("grapeshot")) {
+            entityRenderSystem.playFieldEffect(
+                "768/INITIAL/EFFECTS/ESCAPEROOT_EXPLOSION_GRAPESHOT/ESCAPEROOT_EXPLOSION_GRAPESHOT.PAM",
+                "animation", java.util.Collections.singletonList(position), 0.60f, delay, 0f, false
+            );
+        } else if (normalized.equals("grave buster")) {
+            entityRenderSystem.playFieldEffect(
+                "768/INITIAL/EFFECTS/GRAVEBUSTER_DIRT/GRAVEBUSTER_DIRT.PAM",
+                "gravebuster_dirt_anim", java.util.Collections.singletonList(position), 0.48f, delay, 0f, false
+            );
+        } else if (normalized.equals("jalapeno")) {
             List<Position> lane = new ArrayList<>();
             for (int column = 1; column <= session.getBoard().getWidth(); column++) {
                 lane.add(new Position(column, position.getY()));
