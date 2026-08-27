@@ -23,7 +23,9 @@ import controllers.core.GameController;
 import controllers.features.SettingsController;
 import game.animation.core.PvzAnimationService;
 import game.chapter.ChapterVisualRenderer;
+import game.dialogue.LevelDialogueController;
 import game.hud.CompactSeedBank;
+import game.notification.GameplayAnnouncementOverlay;
 import game.input.GameplayInputMode;
 import game.input.GameplayInteractionSystem;
 import game.input.InteractionOverlayRenderer;
@@ -42,12 +44,16 @@ import models.account.User;
 import models.core.plant.PlantType;
 import models.engine.board.Board;
 import models.engine.board.Position;
+import models.engine.events.GameEvent;
 import models.engine.session.GameSession;
 import models.engine.session.GameState;
 import models.engine.session.GroundRewardDrop;
 import models.engine.session.PlantRechargeStatus;
 import models.engine.sun.Sun;
 import models.level.core.AdventureLevelCatalog;
+import models.level.core.Level;
+import models.level.wave.Wave;
+import models.level.wave.WaveManager;
 import screens.BaseScreen;
 import ui.*;
 
@@ -86,6 +92,8 @@ public final class GameScreen extends BaseScreen {
     private final LawnMowerRenderSystem lawnMowerRenderSystem;
     private final CompactSeedBank compactSeedBank;
     private final ChapterVisualRenderer chapterVisualRenderer;
+    private final GameplayAnnouncementOverlay announcementOverlay;
+    private final LevelDialogueController dialogueController;
     private final GameplayInteractionSystem interactions;
     private final InteractionOverlayRenderer interactionOverlay;
     private final LevelModeAdapter levelModeAdapter;
@@ -107,6 +115,10 @@ public final class GameScreen extends BaseScreen {
     private PauseDialog pauseDialog;
     private GameOverDialog gameOverDialog;
     private boolean gameOverShown;
+    private boolean startupUiInitialized;
+    private boolean introDialogueStarted;
+    private boolean bossOutroStarted;
+    private int announcedNextWaveNumber;
     private String draggedConveyorPlantName;
 
     public GameScreen(Main game) {
@@ -169,11 +181,17 @@ public final class GameScreen extends BaseScreen {
         buildHud();
         buildInteractionControls();
         levelModeAdapter.setup();
+        announcementOverlay = new GameplayAnnouncementOverlay(stage, game.getSkin());
+        dialogueController = new LevelDialogueController(stage, game.getSkin(), animations);
         loadStageAssets();
         debugMessage = "Adventure session connected";
         pauseDialog = null;
         gameOverDialog = null;
         gameOverShown = false;
+        startupUiInitialized = false;
+        introDialogueStarted = false;
+        bossOutroStarted = false;
+        announcedNextWaveNumber = -1;
         refreshGameHud();
         refreshStatus(debugMessage);
     }
@@ -188,6 +206,7 @@ public final class GameScreen extends BaseScreen {
 
     @Override
     public void render(float delta) {
+        initializeStartupUi();
         updateRuntime(delta);
         Gdx.gl.glClearColor(0.08f, 0.12f, 0.08f, 1f);
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
@@ -449,6 +468,7 @@ public final class GameScreen extends BaseScreen {
         gameplayClock.update(delta);
         levelModeAdapter.update();
         int currentTick = gameplayClock.getCurrentTick();
+        updateAnnouncements(currentTick);
         float visualDelta = gameplayClock.isPaused() ? 0f : delta * gameplayClock.getGameSpeed();
         visualStateTime += visualDelta;
         updateRenderSystems(visualDelta, currentTick);
@@ -1006,8 +1026,24 @@ public final class GameScreen extends BaseScreen {
             pauseDialog.close();
             pauseDialog = null;
         }
-        gameOverShown = true;
         boolean victory = session.getState().getStatus() == GameState.Status.WON;
+        if (isBossLevel() && !bossOutroStarted) {
+            bossOutroStarted = true;
+            interactions.cancel();
+            dialogueController.showBossOutro(victory, () -> showGameOverDialog(victory));
+            return;
+        }
+        if (isBossLevel() && dialogueController.isShowing()) {
+            return;
+        }
+        showGameOverDialog(victory);
+    }
+
+    private void showGameOverDialog(boolean victory) {
+        if (gameOverShown) {
+            return;
+        }
+        gameOverShown = true;
         String message = victory
                 ? "The lawn is safe. Continue your Adventure."
                 : "The zombies broke through. Try the level again.";
@@ -1019,6 +1055,119 @@ public final class GameScreen extends BaseScreen {
                 game.getScreenManager()::showAdventure
         );
         gameOverDialog.show(stage);
+    }
+
+    private void initializeStartupUi() {
+        if (startupUiInitialized) {
+            return;
+        }
+        startupUiInitialized = true;
+        showIntroDialogueIfNeeded();
+    }
+
+    private void showIntroDialogueIfNeeded() {
+        if (introDialogueStarted) {
+            return;
+        }
+        introDialogueStarted = true;
+        Level level = session.getCurrentLevel();
+        String chapterName = chapterNameForLevel(level);
+        int levelNumber = levelNumberForLevel(level);
+        boolean wasPaused = gameplayClock.isPaused();
+        boolean shown = dialogueController.showIntro(
+                chapterName,
+                levelNumber,
+                () -> finishIntroDialogue(wasPaused)
+        );
+        if (!shown) {
+            announcementOverlay.push("PLANT YOUR DEFENSES!");
+            return;
+        }
+        if (!wasPaused && session.isRunning()) {
+            gameplayClock.togglePause();
+        }
+    }
+
+    private String chapterNameForLevel(Level level) {
+        if (level == null || level.getSeasonType() == null) {
+            User user = game.getAuthController().getLoggedInUser();
+            return user == null ? "" : user.getCurrentChapterName();
+        }
+        return switch (level.getSeasonType()) {
+            case ANCIENT_EGYPT -> "ancient-egypt";
+            case FROSTBITE_CAVES -> "ice-cave";
+            case BIG_WAVE_BEACH -> "wave-beach";
+            case DARK_AGES -> "wild-west";
+        };
+    }
+
+    private int levelNumberForLevel(Level level) {
+        if (level != null) {
+            int local = level.getLevelId() % 10;
+            if (local >= 1 && local <= AdventureLevelCatalog.BOSS_LEVEL) {
+                return local;
+            }
+        }
+        User user = game.getAuthController().getLoggedInUser();
+        return user == null ? 1 : user.getCurrentChapterLevel();
+    }
+
+    private void finishIntroDialogue(boolean wasPaused) {
+        if (!wasPaused && session.isRunning() && gameplayClock.isPaused()) {
+            gameplayClock.togglePause();
+        }
+        announcementOverlay.push("PLANT YOUR DEFENSES!");
+    }
+
+    private void updateAnnouncements(int currentTick) {
+        Level level = session.getCurrentLevel();
+        if (level == null) {
+            return;
+        }
+        for (GameEvent event : level.drainChapterEvents()) {
+            if (event == null || event.getEntityName() == null) {
+                continue;
+            }
+            String message = event.getEntityName();
+            String normalized = message.toLowerCase();
+            if (normalized.contains("necromancy")) {
+                announcementOverlay.push("NECROMANCY!");
+            } else if (normalized.contains("icy wind")) {
+                announcementOverlay.push("ICY WIND!");
+            } else if (normalized.contains("tide rose")) {
+                announcementOverlay.push("THE TIDE IS RISING!");
+            } else if (normalized.contains("tide receded")) {
+                announcementOverlay.push("THE TIDE IS RECEDING!");
+            } else if (normalized.contains("low beach")) {
+                announcementOverlay.push("ZOMBIES ARE RISING FROM THE WATER!");
+            } else if (normalized.contains("grave") && normalized.contains("rose")) {
+                announcementOverlay.push("NEW GRAVES ARE RISING!");
+            } else if (normalized.contains("sandstorm")) {
+                announcementOverlay.push("SANDSTORM!");
+            }
+        }
+        WaveManager waveManager = level.getWaveManager();
+        Wave nextWave = waveManager.getNextWave();
+        if (nextWave == null) {
+            return;
+        }
+        int ticksUntilNextWave = waveManager.getTicksUntilNextWave(currentTick);
+        if (ticksUntilNextWave < 0 || ticksUntilNextWave > 30
+                || announcedNextWaveNumber == nextWave.getWaveNumber()) {
+            return;
+        }
+        announcedNextWaveNumber = nextWave.getWaveNumber();
+        if (nextWave.getWaveNumber() == 1) {
+            announcementOverlay.push("THE ZOMBIES ARE COMING!");
+        } else if (nextWave.getWaveNumber() == waveManager.getTotalWaves()) {
+            announcementOverlay.push("FINAL WAVE!");
+        } else {
+            announcementOverlay.push("WAVE " + nextWave.getWaveNumber() + " INCOMING!");
+        }
+    }
+
+    private boolean isBossLevel() {
+        return levelNumberForLevel(session.getCurrentLevel()) == AdventureLevelCatalog.BOSS_LEVEL;
     }
 
     private void retryAfterDefeat() {
