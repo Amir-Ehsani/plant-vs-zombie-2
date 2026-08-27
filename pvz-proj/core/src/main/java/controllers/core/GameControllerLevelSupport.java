@@ -1,5 +1,7 @@
 package controllers.core;
 
+import boss.core.BossCatalog;
+import boss.core.BossRuntime;
 import controllers.features.TravelLogController;
 import models.account.Collection;
 import models.account.News;
@@ -174,6 +176,11 @@ abstract class GameControllerLevelSupport extends GameControllerStatusSupport {
                 levelNumber,
                 zombieRegistry
         );
+
+        if (levelNumber == AdventureLevelCatalog.BOSS_LEVEL) {
+            return createBossLevel(chapterName, allowedPlants, allowedZombies);
+        }
+
         List<String> newlyUnlockedZombies = AdventureContentCatalog.zombieNamesUnlockedAt(
                 chapterName,
                 levelNumber,
@@ -203,6 +210,41 @@ abstract class GameControllerLevelSupport extends GameControllerStatusSupport {
                 initialSun
         );
         AdventureChapterConfigurator.configure(level, chapterName, levelNumber);
+        return level;
+    }
+
+    private Level createBossLevel(
+            String chapterName,
+            List<String> allowedPlants,
+            List<String> allowedZombies
+    ) {
+        if (!BossCatalog.supportsChapter(chapterName)) {
+            throw new IllegalArgumentException(
+                    "P2-09 boss core currently supports Ancient Egypt and Frostbite Caves only."
+            );
+        }
+        WaveManager waveManager = new WaveManager(
+                new ArrayList<>(), null, AttackPattern.ROUND_ROBIN
+        );
+        ConveyorBeltRule conveyor = new ConveyorBeltRule(
+                ownedAllowedPlants(allowedPlants),
+                75,
+                new java.util.Random(AdventureLevelCatalog.levelId(chapterName, 4) * 7919L)
+        );
+        Level level = new Level(
+                AdventureLevelCatalog.levelId(chapterName, AdventureLevelCatalog.BOSS_LEVEL),
+                waveManager,
+                LevelType.BOSS,
+                allowedPlants,
+                allowedZombies,
+                conveyor,
+                0
+        );
+        AdventureChapterConfigurator.configure(level, chapterName, AdventureLevelCatalog.BOSS_LEVEL);
+        level.bindBossRuntime(new BossRuntime(
+                BossCatalog.create(chapterName),
+                AdventureLevelCatalog.levelId(chapterName, AdventureLevelCatalog.BOSS_LEVEL) * 104729L
+        ));
         return level;
     }
 

@@ -1,5 +1,6 @@
 package models.level.core;
 
+import boss.core.BossRuntime;
 import models.core.zombie.Zombie;
 import models.core.zombie.ZombieFactory;
 import models.engine.board.Board;
@@ -26,6 +27,8 @@ import java.util.Set;
 
 
 public class Level extends LevelState {
+    private BossRuntime bossRuntime;
+
     public Level(
             int levelId,
             WaveManager waveManager,
@@ -71,6 +74,9 @@ public class Level extends LevelState {
         waveManager.bindBoard(board);
         spawnInitialTerrainZombies();
         levelRule.onLevelStart(context);
+        if (bossRuntime != null) {
+            bossRuntime.start(board, allowedZombieNames, context.getCurrentTick());
+        }
         status = LevelStatus.RUNNING;
         evaluate(context);
     }
@@ -94,9 +100,12 @@ public class Level extends LevelState {
 
         applyTerrainChangesForTick(context.getCurrentTick());
         levelRule.onTick(context);
+        if (bossRuntime != null) {
+            bossRuntime.update(context.getCurrentTick());
+        }
         evaluate(context);
 
-        if (status != LevelStatus.RUNNING || !areZombieWavesStarted()) {
+        if (status != LevelStatus.RUNNING || bossRuntime != null || !areZombieWavesStarted()) {
             return null;
         }
 
@@ -118,6 +127,13 @@ public class Level extends LevelState {
         if (context.getBoard().hasBrainBeenEaten()
                 || levelRule.isLoseConditionMet(context)) {
             status = LevelStatus.LOST;
+            return;
+        }
+
+        if (bossRuntime != null) {
+            if (bossRuntime.isDefeated()) {
+                status = LevelStatus.WON;
+            }
             return;
         }
 
@@ -373,6 +389,25 @@ public class Level extends LevelState {
 
     public LevelStatus getStatus() {
         return status;
+    }
+
+    public boolean isBossLevel() {
+        return bossRuntime != null;
+    }
+
+    public BossRuntime getBossRuntime() {
+        return bossRuntime;
+    }
+
+    public void bindBossRuntime(BossRuntime bossRuntime) {
+        ensureConfigurable();
+        if (levelType != LevelType.BOSS) {
+            throw new IllegalStateException("Boss runtime can only be bound to a BOSS level.");
+        }
+        if (bossRuntime == null) {
+            throw new IllegalArgumentException("Boss runtime cannot be null.");
+        }
+        this.bossRuntime = bossRuntime;
     }
 
     public Board getBoard() {
