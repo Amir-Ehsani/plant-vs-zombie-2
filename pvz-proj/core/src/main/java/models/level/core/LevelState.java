@@ -44,6 +44,7 @@ abstract class LevelState {
     protected final Set<Integer> appliedTerrainTicks;
     protected final Set<Integer> appliedTerrainWaves;
     protected final Set<Position> lowTidePositions;
+    protected final Set<Position> activeNecromancyGravePositions;
     protected final ZombieFactory zombieFactory;
     protected final Random chapterRandom;
     protected int highTideWaterColumns;
@@ -110,6 +111,7 @@ abstract class LevelState {
         this.appliedTerrainTicks = new LinkedHashSet<>();
         this.appliedTerrainWaves = new LinkedHashSet<>();
         this.lowTidePositions = new LinkedHashSet<>();
+        this.activeNecromancyGravePositions = new LinkedHashSet<>();
         this.zombieFactory = new ZombieFactory();
         this.chapterRandom = new Random(levelId * 1009L);
         this.highTideWaterColumns = 2;
