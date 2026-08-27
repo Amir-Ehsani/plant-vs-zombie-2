@@ -58,11 +58,11 @@ abstract class LaneCombatTerrainSupport extends LaneCombatState {
 
     protected boolean isPeaPlant(Plant plant) {
         String name = normalizeText(plant == null ? null : plant.getName());
-        return name.contains("pea")
-            || name.equals("peashooter")
+        return name.equals("peashooter")
             || name.equals("repeater")
             || name.equals("threepeater")
             || name.equals("split pea")
+            || name.equals("pea pod")
             || name.equals("mega gatling pea");
     }
 
