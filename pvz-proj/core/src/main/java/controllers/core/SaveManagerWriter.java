@@ -76,7 +76,7 @@ abstract class SaveManagerWriter extends SaveManagerReader {
         first = appendField(builder, "bestMioPoint", String.valueOf(user.getBestMioPoint()), first);
         first = appendField(builder, "difficultyLevel", String.valueOf(user.getDifficultyLevel()), first);
         first = appendField(builder, "settings", settingsToJson(user.getSettings()), first);
-        first = appendField(builder, "currentChapterName", jsonString(user.getCurrentChapterName()), first);
+        first = appendField(builder, "currentChapterName", jsonString(user.getPersistentCurrentChapterName()), first);
         first = appendField(builder, "unlockedChapters", stringListToJson(user.getUnlockedChapters()), first);
         first = appendField(
                 builder,
@@ -90,7 +90,12 @@ abstract class SaveManagerWriter extends SaveManagerReader {
                 stringListToJson(user.getCompletedChapterLevels()),
                 first
         );
-        first = appendField(builder, "currentChapterLevel", String.valueOf(user.getCurrentChapterLevel()), first);
+        first = appendField(
+                builder,
+                "currentChapterLevel",
+                String.valueOf(user.getPersistentCurrentChapterLevel()),
+                first
+        );
         return appendField(
                 builder,
                 "allAdventureLevelsUnlocked",
