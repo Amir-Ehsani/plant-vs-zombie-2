@@ -41,6 +41,7 @@ public class Board extends BoardSupport {
         this.totalZombiesKilled = 0;
         this.totalPlantsDestroyed = 0;
         this.brainEaten = false;
+        this.graveSpawningAllowed = false;
         this.resourceHandler = null;
 
         initializeLanes();
@@ -322,6 +323,18 @@ public class Board extends BoardSupport {
         }
     }
 
+    public void freezeInitialZombie(Zombie zombie) {
+        combatStrategy.freezeInitialZombie(zombie);
+    }
+
+    public int getInitialZombieIceHealth(Zombie zombie) {
+        return combatStrategy.getInitialZombieIceHealth(zombie);
+    }
+
+    public boolean isInitialZombieFrozen(Zombie zombie) {
+        return combatStrategy.isInitialZombieFrozen(zombie);
+    }
+
     public void applyFreeze(Zombie zombie, int ticks) {
         combatStrategy.applyFreeze(zombie, ticks);
     }
@@ -404,7 +417,7 @@ public class Board extends BoardSupport {
             return false;
         }
         tile.setTileType(TileType.NORMAL);
-        recordTerrainReward(previousType);
+        recordTerrainReward(previousType, position);
         return true;
     }
 
