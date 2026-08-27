@@ -57,6 +57,18 @@ public class SunManager {
         return sun;
     }
 
+    public Sun spawnLooseSun(Position position, int sunAmount) {
+        if (position == null) {
+            throw new IllegalArgumentException("Position cannot be null.");
+        }
+        if (sunAmount <= 0) {
+            throw new IllegalArgumentException("Amount must be positive.");
+        }
+        Sun sun = Sun.groundSun(position, sunAmount, 300);
+        suns.add(sun);
+        return sun;
+    }
+
     public Sun spawnPermanentSun(Position position, int sunAmount) {
         if (position == null) {
             throw new IllegalArgumentException("Position cannot be null.");

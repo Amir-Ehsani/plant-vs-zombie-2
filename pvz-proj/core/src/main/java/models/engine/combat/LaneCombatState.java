@@ -41,6 +41,8 @@ abstract class LaneCombatState {
     protected static final int DEFAULT_CHOMPER_DIGEST_TICKS = 40 * TICKS_PER_SECOND;
     protected static final int INITIAL_FROZEN_ZOMBIE_ICE_HEALTH = 600;
     protected static final int INITIAL_FROZEN_ZOMBIE_MELT_PER_TICK = 2;
+    protected static final int HYPNOTIZED_BITE_WINDUP_TICKS = 5;
+    protected static final int HYPNOTIZED_BITE_INTERVAL_TICKS = 8;
 
     protected static final class ZombieRuntimeState {
         protected int frozenTicks;
@@ -170,6 +172,43 @@ abstract class LaneCombatState {
 
     public boolean isInitialZombieFrozen(Zombie zombie) {
         return getInitialZombieIceHealth(zombie) > 0;
+    }
+
+    protected void scheduleCombatAction(int delayTicks, Runnable action) {
+        if (action == null) {
+            return;
+        }
+        if (delayTicks <= 0) {
+            action.run();
+            return;
+        }
+        pendingCombatActions.add(new PendingCombatAction(combatTick + delayTicks, action));
+    }
+
+    private void runReadyCombatActions() {
+        if (pendingCombatActions.isEmpty()) {
+            return;
+        }
+        List<PendingCombatAction> ready = new ArrayList<>();
+        for (PendingCombatAction pending : pendingCombatActions) {
+            if (pending.dueTick <= combatTick) {
+                ready.add(pending);
+            }
+        }
+        pendingCombatActions.removeAll(ready);
+        for (PendingCombatAction pending : ready) {
+            pending.action.run();
+        }
+    }
+
+    private static final class PendingCombatAction {
+        private final int dueTick;
+        private final Runnable action;
+
+        private PendingCombatAction(int dueTick, Runnable action) {
+            this.dueTick = dueTick;
+            this.action = action;
+        }
     }
 
     public void applyFreeze(Zombie zombie, int ticks) {

@@ -108,6 +108,7 @@ abstract class GameSessionState {
         this.pendingEvents = new ArrayList<>();
         this.groundRewardDrops = new ArrayList<>();
         this.glowingZombies = new IdentityHashMap<>();
+        this.plantFoodDrops = new ArrayList<>();
         this.nextGroundRewardId = 1;
     }
 

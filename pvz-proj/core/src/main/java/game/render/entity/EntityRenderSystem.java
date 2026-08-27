@@ -56,6 +56,7 @@ public final class EntityRenderSystem {
     private final PvzAnimationService animations;
     private final EntityAnimationRegistry registry;
     private final boolean showPlantDamageAppearance;
+    private final SeasonType seasonType;
     private final Map<Plant, PlantView> plantViews = new IdentityHashMap<>();
     private final Map<Zombie, ZombieView> zombieViews = new IdentityHashMap<>();
     private final List<ZombiePartVisual> detachedParts = new ArrayList<>();
@@ -67,7 +68,7 @@ public final class EntityRenderSystem {
     private float terrainObjectTime;
 
     public EntityRenderSystem(BoardGeometry geometry, PvzAnimationService animations) {
-        this(geometry, animations, true);
+        this(geometry, animations, true, null);
     }
 
     public EntityRenderSystem(
@@ -75,12 +76,30 @@ public final class EntityRenderSystem {
             PvzAnimationService animations,
             boolean showPlantDamageAppearance
     ) {
+        this(geometry, animations, showPlantDamageAppearance, null);
+    }
+
+    public EntityRenderSystem(
+            BoardGeometry geometry,
+            PvzAnimationService animations,
+            SeasonType seasonType
+    ) {
+        this(geometry, animations, true, seasonType);
+    }
+
+    private EntityRenderSystem(
+            BoardGeometry geometry,
+            PvzAnimationService animations,
+            boolean showPlantDamageAppearance,
+            SeasonType seasonType
+    ) {
         if (geometry == null || animations == null || animations.getCatalog() == null) {
             throw new IllegalArgumentException("Entity renderer requires board geometry and animation catalog.");
         }
         this.geometry = geometry;
         this.animations = animations;
         this.showPlantDamageAppearance = showPlantDamageAppearance;
+        this.seasonType = seasonType;
         registry = new EntityAnimationRegistry(animations.getCatalog());
         preloadGraveAnimations();
         preloadInteractiveTerrainAnimations();
