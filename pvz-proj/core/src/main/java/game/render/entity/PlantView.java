@@ -639,7 +639,7 @@ public final class PlantView extends EntityView<Plant> {
         if (name.equals("pumpkin")) {
             return firstClip("idle_plantfood", "idle_plantfood2", "idle");
         }
-        if (name.equals("wallnut") || name.equals("explodeonut")) {
+        if (name.equals("explodeonut")) {
             return firstClip("plantfood", "plantfood2", "plantfood3", "idle");
         }
         return null;
