@@ -35,6 +35,7 @@ import models.level.core.AdventureLevelCatalog;
 import models.level.core.AdventureChapterConfigurator;
 import models.level.core.Level;
 import models.level.core.LevelType;
+import models.level.core.SeasonType;
 import models.level.rules.LevelRule;
 import models.level.rules.LevelRuntimeContext;
 import models.level.rules.NoSpecialRule;
@@ -163,15 +164,21 @@ abstract class GameControllerLevelSupport extends GameControllerStatusSupport {
                 levelNumber,
                 plantRegistry
         );
-        List<String> allowedZombies = AdventureContentCatalog.zombieNamesUnlockedThrough(
+        List<String> allowedZombies = chapterZombiePool(
                 chapterName,
-                levelNumber,
-                zombieRegistry
+                AdventureContentCatalog.zombieNamesUnlockedThrough(
+                        chapterName,
+                        levelNumber,
+                        zombieRegistry
+                )
         );
-        List<String> newlyUnlockedZombies = AdventureContentCatalog.zombieNamesUnlockedAt(
+        List<String> newlyUnlockedZombies = chapterZombiePool(
                 chapterName,
-                levelNumber,
-                zombieRegistry
+                AdventureContentCatalog.zombieNamesUnlockedAt(
+                        chapterName,
+                        levelNumber,
+                        zombieRegistry
+                )
         );
         List<Wave> waves = createDifficultyWaves(
                 difficulty,
@@ -198,6 +205,26 @@ abstract class GameControllerLevelSupport extends GameControllerStatusSupport {
         );
         AdventureChapterConfigurator.configure(level, chapterName, levelNumber);
         return level;
+    }
+
+    private List<String> chapterZombiePool(String chapterName, List<String> unlockedNames) {
+        SeasonType season = switch (AdventureLevelCatalog.normalizeChapterName(chapterName)) {
+            case "ancient-egypt" -> SeasonType.ANCIENT_EGYPT;
+            case "ice-cave" -> SeasonType.FROSTBITE_CAVES;
+            case "wave-beach" -> SeasonType.BIG_WAVE_BEACH;
+            case "wild-west" -> SeasonType.DARK_AGES;
+            default -> null;
+        };
+        if (season == null || unlockedNames == null) {
+            return unlockedNames == null ? new ArrayList<>() : new ArrayList<>(unlockedNames);
+        }
+        List<String> result = new ArrayList<>();
+        for (String zombieName : unlockedNames) {
+            if (season.isZombieAllowed(zombieName)) {
+                result.add(zombieName);
+            }
+        }
+        return result;
     }
 
     protected LevelRule createSpecialRule(
