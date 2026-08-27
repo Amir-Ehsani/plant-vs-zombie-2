@@ -51,6 +51,11 @@ public final class PlantView extends EntityView<Plant> {
         "768/FULL/EFFECTS/SUNBEAN_PLANTFOOD_EFFECT_OVERLAY1/SUNBEAN_PLANTFOOD_EFFECT_OVERLAY1.PAM";
     private static final String SUN_BEAN_OVERLAY_TWO_PATH =
         "768/FULL/EFFECTS/SUNBEAN_PLANTFOOD_EFFECT_OVERLAY2/SUNBEAN_PLANTFOOD_EFFECT_OVERLAY2.PAM";
+    private static final String GENERIC_EXPLOSION_BACK_PATH =
+        "768/INITIAL/EFFECTS/GENERIC_EXPLOSION_BACK/GENERIC_EXPLOSION_BACK.PAM";
+    private static final String GENERIC_EXPLOSION_FRONT_PATH =
+        "768/INITIAL/EFFECTS/GENERIC_EXPLOSION_FRONT/GENERIC_EXPLOSION_FRONT.PAM";
+    private static final float GENERIC_EXPLOSION_SECONDS = 3f;
 
     private final List<String> specialSequence = new ArrayList<>();
     private int previousAttackSerial;
@@ -59,6 +64,7 @@ public final class PlantView extends EntityView<Plant> {
     private int specialIndex;
     private float specialTime;
     private float plantFoodEffectTime = -1f;
+    private float armorExplosionTime = -1f;
     private int squashLandingDirection;
 
     public PlantView(Plant plant, EntityAnimationProfile profile) {
@@ -79,6 +85,12 @@ public final class PlantView extends EntityView<Plant> {
                 plantFoodEffectTime = -1f;
             }
         }
+        if (armorExplosionTime >= 0f && delta > 0f) {
+            armorExplosionTime += delta;
+            if (armorExplosionTime >= GENERIC_EXPLOSION_SECONDS) {
+                armorExplosionTime = -1f;
+            }
+        }
         if (!entity.isDisabled()) {
             super.update(delta, board);
         }
@@ -97,8 +109,10 @@ public final class PlantView extends EntityView<Plant> {
         Vector2 position = geometry.entityToScreen(entity.getX(), entity.getY());
         position.x += squashVisualOffset(geometry);
         drawFrozenBehind(batch, animations, position);
+        drawArmorExplosion(batch, animations, position, false);
         drawPlant(batch, animations, position, board);
         drawActionEffects(batch, geometry, animations, board, position);
+        drawArmorExplosion(batch, animations, position, true);
         drawFrozenFront(batch, animations, position);
         drawOctopus(batch, animations, position);
     }
@@ -107,6 +121,10 @@ public final class PlantView extends EntityView<Plant> {
         int specialSerial = entity.getVisualSpecialSerial();
         if (specialSerial != previousSpecialSerial) {
             previousSpecialSerial = specialSerial;
+            if (normalize(entity.getName()).equals("explodeonut")
+                    && normalize(entity.getVisualSpecialClip()).equals("attack")) {
+                armorExplosionTime = 0f;
+            }
             startSpecialAnimation();
         }
         int plantFoodSerial = entity.getVisualPlantFoodSerial();
@@ -542,6 +560,20 @@ public final class PlantView extends EntityView<Plant> {
             Vector2 tile = geometry.entityToScreen(column, lane);
             animations.draw(batch, FIRE_PEA_ROW_PATH, clip, effectTime, tile.x, tile.y, 0.48f, clip.equals("idle2"));
         }
+    }
+
+    private void drawArmorExplosion(
+        Batch batch,
+        PvzAnimationService animations,
+        Vector2 position,
+        boolean front
+    ) {
+        if (armorExplosionTime < 0f) {
+            return;
+        }
+        String path = front ? GENERIC_EXPLOSION_FRONT_PATH : GENERIC_EXPLOSION_BACK_PATH;
+        animations.draw(batch, path, "animation", armorExplosionTime,
+            position.x, position.y, 0.56f, false);
     }
 
     private void drawFrozenBehind(Batch batch, PvzAnimationService animations, Vector2 position) {
