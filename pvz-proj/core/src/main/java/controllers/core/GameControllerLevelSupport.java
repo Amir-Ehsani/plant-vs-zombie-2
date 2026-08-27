@@ -161,9 +161,7 @@ abstract class GameControllerLevelSupport extends GameControllerStatusSupport {
         int difficulty = currentDifficultyLevel();
         ZombieRegistry zombieRegistry = DefaultZombieRegistry.getInstance();
         User user = authController == null ? null : authController.getLoggedInUser();
-        boolean debugMode = user != null
-                && user.getSettings() != null
-                && user.getSettings().isDebugMode();
+        boolean debugMode = isDebugModeEnabled(user);
         List<String> allowedPlants = debugMode
                 ? new ArrayList<>(plantRegistry.getAllPlantNames())
                 : AdventureContentCatalog.plantNamesUnlockedThrough(
@@ -298,6 +296,12 @@ abstract class GameControllerLevelSupport extends GameControllerStatusSupport {
         return ownedPlants;
     }
 
+
+    private boolean isDebugModeEnabled(User user) {
+        return user != null
+                && user.getSettings() != null
+                && user.getSettings().isDebugMode();
+    }
 
     protected abstract boolean isPlantUnlockedByUser(String plantName);
 }

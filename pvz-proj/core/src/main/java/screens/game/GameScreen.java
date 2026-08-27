@@ -25,6 +25,8 @@ import controllers.core.GameController;
 import controllers.features.SettingsController;
 import game.animation.core.PvzAnimationService;
 import game.chapter.ChapterVisualRenderer;
+import game.effects.CombatFeedbackSystem;
+import game.effects.ScreenShakeController;
 import game.hud.CompactSeedBank;
 import game.hud.BossHealthHud;
 import game.hud.GameplayWaveBanner;
@@ -54,6 +56,7 @@ import models.engine.board.Position;
 import models.engine.session.GameSession;
 import models.engine.session.GameState;
 import models.engine.session.GroundRewardDrop;
+import models.engine.session.PlantFoodDrop;
 import models.engine.session.PlantRechargeStatus;
 import models.engine.sun.Sun;
 import models.level.core.AdventureLevelCatalog;
@@ -99,6 +102,10 @@ public final class GameScreen extends BaseScreen {
     private final LawnMowerRenderSystem lawnMowerRenderSystem;
     private final PlantFoodDropRenderSystem plantFoodDropRenderSystem;
     private final CompactSeedBank compactSeedBank;
+    private final WaveProgressHud waveProgressHud;
+    private final BossRenderSystem bossRenderSystem;
+    private final BossHealthHud bossHealthHud;
+    private final GameplayWaveBanner gameplayWaveBanner;
     private final ChapterVisualRenderer chapterVisualRenderer;
     private final GameplayInteractionSystem interactions;
     private final InteractionOverlayRenderer interactionOverlay;
@@ -242,8 +249,8 @@ public final class GameScreen extends BaseScreen {
         drawProjectiles();
         drawSuns();
         drawGroundRewards();
+        drawPlantFoodDrops();
         drawChapterAboveEntities();
-        drawInteractionCursor();
         drawHover();
         resetWorldTransform();
         drawSeedBank();
@@ -526,6 +533,9 @@ public final class GameScreen extends BaseScreen {
         if (sunRenderSystem != null) {
             sunRenderSystem.update(visualDelta, session.getSunManager());
         }
+        if (plantFoodDropRenderSystem != null) {
+            plantFoodDropRenderSystem.update(visualDelta);
+        }
         chapterVisualRenderer.update(visualDelta);
     }
 
@@ -758,6 +768,12 @@ public final class GameScreen extends BaseScreen {
         batch.end();
     }
 
+    private void drawPlantFoodDrops() {
+        if (plantFoodDropRenderSystem != null) {
+            plantFoodDropRenderSystem.render(batch, session);
+        }
+    }
+
     private void drawLawnMowers() {
         if (lawnMowerRenderSystem != null) {
             lawnMowerRenderSystem.render(batch, session.getBoard());
@@ -831,6 +847,22 @@ public final class GameScreen extends BaseScreen {
             }
             return;
         }
+    }
+
+    private void applyWorldShake() {
+        worldTransform.idt().translate(
+            screenShake.getOffsetX(),
+            screenShake.getOffsetY(),
+            0f
+        );
+        batch.setTransformMatrix(worldTransform);
+        shapes.setTransformMatrix(worldTransform);
+    }
+
+    private void resetWorldTransform() {
+        worldTransform.idt();
+        batch.setTransformMatrix(worldTransform);
+        shapes.setTransformMatrix(worldTransform);
     }
 
     private void enableAlphaBlending() {
