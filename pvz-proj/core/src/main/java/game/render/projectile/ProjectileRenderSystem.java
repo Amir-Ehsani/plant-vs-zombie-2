@@ -405,10 +405,10 @@ public final class ProjectileRenderSystem {
         ZombieSnapshot target,
         ProjectileVisualType type
     ) {
-        if (type != ProjectileVisualType.NORMAL || !isPeaPlant(plant)) {
+        if (!isTorchwoodConvertiblePea(type) || !isGreenPeaPlant(plant)) {
             return type;
         }
-        Lane lane = board.getLaneAt((int) Math.round(plant.getY()));
+        Lane lane = board.getLaneAt(target.lane);
         if (lane == null) {
             return type;
         }
@@ -478,9 +478,18 @@ public final class ProjectileRenderSystem {
         return false;
     }
 
-    private boolean isPeaPlant(Plant plant) {
+    private boolean isTorchwoodConvertiblePea(ProjectileVisualType type) {
+        return type == ProjectileVisualType.NORMAL || type == ProjectileVisualType.MEGA;
+    }
+
+    private boolean isGreenPeaPlant(Plant plant) {
         String name = normalize(plant.getName());
-        return name.contains("pea") || name.equals("repeater") || name.equals("threepeater");
+        return name.equals("peashooter")
+            || name.equals("repeater")
+            || name.equals("threepeater")
+            || name.equals("split pea")
+            || name.equals("pea pod")
+            || name.equals("mega gatling pea");
     }
 
     private int resolveShotCount(Board board, Plant plant) {
