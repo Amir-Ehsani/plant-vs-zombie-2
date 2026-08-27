@@ -127,6 +127,8 @@ public final class Boss {
                 case SPAWN_ZOMBIES -> spawnClip;
                 case MISSILE -> "missile_start";
                 case CHARGE -> "walk_forward";
+                case ICE_MISSILE -> "slingshot";
+                case ICE_WIND, FREEZE_COLUMN -> idleClip;
                 default -> idleClip;
             };
             default -> idleClip;
