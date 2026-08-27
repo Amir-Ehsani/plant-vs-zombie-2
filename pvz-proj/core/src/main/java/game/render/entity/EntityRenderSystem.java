@@ -41,6 +41,16 @@ public final class EntityRenderSystem {
     private static final String DARK_PLANT_FOOD_GRAVE_PATH =
         "768/FULL/GRAVESTONES/DARK_PLANTFOOD/DARK_PLANTFOOD.PAM";
     private static final float GRAVE_SCALE = 0.52f;
+    private static final String FROSTBITE_ICE_BLOCK_PATH =
+        "768/FULL/EFFECTS/FROSTBITE_ICE_BLOCK_ZOMBIE/FROSTBITE_ICE_BLOCK_ZOMBIE.PAM";
+    private static final String ARCADE_CABINET_PATH =
+        "768/FULL/EFFECTS/80S_ARCADE_CABINET/80S_ARCADE_CABINET.PAM";
+    private static final String BARREL_PATH =
+        "768/FULL/ZOMBIE/ZOMBIE_PIRATE_BARREL_PUSHER_BARREL/"
+            + "ZOMBIE_PIRATE_BARREL_PUSHER_BARREL.PAM";
+    private static final float ICE_BLOCK_SCALE = 0.47f;
+    private static final float ARCADE_CABINET_SCALE = 0.50f;
+    private static final float BARREL_SCALE = 0.48f;
     private final BoardGeometry geometry;
     private final PvzAnimationService animations;
     private final EntityAnimationRegistry registry;
@@ -53,6 +63,7 @@ public final class EntityRenderSystem {
     private final List<PlantActionVisual> plantActionVisuals = new ArrayList<>();
     private final List<PlantFieldEffectVisual> fieldEffectVisuals = new ArrayList<>();
     private TextureRegion craterRegion;
+    private float terrainObjectTime;
 
     public EntityRenderSystem(BoardGeometry geometry, PvzAnimationService animations) {
         this(geometry, animations, null);
@@ -71,6 +82,7 @@ public final class EntityRenderSystem {
         this.seasonType = seasonType;
         registry = new EntityAnimationRegistry(animations.getCatalog());
         preloadGraveAnimations();
+        preloadInteractiveTerrainAnimations();
     }
 
     public void playPlantAction(PlantType type, Position position, String clip) {
@@ -136,6 +148,9 @@ public final class EntityRenderSystem {
     public void update(float delta, Board board) {
         if (board == null) {
             return;
+        }
+        if (delta > 0f) {
+            terrainObjectTime += delta;
         }
         Set<Plant> activePlants = Collections.newSetFromMap(new IdentityHashMap<>());
         Set<Zombie> activeZombies = Collections.newSetFromMap(new IdentityHashMap<>());
@@ -272,8 +287,43 @@ public final class EntityRenderSystem {
     }
 
     private void renderTerrainOverlays(Batch batch, Board board) {
+        renderInteractiveTerrainObjects(batch, board);
         renderCraters(batch, board);
         renderGraves(batch, board);
+    }
+
+    private void renderInteractiveTerrainObjects(Batch batch, Board board) {
+        for (int row = 1; row <= board.getHeight(); row++) {
+            Lane lane = board.getLaneAt(row);
+            if (lane == null) {
+                continue;
+            }
+            for (Tile tile : lane.getTiles()) {
+                TileType type = tile.getTileType();
+                if (type != TileType.ICE && type != TileType.ARCADE && type != TileType.BARREL) {
+                    continue;
+                }
+                Vector2 position = geometry.entityToScreen(
+                    tile.getPosition().getX(), tile.getPosition().getY()
+                );
+                if (type == TileType.ICE) {
+                    animations.draw(
+                        batch, FROSTBITE_ICE_BLOCK_PATH, "idle", terrainObjectTime,
+                        position.x, position.y, ICE_BLOCK_SCALE, true
+                    );
+                } else if (type == TileType.ARCADE) {
+                    animations.draw(
+                        batch, ARCADE_CABINET_PATH, "idle", terrainObjectTime,
+                        position.x, position.y, ARCADE_CABINET_SCALE, true
+                    );
+                } else {
+                    animations.draw(
+                        batch, BARREL_PATH, "roll", terrainObjectTime,
+                        position.x, position.y, BARREL_SCALE, true
+                    );
+                }
+            }
+        }
     }
 
     private void renderCraters(Batch batch, Board board) {
@@ -363,6 +413,12 @@ public final class EntityRenderSystem {
         animations.preload(DARK_GRAVE_PATH);
         animations.preload(DARK_SUN_GRAVE_PATH);
         animations.preload(DARK_PLANT_FOOD_GRAVE_PATH);
+    }
+
+    private void preloadInteractiveTerrainAnimations() {
+        animations.preload(FROSTBITE_ICE_BLOCK_PATH);
+        animations.preload(ARCADE_CABINET_PATH);
+        animations.preload(BARREL_PATH);
     }
 
     private void renderFieldEffects(Batch batch) {
