@@ -63,6 +63,7 @@ public final class GameScreen extends BaseScreen {
     private static final float BOARD_LEFT_RATIO = BOARD_X / WORLD_WIDTH;
     private static final float BOARD_WIDTH_RATIO = BOARD_WIDTH / WORLD_WIDTH;
     private static final float TICK_SECONDS = 0.1f;
+    private static final float DEBUG_WAVE_PROGRESS_OFFSET = 72f;
     private static final String SHOVEL_BUTTON_ID = "IMAGE_UI_HUD_INGAME_SHOVEL_BUTTON";
     private static final String SHOVEL_BUTTON_DOWN_ID = "IMAGE_UI_HUD_INGAME_SHOVEL_BUTTON_DOWN";
 
@@ -659,8 +660,9 @@ public final class GameScreen extends BaseScreen {
     }
 
     private void drawWaveProgress() {
+        float waveHudHeight = WORLD_HEIGHT - (isDebugMode() ? DEBUG_WAVE_PROGRESS_OFFSET : 0f);
         batch.begin();
-        waveProgressHud.render(batch, session, WORLD_WIDTH, WORLD_HEIGHT);
+        waveProgressHud.render(batch, session, WORLD_WIDTH, waveHudHeight);
         batch.end();
     }
 
