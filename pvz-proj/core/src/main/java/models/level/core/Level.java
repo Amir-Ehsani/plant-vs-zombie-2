@@ -64,6 +64,7 @@ public class Level extends LevelState {
         board.setGraveSpawningAllowed(
                 seasonType == SeasonType.ANCIENT_EGYPT || seasonType == SeasonType.DARK_AGES
         );
+        board.setFrostbiteMechanicsAllowed(seasonType == SeasonType.FROSTBITE_CAVES);
         terrainSpawnedZombies.clear();
         chapterEvents.clear();
         activeNecromancyGravePositions.clear();
