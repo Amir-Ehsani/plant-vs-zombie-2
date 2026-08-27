@@ -47,6 +47,19 @@ public class ResourceBar extends Table {
         plantFoodActor.setValue(plantFood);
     }
 
+    public void showMiniGameResources() {
+        clearChildren();
+        Table content = new Table();
+        content.add(diamondsActor).width(112f).height(46f).padRight(8f);
+        content.add(sunActor).padLeft(4f);
+        add(content);
+    }
+
+    public void refreshMiniGame(User user, int sun) {
+        refresh(user);
+        sunActor.setValue(sun);
+    }
+
     public void setDebugControls(boolean visible, Runnable addCoin, Runnable addDiamond) {
         rebuild(false, visible, addCoin, addDiamond, null, null);
     }
