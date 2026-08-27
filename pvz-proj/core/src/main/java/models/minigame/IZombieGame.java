@@ -12,10 +12,13 @@ import models.engine.board.Position;
 import models.engine.board.Tile;
 
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.LinkedHashSet;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 public class IZombieGame extends MiniGameSession {
     private static final class ZombieOption {
@@ -31,44 +34,69 @@ public class IZombieGame extends MiniGameSession {
     private static final class ProducerState {
         private final Zombie zombie;
         private int nextProductionTick;
-        private int productionCount;
 
         private ProducerState(Zombie zombie, int nextProductionTick) {
             this.zombie = zombie;
             this.nextProductionTick = nextProductionTick;
-            this.productionCount = 0;
         }
     }
 
-    private static final int INITIAL_SUN = 150;
-    private static final int PRODUCED_SUN = 25;
+    private static final class SunDrop {
+        private final int id;
+        private final int amount;
+        private final double x;
+        private final double y;
+        private int remainingTicks;
+
+        private SunDrop(int id, int amount, double x, double y, int remainingTicks) {
+            this.id = id;
+            this.amount = amount;
+            this.x = x;
+            this.y = y;
+            this.remainingTicks = remainingTicks;
+        }
+    }
+
+    private static final int INITIAL_SUN = 350;
     private static final int RED_LINE_COLUMN = 6;
     private static final int PRODUCER_HP = 1290;
+    private static final int PRODUCED_SUN = 50;
+    private static final int SUN_DROP_LIFE_TICKS = 55;
+    private static final int FIRST_MINUTE_INTERVAL = 120;
+    private static final int SECOND_MINUTE_INTERVAL = 80;
+    private static final int LATE_GAME_INTERVAL = 50;
 
     private final Board board;
     private final PlantFactory plantFactory;
     private final ZombieFactory zombieFactory;
     private final Map<String, ZombieOption> availableZombies;
     private final List<ProducerState> producers;
+    private final List<SunDrop> sunDrops;
+    private final Set<Integer> resolvedBrainLanes;
+    private int nextSunDropId;
     private int sunAmount;
     private int spentSun;
     private int spawnedZombies;
 
     public IZombieGame(int stage) {
         super(MiniGameType.I_ZOMBIE, stage);
-        this.board = new Board();
-        this.plantFactory = new PlantFactory();
-        this.zombieFactory = new ZombieFactory();
-        this.availableZombies = new LinkedHashMap<>();
-        this.producers = new ArrayList<>();
-        this.sunAmount = INITIAL_SUN;
-        this.spentSun = 0;
-        this.spawnedZombies = 0;
+        board = new Board();
+        plantFactory = new PlantFactory();
+        zombieFactory = new ZombieFactory();
+        availableZombies = new LinkedHashMap<>();
+        producers = new ArrayList<>();
+        sunDrops = new ArrayList<>();
+        resolvedBrainLanes = new LinkedHashSet<>();
+        nextSunDropId = 1;
+        sunAmount = INITIAL_SUN;
+        spentSun = 0;
+        spawnedZombies = 0;
         disableMowers();
+        enableContinuedLaneCombat();
         initializeZombieOptions();
         initializePlantDefense();
         initializeSunProducers();
-        success("I, Zombie stage " + stage + " started with 150 sun.");
+        success("I, Zombie stage " + stage + " started with " + INITIAL_SUN + " sun.");
     }
 
     public boolean spawnZombie(String zombieName, Position position) {
@@ -89,6 +117,10 @@ public class IZombieGame extends MiniGameSession {
             fail("Zombies must be placed to the right of column " + RED_LINE_COLUMN + ".");
             return false;
         }
+        if (position.getX() == board.getWidth() && hasLivingProducerAt(position.getY())) {
+            fail("The wizard must die before that tile can be used.");
+            return false;
+        }
         if (sunAmount < option.sunCost) {
             fail("Not enough sun. " + option.sunCost + " sun is required.");
             return false;
@@ -96,11 +128,7 @@ public class IZombieGame extends MiniGameSession {
 
         Zombie zombie;
         try {
-            zombie = zombieFactory.createZombie(
-                    option.zombieName,
-                    position.getX(),
-                    position.getY()
-            );
+            zombie = createPlayableZombie(option.zombieName, position);
         } catch (IllegalArgumentException exception) {
             fail("The selected zombie type is unavailable in the registry.");
             return false;
@@ -111,9 +139,24 @@ public class IZombieGame extends MiniGameSession {
         sunAmount -= option.sunCost;
         spentSun += option.sunCost;
         spawnedZombies++;
-        success(zombie.getName() + " placed at " + position
-                + ". Remaining sun: " + sunAmount + ".");
+        success(zombie.getName() + " placed at " + position + ". Remaining sun: " + sunAmount + ".");
         return true;
+    }
+
+    public boolean collectSunDrop(int dropId) {
+        Iterator<SunDrop> iterator = sunDrops.iterator();
+        while (iterator.hasNext()) {
+            SunDrop drop = iterator.next();
+            if (drop.id != dropId) {
+                continue;
+            }
+            sunAmount += drop.amount;
+            iterator.remove();
+            success("Collected " + drop.amount + " sun.");
+            return true;
+        }
+        fail("That sun has already disappeared.");
+        return false;
     }
 
     public String renderAvailableZombies() {
@@ -133,8 +176,13 @@ public class IZombieGame extends MiniGameSession {
 
     @Override
     protected void onTick() {
-        board.updateTicks();
+        updateSunDrops();
         updateSunProducers();
+        if (spawnedZombies > 0) {
+            board.updateTicks();
+            resolveEatenBrainLanes();
+            killZombiesAtEatenBrainPosition();
+        }
     }
 
     @Override
@@ -147,23 +195,16 @@ public class IZombieGame extends MiniGameSession {
             markWon("All five brains were eaten. I, Zombie was won.");
             return;
         }
-        if (!hasLivingZombieInOpenLane() && sunAmount < minimumZombieCost()) {
-            markLost("No zombies remain and there is not enough sun to place another zombie.");
+        if (board.getActiveZombieCount() == 0
+                && sunDrops.isEmpty()
+                && sunAmount < minimumZombieCost()) {
+            markLost("All zombies are dead and there is not enough sun to place another zombie.");
         }
     }
 
     @Override
     public String renderMap() {
-        StringBuilder builder = new StringBuilder();
-        builder.append("red line: column ").append(RED_LINE_COLUMN).append('\n');
-        builder.append("brains: ");
-        for (Lane lane : board.getLanes()) {
-            builder.append("row ").append(lane.getLaneId()).append('=')
-                    .append(lane.hasBrainBeenEaten() ? "eaten" : "safe").append(' ');
-        }
-        builder.append('\n');
-        builder.append(renderBoard(board, null));
-        return builder.toString();
+        return "red line: column " + RED_LINE_COLUMN + '\n' + renderBoard(board, null);
     }
 
     @Override
@@ -173,6 +214,7 @@ public class IZombieGame extends MiniGameSession {
                 + "\nbrains eaten=" + eatenBrainCount() + "/" + board.getHeight()
                 + "\nactive zombies=" + activeZombieCountInOpenLanes()
                 + "\nliving sun producers=" + livingProducerCount()
+                + "\nsun drops=" + sunDrops.size()
                 + "\nspawned zombies=" + spawnedZombies
                 + "\nspent sun=" + spentSun;
     }
@@ -194,53 +236,111 @@ public class IZombieGame extends MiniGameSession {
         return board;
     }
 
+    public List<ZombieOptionView> getAvailableZombieOptions() {
+        List<ZombieOptionView> result = new ArrayList<>();
+        for (ZombieOption option : availableZombies.values()) {
+            result.add(new ZombieOptionView(option.zombieName, option.sunCost, 0, 0));
+        }
+        return List.copyOf(result);
+    }
+
+    public List<SunDropView> getSunDrops() {
+        List<SunDropView> result = new ArrayList<>();
+        for (SunDrop drop : sunDrops) {
+            result.add(new SunDropView(drop.id, drop.amount, drop.x, drop.y, drop.remainingTicks));
+        }
+        return List.copyOf(result);
+    }
+
+    public int getRedLineColumn() {
+        return RED_LINE_COLUMN;
+    }
+
+    public record ZombieOptionView(String zombieName, int sunCost, int remainingRechargeTicks, int rechargeTicks) {
+    }
+
+    public record SunDropView(int id, int amount, double x, double y, int remainingTicks) {
+    }
+
+    private Zombie createPlayableZombie(String zombieName, Position position) {
+        if (!"Wizard".equalsIgnoreCase(zombieName)) {
+            return zombieFactory.createZombie(zombieName, position.getX(), position.getY());
+        }
+        ZombieType base = zombieFactory.getZombieRegistry().getZombieTypeByName(zombieName);
+        if (base == null) {
+            throw new IllegalArgumentException("Unknown zombie type: " + zombieName);
+        }
+        ZombieType type = new ZombieType(
+                "I Zombie Wizard",
+                base.getBaseHp(),
+                base.getSpeed(),
+                base.getDamagePerTick(),
+                base.getWaveCost(),
+                base.getId(),
+                base.getDefaultArmorName(),
+                base.getTags(),
+                base.getAbility()
+        );
+        return zombieFactory.createZombie(type, position.getX(), position.getY());
+    }
+
     private void initializeZombieOptions() {
         if (getStage() == 1) {
             addOption("Default", 50);
             addOption("cone head", 75);
             addOption("Imp", 50);
-            addOption("Ra", 75);
-            addOption("Explorer", 100);
             return;
         }
         if (getStage() == 2) {
             addOption("bucket head", 125);
-            addOption("brick head", 175);
-            addOption("Dodo", 125);
-            addOption("Hunter", 150);
-            addOption("News Paper", 125);
+            addOption("Ra", 100);
+            addOption("Explorer", 125);
             return;
         }
-        addOption("knight", 175);
-        addOption("Gargantuar", 350);
         addOption("Allstar", 225);
         addOption("Wizard", 175);
         addOption("Prospector", 100);
+        addOption("Gargantuar", 350);
     }
 
     private void initializePlantDefense() {
+        String[][] layouts = stagePlantLayouts();
         for (int lane = 1; lane <= board.getHeight(); lane++) {
-            if (getStage() == 1) {
-                placePlant(lane % 2 == 0 ? "Sunflower" : "Peashooter", 2, lane);
-                placePlant("Peashooter", 4, lane);
-                placePlant("Wall-nut", 5, lane);
-            } else if (getStage() == 2) {
-                placePlant("Sunflower", 2, lane);
-                placePlant("Repeater", 3, lane);
-                placePlant("Snow Pea", 4, lane);
-                placePlant("Wall-nut", 5, lane);
-            } else {
-                placePlant("Sunflower", 1, lane);
-                placePlant("Repeater", 2, lane);
-                placePlant("Threepeater", 3, lane);
-                placePlant("Snow Pea", 4, lane);
-                placePlant("Tall-nut", 5, lane);
+            for (int column = 1; column <= RED_LINE_COLUMN; column++) {
+                placePlant(layouts[lane - 1][column - 1], column, lane);
             }
         }
     }
 
+    private String[][] stagePlantLayouts() {
+        if (getStage() == 1) {
+            return new String[][]{
+                    {"Sunflower", "Peashooter", "Wall-nut", "Peashooter", "Wall-nut", "Peashooter"},
+                    {"Sunflower", "Peashooter", "Peashooter", "Wall-nut", "Peashooter", "Wall-nut"},
+                    {"Sunflower", "Peashooter", "Wall-nut", "Peashooter", "Wall-nut", "Peashooter"},
+                    {"Sunflower", "Peashooter", "Peashooter", "Wall-nut", "Peashooter", "Wall-nut"},
+                    {"Sunflower", "Peashooter", "Wall-nut", "Peashooter", "Wall-nut", "Peashooter"}
+            };
+        }
+        if (getStage() == 2) {
+            return new String[][]{
+                    {"Sunflower", "Peashooter", "Repeater", "Snow Pea", "Wall-nut", "Tall-nut"},
+                    {"Sunflower", "Repeater", "Wall-nut", "Snow Pea", "Repeater", "Tall-nut"},
+                    {"Sunflower", "Peashooter", "Repeater", "Snow Pea", "Wall-nut", "Tall-nut"},
+                    {"Sunflower", "Repeater", "Wall-nut", "Snow Pea", "Repeater", "Tall-nut"},
+                    {"Sunflower", "Peashooter", "Repeater", "Snow Pea", "Wall-nut", "Tall-nut"}
+            };
+        }
+        return new String[][]{
+                {"Sunflower", "Repeater", "Threepeater", "Snow Pea", "Wall-nut", "Tall-nut"},
+                {"Sunflower", "Snow Pea", "Repeater", "Threepeater", "Wall-nut", "Tall-nut"},
+                {"Sunflower", "Repeater", "Threepeater", "Snow Pea", "Wall-nut", "Tall-nut"},
+                {"Sunflower", "Snow Pea", "Repeater", "Threepeater", "Wall-nut", "Tall-nut"},
+                {"Sunflower", "Repeater", "Threepeater", "Snow Pea", "Wall-nut", "Tall-nut"}
+        };
+    }
+
     private void initializeSunProducers() {
-        int firstProductionTick = 180 + (getStage() - 1) * 20;
         for (int lane = 1; lane <= board.getHeight(); lane++) {
             ZombieType producerType = new ZombieType(
                     "Sun Producer Zombie",
@@ -248,21 +348,27 @@ public class IZombieGame extends MiniGameSession {
                     0,
                     0,
                     0,
-                    "ZombieSunProducer",
-                    null
+                    "ZombieWizard",
+                    null,
+                    List.of("stationary"),
+                    ""
             );
             MovementStrategy stationary = zombie -> {
             };
-            Zombie producer = new Zombie(
-                    producerType,
-                    board.getWidth(),
-                    lane,
-                    null,
-                    stationary,
-                    null
-            );
+            Zombie producer = new Zombie(producerType, board.getWidth(), lane, null, stationary, null);
             board.getTileAt(new Position(board.getWidth(), lane)).addZombie(producer);
-            producers.add(new ProducerState(producer, firstProductionTick));
+            producers.add(new ProducerState(producer, FIRST_MINUTE_INTERVAL));
+        }
+    }
+
+    private void updateSunDrops() {
+        Iterator<SunDrop> iterator = sunDrops.iterator();
+        while (iterator.hasNext()) {
+            SunDrop drop = iterator.next();
+            drop.remainingTicks--;
+            if (drop.remainingTicks <= 0) {
+                iterator.remove();
+            }
         }
     }
 
@@ -272,18 +378,70 @@ public class IZombieGame extends MiniGameSession {
                 continue;
             }
             Lane lane = board.getLaneAt((int) Math.round(state.zombie.getY()));
-            if (lane == null || lane.hasBrainBeenEaten()) {
+            if (lane == null || lane.hasBrainBeenEaten() || getCurrentTick() < state.nextProductionTick) {
                 continue;
             }
-            if (getCurrentTick() < state.nextProductionTick) {
-                continue;
+            double dropX = Math.max(RED_LINE_COLUMN + 0.5, state.zombie.getX() - 0.70);
+            sunDrops.add(new SunDrop(
+                    nextSunDropId++,
+                    PRODUCED_SUN,
+                    dropX,
+                    state.zombie.getY(),
+                    SUN_DROP_LIFE_TICKS
+            ));
+            int nextTick = getCurrentTick() + productionIntervalForTick(getCurrentTick());
+            if (getCurrentTick() < 600 && nextTick > 600) {
+                nextTick = 600;
+            } else if (getCurrentTick() < 1200 && nextTick > 1200) {
+                nextTick = 1200;
             }
+            state.nextProductionTick = nextTick;
+        }
+    }
 
-            sunAmount += PRODUCED_SUN;
-            state.productionCount++;
-            int initialInterval = 180 + (getStage() - 1) * 20;
-            int nextInterval = Math.max(50, initialInterval - state.productionCount * 10);
-            state.nextProductionTick = getCurrentTick() + nextInterval;
+    private int productionIntervalForTick(int tick) {
+        if (tick < 600) {
+            return FIRST_MINUTE_INTERVAL;
+        }
+        if (tick < 1200) {
+            return SECOND_MINUTE_INTERVAL;
+        }
+        return LATE_GAME_INTERVAL;
+    }
+
+    private void resolveEatenBrainLanes() {
+        for (Lane lane : board.getLanes()) {
+            if (!lane.hasBrainBeenEaten() || !resolvedBrainLanes.add(lane.getLaneId())) {
+                continue;
+            }
+            killLaneZombies(lane);
+        }
+        board.removeDeadEntities();
+    }
+
+    private void killZombiesAtEatenBrainPosition() {
+        boolean killedAny = false;
+        for (Lane lane : board.getLanes()) {
+            if (!lane.hasBrainBeenEaten()) {
+                continue;
+            }
+            for (Zombie zombie : new ArrayList<>(lane.getAllZombies())) {
+                if (zombie.isAlive() && zombie.getX() <= 0.0) {
+                    zombie.kill();
+                    killedAny = true;
+                }
+            }
+        }
+        if (killedAny) {
+            board.removeDeadEntities();
+        }
+    }
+
+    private void killLaneZombies(Lane lane) {
+        for (Zombie zombie : new ArrayList<>(lane.getAllZombies())) {
+            if (zombie.isAlive()) {
+                zombie.kill();
+            }
         }
     }
 
@@ -339,6 +497,21 @@ public class IZombieGame extends MiniGameSession {
             minimum = Math.min(minimum, option.sunCost);
         }
         return minimum == Integer.MAX_VALUE ? 0 : minimum;
+    }
+
+    private boolean hasLivingProducerAt(int laneNumber) {
+        for (ProducerState producer : producers) {
+            if (producer.zombie.isAlive() && (int) Math.round(producer.zombie.getY()) == laneNumber) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void enableContinuedLaneCombat() {
+        for (Lane lane : board.getLanes()) {
+            lane.setContinueAfterBrainEaten(true);
+        }
     }
 
     private void disableMowers() {
