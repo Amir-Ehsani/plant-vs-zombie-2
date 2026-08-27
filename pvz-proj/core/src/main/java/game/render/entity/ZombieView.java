@@ -66,6 +66,7 @@ public final class ZombieView extends EntityView<Zombie> {
 
     @Override
     public void update(float delta, Board board) {
+        updateHitFlash(delta, totalVisualHealth());
         super.update(delta, board);
         updateMovementState(delta);
         updateVisualPosition(delta);
@@ -92,21 +93,44 @@ public final class ZombieView extends EntityView<Zombie> {
         float direction = reversed ? -1f : 1f;
         float renderX = position.x + eatingOffset(geometry, clip) * direction;
 
+        float clipTime = timeForClip(clip);
+        Map<String, Boolean> visibility = resolveVisibility(animations, effects);
         batch.setColor(resolveTint(effects));
         animations.draw(
             batch,
             profile.getPath(),
             clip,
-            timeForClip(clip),
+            clipTime,
             renderX,
             position.y,
             profile.getScale() * direction,
             profile.getScale(),
             true,
-            resolveVisibility(animations, effects)
+            visibility
         );
         batch.setColor(Color.WHITE);
+        if (beginHitFlash(batch)) {
+            animations.draw(
+                batch,
+                profile.getPath(),
+                clip,
+                clipTime,
+                renderX,
+                position.y,
+                profile.getScale() * direction,
+                profile.getScale(),
+                true,
+                visibility
+            );
+            endHitFlash(batch);
+        }
         drawElectricStrike(batch, geometry, animations, position);
+    }
+
+    private int totalVisualHealth() {
+        Armor armor = entity.getArmor();
+        int armorHp = armor == null ? 0 : Math.max(0, armor.getHp());
+        return Math.max(0, entity.getHp()) + armorHp;
     }
 
     ZombiePartVisual takeDetachedArmVisual(PvzAnimationService animations) {
