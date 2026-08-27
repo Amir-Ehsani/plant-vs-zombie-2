@@ -3,6 +3,11 @@ package models.level.core;
 import models.engine.board.Position;
 import models.engine.board.TileType;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Random;
+
 public final class AdventureChapterConfigurator {
     private AdventureChapterConfigurator() {
     }
@@ -33,14 +38,19 @@ public final class AdventureChapterConfigurator {
 
     private static void configureFrostbiteCaves(Level level, int levelNumber) {
         level.bindSeasonType(SeasonType.FROSTBITE_CAVES);
-        level.setTerrainTile(position(6, 1), TileType.ICE);
-        level.setTerrainTile(position(7, 3), TileType.ICE);
-        level.setTerrainTile(position(6, 5), TileType.ICE);
         level.setTerrainTile(position(4, 2), TileType.SLIPPERY_UP);
         level.setTerrainTile(position(5, 4), TileType.SLIPPERY_DOWN);
-        level.scheduleInitialTerrainZombie(position(6, 1), "Default");
-        if (levelNumber > 1) {
-            level.scheduleInitialTerrainZombie(position(7, 3), "Default");
+
+        List<Position> candidates = new ArrayList<>();
+        for (int row = 1; row <= 5; row++) {
+            for (int column = 6; column <= 8; column++) {
+                candidates.add(position(column, row));
+            }
+        }
+        Collections.shuffle(candidates, new Random(level.getLevelId() * 701L + levelNumber * 97L));
+        int frozenCount = Math.min(4, Math.max(2, levelNumber + 1));
+        for (int index = 0; index < frozenCount; index++) {
+            level.scheduleInitialTerrainZombie(candidates.get(index), "Default");
         }
     }
 
@@ -49,11 +59,19 @@ public final class AdventureChapterConfigurator {
         for (int row = 1; row <= 5; row++) {
             level.setTerrainTile(position(8, row), TileType.WATER);
             level.setTerrainTile(position(9, row), TileType.WATER);
-            level.setTerrainTile(position(6, row), TileType.LOW_TIDE);
-            level.setTerrainTile(position(7, row), TileType.LOW_TIDE);
-            if (levelNumber > 1) {
-                level.setTerrainTile(position(5, row), TileType.LOW_TIDE);
+        }
+
+        int firstLowBeachColumn = levelNumber > 1 ? 5 : 6;
+        List<Position> candidates = new ArrayList<>();
+        for (int row = 1; row <= 5; row++) {
+            for (int column = firstLowBeachColumn; column <= 7; column++) {
+                candidates.add(position(column, row));
             }
+        }
+        Collections.shuffle(candidates, new Random(level.getLevelId() * 911L + levelNumber * 131L));
+        int lowBeachCount = Math.min(5, Math.max(3, levelNumber + 2));
+        for (int index = 0; index < lowBeachCount; index++) {
+            level.setTerrainTile(candidates.get(index), TileType.LOW_TIDE);
         }
         if (levelNumber > 1) {
             level.setHighTideWaterColumns(3);
@@ -65,8 +83,6 @@ public final class AdventureChapterConfigurator {
         level.setTerrainTile(position(5, 1), TileType.SUN_GRAVE);
         level.setTerrainTile(position(6, 3), TileType.PLANT_FOOD_GRAVE);
         level.setTerrainTile(position(4, 5), TileType.GRAVE);
-        level.setTerrainTile(position(7, 2), TileType.NECROMANCY);
-        level.setTerrainTile(position(7, 4), TileType.NECROMANCY);
         if (levelNumber > 1) {
             level.setTerrainTile(position(5, 3), TileType.GRAVE);
         }
