@@ -1,8 +1,10 @@
 package models.level.core;
 
+import boss.core.BossRuntime;
 import models.core.zombie.Zombie;
 import models.core.zombie.ZombieFactory;
 import models.engine.board.Board;
+import models.engine.board.GraveSpawnRules;
 import models.engine.board.Position;
 import models.engine.board.Tile;
 import models.engine.board.TileType;
@@ -26,6 +28,8 @@ import java.util.Set;
 
 
 public class Level extends LevelState {
+    private BossRuntime bossRuntime;
+
     public Level(
             int levelId,
             WaveManager waveManager,
@@ -71,6 +75,9 @@ public class Level extends LevelState {
         waveManager.bindBoard(board);
         spawnInitialTerrainZombies();
         levelRule.onLevelStart(context);
+        if (bossRuntime != null) {
+            bossRuntime.start(board, allowedZombieNames, context.getCurrentTick());
+        }
         status = LevelStatus.RUNNING;
         evaluate(context);
     }
@@ -94,9 +101,12 @@ public class Level extends LevelState {
 
         applyTerrainChangesForTick(context.getCurrentTick());
         levelRule.onTick(context);
+        if (bossRuntime != null) {
+            bossRuntime.update(context.getCurrentTick());
+        }
         evaluate(context);
 
-        if (status != LevelStatus.RUNNING || !areZombieWavesStarted()) {
+        if (status != LevelStatus.RUNNING || bossRuntime != null || !areZombieWavesStarted()) {
             return null;
         }
 
@@ -118,6 +128,13 @@ public class Level extends LevelState {
         if (context.getBoard().hasBrainBeenEaten()
                 || levelRule.isLoseConditionMet(context)) {
             status = LevelStatus.LOST;
+            return;
+        }
+
+        if (bossRuntime != null) {
+            if (bossRuntime.isDefeated()) {
+                status = LevelStatus.WON;
+            }
             return;
         }
 
@@ -168,8 +185,11 @@ public class Level extends LevelState {
     }
 
     public boolean isZombieAllowed(String zombieName) {
-        return allowedZombieNames.isEmpty()
+        boolean allowedByLevel = allowedZombieNames.isEmpty()
                 || containsIgnoreCase(allowedZombieNames, zombieName);
+        boolean allowedByChapter = seasonType == null
+                || seasonType.isZombieAllowed(zombieName);
+        return allowedByLevel && allowedByChapter;
     }
 
     public void onPlantUsed(String plantName) {
@@ -322,6 +342,17 @@ public class Level extends LevelState {
         if (status != LevelStatus.NOT_STARTED) {
             throw new IllegalStateException("Season cannot be changed after the level starts.");
         }
+        if (seasonType == null) {
+            throw new IllegalArgumentException("Season type cannot be null.");
+        }
+        for (String zombieName : allowedZombieNames) {
+            if (!seasonType.isZombieAllowed(zombieName)) {
+                throw new IllegalArgumentException(
+                        "Zombie type " + zombieName + " is not allowed in "
+                                + seasonType.getDisplayName() + "."
+                );
+            }
+        }
         this.seasonType = seasonType;
     }
 
@@ -359,6 +390,25 @@ public class Level extends LevelState {
 
     public LevelStatus getStatus() {
         return status;
+    }
+
+    public boolean isBossLevel() {
+        return bossRuntime != null;
+    }
+
+    public BossRuntime getBossRuntime() {
+        return bossRuntime;
+    }
+
+    public void bindBossRuntime(BossRuntime bossRuntime) {
+        ensureConfigurable();
+        if (levelType != LevelType.BOSS) {
+            throw new IllegalStateException("Boss runtime can only be bound to a BOSS level.");
+        }
+        if (bossRuntime == null) {
+            throw new IllegalArgumentException("Boss runtime cannot be null.");
+        }
+        this.bossRuntime = bossRuntime;
     }
 
     public Board getBoard() {
@@ -525,6 +575,11 @@ public class Level extends LevelState {
     }
 
     private void growDarkAgesGraves(int waveNumber) {
+        int remainingCapacity = GraveSpawnRules.remainingCapacity(board);
+        if (remainingCapacity <= 0) {
+            return;
+        }
+
         List<Tile> candidates = new ArrayList<>();
         for (int y = 1; y <= board.getHeight(); y++) {
             for (int x = 2; x < board.getWidth(); x++) {
@@ -536,13 +591,17 @@ public class Level extends LevelState {
             }
         }
         Collections.shuffle(candidates, chapterRandom);
-        int count = waveNumber == waveManager.getTotalWaves() ? 2 : 1;
-        for (int index = 0; index < Math.min(count, candidates.size()); index++) {
+        int requestedCount = waveNumber == waveManager.getTotalWaves() ? 2 : 1;
+        int createdCount = Math.min(
+                requestedCount,
+                Math.min(remainingCapacity, candidates.size())
+        );
+        for (int index = 0; index < createdCount; index++) {
             candidates.get(index).setTileType(randomDarkAgesGraveType());
         }
-        if (!candidates.isEmpty()) {
+        if (createdCount > 0) {
             chapterEvents.add(GameEvent.chapterEffect(
-                    Math.min(count, candidates.size()) + " new grave(s) rose from the dark ground."
+                    createdCount + " new grave(s) rose from the dark ground."
             ));
         }
     }

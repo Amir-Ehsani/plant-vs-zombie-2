@@ -58,17 +58,16 @@ abstract class LaneCombatTerrainSupport extends LaneCombatState {
 
     protected boolean isPeaPlant(Plant plant) {
         String name = normalizeText(plant == null ? null : plant.getName());
-        return name.contains("pea")
-            || name.equals("peashooter")
+        return name.equals("peashooter")
             || name.equals("repeater")
             || name.equals("threepeater")
             || name.equals("split pea")
+            || name.equals("pea pod")
             || name.equals("mega gatling pea");
     }
 
     protected Tile findBlockingTerrain(Lane lane, Plant plant, Zombie target) {
         int startX = Math.max(1, (int) Math.floor(plant.getX()) + 1);
-        int endX = Math.min(lane.getWidth(), (int) Math.ceil(target.getX()));
         String category = normalizeCategory(plant);
         boolean ignoresTerrain = category.equals("lobber")
             || category.equals("homing")
@@ -77,7 +76,14 @@ abstract class LaneCombatTerrainSupport extends LaneCombatState {
             return null;
         }
 
-        for (int x = startX; x <= endX; x++) {
+        // Terrain only blocks a direct shot while it is physically closer to the
+        // shooter than the zombie. Using ceil(targetX) used to keep selecting a
+        // grave after a zombie had already walked in front of that grave.
+        double targetX = target.getX();
+        for (int x = startX; x <= lane.getWidth(); x++) {
+            if (x >= targetX) {
+                break;
+            }
             Tile tile = lane.getTileAt(x);
             if (tile != null && tile.hasDamageableTerrain()) {
                 return tile;

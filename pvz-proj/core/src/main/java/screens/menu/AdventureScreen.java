@@ -101,7 +101,7 @@ public class AdventureScreen extends BaseMenuScreen {
 
     private Table createChapterCard(User user, String chapterName) {
         Table card = new Table();
-        boolean unlocked = user.getSettings().isDebugMode() || user.isChapterUnlocked(chapterName);
+        boolean unlocked = user.isChapterUnlocked(chapterName);
 
         card.add(createWorldImage(chapterName)).width(235f).height(320f).padTop(24f).padBottom(-10f).row();
 

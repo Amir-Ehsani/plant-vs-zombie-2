@@ -94,7 +94,7 @@ public class WaveManager {
         }
 
         Wave previousWave = waves.get(nextWaveIndex - 1);
-        if (!previousWave.hasLostSeventyFivePercentHealth()) {
+        if (!previousWave.hasLostSeventyFivePercentHealth(this::countsAsHostileZombie)) {
             nextWaveThresholdReachedTick = -1;
             return false;
         }
@@ -148,11 +148,15 @@ public class WaveManager {
             return false;
         }
         for (Wave wave : waves) {
-            if (!wave.isCleared()) {
+            if (!wave.isCleared(this::countsAsHostileZombie)) {
                 return false;
             }
         }
         return true;
+    }
+
+    private boolean countsAsHostileZombie(Zombie zombie) {
+        return zombie != null && (board == null || !board.isHypnotized(zombie));
     }
 
     public int getCurrentWaveNumber() {

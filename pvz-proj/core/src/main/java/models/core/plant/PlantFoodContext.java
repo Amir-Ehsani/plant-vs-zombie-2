@@ -14,6 +14,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Random;
 import java.util.function.Consumer;
+import java.util.function.BiConsumer;
 import java.util.function.IntConsumer;
 
 public class PlantFoodContext {
@@ -21,6 +22,8 @@ public class PlantFoodContext {
     private final PlantFactory plantFactory;
     private final Random random;
     private final IntConsumer sunAdder;
+    private final BiConsumer<Plant, Integer> sunBurstSpawner;
+    private final BiConsumer<Integer, Runnable> delayedActionScheduler;
     private final Consumer<BoardTickResult> resultRecorder;
     private final Consumer<Plant> plantPlacedHandler;
     private final Consumer<Plant> plantAgeResetHandler;
@@ -34,10 +37,59 @@ public class PlantFoodContext {
             Consumer<Plant> plantPlacedHandler,
             Consumer<Plant> plantAgeResetHandler
     ) {
+        this(
+                board,
+                plantFactory,
+                random,
+                sunAdder,
+                null,
+                null,
+                resultRecorder,
+                plantPlacedHandler,
+                plantAgeResetHandler
+        );
+    }
+
+    public PlantFoodContext(
+            Board board,
+            PlantFactory plantFactory,
+            Random random,
+            IntConsumer sunAdder,
+            BiConsumer<Plant, Integer> sunBurstSpawner,
+            Consumer<BoardTickResult> resultRecorder,
+            Consumer<Plant> plantPlacedHandler,
+            Consumer<Plant> plantAgeResetHandler
+    ) {
+        this(
+                board,
+                plantFactory,
+                random,
+                sunAdder,
+                sunBurstSpawner,
+                null,
+                resultRecorder,
+                plantPlacedHandler,
+                plantAgeResetHandler
+        );
+    }
+
+    public PlantFoodContext(
+            Board board,
+            PlantFactory plantFactory,
+            Random random,
+            IntConsumer sunAdder,
+            BiConsumer<Plant, Integer> sunBurstSpawner,
+            BiConsumer<Integer, Runnable> delayedActionScheduler,
+            Consumer<BoardTickResult> resultRecorder,
+            Consumer<Plant> plantPlacedHandler,
+            Consumer<Plant> plantAgeResetHandler
+    ) {
         this.board = board;
         this.plantFactory = plantFactory;
         this.random = random == null ? new Random() : random;
         this.sunAdder = sunAdder;
+        this.sunBurstSpawner = sunBurstSpawner;
+        this.delayedActionScheduler = delayedActionScheduler;
         this.resultRecorder = resultRecorder;
         this.plantPlacedHandler = plantPlacedHandler;
         this.plantAgeResetHandler = plantAgeResetHandler;
@@ -51,6 +103,17 @@ public class PlantFoodContext {
         if (amount > 0 && sunAdder != null) {
             sunAdder.accept(amount);
         }
+    }
+
+    public void spawnSunBurst(Plant source, int amount) {
+        if (source == null || amount <= 0) {
+            return;
+        }
+        if (sunBurstSpawner != null) {
+            sunBurstSpawner.accept(source, amount);
+            return;
+        }
+        addSun(amount);
     }
 
     public void damageLane(Plant source, int damage, String damageType) {
@@ -79,6 +142,92 @@ public class PlantFoodContext {
                 source.getName(),
                 source.getType() == null ? "" : source.getType().getCategory()
         ));
+    }
+
+    public void damageAreaDelayed(
+            Plant source,
+            int xRadius,
+            int yRadius,
+            int damage,
+            String damageType,
+            int delayTicks
+    ) {
+        if (source == null || damage <= 0) {
+            return;
+        }
+        runDelayed(delayTicks, () -> {
+            if (source.isAlive()) {
+                damageArea(source, xRadius, yRadius, damage, damageType);
+            }
+        });
+    }
+
+    public void runDelayed(int delayTicks, Runnable action) {
+        if (action == null) {
+            return;
+        }
+        if (delayTicks <= 0 || delayedActionScheduler == null) {
+            action.run();
+            return;
+        }
+        delayedActionScheduler.accept(delayTicks, action);
+    }
+
+    public void damageNearestInLane(Plant source, int damage, String damageType) {
+        if (board == null || source == null || damage <= 0) {
+            return;
+        }
+        Lane lane = board.getLaneAt(laneOf(source));
+        if (lane == null) {
+            return;
+        }
+        Zombie nearest = null;
+        double best = Double.MAX_VALUE;
+        for (Zombie zombie : lane.getAllZombies()) {
+            if (zombie == null || !zombie.isAlive() || !board.isZombieOnLawn(zombie)
+                    || board.isHypnotized(zombie) || zombie.getX() < source.getX()) {
+                continue;
+            }
+            double distance = zombie.getX() - source.getX();
+            if (distance < best) {
+                best = distance;
+                nearest = zombie;
+            }
+        }
+        if (nearest != null) {
+            nearest.recordDamageSource(source.getName(),
+                    source.getType() == null ? "" : source.getType().getCategory(), damageType);
+            nearest.takeDamage(new Damage(damage, damageType));
+            if (!nearest.isAlive()) {
+                record(board.removeDeadEntities());
+            }
+        }
+    }
+
+    public void damageRandomWithSplash(
+            Plant source, int count, int directDamage, int splashDamage, String damageType
+    ) {
+        if (board == null || source == null || count <= 0 || directDamage <= 0) {
+            return;
+        }
+        List<Zombie> targets = livingEnemies();
+        Collections.shuffle(targets, random);
+        int limit = Math.min(count, targets.size());
+        for (int index = 0; index < limit; index++) {
+            Zombie target = targets.get(index);
+            Position center = new Position(
+                    Math.max(1, Math.min(board.getWidth(), (int) Math.ceil(target.getX()))),
+                    Math.max(1, Math.min(board.getHeight(), (int) Math.round(target.getY())))
+            );
+            target.recordDamageSource(source.getName(),
+                    source.getType() == null ? "" : source.getType().getCategory(), damageType);
+            target.takeDamage(new Damage(directDamage, damageType));
+            if (splashDamage > 0) {
+                record(board.damageZombiesInArea(center, 1, 1, splashDamage, damageType + " splash",
+                        source.getName(), source.getType() == null ? "" : source.getType().getCategory()));
+            }
+        }
+        record(board.removeDeadEntities());
     }
 
     public void damageRandom(Plant source, int count, int damage, String damageType) {
@@ -175,7 +324,7 @@ public class PlantFoodContext {
             return;
         }
         for (Zombie zombie : lane.getAllZombies()) {
-            if (zombie != null && zombie.isAlive()) {
+            if (board.isZombieOnLawn(zombie)) {
                 zombie.moveBy(distance, 0);
             }
         }
@@ -190,7 +339,9 @@ public class PlantFoodContext {
             return;
         }
         for (Zombie zombie : new ArrayList<>(lane.getAllZombies())) {
-            board.shiftZombieToAdjacentLane(zombie, random);
+            if (board.isZombieOnLawn(zombie)) {
+                board.shiftZombieToAdjacentLane(zombie, random);
+            }
         }
     }
 
@@ -200,7 +351,7 @@ public class PlantFoodContext {
         }
         int targetLane = laneOf(source);
         for (Zombie zombie : new ArrayList<>(board.getAllZombies())) {
-            if (zombie == null || !zombie.isAlive()) {
+            if (!board.isZombieOnLawn(zombie)) {
                 continue;
             }
             int zombieLane = Math.max(1, Math.min(board.getHeight(), (int) Math.round(zombie.getY())));
@@ -216,7 +367,7 @@ public class PlantFoodContext {
         }
         List<Zombie> armored = new ArrayList<>();
         for (Zombie zombie : board.getAllZombies()) {
-            if (zombie != null && zombie.isAlive() && zombie.hasArmor()) {
+            if (board.isZombieOnLawn(zombie) && zombie.hasArmor()) {
                 armored.add(zombie);
             }
         }
@@ -243,6 +394,10 @@ public class PlantFoodContext {
                     position.getY()
             );
             clone.setLevel(source.getLevel());
+            String sourceName = normalize(source.getName());
+            if (sourceName.equals("potato mine") || sourceName.equals("primal potato mine")) {
+                clone.finishArming();
+            }
             if (board.placePlant(clone, position)) {
                 created++;
                 if (plantPlacedHandler != null) {
@@ -275,6 +430,57 @@ public class PlantFoodContext {
             if (board.placePlant(plant, position) && plantPlacedHandler != null) {
                 plantPlacedHandler.accept(plant);
             }
+        }
+    }
+
+
+    public void triggerSamePlantBarrage(String plantName, int durationTicks, int cooldownRate) {
+        if (board == null || plantName == null) {
+            return;
+        }
+        List<Plant> affected = new ArrayList<>();
+        for (Plant candidate : board.getAllPlants()) {
+            if (candidate == null || !candidate.isAlive()
+                    || !normalize(candidate.getName()).equals(normalize(plantName))) {
+                continue;
+            }
+            candidate.resetCooldown();
+            candidate.setPlantFoodModifiers(1, Math.max(1, cooldownRate), false);
+            String clip = normalize(candidate.getName()).equals("sea shroom") ? "pf" : "plantfood";
+            candidate.triggerSpecialAnimation(clip);
+            affected.add(candidate);
+        }
+        if (durationTicks > 0) {
+            runDelayed(durationTicks, () -> {
+                for (Plant candidate : affected) {
+                    if (candidate != null && candidate.isAlive()) {
+                        candidate.resetPlantFoodModifiers();
+                    }
+                }
+            });
+        }
+    }
+
+    public void killRandomWaterZombies(Plant source, int count, String damageType) {
+        if (board == null || count <= 0) {
+            return;
+        }
+        List<Zombie> water = new ArrayList<>();
+        for (Zombie zombie : livingEnemies()) {
+            Tile tile = board.getTileContainingZombie(zombie);
+            if (tile != null && tile.getTileType().name().equals("WATER")) {
+                water.add(zombie);
+            }
+        }
+        Collections.shuffle(water, random);
+        for (int index = 0; index < Math.min(count, water.size()); index++) {
+            Zombie zombie = water.get(index);
+            zombie.recordDamageSource(
+                    source == null ? null : source.getName(),
+                    source == null || source.getType() == null ? null : source.getType().getCategory(),
+                    damageType
+            );
+            zombie.kill();
         }
     }
 
@@ -318,7 +524,7 @@ public class PlantFoodContext {
             return result;
         }
         for (Zombie zombie : board.getAllZombies()) {
-            if (zombie != null && zombie.isAlive() && !board.isHypnotized(zombie)) {
+            if (zombie != null && board.isZombieOnLawn(zombie) && !board.isHypnotized(zombie)) {
                 result.add(zombie);
             }
         }

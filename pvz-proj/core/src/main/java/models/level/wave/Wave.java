@@ -6,6 +6,7 @@ import models.core.zombie.Zombie;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.function.Predicate;
 
 public class Wave {
     private static final double NEXT_WAVE_HEALTH_THRESHOLD = 0.25;
@@ -61,14 +62,18 @@ public class Wave {
     }
 
     public boolean hasLostSeventyFivePercentHealth() {
+        return hasLostSeventyFivePercentHealth(zombie -> true);
+    }
+
+    public boolean hasLostSeventyFivePercentHealth(Predicate<Zombie> countsAsHostile) {
         if (!spawned || initialTotalHealth == 0) {
             return false;
         }
 
+        Predicate<Zombie> predicate = countsAsHostile == null ? zombie -> true : countsAsHostile;
         int totalHealth = 0;
-
         for (Zombie zombie : zombiesList) {
-            if (zombie != null && zombie.isAlive()) {
+            if (zombie != null && zombie.isAlive() && predicate.test(zombie)) {
                 totalHealth += zombie.getHp();
             }
         }
@@ -78,12 +83,17 @@ public class Wave {
     }
 
     public boolean isCleared() {
+        return isCleared(zombie -> true);
+    }
+
+    public boolean isCleared(Predicate<Zombie> countsAsHostile) {
         if (!spawned) {
             return false;
         }
 
+        Predicate<Zombie> predicate = countsAsHostile == null ? zombie -> true : countsAsHostile;
         for (Zombie zombie : zombiesList) {
-            if (zombie != null && zombie.isAlive()) {
+            if (zombie != null && zombie.isAlive() && predicate.test(zombie)) {
                 return false;
             }
         }

@@ -185,11 +185,10 @@ abstract class GameSessionEventSupport extends GameSessionState {
     }
 
     private void awardGlowingZombiePlantFood(Zombie zombie) {
-        if (!Boolean.TRUE.equals(glowingZombies.remove(zombie))
-            || plantFoodCount >= MAX_PLANT_FOOD) {
+        if (!Boolean.TRUE.equals(glowingZombies.remove(zombie))) {
             return;
         }
-        plantFoodCount++;
+        plantFoodDrops.add(new PlantFoodDrop(zombie.getX(), zombie.getY()));
         pendingEvents.add(GameEvent.plantFoodDropped(plantFoodCount));
     }
 

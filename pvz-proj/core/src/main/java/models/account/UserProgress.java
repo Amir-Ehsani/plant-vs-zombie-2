@@ -6,16 +6,32 @@ import java.util.Locale;
 
 
 abstract class UserProgress extends UserIdentity {
+    private boolean debugAdventureUnlockOverride;
+    private String debugAdventureChapterName;
+    private int debugAdventureChapterLevel;
+
     protected UserProgress(String username, String password, String nickname, String email, String gender) {
         super(username, password, nickname, email, gender);
+        debugAdventureUnlockOverride = false;
+        debugAdventureChapterName = "";
+        debugAdventureChapterLevel = 1;
     }
 
     public String getCurrentChapterName() {
+        return debugAdventureUnlockOverride ? debugAdventureChapterName : currentChapterName;
+    }
+
+    public String getPersistentCurrentChapterName() {
         return currentChapterName;
     }
 
     public void setCurrentChapterName(String currentChapterName) {
-        this.currentChapterName = safeText(currentChapterName);
+        String cleanedChapterName = safeText(currentChapterName);
+        if (debugAdventureUnlockOverride) {
+            debugAdventureChapterName = cleanedChapterName;
+            return;
+        }
+        this.currentChapterName = cleanedChapterName;
     }
 
     public List<String> getUnlockedChapters() {
@@ -31,26 +47,31 @@ abstract class UserProgress extends UserIdentity {
 
         if (unlockedChapters != null) {
             for (String chapterName : unlockedChapters) {
-                unlockChapter(chapterName);
+                unlockChapterPersistent(chapterName);
             }
         }
 
         if (this.unlockedChapters.isEmpty()) {
-            unlockChapter("ancient-egypt");
+            unlockChapterPersistent("ancient-egypt");
         }
     }
 
     public void unlockChapter(String chapterName) {
+        if (debugAdventureUnlockOverride) {
+            return;
+        }
+        unlockChapterPersistent(chapterName);
+    }
+
+    private void unlockChapterPersistent(String chapterName) {
         if (unlockedChapters == null) {
             unlockedChapters = new ArrayList<>();
         }
 
         String cleanedChapterName = safeText(chapterName);
-
         if (cleanedChapterName.isEmpty()) {
             return;
         }
-
         if (!unlockedChapters.contains(cleanedChapterName)) {
             unlockedChapters.add(cleanedChapterName);
         }
@@ -58,6 +79,9 @@ abstract class UserProgress extends UserIdentity {
 
     public boolean isChapterUnlocked(String chapterName) {
         String cleanedChapterName = safeText(chapterName);
+        if (debugAdventureUnlockOverride) {
+            return !cleanedChapterName.isEmpty();
+        }
 
         for (String unlockedChapter : getUnlockedChapters()) {
             if (unlockedChapter.equalsIgnoreCase(cleanedChapterName)) {
@@ -69,18 +93,32 @@ abstract class UserProgress extends UserIdentity {
     }
 
     public int getCurrentChapterLevel() {
-        if (currentChapterLevel < 1 || currentChapterLevel > 4) {
-            currentChapterLevel = 1;
+        if (debugAdventureUnlockOverride) {
+            return normalizeChapterLevel(debugAdventureChapterLevel);
         }
+        currentChapterLevel = normalizeChapterLevel(currentChapterLevel);
+        return currentChapterLevel;
+    }
+
+    public int getPersistentCurrentChapterLevel() {
+        currentChapterLevel = normalizeChapterLevel(currentChapterLevel);
         return currentChapterLevel;
     }
 
     public void setCurrentChapterLevel(int currentChapterLevel) {
-        if (currentChapterLevel < 1) {
-            this.currentChapterLevel = 1;
+        int normalizedLevel = normalizeChapterLevel(currentChapterLevel);
+        if (debugAdventureUnlockOverride) {
+            debugAdventureChapterLevel = normalizedLevel;
             return;
         }
-        this.currentChapterLevel = Math.min(4, currentChapterLevel);
+        this.currentChapterLevel = normalizedLevel;
+    }
+
+    private int normalizeChapterLevel(int levelNumber) {
+        if (levelNumber < 1) {
+            return 1;
+        }
+        return Math.min(4, levelNumber);
     }
 
     public List<String> getCompletedChapterLevels() {
@@ -105,7 +143,7 @@ abstract class UserProgress extends UserIdentity {
     }
 
     public boolean completeChapterLevel(String chapterName, int levelNumber) {
-        if (levelNumber < 1 || levelNumber > 3) {
+        if (debugAdventureUnlockOverride || levelNumber < 1 || levelNumber > 4) {
             return false;
         }
         if (completedChapterLevels == null) {
@@ -121,7 +159,7 @@ abstract class UserProgress extends UserIdentity {
     }
 
     public boolean isChapterLevelCompleted(String chapterName, int levelNumber) {
-        if (levelNumber < 1 || levelNumber > 3) {
+        if (levelNumber < 1 || levelNumber > 4) {
             return false;
         }
         return getCompletedChapterLevels().contains(chapterLevelKey(chapterName, levelNumber));
@@ -131,7 +169,7 @@ abstract class UserProgress extends UserIdentity {
         if (levelNumber < 1 || levelNumber > 4 || !isChapterUnlocked(chapterName)) {
             return false;
         }
-        if (allAdventureLevelsUnlocked) {
+        if (debugAdventureUnlockOverride || allAdventureLevelsUnlocked) {
             return true;
         }
         if (levelNumber == 1) {
@@ -156,11 +194,30 @@ abstract class UserProgress extends UserIdentity {
         unlockAllAdventureChapters();
     }
 
+    public boolean isDebugAdventureUnlockOverride() {
+        return debugAdventureUnlockOverride;
+    }
+
+    public void enableDebugAdventureUnlockOverride() {
+        if (debugAdventureUnlockOverride) {
+            return;
+        }
+        debugAdventureChapterName = currentChapterName;
+        debugAdventureChapterLevel = normalizeChapterLevel(currentChapterLevel);
+        debugAdventureUnlockOverride = true;
+    }
+
+    public void disableDebugAdventureUnlockOverride() {
+        debugAdventureUnlockOverride = false;
+        debugAdventureChapterName = "";
+        debugAdventureChapterLevel = 1;
+    }
+
     private void unlockAllAdventureChapters() {
-        unlockChapter("ancient-egypt");
-        unlockChapter("ice-cave");
-        unlockChapter("wave-beach");
-        unlockChapter("wild-west");
+        unlockChapterPersistent("ancient-egypt");
+        unlockChapterPersistent("ice-cave");
+        unlockChapterPersistent("wave-beach");
+        unlockChapterPersistent("wild-west");
     }
 
     public List<String> getCompletedMiniGameStages() {
@@ -302,7 +359,7 @@ abstract class UserProgress extends UserIdentity {
 
     protected String chapterLevelKey(String chapterName, int levelNumber) {
         String normalizedChapter = normalizeChapterName(chapterName);
-        if (normalizedChapter.isEmpty() || levelNumber < 1 || levelNumber > 3) {
+        if (normalizedChapter.isEmpty() || levelNumber < 1 || levelNumber > 4) {
             return "";
         }
         return normalizedChapter + ":" + levelNumber;

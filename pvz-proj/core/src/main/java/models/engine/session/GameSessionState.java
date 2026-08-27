@@ -43,11 +43,12 @@ import java.util.Set;
 abstract class GameSessionState {
     protected static final int DEFAULT_INITIAL_SUN_AMOUNT = 50;
     protected static final int MAX_PLANT_FOOD = 3;
-    protected static final int BASE_PLANT_SUN_AMOUNT = 25;
-    protected static final int TWIN_SUNFLOWER_SUN_AMOUNT = 50;
+    protected static final int BASE_PLANT_SUN_AMOUNT = 50;
+    protected static final int TWIN_SUNFLOWER_SUN_AMOUNT = 100;
     protected static final int PRIMAL_SUNFLOWER_SUN_AMOUNT = 75;
-    protected static final int MATURE_SUN_SHROOM_SUN_AMOUNT = 50;
-    protected static final int DEFAULT_SUN_SHROOM_GROW_TICKS = 30 * 10;
+    protected static final int MATURE_SUN_SHROOM_SUN_AMOUNT = 75;
+    protected static final int SUN_SHROOM_STAGE_TWO_TICKS = 24 * 10;
+    protected static final int DEFAULT_SUN_SHROOM_GROW_TICKS = 72 * 10;
     protected static final int DOUBLE_SUN_CHANCE_PERCENT = 25;
     protected static final int FALLING_SUN_TICKS = 50;
     protected static final int TICKS_PER_SECOND = 10;
@@ -79,6 +80,7 @@ abstract class GameSessionState {
     protected final Set<String> selectedPlantNames;
     protected final List<GameEvent> pendingEvents;
     protected final Map<Zombie, Boolean> glowingZombies;
+    protected final List<PlantFoodDrop> plantFoodDrops;
     protected final Random random;
     protected boolean plantRechargeDisabled;
     protected int nextSkySunTick;
@@ -101,6 +103,7 @@ abstract class GameSessionState {
         this.selectedPlantNames = new LinkedHashSet<>();
         this.pendingEvents = new ArrayList<>();
         this.glowingZombies = new IdentityHashMap<>();
+        this.plantFoodDrops = new ArrayList<>();
     }
 
 
@@ -295,6 +298,10 @@ abstract class GameSessionState {
 
     public int getPlantFoodCount() {
         return plantFoodCount;
+    }
+
+    public List<PlantFoodDrop> getPlantFoodDrops() {
+        return Collections.unmodifiableList(new ArrayList<>(plantFoodDrops));
     }
 
     public int getTotalSunProduced() {

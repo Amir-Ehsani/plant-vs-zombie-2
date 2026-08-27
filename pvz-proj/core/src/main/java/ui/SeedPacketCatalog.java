@@ -49,6 +49,7 @@ public final class SeedPacketCatalog {
             Map.entry("lily pad", "LILYPAD"),
             Map.entry("hot potato", "HOTPOTATO"),
             Map.entry("grave buster", "GRAVEBUSTER"),
+            Map.entry("cat tail", "HOMINGTHISTLE"),
             Map.entry("pierce mint", "SPEARMINT"),
             Map.entry("cattail mint", "AILMINT"),
             Map.entry("cat tail mint", "AILMINT")

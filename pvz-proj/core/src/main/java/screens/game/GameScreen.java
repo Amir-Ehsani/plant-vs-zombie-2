@@ -8,6 +8,7 @@ import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
+import com.badlogic.gdx.math.Matrix4;
 import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.scenes.scene2d.InputEvent;
@@ -22,13 +23,21 @@ import com.pvz.Main;
 import controllers.core.GameController;
 import controllers.features.SettingsController;
 import game.animation.core.PvzAnimationService;
+import game.effects.CombatFeedbackSystem;
+import game.effects.ScreenShakeController;
 import game.hud.CompactSeedBank;
+import game.hud.BossHealthHud;
+import game.hud.GameplayWaveBanner;
+import game.hud.WaveProgressHud;
 import game.input.GameplayInputMode;
 import game.input.GameplayInteractionSystem;
 import game.input.InteractionOverlayRenderer;
 import game.render.BoardBackgroundCatalog;
 import game.render.BoardGeometry;
 import game.render.BoardRenderer;
+import game.render.ChapterBackgroundLayout;
+import game.render.boss.BossRenderSystem;
+import game.render.drop.PlantFoodDropRenderSystem;
 import game.render.entity.EntityRenderSystem;
 import game.render.mower.LawnMowerRenderSystem;
 import game.render.projectile.ProjectileRenderSystem;
@@ -37,10 +46,12 @@ import models.account.PlantData;
 import models.account.Settings;
 import models.account.User;
 import models.core.plant.PlantType;
+import models.core.plant.PlantActionTiming;
 import models.engine.board.Board;
 import models.engine.board.Position;
 import models.engine.session.GameSession;
 import models.engine.session.GameState;
+import models.engine.session.PlantFoodDrop;
 import models.engine.session.PlantRechargeStatus;
 import models.engine.sun.Sun;
 import models.level.core.AdventureLevelCatalog;
@@ -60,6 +71,7 @@ public final class GameScreen extends BaseScreen {
     private static final float BOARD_LEFT_RATIO = BOARD_X / WORLD_WIDTH;
     private static final float BOARD_WIDTH_RATIO = BOARD_WIDTH / WORLD_WIDTH;
     private static final float TICK_SECONDS = 0.1f;
+    private static final float DEBUG_WAVE_PROGRESS_OFFSET = 72f;
     private static final String SHOVEL_BUTTON_ID = "IMAGE_UI_HUD_INGAME_SHOVEL_BUTTON";
     private static final String SHOVEL_BUTTON_DOWN_ID = "IMAGE_UI_HUD_INGAME_SHOVEL_BUTTON_DOWN";
 
@@ -68,6 +80,9 @@ public final class GameScreen extends BaseScreen {
     private final Settings settings;
     private final SpriteBatch batch;
     private final ShapeRenderer shapes;
+    private final Matrix4 worldTransform;
+    private final ScreenShakeController screenShake;
+    private final CombatFeedbackSystem combatFeedback;
     private final BoardGeometry boardGeometry;
     private final BoardRenderer boardRenderer;
     private final PvzAnimationService animations;
@@ -80,7 +95,12 @@ public final class GameScreen extends BaseScreen {
     private final ProjectileRenderSystem projectileRenderSystem;
     private final SunRenderSystem sunRenderSystem;
     private final LawnMowerRenderSystem lawnMowerRenderSystem;
+    private final PlantFoodDropRenderSystem plantFoodDropRenderSystem;
     private final CompactSeedBank compactSeedBank;
+    private final WaveProgressHud waveProgressHud;
+    private final BossRenderSystem bossRenderSystem;
+    private final BossHealthHud bossHealthHud;
+    private final GameplayWaveBanner gameplayWaveBanner;
     private final GameplayInteractionSystem interactions;
     private final InteractionOverlayRenderer interactionOverlay;
     private final Vector2 cursorWorld;
@@ -113,6 +133,9 @@ public final class GameScreen extends BaseScreen {
         settings = game.getSettingsController().getSettings();
         batch = new SpriteBatch();
         shapes = new ShapeRenderer();
+        worldTransform = new Matrix4();
+        screenShake = new ScreenShakeController();
+        combatFeedback = new CombatFeedbackSystem(screenShake);
         boardGeometry = new BoardGeometry(BOARD_X, BOARD_Y, BOARD_WIDTH, BOARD_HEIGHT);
         boardRenderer = new BoardRenderer(boardGeometry);
         animations = new PvzAnimationService();
@@ -124,22 +147,42 @@ public final class GameScreen extends BaseScreen {
         plantCardsTable = new Table();
         gameplayPlantCards = new LinkedHashMap<>();
         if (animations.isAvailable()) {
-            entityRenderSystem = new EntityRenderSystem(boardGeometry, animations);
+            entityRenderSystem = new EntityRenderSystem(
+                boardGeometry,
+                animations,
+                session.getCurrentLevel() == null ? null : session.getCurrentLevel().getSeasonType()
+            );
             projectileRenderSystem = new ProjectileRenderSystem(boardGeometry, animations);
             sunRenderSystem = new SunRenderSystem(boardGeometry, animations);
+            plantFoodDropRenderSystem = new PlantFoodDropRenderSystem(boardGeometry, animations);
             lawnMowerRenderSystem = new LawnMowerRenderSystem(
                 boardGeometry,
                 animations,
                 session.getCurrentLevel() == null ? null : session.getCurrentLevel().getSeasonType()
             );
-            compactSeedBank = new CompactSeedBank(animations, game.getSkin());
+            compactSeedBank = new CompactSeedBank(game.getAnimationService(), game.getSkin());
         } else {
             entityRenderSystem = null;
             projectileRenderSystem = null;
             sunRenderSystem = null;
             lawnMowerRenderSystem = null;
+            plantFoodDropRenderSystem = null;
             compactSeedBank = null;
         }
+        waveProgressHud = new WaveProgressHud(animations);
+        if (animations.isAvailable() && session.getCurrentLevel() != null
+                && session.getCurrentLevel().getBossRuntime() != null) {
+            bossRenderSystem = new BossRenderSystem(
+                    boardGeometry, animations, session.getCurrentLevel().getBossRuntime()
+            );
+            bossHealthHud = new BossHealthHud(
+                    animations, session.getCurrentLevel().getBossRuntime()
+            );
+        } else {
+            bossRenderSystem = null;
+            bossHealthHud = null;
+        }
+        gameplayWaveBanner = new GameplayWaveBanner(animations, game.getSkin());
         interactionOverlay = new InteractionOverlayRenderer(boardGeometry, animations);
         interactions = new GameplayInteractionSystem(
             controller,
@@ -172,19 +215,26 @@ public final class GameScreen extends BaseScreen {
         stage.getViewport().apply();
         batch.setProjectionMatrix(stage.getCamera().combined);
         shapes.setProjectionMatrix(stage.getCamera().combined);
+        applyWorldShake();
         drawBackground();
         drawGrid();
         drawInteractionTileHighlight();
         drawLawnMowers();
-        drawSeedBank();
         drawEntities();
+        drawBoss();
         drawProjectiles();
         drawSuns();
-        drawInteractionCursor();
+        drawPlantFoodDrops();
         drawHover();
+        resetWorldTransform();
+        drawSeedBank();
+        drawInteractionCursor();
+        drawWaveNotification();
         syncInteractionControlState();
-        stage.act(Math.min(delta, 1f / 15f));
+        float stageDelta = gameplayClock.isPaused() ? 0f : Math.min(delta, 1f / 15f);
+        stage.act(stageDelta);
         stage.draw();
+        drawWaveProgress();
     }
 
     @Override
@@ -424,7 +474,10 @@ public final class GameScreen extends BaseScreen {
         int currentTick = gameplayClock.getCurrentTick();
         float visualDelta = gameplayClock.isPaused() ? 0f : delta * gameplayClock.getGameSpeed();
         visualStateTime += visualDelta;
+        waveProgressHud.update(session);
+        gameplayWaveBanner.update(visualDelta, session);
         updateRenderSystems(visualDelta, currentTick);
+        combatFeedback.update(visualDelta, session.getBoard());
         collectSunUnderPointer();
         if (!session.isRunning() && interactions.isActive()) {
             interactions.cancel();
@@ -438,6 +491,9 @@ public final class GameScreen extends BaseScreen {
         if (entityRenderSystem != null) {
             entityRenderSystem.update(visualDelta, board);
         }
+        if (bossRenderSystem != null) {
+            bossRenderSystem.update(visualDelta);
+        }
         if (projectileRenderSystem != null) {
             projectileRenderSystem.observe(board, currentTick);
             projectileRenderSystem.update(visualDelta);
@@ -447,6 +503,9 @@ public final class GameScreen extends BaseScreen {
         }
         if (sunRenderSystem != null) {
             sunRenderSystem.update(visualDelta, session.getSunManager());
+        }
+        if (plantFoodDropRenderSystem != null) {
+            plantFoodDropRenderSystem.update(visualDelta);
         }
     }
 
@@ -548,7 +607,8 @@ public final class GameScreen extends BaseScreen {
             background,
             backgroundRight,
             WORLD_HEIGHT,
-            backgroundCenterX
+            backgroundCenterX,
+            centerBackgroundYOffset()
         );
         batch.end();
         enableAlphaBlending();
@@ -556,6 +616,13 @@ public final class GameScreen extends BaseScreen {
         boardRenderer.drawBoardFill(shapes, background != null);
         shapes.end();
         disableAlphaBlending();
+    }
+
+
+    private float centerBackgroundYOffset() {
+        return session.getCurrentLevel() == null
+            ? 0f
+            : ChapterBackgroundLayout.centerYOffset(session.getCurrentLevel().getSeasonType());
     }
 
     private void drawGrid() {
@@ -628,6 +695,12 @@ public final class GameScreen extends BaseScreen {
         }
     }
 
+    private void drawBoss() {
+        if (bossRenderSystem != null) {
+            bossRenderSystem.render(batch);
+        }
+    }
+
     private void drawProjectiles() {
         if (projectileRenderSystem != null) {
             projectileRenderSystem.render(batch);
@@ -640,10 +713,33 @@ public final class GameScreen extends BaseScreen {
         }
     }
 
+    private void drawPlantFoodDrops() {
+        if (plantFoodDropRenderSystem != null) {
+            plantFoodDropRenderSystem.render(batch, session);
+        }
+    }
+
     private void drawLawnMowers() {
         if (lawnMowerRenderSystem != null) {
             lawnMowerRenderSystem.render(batch, session.getBoard());
         }
+    }
+
+    private void drawWaveProgress() {
+        float waveHudHeight = WORLD_HEIGHT - (isDebugMode() ? DEBUG_WAVE_PROGRESS_OFFSET : 0f);
+        batch.begin();
+        if (bossHealthHud != null) {
+            bossHealthHud.render(batch, WORLD_WIDTH, waveHudHeight);
+        } else {
+            waveProgressHud.render(batch, session, WORLD_WIDTH, waveHudHeight);
+        }
+        batch.end();
+    }
+
+    private void drawWaveNotification() {
+        batch.begin();
+        gameplayWaveBanner.render(batch, WORLD_WIDTH, WORLD_HEIGHT, visualStateTime);
+        batch.end();
     }
 
     private void drawHover() {
@@ -678,6 +774,22 @@ public final class GameScreen extends BaseScreen {
         }
     }
 
+    private void applyWorldShake() {
+        worldTransform.idt().translate(
+            screenShake.getOffsetX(),
+            screenShake.getOffsetY(),
+            0f
+        );
+        batch.setTransformMatrix(worldTransform);
+        shapes.setTransformMatrix(worldTransform);
+    }
+
+    private void resetWorldTransform() {
+        worldTransform.idt();
+        batch.setTransformMatrix(worldTransform);
+        shapes.setTransformMatrix(worldTransform);
+    }
+
     private void enableAlphaBlending() {
         Gdx.gl.glEnable(GL20.GL_BLEND);
         Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
@@ -702,6 +814,9 @@ public final class GameScreen extends BaseScreen {
                     cancelInteraction();
                     return true;
                 }
+                if (button == Input.Buttons.LEFT && handlePlantFoodDropClick()) {
+                    return true;
+                }
                 if (button == Input.Buttons.LEFT && handleSeedBankClick()) {
                     return true;
                 }
@@ -715,6 +830,27 @@ public final class GameScreen extends BaseScreen {
         };
     }
 
+    private boolean handlePlantFoodDropClick() {
+        if (plantFoodDropRenderSystem == null || gameplayClock.isPaused() || !session.isRunning()
+                || (pauseDialog != null && pauseDialog.getStage() != null) || gameOverShown) {
+            return false;
+        }
+        PlantFoodDrop drop = plantFoodDropRenderSystem.findAt(
+            session, cursorWorld.x, cursorWorld.y
+        );
+        if (drop == null) {
+            return false;
+        }
+        if (!session.collectPlantFoodDrop(drop)) {
+            refreshStatus("Plant Food storage is full.");
+            return true;
+        }
+        plantFoodDropRenderSystem.playCollection(drop);
+        refreshGameHud();
+        refreshStatus("Plant Food collected.");
+        return true;
+    }
+
     private boolean handleBoardClick(int button) {
         if (pauseDialog != null && pauseDialog.getStage() != null) {
             return false;
@@ -725,7 +861,11 @@ public final class GameScreen extends BaseScreen {
         if (button != Input.Buttons.LEFT || hoveredTile == null) {
             return false;
         }
-        if (interactions.handleTileClick(hoveredTile)) {
+        GameplayInputMode inputMode = interactions.getMode();
+        String selectedPlantName = interactions.getSelectedPlantName();
+        Position targetPosition = hoveredTile;
+        if (interactions.handleTileClick(targetPosition)) {
+            playImmediatePlantVisual(inputMode, selectedPlantName, targetPosition);
             showInteractionResult();
             refreshGameHud();
             return true;
@@ -738,6 +878,97 @@ public final class GameScreen extends BaseScreen {
         }
         refreshGameHud();
         return true;
+    }
+
+    private void playImmediatePlantVisual(
+        GameplayInputMode inputMode,
+        String plantName,
+        Position position
+    ) {
+        if (entityRenderSystem == null
+            || inputMode != GameplayInputMode.PLANTING
+            || !interactions.wasSuccessful()
+            || plantName == null
+            || position == null) {
+            return;
+        }
+        PlantType type = session.getPlantType(plantName);
+        if (type == null || !isImmediatePlantVisual(plantName)) {
+            return;
+        }
+        entityRenderSystem.playPlantAction(
+            type,
+            position,
+            PlantActionTiming.immediateActionClip(plantName)
+        );
+        playImmediateFieldEffects(plantName, position);
+        combatFeedback.onImmediatePlant(plantName);
+    }
+
+    private boolean isImmediatePlantVisual(String plantName) {
+        String normalized = plantName == null ? "" : plantName.trim().toLowerCase()
+            .replace('-', ' ').replace('_', ' ').replaceAll("\s+", " ");
+        return normalized.equals("gold bloom")
+            || normalized.equals("cherry bomb")
+            || normalized.equals("grapeshot")
+            || normalized.equals("jalapeno")
+            || normalized.equals("doom shroom")
+            || normalized.equals("ice shroom")
+            || normalized.equals("hot potato")
+            || normalized.equals("grave buster")
+            || normalized.endsWith(" mint");
+    }
+
+    private void playImmediateFieldEffects(String plantName, Position position) {
+        String normalized = plantName.trim().toLowerCase()
+            .replace('-', ' ').replace('_', ' ').replaceAll("\s+", " ");
+        float delay = PlantActionTiming.specialImpactTicks(plantName) / 10f;
+        if (normalized.equals("cherry bomb")) {
+            entityRenderSystem.playFieldEffect(
+                "768/FULL/EFFECTS/CHERRYBOMB_EXPLOSION_REAR/CHERRYBOMB_EXPLOSION_REAR.PAM",
+                "explosion", java.util.Collections.singletonList(position), 0.58f, delay, 0f, false
+            );
+            entityRenderSystem.playFieldEffect(
+                "768/FULL/EFFECTS/CHERRYBOMB_EXPLOSION_TOP/CHERRYBOMB_EXPLOSION_TOP.PAM",
+                "explosion", java.util.Collections.singletonList(position), 0.58f, delay, 0f, false
+            );
+        } else if (normalized.equals("grapeshot")) {
+            entityRenderSystem.playFieldEffect(
+                "768/INITIAL/EFFECTS/ESCAPEROOT_EXPLOSION_GRAPESHOT/ESCAPEROOT_EXPLOSION_GRAPESHOT.PAM",
+                "animation", java.util.Collections.singletonList(position), 0.60f, delay, 0f, false
+            );
+        } else if (normalized.equals("grave buster")) {
+            entityRenderSystem.playFieldEffect(
+                "768/INITIAL/EFFECTS/GRAVEBUSTER_DIRT/GRAVEBUSTER_DIRT.PAM",
+                "gravebuster_dirt_anim", java.util.Collections.singletonList(position), 0.48f, delay, 0f, false
+            );
+        } else if (normalized.equals("jalapeno")) {
+            List<Position> lane = new ArrayList<>();
+            for (int column = 1; column <= session.getBoard().getWidth(); column++) {
+                lane.add(new Position(column, position.getY()));
+            }
+            entityRenderSystem.playFieldEffect(
+                "768/INITIAL/EFFECTS/JALAPENO_FIRE/JALAPENO_FIRE.PAM",
+                "idle2", lane, 0.50f, delay, 1.33f, true
+            );
+        } else if (normalized.equals("ice shroom")) {
+            List<Position> tiles = new ArrayList<>();
+            for (int row = 1; row <= session.getBoard().getHeight(); row++) {
+                for (int column = 1; column <= session.getBoard().getWidth(); column++) {
+                    tiles.add(new Position(column, row));
+                }
+            }
+            entityRenderSystem.playFieldEffect(
+                "768/FULL/EFFECTS/ICESHROOM_TILE_FX/ICESHROOM_TILE_FX.PAM",
+                "spawn", tiles, 0.46f, delay, 0f, false
+            );
+        } else if (normalized.equals("hot potato")) {
+            entityRenderSystem.playFieldEffect(
+                "768/FULL/EFFECTS/HOTPOTATO_ICEBLOCK_STEAMFX/HOTPOTATO_ICEBLOCK_STEAMFX.PAM",
+                "animation", java.util.Collections.singletonList(position), 0.48f, delay, 0f, false
+            );
+        }
+
     }
 
     private void updateHoveredTile(int screenX, int screenY) {
@@ -923,7 +1154,8 @@ public final class GameScreen extends BaseScreen {
         }
         String chapter = AdventureLevelCatalog.normalizeChapterName(user.getCurrentChapterName());
         int levelNumber = user.getCurrentChapterLevel();
-        if (levelNumber < AdventureLevelCatalog.LAST_PLAYABLE_LEVEL
+        int chapterLastLevel = AdventureLevelCatalog.lastRequiredLevel(chapter);
+        if (levelNumber < chapterLastLevel
                 && user.isChapterLevelUnlocked(chapter, levelNumber + 1)) {
             game.getScreenManager().showAdventureMission(chapter, levelNumber + 1);
             return;

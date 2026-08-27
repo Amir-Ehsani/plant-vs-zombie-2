@@ -49,6 +49,9 @@ public class PlantFood {
 
         if (temporary) {
             plant.setBoosted(true);
+            if (context != null) {
+                remainingDuration += PlantActionTiming.plantFoodImpactTicks(plant.getName());
+            }
         } else {
             remainingDuration = 0;
             boostedPlant = null;
@@ -99,6 +102,9 @@ public class PlantFood {
 
     private boolean applyPlantEffect(Plant plant, PlantFoodContext context) {
         String name = normalize(plant.getName());
+        if (hasNoPlantFoodEffect(name)) {
+            return false;
+        }
         int damage = Math.max(1, plant.getAttackDamage());
         Boolean result = applySunAndBasicPeaEffect(name, plant, context, damage);
         if (result == null) result = applyAdvancedPeaEffect(name, plant, context, damage);
@@ -111,29 +117,48 @@ public class PlantFood {
         return true;
     }
 
+
+    private boolean hasNoPlantFoodEffect(String name) {
+        return switch (name) {
+            case "gold bloom", "cherry bomb", "grapeshot", "jalapeno", "doom shroom",
+                    "imitater", "ice shroom", "hot potato", "grave buster",
+                    "enlighten mint", "appease mint", "arma mint", "bombard mint",
+                    "enforce mint", "reinforce mint", "enchant mint", "pierce mint",
+                    "cattail mint" -> true;
+            default -> false;
+        };
+    }
+
     private Boolean applySunAndBasicPeaEffect(
             String name, Plant plant, PlantFoodContext context, int damage
     ) {
         return switch (name) {
-            case "sunflower" -> addSunEffect(context, 150);
-            case "twin sunflower" -> addSunEffect(context, 250);
+            case "sunflower" -> spawnSunBurstEffect(context, plant, 150);
+            case "twin sunflower" -> spawnSunBurstEffect(context, plant, 250);
             case "sun shroom" -> {
-                plant.finishGrowth();
-                addSun(context, 225);
+                if (context != null) {
+                    runAtPlantFoodImpact(context, plant, () -> {
+                        plant.finishGrowth();
+                        context.spawnSunBurst(plant, 225);
+                    });
+                } else {
+                    plant.finishGrowth();
+                }
                 yield false;
             }
-            case "primal sunflower" -> addSunEffect(context, 225);
+            case "primal sunflower" -> spawnSunBurstEffect(context, plant, 225);
             case "peashooter", "rotobaga", "split pea", "starfruit", "cat tail" ->
-                    temporaryModifier(plant, 1, 5, false);
+                    temporaryModifier(context, plant, 1, 5, false);
             case "repeater" -> {
-                plant.setPlantFoodModifiers(1, 5, false);
-                if (context != null) context.damageLane(plant, damage * 20, "plant food giant pea");
+                applyTemporaryModifiers(context, plant, 1, 5, false);
+                if (context != null) runAtPlantFoodImpact(context, plant,
+                        () -> context.damageNearestInLane(plant, damage * 20, "plant food giant pea"));
                 yield true;
             }
-            case "threepeater" -> temporaryModifier(plant, 1, 5, false);
+            case "threepeater" -> temporaryModifier(context, plant, 1, 5, false);
             case "snow pea" -> {
-                if (context != null) context.freezeLane(plant, DEFAULT_FREEZE_TICKS);
-                yield temporaryModifier(plant, 1, 5, false);
+                if (context != null) runAtPlantFoodImpact(context, plant, () -> context.freezeLane(plant, DEFAULT_FREEZE_TICKS));
+                yield temporaryModifier(context, plant, 1, 5, false);
             }
             default -> null;
         };
@@ -145,32 +170,46 @@ public class PlantFood {
         return switch (name) {
             case "pea pod" -> {
                 if (context != null) {
-                    context.damageLane(plant, damage * 20 * context.countPlantLayers(plant),
-                            "plant food giant pea");
+                    runAtPlantFoodImpact(context, plant, () -> {
+                        int heads = context.countPlantLayers(plant);
+                        for (int index = 0; index < heads; index++) {
+                            context.damageNearestInLane(plant, damage * 20, "plant food giant pea");
+                        }
+                    });
                 }
                 yield false;
             }
-            case "citron" -> contextAction(context,
+            case "citron" -> contextAction(context, plant,
                     () -> context.damageLane(plant, 100000, "plant food plasma"));
-            case "caulipower" -> contextAction(context, () -> context.hypnotizeRandom(3));
-            case "electric blueberry" -> contextAction(context,
+            case "caulipower" -> contextAction(context, plant, () -> context.hypnotizeRandom(3));
+            case "electric blueberry" -> contextAction(context, plant,
                     () -> context.killRandom(plant, 3, "plant food lightning"));
-            case "bowling bulb" -> contextAction(context,
-                    () -> context.damageRandom(plant, 3, Math.max(540, damage * 3), "plant food bulb"));
-            case "cactus" -> temporaryModifier(plant, 3, 3, true);
+            case "bowling bulb" -> contextAction(context, plant,
+                    () -> context.damageRandomWithSplash(plant, 3,
+                            Math.max(540, damage * 3), Math.max(180, damage), "plant food bulb"));
+            case "cactus" -> temporaryModifier(context, plant, 3, 3, true);
             case "fire peashooter" -> {
-                if (context != null) context.damageLane(plant, Math.max(200, damage * 5), "plant food fire");
-                yield temporaryModifier(plant, 1, 5, false);
+                if (context != null) {
+                    int start = PlantActionTiming.plantFoodImpactTicks(plant.getName());
+                    int pulseDamage = Math.max(300, damage * 3);
+                    for (int pulse = 0; pulse < 6; pulse++) {
+                        int delay = start + pulse * 5;
+                        context.runDelayed(delay, () -> context.damageLane(
+                                plant, pulseDamage, "plant food fire"));
+                    }
+                }
+                yield temporaryModifier(context, plant, 1, 5, false);
             }
             case "goo peashooter" -> {
                 if (context != null) {
-                    context.poisonLane(plant, Math.max(20, plant.getDamagePerTick()), DEFAULT_POISON_TICKS);
+                    runAtPlantFoodImpact(context, plant, () -> context.poisonLane(plant,
+                            Math.max(20, plant.getDamagePerTick()), DEFAULT_POISON_TICKS));
                 }
-                yield temporaryModifier(plant, 1, 5, false);
+                yield temporaryModifier(context, plant, 1, 5, false);
             }
             case "mega gatling pea" -> {
-                if (context != null) context.damageLane(plant, damage * 80, "plant food mega pea");
-                yield temporaryModifier(plant, 2, 8, false);
+                if (context != null) runAtPlantFoodImpact(context, plant, () -> context.damageLane(plant, damage * 80, "plant food mega pea"));
+                yield temporaryModifier(context, plant, 2, 8, false);
             }
             default -> null;
         };
@@ -181,23 +220,41 @@ public class PlantFood {
     ) {
         return switch (name) {
             case "sea shroom", "puff shroom" -> {
-                if (context != null) context.resetPlantAges(plant.getName());
-                yield temporaryModifier(plant, 1, 5, false);
-            }
-            case "fume shroom" -> contextAction(context, () -> context.pushLane(plant, 2.0));
-            case "cabbage pult" -> contextAction(context,
-                    () -> context.damageRandom(plant, 5, Math.max(40, damage), "plant food cabbage"));
-            case "kernel pult" -> contextAction(context, () -> context.butterAll(DEFAULT_STUN_TICKS));
-            case "melon pult" -> contextAction(context,
-                    () -> context.damageRandom(plant, 3, Math.max(240, damage * 3), "plant food melon"));
-            case "winter melon" -> {
                 if (context != null) {
-                    context.damageRandom(plant, 3, Math.max(240, damage * 3), "plant food winter melon");
-                    context.freezeAll(DEFAULT_FREEZE_TICKS);
+                    runAtPlantFoodImpact(context, plant, () -> {
+                        context.resetPlantAges(plant.getName());
+                        context.triggerSamePlantBarrage(plant.getName(), 30, 5);
+                    });
+                }
+                yield temporaryModifier(context, plant, 1, 5, false);
+            }
+            case "fume shroom" -> {
+                if (context != null) {
+                    int start = PlantActionTiming.plantFoodImpactTicks(plant.getName());
+                    for (int pulse = 0; pulse < 5; pulse++) {
+                        int delay = start + pulse * 10;
+                        context.runDelayed(delay, () -> context.damageLane(
+                                plant, 300, "plant food fumes"));
+                    }
+                    context.runDelayed(start + 40, () -> context.pushLane(plant, 2.0));
                 }
                 yield false;
             }
-            case "pepper pult" -> contextAction(context,
+            case "cabbage pult" -> contextAction(context, plant,
+                    () -> context.damageRandom(plant, 5, Math.max(40, damage), "plant food cabbage"));
+            case "kernel pult" -> contextAction(context, plant, () -> context.butterAll(DEFAULT_STUN_TICKS));
+            case "melon pult" -> contextAction(context, plant,
+                    () -> context.damageRandom(plant, 3, Math.max(240, damage * 3), "plant food melon"));
+            case "winter melon" -> {
+                if (context != null) {
+                    runAtPlantFoodImpact(context, plant, () -> {
+                        context.damageRandom(plant, 3, Math.max(240, damage * 3), "plant food winter melon");
+                        context.freezeAll(DEFAULT_FREEZE_TICKS);
+                    });
+                }
+                yield false;
+            }
+            case "pepper pult" -> contextAction(context, plant,
                     () -> context.damageRandom(plant, 3, Math.max(150, damage * 3), "plant food pepper"));
             default -> null;
         };
@@ -208,29 +265,52 @@ public class PlantFood {
     ) {
         return switch (name) {
             case "potato mine", "primal potato mine" -> {
-                plant.finishArming();
-                if (context != null) context.clonePlant(plant, 2);
+                if (context != null) {
+                    runAtPlantFoodImpact(context, plant, () -> {
+                        plant.finishArming();
+                        context.clonePlant(plant, 2);
+                    });
+                } else {
+                    plant.finishArming();
+                }
                 yield false;
             }
-            case "squash" -> contextAction(context,
+            case "squash" -> contextAction(context, plant,
                     () -> context.killRandom(plant, 2, "plant food squash"));
-            case "tangle kelp" -> contextAction(context,
-                    () -> context.killRandom(plant, 3, "plant food tangle"));
-            case "iceberg lettuce" -> contextAction(context,
+            case "tangle kelp" -> contextAction(context, plant,
+                    () -> context.killRandomWaterZombies(plant, 3, "plant food tangle"));
+            case "iceberg lettuce" -> contextAction(context, plant,
                     () -> context.freezeAll(DEFAULT_FREEZE_TICKS));
             case "bonk choy" -> {
                 if (context != null) {
-                    context.damageArea(plant, 1, 1, Math.max(150, damage * 10), "plant food punch");
+                    int start = PlantActionTiming.plantFoodImpactTicks(plant.getName());
+                    int totalDamage = Math.max(1500, damage * 100);
+                    int pulseDamage = Math.max(1, totalDamage / 6);
+                    for (int pulse = 0; pulse < 6; pulse++) {
+                        int delay = start + pulse * 4;
+                        context.runDelayed(delay, () -> context.damageArea(
+                                plant, 1, 1, pulseDamage, "plant food punch"));
+                    }
                 }
-                yield temporaryModifier(plant, 1, 5, false);
+                yield temporaryModifier(context, plant, 1, 5, false);
             }
-            case "phat beet" -> contextAction(context,
+            case "phat beet" -> contextAction(context, plant,
                     () -> context.damageArea(plant, 1, 1, Math.max(300, damage * 20), "plant food sonic"));
-            case "chomper" -> contextAction(context,
+            case "chomper" -> contextAction(context, plant,
                     () -> context.killRandom(plant, 3, "plant food chomp"));
-            case "wasabi whip" -> contextAction(context,
-                    () -> context.damageArea(plant, 1, 1, Math.max(400, damage * 10), "plant food whip"));
-            case "kiwibeast" -> contextAction(context,
+            case "wasabi whip" -> {
+                if (context != null) {
+                    int start = PlantActionTiming.plantFoodImpactTicks(plant.getName());
+                    int pulseDamage = Math.max(300, damage * 8);
+                    for (int pulse = 0; pulse < 5; pulse++) {
+                        int delay = start + pulse * 2;
+                        context.runDelayed(delay, () -> context.damageArea(
+                                plant, 1, 1, pulseDamage, "plant food whip"));
+                    }
+                }
+                yield false;
+            }
+            case "kiwibeast" -> contextAction(context, plant,
                     () -> context.damageArea(plant, 1, 1, Math.max(450, damage * 10), "plant food slam"));
             default -> null;
         };
@@ -240,43 +320,70 @@ public class PlantFood {
             String name, Plant plant, PlantFoodContext context, int damage
     ) {
         return switch (name) {
-            case "wall nut" -> addArmorEffect(plant, 4000);
-            case "tall nut" -> addArmorEffect(plant, 8000);
-            case "endurian" -> {
+            case "wall nut" -> contextAction(context, plant, () -> plant.addArmor(4000));
+            case "tall nut" -> contextAction(context, plant, () -> plant.addArmor(8000));
+            case "endurian" -> contextAction(context, plant, () -> {
                 plant.addArmor(3000);
                 plant.increaseReflectDamage(Math.max(20, damage));
-                yield false;
-            }
-            case "garlic" -> contextAction(context, () -> context.shiftLaneZombies(plant));
-            case "sweet potato" -> {
-                if (context != null) context.attractNearbyZombies(plant);
+            });
+            case "garlic" -> contextAction(context, plant, () -> context.shiftLaneZombies(plant));
+            case "sweet potato" -> contextAction(context, plant, () -> {
+                context.attractNearbyZombies(plant);
                 plant.healToFull();
-                yield false;
-            }
-            case "explode o nut", "pumpkin" -> addArmorEffect(plant, 4000);
-            case "sun bean" -> addArmorEffect(plant, 1000);
-            case "torchwood" -> {
-                plant.enableBlueFlame();
-                yield false;
-            }
-            case "magnet shroom" -> contextAction(context, () -> context.removeArmorFromRandom(5));
+            });
+            case "explode o nut" -> contextAction(context, plant, () -> plant.addExplosiveArmor(4000));
+            case "pumpkin" -> contextAction(context, plant, () -> plant.addArmor(4000));
+            case "sun bean" -> contextAction(context, plant, () -> plant.addArmor(1000));
+            case "torchwood" -> contextAction(context, plant, plant::enableBlueFlame);
+            case "magnet shroom" -> contextAction(context, plant, () -> context.removeArmorFromRandom(5));
             case "hypno shroom" -> {
-                plant.enablePlantFoodHypnoGargantuar();
+                if (context != null) {
+                    runAtPlantFoodImpact(context, plant, plant::enablePlantFoodHypnoGargantuar);
+                } else {
+                    plant.enablePlantFoodHypnoGargantuar();
+                }
                 yield true;
             }
-            case "lily pad" -> contextAction(context, () -> context.cloneLilyPads(3));
+            case "lily pad" -> contextAction(context, plant, () -> context.cloneLilyPads(3));
             default -> null;
         };
     }
 
-    private boolean temporaryModifier(Plant plant, int multiplier, int cooldownRate, boolean pierce) {
-        plant.setPlantFoodModifiers(multiplier, cooldownRate, pierce);
+    private boolean temporaryModifier(
+            PlantFoodContext context,
+            Plant plant,
+            int multiplier,
+            int cooldownRate,
+            boolean pierce
+    ) {
+        applyTemporaryModifiers(context, plant, multiplier, cooldownRate, pierce);
         return true;
     }
 
-    private boolean addSunEffect(PlantFoodContext context, int amount) {
-        addSun(context, amount);
+    private void applyTemporaryModifiers(
+            PlantFoodContext context,
+            Plant plant,
+            int multiplier,
+            int cooldownRate,
+            boolean pierce
+    ) {
+        Runnable apply = () -> plant.setPlantFoodModifiers(multiplier, cooldownRate, pierce);
+        if (context == null) {
+            apply.run();
+        } else {
+            runAtPlantFoodImpact(context, plant, apply);
+        }
+    }
+
+    private boolean spawnSunBurstEffect(PlantFoodContext context, Plant plant, int amount) {
+        spawnSunBurst(context, plant, amount);
         return false;
+    }
+
+    private void spawnSunBurst(PlantFoodContext context, Plant plant, int amount) {
+        if (context != null) {
+            runAtPlantFoodImpact(context, plant, () -> context.spawnSunBurst(plant, amount));
+        }
     }
 
     private boolean addArmorEffect(Plant plant, int amount) {
@@ -284,15 +391,20 @@ public class PlantFood {
         return false;
     }
 
-    private boolean contextAction(PlantFoodContext context, Runnable action) {
-        if (context != null) action.run();
+    private boolean contextAction(PlantFoodContext context, Plant plant, Runnable action) {
+        if (context != null) {
+            runAtPlantFoodImpact(context, plant, action);
+        }
         return false;
     }
 
-    private void addSun(PlantFoodContext context, int amount) {
-        if (context != null) {
-            context.addSun(amount);
+    private void runAtPlantFoodImpact(
+            PlantFoodContext context, Plant plant, Runnable action
+    ) {
+        if (context == null || action == null) {
+            return;
         }
+        context.runDelayed(PlantActionTiming.plantFoodImpactTicks(plant.getName()), action);
     }
 
     private void reducePlantCooldown(Plant plant) {

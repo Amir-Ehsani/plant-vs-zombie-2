@@ -12,5 +12,6 @@ public enum TileType {
     SLIPPERY_UP,
     SLIPPERY_DOWN,
     LOW_TIDE,
-    NECROMANCY
+    NECROMANCY,
+    CRATER
 }

@@ -7,6 +7,7 @@ import models.core.zombie.Zombie;
 import models.core.zombie.ZombieFactory;
 import models.core.zombie.ZombieType;
 import models.engine.board.Board;
+import models.engine.board.GraveSpawnRules;
 import models.engine.board.Lane;
 import models.engine.board.Position;
 import models.engine.board.Tile;
@@ -52,7 +53,7 @@ abstract class LaneCombatAbilitySupport extends LaneCombatTargetSupport {
         } else if (name.equals("ra")) {
             handleRa(zombie, state);
         } else if (name.equals("tomb raiser")) {
-            handleTombRaiser(lane, state);
+            handleTombRaiser(lane, zombie, state);
         } else if (name.equals("hunter")) {
             handleHunter(lane, zombie, state);
         } else if (name.equals("troglobite")) {
@@ -131,14 +132,45 @@ abstract class LaneCombatAbilitySupport extends LaneCombatTargetSupport {
         zombie.addStolenSun(board.stealLooseSuns());
     }
 
-    protected void handleTombRaiser(Lane lane, ZombieRuntimeState state) {
-        if (state.ageTicks % (3 * TICKS_PER_SECOND) != 0) {
+    private static final int TOMB_RAISER_MAX_CREATED_GRAVES = 6;
+    private static final int TOMB_RAISER_MIN_THROW_DELAY_TICKS = 4 * TICKS_PER_SECOND;
+    private static final int TOMB_RAISER_THROW_DELAY_SPREAD_TICKS = 2 * TICKS_PER_SECOND + 1;
+
+    protected void handleTombRaiser(
+            Lane lane,
+            Zombie zombie,
+            ZombieRuntimeState state
+    ) {
+        if (zombie == null || state.tombRaiserGravesCreated >= TOMB_RAISER_MAX_CREATED_GRAVES) {
             return;
         }
+        if (state.tombRaiserNextThrowTick <= 0) {
+            state.tombRaiserNextThrowTick = state.ageTicks + nextTombRaiserThrowDelay();
+            return;
+        }
+        if (state.ageTicks < state.tombRaiserNextThrowTick) {
+            return;
+        }
+        state.tombRaiserNextThrowTick = state.ageTicks + nextTombRaiserThrowDelay();
+
+        int personalCapacity = TOMB_RAISER_MAX_CREATED_GRAVES - state.tombRaiserGravesCreated;
+        int boardCapacity = GraveSpawnRules.remainingCapacity(board);
+        int spawnCount = Math.min(2, Math.min(personalCapacity, boardCapacity));
+        if (spawnCount <= 0) {
+            return;
+        }
+
         List<Tile> available = new ArrayList<>();
         List<Lane> candidateLanes = board == null ? List.of(lane) : board.getLanes();
         for (Lane candidateLane : candidateLanes) {
             for (Tile tile : candidateLane.getTiles()) {
+                // Zombies advance toward smaller X values. Restrict generated graves to the
+                // lawn in front of the Tomb Raiser instead of filling arbitrary freed tiles
+                // anywhere on the board.
+                if (tile.getPosition().getX() >= zombie.getX()
+                        || tile.getPosition().getX() <= 1) {
+                    continue;
+                }
                 if (!tile.hasPlant() && !tile.hasZombies()
                         && tile.getTileType() == TileType.NORMAL) {
                     available.add(tile);
@@ -146,9 +178,16 @@ abstract class LaneCombatAbilitySupport extends LaneCombatTargetSupport {
             }
         }
         Collections.shuffle(available, random);
-        for (int index = 0; index < Math.min(2, available.size()); index++) {
+        int created = Math.min(spawnCount, available.size());
+        for (int index = 0; index < created; index++) {
             available.get(index).setTileType(TileType.GRAVE);
         }
+        state.tombRaiserGravesCreated += created;
+    }
+
+    private int nextTombRaiserThrowDelay() {
+        return TOMB_RAISER_MIN_THROW_DELAY_TICKS
+                + random.nextInt(TOMB_RAISER_THROW_DELAY_SPREAD_TICKS);
     }
 
     protected void handleHunter(Lane lane, Zombie zombie, ZombieRuntimeState state) {
@@ -330,19 +369,32 @@ abstract class LaneCombatAbilitySupport extends LaneCombatTargetSupport {
             double eatMultiplier = (zombieName.equals("news paper")
                     || zombieName.equals("newspaper"))
                     && !zombie.hasArmor() ? 2.0 : 1.0;
+            int hpBefore = plant.getHp() + plant.getArmorHp();
             zombie.attack(plant, eatMultiplier);
+            String bittenPlantName = normalizeText(plant.getName());
+            int hpAfter = plant.getHp() + plant.getArmorHp();
+            if (bittenPlantName.equals("sun bean") && hpAfter < hpBefore && board != null) {
+                board.restoreSun(5 + Math.max(0, plant.getSunDropBonus()));
+            }
+            if (bittenPlantName.equals("endurian") && hpAfter < hpBefore) {
+                plant.triggerSpecialAnimation("attack_start");
+            }
         }
 
-        if (plant.getReflectDamage() > 0 && zombie.isAlive()) {
+        String plantName = normalizeText(plant.getName());
+        int reflectedDamage = plant.getReflectDamage();
+        if (plantName.equals("endurian")) {
+            reflectedDamage = Math.max(20, reflectedDamage);
+        }
+        if (reflectedDamage > 0 && zombie.isAlive()) {
             zombie.recordDamageSource(
                     plant.getName(),
                     plant.getType() == null ? "" : plant.getType().getCategory(),
                     "reflected"
             );
-            zombie.takeDamage(new Damage(plant.getReflectDamage(), "reflected"));
+            zombie.takeDamage(new Damage(reflectedDamage, "reflected"));
         }
 
-        String plantName = normalizeText(plant.getName());
         if (plantName.equals("hypno shroom") && zombie.isAlive()) {
             if (plant.hasPlantFoodHypnoGargantuar()) {
                 ZombieFactory factory = new ZombieFactory();

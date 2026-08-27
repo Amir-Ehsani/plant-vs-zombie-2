@@ -24,6 +24,7 @@ public class SettingsScreen extends BaseMenuScreen {
     private final CheckBox debugBox;
     private final CheckBox musicEnabledBox;
     private final MenuButton unlockAllButton;
+    private final MenuButton unlockAdventureButton;
     private final Slider musicVolumeSlider;
     private final Slider soundVolumeSlider;
     private boolean refreshing;
@@ -39,6 +40,9 @@ public class SettingsScreen extends BaseMenuScreen {
         debugBox = new CheckBox(" Debug mode", skin, "default");
         musicEnabledBox = new CheckBox(" Music enabled", skin, "default");
         unlockAllButton = new MenuButton("Unlock All Plants & Zombies", skin, "green", this::unlockAllContent);
+        unlockAdventureButton = new MenuButton(
+                "Unlock All Chapters & Levels", skin, "green", this::unlockAllAdventureContent
+        );
         musicVolumeSlider = new Slider(0f, 1f, 0.1f, false, skin, "default-horizontal");
         soundVolumeSlider = new Slider(0f, 1f, 0.1f, false, skin, "default-horizontal");
         refreshing = false;
@@ -115,7 +119,10 @@ public class SettingsScreen extends BaseMenuScreen {
         panel.add(createPanelLabel("Debug")).left().width(220f);
         panel.add(debugBox).colspan(2).left().row();
         panel.add().width(220f);
-        panel.add(unlockAllButton).colspan(2).left().width(280f).height(44f).row();
+        Table debugActions = new Table();
+        debugActions.add(unlockAllButton).width(270f).height(44f).padRight(10f);
+        debugActions.add(unlockAdventureButton).width(290f).height(44f);
+        panel.add(debugActions).colspan(2).left().row();
         panel.add(createPanelLabel("Music")).left().width(220f);
         panel.add(musicEnabledBox).colspan(2).left().row();
     }
@@ -178,6 +185,12 @@ public class SettingsScreen extends BaseMenuScreen {
         refreshValues();
     }
 
+    private void unlockAllAdventureContent() {
+        controller.unlockAllAdventureContentForDebug();
+        showControllerMessage(controller.getLastMessage());
+        refreshValues();
+    }
+
     private void changeMusicVolume() {
         float value = musicVolumeSlider.getValue();
         controller.setMusicVolume(value);
@@ -200,8 +213,15 @@ public class SettingsScreen extends BaseMenuScreen {
         gameSpeedValue.setText(settings.getGameSpeed() + "x");
         gridBox.setChecked(settings.isGridVisible());
         debugBox.setChecked(settings.isDebugMode());
-        unlockAllButton.setVisible(settings.isDebugMode());
-        unlockAllButton.setDisabled(!settings.isDebugMode());
+        boolean debugMode = settings.isDebugMode();
+        boolean adventureUnlocked = controller.isDebugAdventureUnlockActive();
+        unlockAllButton.setVisible(debugMode);
+        unlockAllButton.setDisabled(!debugMode);
+        unlockAdventureButton.setVisible(debugMode);
+        unlockAdventureButton.setDisabled(!debugMode || adventureUnlocked);
+        unlockAdventureButton.setText(adventureUnlocked
+                ? "All Chapters & Levels Unlocked"
+                : "Unlock All Chapters & Levels");
         musicEnabledBox.setChecked(settings.isMusicEnabled());
         musicVolumeSlider.setValue(settings.getMusicVolume());
         soundVolumeSlider.setValue(settings.getSoundVolume());

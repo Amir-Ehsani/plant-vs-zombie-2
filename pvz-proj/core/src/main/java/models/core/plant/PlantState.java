@@ -57,12 +57,18 @@ abstract class PlantState extends GameEntity {
     protected boolean plantFoodUnlimitedPierce;
     protected boolean blueFlame;
     protected boolean plantFoodHypnoGargantuar;
+    protected boolean explosiveArmor;
+    protected boolean explosiveArmorBreakPending;
+    protected boolean growthFinished;
+    protected boolean armingFinished;
     protected int iceHits;
     protected int octopusHits;
     protected Zombie transformedByWizard;
     protected int visualAttackSerial;
     protected int visualPlantFoodSerial;
+    protected int visualSpecialSerial;
     protected String visualAttackClip;
+    protected String visualSpecialClip;
     protected String pendingVisualAttackClip;
 
 
@@ -136,12 +142,18 @@ abstract class PlantState extends GameEntity {
         plantFoodUnlimitedPierce = false;
         blueFlame = false;
         plantFoodHypnoGargantuar = false;
+        explosiveArmor = false;
+        explosiveArmorBreakPending = false;
+        growthFinished = false;
+        armingFinished = false;
         iceHits = 0;
         octopusHits = 0;
         transformedByWizard = null;
         visualAttackSerial = 0;
         visualPlantFoodSerial = 0;
+        visualSpecialSerial = 0;
         visualAttackClip = "attack";
+        visualSpecialClip = "special";
         pendingVisualAttackClip = null;
     }
 
@@ -194,8 +206,14 @@ abstract class PlantState extends GameEntity {
     public int getVisualPlantFoodSerial() {
         return visualPlantFoodSerial;
     }
+    public int getVisualSpecialSerial() {
+        return visualSpecialSerial;
+    }
     public String getVisualAttackClip() {
         return visualAttackClip;
+    }
+    public String getVisualSpecialClip() {
+        return visualSpecialClip;
     }
     public int getCurrentSunCost() {
         return currentSunCost;
@@ -286,6 +304,13 @@ abstract class PlantState extends GameEntity {
     }
     public int getGrowTimeTicks() {
         return growTimeTicks;
+    }
+    public boolean isGrowthFinished() {
+        return growthFinished;
+    }
+
+    public boolean isArmingFinished() {
+        return armingFinished;
     }
     public int getProductionTimeTicks() {
         return productionTimeTicks;
