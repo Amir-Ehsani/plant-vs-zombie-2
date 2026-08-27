@@ -45,7 +45,15 @@ public class SettingsController {
     }
 
     public void setDebugMode(boolean enabled) {
-        updateSettings(settings -> settings.setDebugMode(enabled), true, "", "Debug mode updated.");
+        User user = getLoggedInUserOrFail();
+        if (user == null) {
+            return;
+        }
+        if (!enabled) {
+            user.disableDebugAdventureUnlockOverride();
+        }
+        user.getSettings().setDebugMode(enabled);
+        saveAndSucceed("Debug mode updated.");
     }
 
     public void setMusicVolume(float volume) {
@@ -60,6 +68,24 @@ public class SettingsController {
 
     public void setMusicEnabled(boolean enabled) {
         updateSettings(settings -> settings.setMusicEnabled(enabled), true, "", "Music setting updated.");
+    }
+
+    public void unlockAllAdventureContentForDebug() {
+        User user = getLoggedInUserOrFail();
+        if (user == null) {
+            return;
+        }
+        if (!user.getSettings().isDebugMode()) {
+            fail("Debug mode is disabled.");
+            return;
+        }
+        user.enableDebugAdventureUnlockOverride();
+        success("All adventure chapters and levels are temporarily unlocked for debug mode.");
+    }
+
+    public boolean isDebugAdventureUnlockActive() {
+        User user = authController.getLoggedInUser();
+        return user != null && user.isDebugAdventureUnlockOverride();
     }
 
     public void unlockAllCollectionContent() {
