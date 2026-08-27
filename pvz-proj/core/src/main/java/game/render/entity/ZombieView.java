@@ -25,7 +25,9 @@ public final class ZombieView extends EntityView<Zombie> {
     private static final double ARM_DETACH_HEALTH_RATIO = 0.50;
 
     private double lastX;
+    private double lastY;
     private float visualX;
+    private float visualY;
     private boolean visualInitialized;
     private float stationaryTime;
     private boolean armDetached;
@@ -36,7 +38,9 @@ public final class ZombieView extends EntityView<Zombie> {
     public ZombieView(Zombie zombie, EntityAnimationProfile profile) {
         super(zombie, profile);
         lastX = zombie.getX();
+        lastY = zombie.getY();
         visualX = (float) zombie.getX();
+        visualY = (float) zombie.getY();
     }
 
     @Override
@@ -61,7 +65,7 @@ public final class ZombieView extends EntityView<Zombie> {
         List<String> effects = board.getZombieEffects(entity);
         String clip = resolveClip(effects);
         lastClip = clip;
-        Vector2 position = geometry.entityToScreen(visualX, entity.getY());
+        Vector2 position = geometry.entityToScreen(visualX, visualY);
         float renderX = position.x + eatingOffset(geometry, clip);
 
         batch.setColor(resolveTint(effects));
@@ -128,25 +132,31 @@ public final class ZombieView extends EntityView<Zombie> {
     }
 
     private void updateMovementState(float delta) {
-        double movement = Math.abs(entity.getX() - lastX);
+        double movement = Math.abs(entity.getX() - lastX) + Math.abs(entity.getY() - lastY);
         if (movement > POSITION_EPSILON) {
             stationaryTime = 0f;
         } else if (delta > 0f) {
             stationaryTime += delta;
         }
         lastX = entity.getX();
+        lastY = entity.getY();
     }
 
     private void updateVisualPosition(float delta) {
         float targetX = (float) entity.getX();
-        if (!visualInitialized || Math.abs(targetX - visualX) >= TELEPORT_SNAP_DISTANCE) {
+        float targetY = (float) entity.getY();
+        if (!visualInitialized
+                || Math.abs(targetX - visualX) >= TELEPORT_SNAP_DISTANCE
+                || Math.abs(targetY - visualY) >= 1.1f) {
             visualX = targetX;
+            visualY = targetY;
             visualInitialized = true;
             return;
         }
         float safeDelta = Math.max(0f, delta);
         float follow = 1f - (float) Math.exp(-VISUAL_FOLLOW_RATE * safeDelta);
         visualX += (targetX - visualX) * follow;
+        visualY += (targetY - visualY) * follow;
     }
 
     private String resolveClip(List<String> effects) {
