@@ -101,6 +101,7 @@ public class GameSession extends GameSessionPlantSupport {
         plantRechargeUntilTick.clear();
         pendingEvents.clear();
         glowingZombies.clear();
+        plantFoodDrops.clear();
         plantRechargeDisabled = false;
         lastSpawnedWave = null;
         lastAdvancedTickCount = 0;
@@ -460,6 +461,17 @@ public class GameSession extends GameSessionPlantSupport {
 
     public boolean addPlantFood() {
         if (plantFoodCount >= MAX_PLANT_FOOD) {
+            return false;
+        }
+        plantFoodCount++;
+        return true;
+    }
+
+    public boolean collectPlantFoodDrop(PlantFoodDrop drop) {
+        if (!isRunning() || drop == null || plantFoodCount >= MAX_PLANT_FOOD) {
+            return false;
+        }
+        if (!plantFoodDrops.remove(drop)) {
             return false;
         }
         plantFoodCount++;
