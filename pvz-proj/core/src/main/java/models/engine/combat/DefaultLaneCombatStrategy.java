@@ -122,7 +122,14 @@ public class DefaultLaneCombatStrategy extends LaneCombatPlantSupport implements
                     plant.takeDamage(new Damage(plant.getMaxHp(), "lifespan"));
                     continue;
                 }
-                if (tile.isFrozenTerrain() || plant.isDisabled()) {
+                if (tile.isFrozenTerrain()) {
+                    continue;
+                }
+                if (plant.isFrozenByZombie()) {
+                    plant.damageIce(2, false);
+                    continue;
+                }
+                if (plant.isDisabled()) {
                     continue;
                 }
                 if (state.digestTicks > 0) {
