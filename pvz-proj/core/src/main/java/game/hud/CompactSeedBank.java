@@ -179,10 +179,10 @@ public final class CompactSeedBank {
 
     private List<String> visiblePlants(GameSession session) {
         List<String> result = new ArrayList<>();
-        List<String> source = session.getCurrentLevel() != null
-                && session.getCurrentLevel().usesConveyorBelt()
-                ? session.getCurrentLevel().getConveyorPlants()
-                : session.getSelectedPlantNames();
+        Iterable<String> source = session.getSelectedPlantNames();
+        if (session.getCurrentLevel() != null && session.getCurrentLevel().usesConveyorBelt()) {
+            source = session.getCurrentLevel().getConveyorPlants();
+        }
         for (String plantName : source) {
             if (result.size() >= MAX_VISIBLE_SLOTS) {
                 break;
