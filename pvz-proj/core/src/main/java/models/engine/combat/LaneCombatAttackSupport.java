@@ -92,7 +92,15 @@ abstract class LaneCombatAttackSupport extends LaneCombatAbilitySupport {
         int damage = effectiveDamage(plant, 20);
         if (front != null) dealPlantDamage(plant, front, damage, "pea", true);
         if (back != null && back != front) dealPlantDamage(plant, back, damage * 2, "pea", true);
-        if (front != null || back != null) {
+        boolean hitGrave = false;
+        if (front == null) {
+            Tile grave = findNearestGraveTerrain(lane, plant, resolveMaximumRange(plant));
+            if (grave != null) {
+                board.damageTerrain(grave.getPosition(), damage, false);
+                hitGrave = true;
+            }
+        }
+        if (front != null || back != null || hitGrave) {
             plant.attack();
             state.hasAttacked = true;
         }
@@ -111,7 +119,15 @@ abstract class LaneCombatAttackSupport extends LaneCombatAbilitySupport {
         int damage = effectiveDamage(plant, 15);
         if (front != null) dealPlantDamage(plant, front, damage, "melee", false);
         if (back != null && back != front) dealPlantDamage(plant, back, damage, "melee", false);
-        if (front != null || back != null) {
+        boolean hitGrave = false;
+        if (front == null) {
+            Tile grave = findNearestGraveTerrain(lane, plant, range);
+            if (grave != null) {
+                board.damageTerrain(grave.getPosition(), damage, false);
+                hitGrave = true;
+            }
+        }
+        if (front != null || back != null || hitGrave) {
             plant.prepareAttackAnimation(resolveBonkAttackClip(front, back));
             plant.attack();
             state.hasAttacked = true;
@@ -132,8 +148,16 @@ abstract class LaneCombatAttackSupport extends LaneCombatAbilitySupport {
     ) {
         List<Zombie> candidates = collectCandidateZombies(plant, lane);
         Zombie target = selectPrimaryTarget(plant, candidates);
-        if (target == null || !isChargeReady(name, plant, state)) return;
+        if (!isChargeReady(name, plant, state)) return;
         int damage = effectiveDamage(plant, resolveBaseDamage(plant, state, tile));
+        if (target == null) {
+            Tile grave = findNearestGraveTerrain(lane, plant, resolveMaximumRange(plant));
+            if (grave != null) {
+                board.damageTerrain(grave.getPosition(), damage, isFirePlant(plant));
+                finishAttack(plant, state);
+            }
+            return;
+        }
         boolean fireDamage = isFirePlant(plant) || hasTorchwoodBetween(plant, target, lane);
         Tile blockingTerrain = findBlockingTerrain(lane, plant, target);
         if (blockingTerrain != null) {
@@ -192,6 +216,12 @@ abstract class LaneCombatAttackSupport extends LaneCombatAbilitySupport {
                 dealPlantDamage(plant, target, damage, resolveDamageType(plant), false);
                 applyOnHitEffects(plant, target);
                 hits++;
+            } else {
+                Tile grave = findNearestGraveTerrain(targetLane, plant, resolveMaximumRange(plant));
+                if (grave != null) {
+                    board.damageTerrain(grave.getPosition(), damage, isFirePlant(plant));
+                    hits++;
+                }
             }
         }
         return hits;
@@ -365,6 +395,12 @@ abstract class LaneCombatAttackSupport extends LaneCombatAbilitySupport {
         if (!canDamageTarget(target, damage)) return;
         int adjusted = adjustedPlantDamage(source, damage);
         ZombieRuntimeState targetState = stateOf(target);
+        if (targetState.initialIceHealth > 0) {
+            targetState.initialIceHealth = fireDamage
+                    ? 0
+                    : Math.max(0, targetState.initialIceHealth - adjusted);
+            return;
+        }
         if (isAttackBlockedOrReflected(source, target, targetState, damageType, adjusted)) return;
         recordPlantDamageSource(source, target, damageType);
         target.takeDamage(new Damage(adjusted, damageType));
@@ -449,6 +485,11 @@ abstract class LaneCombatAttackSupport extends LaneCombatAbilitySupport {
                 handleSpecialZombieDeath(zombie, state);
                 return false;
             }
+        }
+        if (state.initialIceHealth > 0) {
+            state.initialIceHealth = Math.max(0, state.initialIceHealth - INITIAL_FROZEN_ZOMBIE_MELT_PER_TICK);
+            zombie.setCurrentSpeed(0);
+            return false;
         }
         Tile tile = tileForZombie(lane, zombie);
         if (tile != null && tile.isFrozenTerrain() && !zombie.isIceImmune()) {
