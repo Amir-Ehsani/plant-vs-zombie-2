@@ -24,17 +24,27 @@ public final class EntityRenderSystem {
     private final BoardGeometry geometry;
     private final PvzAnimationService animations;
     private final EntityAnimationRegistry registry;
+    private final boolean showPlantDamageAppearance;
     private final Map<Plant, PlantView> plantViews = new IdentityHashMap<>();
     private final Map<Zombie, ZombieView> zombieViews = new IdentityHashMap<>();
     private final List<ZombiePartVisual> detachedParts = new ArrayList<>();
     private final List<ZombieDeathVisual> deathVisuals = new ArrayList<>();
 
     public EntityRenderSystem(BoardGeometry geometry, PvzAnimationService animations) {
+        this(geometry, animations, true);
+    }
+
+    public EntityRenderSystem(
+            BoardGeometry geometry,
+            PvzAnimationService animations,
+            boolean showPlantDamageAppearance
+    ) {
         if (geometry == null || animations == null || animations.getCatalog() == null) {
             throw new IllegalArgumentException("Entity renderer requires board geometry and animation catalog.");
         }
         this.geometry = geometry;
         this.animations = animations;
+        this.showPlantDamageAppearance = showPlantDamageAppearance;
         registry = new EntityAnimationRegistry(animations.getCatalog());
     }
 
@@ -173,7 +183,7 @@ public final class EntityRenderSystem {
             return null;
         }
         animations.preload(profile.getPath());
-        return new PlantView(plant, profile);
+        return new PlantView(plant, profile, showPlantDamageAppearance);
     }
 
     private ZombieView createZombieView(Zombie zombie) {
