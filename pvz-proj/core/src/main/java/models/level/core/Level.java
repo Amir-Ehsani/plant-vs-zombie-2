@@ -168,8 +168,11 @@ public class Level extends LevelState {
     }
 
     public boolean isZombieAllowed(String zombieName) {
-        return allowedZombieNames.isEmpty()
+        boolean allowedByLevel = allowedZombieNames.isEmpty()
                 || containsIgnoreCase(allowedZombieNames, zombieName);
+        boolean allowedByChapter = seasonType == null
+                || seasonType.isZombieAllowed(zombieName);
+        return allowedByLevel && allowedByChapter;
     }
 
     public void onPlantUsed(String plantName) {
@@ -321,6 +324,17 @@ public class Level extends LevelState {
     void bindSeasonType(SeasonType seasonType) {
         if (status != LevelStatus.NOT_STARTED) {
             throw new IllegalStateException("Season cannot be changed after the level starts.");
+        }
+        if (seasonType == null) {
+            throw new IllegalArgumentException("Season type cannot be null.");
+        }
+        for (String zombieName : allowedZombieNames) {
+            if (!seasonType.isZombieAllowed(zombieName)) {
+                throw new IllegalArgumentException(
+                        "Zombie type " + zombieName + " is not allowed in "
+                                + seasonType.getDisplayName() + "."
+                );
+            }
         }
         this.seasonType = seasonType;
     }
