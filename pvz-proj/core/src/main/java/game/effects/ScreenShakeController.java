@@ -1,7 +1,5 @@
 package game.effects;
 
-import com.badlogic.gdx.math.MathUtils;
-
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -89,9 +87,9 @@ public final class ScreenShakeController {
         }
         remaining = Math.max(0f, remaining - delta);
         elapsed += delta;
-        float envelope = MathUtils.clamp(remaining / duration, 0f, 1f);
-        offsetX = MathUtils.sin(elapsed * X_FREQUENCY) * amplitude * envelope;
-        offsetY = MathUtils.cos(elapsed * Y_FREQUENCY) * amplitude * Y_STRENGTH * envelope;
+        float envelope = Math.max(0f, Math.min(1f, remaining / duration));
+        offsetX = (float) Math.sin(elapsed * X_FREQUENCY) * amplitude * envelope;
+        offsetY = (float) Math.cos(elapsed * Y_FREQUENCY) * amplitude * Y_STRENGTH * envelope;
         if (remaining <= 0f) {
             amplitude = 0f;
             duration = 0f;
