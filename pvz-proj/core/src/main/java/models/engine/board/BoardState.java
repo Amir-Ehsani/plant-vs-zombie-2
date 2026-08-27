@@ -36,6 +36,7 @@ abstract class BoardState {
     protected int totalPlantsDestroyed;
     protected boolean brainEaten;
     protected boolean graveSpawningAllowed;
+    protected boolean frostbiteMechanicsAllowed;
     protected BoardResourceHandler resourceHandler;
     protected List<GameEvent> terrainEvents;
 
