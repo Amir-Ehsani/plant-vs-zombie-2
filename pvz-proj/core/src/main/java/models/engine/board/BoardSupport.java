@@ -19,6 +19,14 @@ import java.util.Random;
 
 
 abstract class BoardSupport extends BoardState {
+    public void setGraveSpawningAllowed(boolean allowed) {
+        graveSpawningAllowed = allowed;
+    }
+
+    public boolean isGraveSpawningAllowed() {
+        return graveSpawningAllowed;
+    }
+
     public void setResourceHandler(BoardResourceHandler resourceHandler) {
         this.resourceHandler = resourceHandler;
     }
@@ -184,7 +192,8 @@ abstract class BoardSupport extends BoardState {
 
             TileType type = currentTile.getTileType();
             if ((type != TileType.SLIPPERY_UP && type != TileType.SLIPPERY_DOWN)
-                    || ignoresSlipperyTile(zombie)) {
+                    || ignoresSlipperyTile(zombie)
+                    || combatStrategy.isInitialZombieFrozen(zombie)) {
                 lastSlipperyTileByZombie.remove(zombie);
                 continue;
             }
@@ -203,14 +212,14 @@ abstract class BoardSupport extends BoardState {
                 continue;
             }
 
-            int targetX = Math.max(1, Math.min(width, (int) Math.ceil(zombie.getX())));
+            int targetX = Math.max(1, Math.min(width, (int) Math.ceil(zombie.getX()) - 1));
             Tile targetTile = targetLane.getTileAt(targetX);
             if (targetTile == null) {
                 continue;
             }
 
             currentTile.removeZombie(zombie);
-            zombie.moveBy(0, laneDelta);
+            zombie.moveBy(-1, laneDelta);
             targetTile.addZombie(zombie);
             lastSlipperyTileByZombie.put(zombie, currentPosition);
         }
@@ -241,11 +250,14 @@ abstract class BoardSupport extends BoardState {
     protected void applyAdjacentFireToIce() {
         for (Lane lane : lanes) {
             for (Tile iceTile : lane.getTiles()) {
-                if (!iceTile.isFrozenTerrain()) {
-                    continue;
-                }
-                if (hasAdjacentFirePlant(iceTile.getPosition())) {
+                if (iceTile.isFrozenTerrain() && hasAdjacentFirePlant(iceTile.getPosition())) {
                     iceTile.damageTerrain(ADJACENT_FIRE_MELT_PER_TICK, false);
+                }
+                for (Plant plant : iceTile.getPlants()) {
+                    if (plant != null && plant.isAlive() && plant.isFrozenByZombie()
+                            && hasAdjacentFirePlant(iceTile.getPosition())) {
+                        plant.damageIce(ADJACENT_FIRE_MELT_PER_TICK, false);
+                    }
                 }
             }
         }
