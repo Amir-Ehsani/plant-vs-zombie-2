@@ -65,6 +65,8 @@ abstract class LaneCombatState {
         protected boolean torchLit = true;
         protected int turquoiseChannelTicks;
         protected int jugglerSpinTicks;
+        protected int tombRaiserGravesCreated;
+        protected int tombRaiserNextThrowTick;
         protected boolean frontObjectObserved;
         protected boolean frontObjectBrokenHandled;
         protected boolean deathHandled;
