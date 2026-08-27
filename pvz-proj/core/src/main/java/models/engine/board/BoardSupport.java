@@ -27,6 +27,14 @@ abstract class BoardSupport extends BoardState {
         return graveSpawningAllowed;
     }
 
+    public void setFrostbiteMechanicsAllowed(boolean allowed) {
+        frostbiteMechanicsAllowed = allowed;
+    }
+
+    public boolean isFrostbiteMechanicsAllowed() {
+        return frostbiteMechanicsAllowed;
+    }
+
     public void setResourceHandler(BoardResourceHandler resourceHandler) {
         this.resourceHandler = resourceHandler;
     }
