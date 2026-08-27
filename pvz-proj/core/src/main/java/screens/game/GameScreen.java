@@ -133,7 +133,7 @@ public final class GameScreen extends BaseScreen {
                 animations,
                 session.getCurrentLevel() == null ? null : session.getCurrentLevel().getSeasonType()
             );
-            compactSeedBank = new CompactSeedBank(animations, game.getSkin());
+            compactSeedBank = new CompactSeedBank(game.getAnimationService(), game.getSkin());
         } else {
             entityRenderSystem = null;
             projectileRenderSystem = null;
