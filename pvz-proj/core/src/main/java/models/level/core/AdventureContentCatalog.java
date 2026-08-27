@@ -24,7 +24,8 @@ public final class AdventureContentCatalog {
         if (chapterIndex < 0 || !AdventureLevelCatalog.isPlayableLevel(levelNumber)) {
             return -1;
         }
-        return chapterIndex * AdventureLevelCatalog.LAST_PLAYABLE_LEVEL + levelNumber - 1;
+        int contentLevel = Math.min(levelNumber, AdventureLevelCatalog.LAST_CONTENT_LEVEL);
+        return chapterIndex * AdventureLevelCatalog.LAST_CONTENT_LEVEL + contentLevel - 1;
     }
 
     public static List<String> plantNamesUnlockedThrough(

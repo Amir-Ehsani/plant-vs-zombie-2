@@ -9,7 +9,7 @@ import models.level.core.AdventureLevelCatalog;
 
 public final class AdventureSessionBootstrap {
     private static final String DEFAULT_CHAPTER = "ancient-egypt";
-    private static final int MAX_PLAYABLE_LEVEL = 3;
+    private static final int MAX_PLAYABLE_LEVEL = AdventureLevelCatalog.BOSS_LEVEL;
 
     private AdventureSessionBootstrap() {
     }
@@ -52,7 +52,9 @@ public final class AdventureSessionBootstrap {
     }
 
     private static int resolvePlayableLevel(User user, String chapter) {
-        int desired = Math.min(MAX_PLAYABLE_LEVEL, Math.max(1, user.getCurrentChapterLevel()));
+        int chapterMaximum = AdventureLevelCatalog.isBossLevelAvailable(chapter)
+                ? MAX_PLAYABLE_LEVEL : AdventureLevelCatalog.LAST_CONTENT_LEVEL;
+        int desired = Math.min(chapterMaximum, Math.max(1, user.getCurrentChapterLevel()));
         for (int level = desired; level >= 1; level--) {
             if (user.isChapterLevelUnlocked(chapter, level)) {
                 return level;

@@ -143,7 +143,7 @@ abstract class UserProgress extends UserIdentity {
     }
 
     public boolean completeChapterLevel(String chapterName, int levelNumber) {
-        if (debugAdventureUnlockOverride || levelNumber < 1 || levelNumber > 3) {
+        if (debugAdventureUnlockOverride || levelNumber < 1 || levelNumber > 4) {
             return false;
         }
         if (completedChapterLevels == null) {
@@ -159,7 +159,7 @@ abstract class UserProgress extends UserIdentity {
     }
 
     public boolean isChapterLevelCompleted(String chapterName, int levelNumber) {
-        if (levelNumber < 1 || levelNumber > 3) {
+        if (levelNumber < 1 || levelNumber > 4) {
             return false;
         }
         return getCompletedChapterLevels().contains(chapterLevelKey(chapterName, levelNumber));
@@ -359,7 +359,7 @@ abstract class UserProgress extends UserIdentity {
 
     protected String chapterLevelKey(String chapterName, int levelNumber) {
         String normalizedChapter = normalizeChapterName(chapterName);
-        if (normalizedChapter.isEmpty() || levelNumber < 1 || levelNumber > 3) {
+        if (normalizedChapter.isEmpty() || levelNumber < 1 || levelNumber > 4) {
             return "";
         }
         return normalizedChapter + ":" + levelNumber;
