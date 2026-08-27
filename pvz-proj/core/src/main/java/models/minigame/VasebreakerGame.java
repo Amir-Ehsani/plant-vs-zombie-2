@@ -69,16 +69,16 @@ public class VasebreakerGame extends MiniGameSession {
 
     public VasebreakerGame(int stage) {
         super(MiniGameType.VASEBREAKER, stage);
-        this.board = new Board();
-        this.plantFactory = new PlantFactory();
-        this.zombieFactory = new ZombieFactory();
-        this.random = new Random(8_100L + stage);
-        this.vases = new LinkedHashMap<>();
-        this.packets = new LinkedHashMap<>();
-        this.packetLifeTicks = 180 - stage * 30;
-        this.nextPacketId = 1;
-        this.brokenVases = 0;
-        this.expiredPackets = 0;
+        board = new Board();
+        plantFactory = new PlantFactory();
+        zombieFactory = new ZombieFactory();
+        random = new Random(8_100L + stage);
+        vases = new LinkedHashMap<>();
+        packets = new LinkedHashMap<>();
+        packetLifeTicks = 260;
+        nextPacketId = 1;
+        brokenVases = 0;
+        expiredPackets = 0;
         disableMowers();
         initializeVases();
         success("Vasebreaker stage " + stage + " started with " + vases.size() + " vases.");
@@ -223,30 +223,42 @@ public class VasebreakerGame extends MiniGameSession {
         return board;
     }
 
+    public List<VaseView> getVases() {
+        List<VaseView> result = new ArrayList<>();
+        for (Map.Entry<Position, Vase> entry : vases.entrySet()) {
+            result.add(new VaseView(entry.getKey(), entry.getValue().kind.name()));
+        }
+        return Collections.unmodifiableList(result);
+    }
+
+    public List<SeedPacketView> getSeedPackets() {
+        List<SeedPacketView> result = new ArrayList<>();
+        for (SeedPacket packet : packets.values()) {
+            result.add(new SeedPacketView(packet.id, packet.plantName, packet.dropPosition, packet.remainingTicks));
+        }
+        return Collections.unmodifiableList(result);
+    }
+
+    public record VaseView(Position position, String kind) {
+    }
+
+    public record SeedPacketView(int id, String plantName, Position dropPosition, int remainingTicks) {
+    }
+
     private void revealVase(Vase vase, Position position) {
         if (vase.contentKind == ContentKind.EMPTY) {
             success("The vase at " + position + " was empty.");
             return;
         }
         if (vase.contentKind == ContentKind.PLANT_PACKET) {
-            SeedPacket packet = new SeedPacket(
-                    nextPacketId++,
-                    vase.contentName,
-                    position,
-                    packetLifeTicks
-            );
+            SeedPacket packet = new SeedPacket(nextPacketId++, vase.contentName, position, packetLifeTicks);
             packets.put(packet.id, packet);
-            success("The vase dropped seed packet #" + packet.id
-                    + " for " + packet.plantName + ".");
+            success("The vase dropped seed packet #" + packet.id + " for " + packet.plantName + ".");
             return;
         }
 
         try {
-            Zombie zombie = zombieFactory.createZombie(
-                    vase.contentName,
-                    position.getX(),
-                    position.getY()
-            );
+            Zombie zombie = zombieFactory.createZombie(vase.contentName, position.getX(), position.getY());
             Tile tile = board.getTileAt(position);
             tile.addZombie(zombie);
             success("The vase released " + zombie.getName() + " at " + position + ".");
@@ -271,19 +283,18 @@ public class VasebreakerGame extends MiniGameSession {
 
     private void initializeVases() {
         List<Position> positions = vasePositions();
-        List<Vase> contents = vaseContents();
+        List<Vase> contents = vaseContents(positions.size());
         Collections.shuffle(positions, random);
         Collections.shuffle(contents, random);
-        for (int index = 0; index < contents.size(); index++) {
+        for (int index = 0; index < contents.size() && index < positions.size(); index++) {
             vases.put(positions.get(index), contents.get(index));
         }
     }
 
     private List<Position> vasePositions() {
-        int firstColumn = 5;
-        int lastColumn = 6 + getStage();
+        int firstColumn = getStage() == 3 ? 3 : 4;
         List<Position> positions = new ArrayList<>();
-        for (int x = firstColumn; x <= lastColumn; x++) {
+        for (int x = firstColumn; x <= board.getWidth(); x++) {
             for (int y = 1; y <= board.getHeight(); y++) {
                 positions.add(new Position(x, y));
             }
@@ -291,39 +302,32 @@ public class VasebreakerGame extends MiniGameSession {
         return positions;
     }
 
-    private List<Vase> vaseContents() {
-        int stage = getStage();
-        int plantSpecials = stage == 3 ? 2 : 1;
-        int gargantuarSpecials = stage == 3 ? 2 : 1;
-        int packetVases = 5 + stage;
-        int zombieVases = 3 + stage * 2;
-        int total = (2 + stage) * board.getHeight();
-        int emptyVases = total - plantSpecials - gargantuarSpecials
-                - packetVases - zombieVases;
+    private List<Vase> vaseContents(int total) {
+        int plantVases = getStage() == 3 ? 4 : 3;
+        int gargantuarVases = getStage() == 1 ? 0 : getStage() == 2 ? 1 : 2;
+        int normalVases = total - plantVases - gargantuarVases;
+        int normalPlantPackets = getStage() == 1 ? 10 : getStage() == 2 ? 9 : 10;
+        int normalZombies = getStage() == 1 ? 9 : getStage() == 2 ? 12 : 16;
+        int emptyVases = Math.max(0, normalVases - normalPlantPackets - normalZombies);
 
         List<Vase> result = new ArrayList<>();
-        List<String> packetPlants = packetPlantNames(packetVases + plantSpecials);
-        for (int index = 0; index < plantSpecials; index++) {
-            result.add(new Vase(
-                    VaseKind.PLANT,
-                    ContentKind.PLANT_PACKET,
-                    packetPlants.remove(0)
-            ));
+        List<String> packetPlants = packetPlantNames(plantVases + normalPlantPackets);
+        for (int index = 0; index < plantVases; index++) {
+            result.add(new Vase(VaseKind.PLANT, ContentKind.PLANT_PACKET, packetPlants.remove(0)));
         }
-        for (int index = 0; index < gargantuarSpecials; index++) {
+        for (int index = 0; index < gargantuarVases; index++) {
             result.add(new Vase(VaseKind.GARGANTUAR, ContentKind.ZOMBIE, "Gargantuar"));
         }
-        for (int index = 0; index < packetVases; index++) {
-            result.add(new Vase(
-                    VaseKind.NORMAL,
-                    ContentKind.PLANT_PACKET,
-                    packetPlants.remove(0)
-            ));
+        for (int index = 0; index < normalPlantPackets; index++) {
+            result.add(new Vase(VaseKind.NORMAL, ContentKind.PLANT_PACKET, packetPlants.remove(0)));
         }
-        for (int index = 0; index < zombieVases; index++) {
+        for (int index = 0; index < normalZombies; index++) {
             result.add(new Vase(VaseKind.NORMAL, ContentKind.ZOMBIE, randomZombieName()));
         }
         for (int index = 0; index < emptyVases; index++) {
+            result.add(new Vase(VaseKind.NORMAL, ContentKind.EMPTY, ""));
+        }
+        while (result.size() < total) {
             result.add(new Vase(VaseKind.NORMAL, ContentKind.EMPTY, ""));
         }
         return result;
@@ -332,24 +336,20 @@ public class VasebreakerGame extends MiniGameSession {
     private List<String> packetPlantNames(int count) {
         List<String> names = new ArrayList<>();
         if (getStage() == 1) {
-            Collections.addAll(
-                    names,
-                    "Cherry Bomb", "Cherry Bomb", "Wall-nut",
-                    "Repeater", "Peashooter", "Peashooter", "Snow Pea"
-            );
+            Collections.addAll(names,
+                    "Peashooter", "Peashooter", "Repeater", "Snow Pea", "Wall-nut",
+                    "Cherry Bomb", "Peashooter", "Repeater", "Wall-nut", "Snow Pea",
+                    "Peashooter", "Cherry Bomb", "Wall-nut");
         } else if (getStage() == 2) {
-            Collections.addAll(
-                    names,
-                    "Cherry Bomb", "Cherry Bomb", "Jalapeno", "Wall-nut",
-                    "Repeater", "Repeater", "Snow Pea", "Threepeater"
-            );
+            Collections.addAll(names,
+                    "Peashooter", "Repeater", "Snow Pea", "Wall-nut", "Cherry Bomb",
+                    "Jalapeno", "Repeater", "Threepeater", "Peashooter", "Wall-nut",
+                    "Snow Pea", "Repeater", "Tall-nut");
         } else {
-            Collections.addAll(
-                    names,
-                    "Cherry Bomb", "Cherry Bomb", "Cherry Bomb", "Jalapeno",
-                    "Tall-nut", "Repeater", "Repeater", "Snow Pea",
-                    "Threepeater", "Threepeater"
-            );
+            Collections.addAll(names,
+                    "Peashooter", "Repeater", "Snow Pea", "Wall-nut", "Tall-nut",
+                    "Cherry Bomb", "Jalapeno", "Threepeater", "Repeater", "Threepeater",
+                    "Snow Pea", "Tall-nut", "Cherry Bomb", "Wall-nut");
         }
         while (names.size() < count) {
             names.add("Peashooter");
@@ -373,22 +373,19 @@ public class VasebreakerGame extends MiniGameSession {
                 }
             }
             board.removeDeadEntities();
-            success("Jalapeno packet burned row " + target.getY()
-                    + " and hit " + hitCount + " zombies.");
+            success("Jalapeno packet burned row " + target.getY() + " and hit " + hitCount + " zombies.");
             return;
         }
 
         int hitCount = 0;
         for (Zombie zombie : new ArrayList<>(board.getAllZombies())) {
-            if (Math.abs(zombie.getX() - target.getX()) <= 1
-                    && Math.abs(zombie.getY() - target.getY()) <= 1) {
+            if (Math.abs(zombie.getX() - target.getX()) <= 1 && Math.abs(zombie.getY() - target.getY()) <= 1) {
                 zombie.takeDamage(new Damage(1800, "cherry bomb packet"));
                 hitCount++;
             }
         }
         board.removeDeadEntities();
-        success("Cherry Bomb packet exploded at " + target
-                + " and hit " + hitCount + " zombies.");
+        success("Cherry Bomb packet exploded at " + target + " and hit " + hitCount + " zombies.");
     }
 
     private String randomZombieName() {
