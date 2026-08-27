@@ -17,8 +17,7 @@ public final class WaveProgressHud {
     private static final String FLAG_POLE_ID = "IMAGE_UI_HUD_INGAME_PROGRESS_METER_FLAG_POLE";
     private static final String ZOMBIE_HEAD_ID = "IMAGE_UI_HUD_INGAME_PROGRESS_METER_ZOMBIEHEAD";
 
-    private static final float HUD_X = 640f;
-    private static final float HUD_Y = 12f;
+    private static final float TOP_MARGIN = 12f;
     private static final float TRACK_LEFT_INSET = 10f;
     private static final float TRACK_RIGHT_INSET = 10f;
     private static final float FLAG_X_OFFSET = 1f;
@@ -51,22 +50,24 @@ public final class WaveProgressHud {
         }
     }
 
-    public void render(Batch batch, GameSession session) {
+    public void render(Batch batch, GameSession session, float worldWidth, float worldHeight) {
         if (!isDrawable(batch, session)) {
             return;
         }
         WaveManager waveManager = session.getCurrentLevel().getWaveManager();
         float meterWidth = meter.getRegionWidth();
         float meterHeight = meter.getRegionHeight();
-        float trackLeft = HUD_X + TRACK_LEFT_INSET;
-        float trackRight = HUD_X + meterWidth - TRACK_RIGHT_INSET;
+        float hudX = (worldWidth - meterWidth) * 0.5f;
+        float hudY = worldHeight - meterHeight - TOP_MARGIN;
+        float trackLeft = hudX + TRACK_LEFT_INSET;
+        float trackRight = hudX + meterWidth - TRACK_RIGHT_INSET;
         float trackWidth = Math.max(1f, trackRight - trackLeft);
         float fillLeft = trackRight - trackWidth * MathUtils.clamp(displayedProgress, 0f, 1f);
 
-        batch.draw(fill, fillLeft, fillY(meterHeight), trackRight - fillLeft, fill.getRegionHeight());
-        batch.draw(meter, HUD_X, HUD_Y);
-        drawWaveFlags(batch, waveManager, trackLeft, trackWidth, meterHeight);
-        drawZombieHead(batch, fillLeft, meterHeight);
+        batch.draw(fill, fillLeft, fillY(hudY, meterHeight), trackRight - fillLeft, fill.getRegionHeight());
+        batch.draw(meter, hudX, hudY);
+        drawWaveFlags(batch, waveManager, trackLeft, trackWidth, hudY, meterHeight);
+        drawZombieHead(batch, fillLeft, hudY, meterHeight);
     }
 
     private void drawWaveFlags(
@@ -74,6 +75,7 @@ public final class WaveProgressHud {
             WaveManager waveManager,
             float trackLeft,
             float trackWidth,
+            float hudY,
             float meterHeight
     ) {
         int totalWaves = waveManager.getTotalWaves();
@@ -83,24 +85,24 @@ public final class WaveProgressHud {
             batch.draw(
                     flagPole,
                     markerX + FLAG_POLE_X_OFFSET,
-                    HUD_Y + FLAG_POLE_Y_OFFSET
+                    hudY + FLAG_POLE_Y_OFFSET
             );
             batch.draw(
                     flag,
                     markerX + FLAG_X_OFFSET,
-                    HUD_Y + (meterHeight - flag.getRegionHeight()) * 0.5f + FLAG_Y_OFFSET
+                    hudY + (meterHeight - flag.getRegionHeight()) * 0.5f + FLAG_Y_OFFSET
             );
         }
     }
 
-    private void drawZombieHead(Batch batch, float fillLeft, float meterHeight) {
+    private void drawZombieHead(Batch batch, float fillLeft, float hudY, float meterHeight) {
         float headX = fillLeft - zombieHead.getRegionWidth() + HEAD_OVERLAP;
-        float headY = HUD_Y + (meterHeight - zombieHead.getRegionHeight()) * 0.5f;
+        float headY = hudY + (meterHeight - zombieHead.getRegionHeight()) * 0.5f;
         batch.draw(zombieHead, headX, headY);
     }
 
-    private float fillY(float meterHeight) {
-        return HUD_Y + (meterHeight - fill.getRegionHeight()) * 0.5f;
+    private float fillY(float hudY, float meterHeight) {
+        return hudY + (meterHeight - fill.getRegionHeight()) * 0.5f;
     }
 
     private float calculateProgress(GameSession session) {
