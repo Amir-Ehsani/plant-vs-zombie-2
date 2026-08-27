@@ -157,8 +157,15 @@ public final class GameEvent {
     }
 
     public static GameEvent rewardDropped(String rewardType, int amount) {
+        return rewardDropped(rewardType, amount, null);
+    }
+
+    public static GameEvent rewardDropped(String rewardType, int amount, Position position) {
+        double x = position == null ? 0 : position.getX();
+        double y = position == null ? 0 : position.getY();
         return new GameEvent(GameEventType.REWARD_DROPPED, rewardType, null, null, null,
-                0, 0, 0, 0, 0, Math.max(1, amount), 0, 0, false, false,
+                x, y, position == null ? 0 : position.getY(), 0, 0,
+                Math.max(1, amount), 0, 0, false, false,
                 null, null, null);
     }
 
