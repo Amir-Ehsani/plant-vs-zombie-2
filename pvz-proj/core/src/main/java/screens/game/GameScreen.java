@@ -8,6 +8,7 @@ import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
+import com.badlogic.gdx.math.Matrix4;
 import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.scenes.scene2d.InputEvent;
@@ -22,6 +23,8 @@ import com.pvz.Main;
 import controllers.core.GameController;
 import controllers.features.SettingsController;
 import game.animation.core.PvzAnimationService;
+import game.effects.CombatFeedbackSystem;
+import game.effects.ScreenShakeController;
 import game.hud.CompactSeedBank;
 import game.hud.GameplayWaveBanner;
 import game.hud.WaveProgressHud;
@@ -72,6 +75,9 @@ public final class GameScreen extends BaseScreen {
     private final Settings settings;
     private final SpriteBatch batch;
     private final ShapeRenderer shapes;
+    private final Matrix4 worldTransform;
+    private final ScreenShakeController screenShake;
+    private final CombatFeedbackSystem combatFeedback;
     private final BoardGeometry boardGeometry;
     private final BoardRenderer boardRenderer;
     private final PvzAnimationService animations;
@@ -119,6 +125,9 @@ public final class GameScreen extends BaseScreen {
         settings = game.getSettingsController().getSettings();
         batch = new SpriteBatch();
         shapes = new ShapeRenderer();
+        worldTransform = new Matrix4();
+        screenShake = new ScreenShakeController();
+        combatFeedback = new CombatFeedbackSystem(screenShake);
         boardGeometry = new BoardGeometry(BOARD_X, BOARD_Y, BOARD_WIDTH, BOARD_HEIGHT);
         boardRenderer = new BoardRenderer(boardGeometry);
         animations = new PvzAnimationService();
@@ -180,16 +189,18 @@ public final class GameScreen extends BaseScreen {
         stage.getViewport().apply();
         batch.setProjectionMatrix(stage.getCamera().combined);
         shapes.setProjectionMatrix(stage.getCamera().combined);
+        applyWorldShake();
         drawBackground();
         drawGrid();
         drawInteractionTileHighlight();
         drawLawnMowers();
-        drawSeedBank();
         drawEntities();
         drawProjectiles();
         drawSuns();
-        drawInteractionCursor();
         drawHover();
+        resetWorldTransform();
+        drawSeedBank();
+        drawInteractionCursor();
         drawWaveNotification();
         syncInteractionControlState();
         float stageDelta = gameplayClock.isPaused() ? 0f : Math.min(delta, 1f / 15f);
@@ -438,6 +449,7 @@ public final class GameScreen extends BaseScreen {
         waveProgressHud.update(session);
         gameplayWaveBanner.update(visualDelta, session);
         updateRenderSystems(visualDelta, currentTick);
+        combatFeedback.update(visualDelta, session.getBoard());
         collectSunUnderPointer();
         if (!session.isRunning() && interactions.isActive()) {
             interactions.cancel();
@@ -704,6 +716,22 @@ public final class GameScreen extends BaseScreen {
         }
     }
 
+    private void applyWorldShake() {
+        worldTransform.idt().translate(
+            screenShake.getOffsetX(),
+            screenShake.getOffsetY(),
+            0f
+        );
+        batch.setTransformMatrix(worldTransform);
+        shapes.setTransformMatrix(worldTransform);
+    }
+
+    private void resetWorldTransform() {
+        worldTransform.idt();
+        batch.setTransformMatrix(worldTransform);
+        shapes.setTransformMatrix(worldTransform);
+    }
+
     private void enableAlphaBlending() {
         Gdx.gl.glEnable(GL20.GL_BLEND);
         Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
@@ -792,6 +820,7 @@ public final class GameScreen extends BaseScreen {
             PlantActionTiming.immediateActionClip(plantName)
         );
         playImmediateFieldEffects(plantName, position);
+        combatFeedback.onImmediatePlant(plantName);
     }
 
     private boolean isImmediatePlantVisual(String plantName) {
