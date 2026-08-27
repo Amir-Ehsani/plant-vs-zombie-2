@@ -127,10 +127,9 @@ public class AdventureLevelSelectionScreen extends BaseMenuScreen {
     }
 
     private void addLevelNode(Group group, User user, int levelNumber, float x, float y) {
-        boolean debugMode = user.getSettings().isDebugMode();
-        boolean unlocked = debugMode || (levelNumber == 1
+        boolean unlocked = levelNumber == 1
                 ? user.isChapterUnlocked(chapterName)
-                : user.isChapterLevelUnlocked(chapterName, levelNumber));
+                : user.isChapterLevelUnlocked(chapterName, levelNumber);
         boolean completed = user.isChapterLevelCompleted(chapterName, levelNumber);
 
         Stack stack = new Stack();
