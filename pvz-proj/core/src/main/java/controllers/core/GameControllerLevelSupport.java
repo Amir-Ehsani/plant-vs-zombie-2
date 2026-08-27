@@ -1,5 +1,7 @@
 package controllers.core;
 
+import boss.core.BossCatalog;
+import boss.core.BossRuntime;
 import controllers.features.TravelLogController;
 import models.account.Collection;
 import models.account.News;
@@ -159,11 +161,15 @@ abstract class GameControllerLevelSupport extends GameControllerStatusSupport {
     protected Level createAdventureLevel(String chapterName, int levelNumber) {
         int difficulty = currentDifficultyLevel();
         ZombieRegistry zombieRegistry = DefaultZombieRegistry.getInstance();
-        List<String> allowedPlants = AdventureContentCatalog.plantNamesUnlockedThrough(
-                chapterName,
-                levelNumber,
-                plantRegistry
-        );
+        User user = authController == null ? null : authController.getLoggedInUser();
+        boolean debugMode = isDebugModeEnabled(user);
+        List<String> allowedPlants = debugMode
+                ? new ArrayList<>(plantRegistry.getAllPlantNames())
+                : AdventureContentCatalog.plantNamesUnlockedThrough(
+                        chapterName,
+                        levelNumber,
+                        plantRegistry
+                );
         List<String> allowedZombies = chapterZombiePool(
                 chapterName,
                 AdventureContentCatalog.zombieNamesUnlockedThrough(
@@ -172,6 +178,11 @@ abstract class GameControllerLevelSupport extends GameControllerStatusSupport {
                         zombieRegistry
                 )
         );
+
+        if (levelNumber == AdventureLevelCatalog.BOSS_LEVEL) {
+            return createBossLevel(chapterName, allowedPlants, allowedZombies);
+        }
+
         List<String> newlyUnlockedZombies = chapterZombiePool(
                 chapterName,
                 AdventureContentCatalog.zombieNamesUnlockedAt(
@@ -191,7 +202,7 @@ abstract class GameControllerLevelSupport extends GameControllerStatusSupport {
 
         LevelRule rule = levelNumber == 1
                 ? new NoSpecialRule()
-                : createSpecialRule(chapterName, levelNumber, allowedPlants, difficulty);
+                : createSpecialRule(chapterName, levelNumber, allowedPlants, difficulty, debugMode);
         LevelType levelType = levelNumber == 1 ? LevelType.NORMAL : LevelType.SPECIAL;
 
         Level level = new Level(
@@ -227,11 +238,47 @@ abstract class GameControllerLevelSupport extends GameControllerStatusSupport {
         return result;
     }
 
+    private Level createBossLevel(
+            String chapterName,
+            List<String> allowedPlants,
+            List<String> allowedZombies
+    ) {
+        if (!BossCatalog.supportsChapter(chapterName)) {
+            throw new IllegalArgumentException(
+                    "P2-09 boss core currently supports Ancient Egypt and Frostbite Caves only."
+            );
+        }
+        WaveManager waveManager = new WaveManager(
+                new ArrayList<>(), null, AttackPattern.ROUND_ROBIN
+        );
+        ConveyorBeltRule conveyor = new ConveyorBeltRule(
+                ownedAllowedPlants(allowedPlants),
+                75,
+                new java.util.Random(AdventureLevelCatalog.levelId(chapterName, 4) * 7919L)
+        );
+        Level level = new Level(
+                AdventureLevelCatalog.levelId(chapterName, AdventureLevelCatalog.BOSS_LEVEL),
+                waveManager,
+                LevelType.BOSS,
+                allowedPlants,
+                allowedZombies,
+                conveyor,
+                0
+        );
+        AdventureChapterConfigurator.configure(level, chapterName, AdventureLevelCatalog.BOSS_LEVEL);
+        level.bindBossRuntime(new BossRuntime(
+                BossCatalog.create(chapterName),
+                AdventureLevelCatalog.levelId(chapterName, AdventureLevelCatalog.BOSS_LEVEL) * 104729L
+        ));
+        return level;
+    }
+
     protected LevelRule createSpecialRule(
             String chapterName,
             int levelNumber,
             List<String> allowedPlants,
-            int difficulty
+            int difficulty,
+            boolean debugMode
     ) {
         SpecialLevelType type = AdventureLevelCatalog.specialTypeFor(chapterName, levelNumber);
 
@@ -240,8 +287,8 @@ abstract class GameControllerLevelSupport extends GameControllerStatusSupport {
             case LOCKED_PLANTS -> new LockedPlantsRule(
                     8,
                     3,
-                    Arrays.asList("Cherry Bomb", "Potato Mine"),
-                    lockedPlantFamilies()
+                    debugMode ? new ArrayList<>() : Arrays.asList("Cherry Bomb", "Potato Mine"),
+                    debugMode ? new LinkedHashMap<>() : lockedPlantFamilies()
             );
             case SAVE_OUR_SEEDS -> new SaveOurSeedsRule(protectedSeedPositions());
             case TIMED_WAR -> new TimedWarRule(
@@ -276,6 +323,12 @@ abstract class GameControllerLevelSupport extends GameControllerStatusSupport {
         return ownedPlants;
     }
 
+
+    private boolean isDebugModeEnabled(User user) {
+        return user != null
+                && user.getSettings() != null
+                && user.getSettings().isDebugMode();
+    }
 
     protected abstract boolean isPlantUnlockedByUser(String plantName);
 }
