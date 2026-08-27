@@ -25,6 +25,11 @@ public final class PlantView extends EntityView<Plant> {
     private static final float CHOMPER_DIGEST_VISUAL_SECONDS = 40f;
     private static final Color NUT_ARMOR_TINT = new Color(0.72f, 0.78f, 0.86f, 0.92f);
     private static final float NUT_ARMOR_SHELL_SCALE = 1.08f;
+    private static final String PLANT_FOOD_GLOW_PATH =
+        "768/INITIAL/EFFECTS/PLANTFOOD_FX/PLANTFOOD_FX.PAM";
+    private static final float PLANT_FOOD_GLOW_SCALE = 0.52f;
+    private static final float PLANT_FOOD_GLOW_ON_SECONDS = 0.2333f;
+    private static final float PLANT_FOOD_GLOW_OFF_START = 4.75f;
     private static final String FIRE_PEA_ROW_PATH =
         "768/INITIAL/EFFECTS/FIREPEASHOOTER_FIRE/FIREPEASHOOTER_FIRE.PAM";
     private static final String PHAT_BEET_ATTACK_PULSE_PATH =
@@ -109,6 +114,7 @@ public final class PlantView extends EntityView<Plant> {
         Vector2 position = geometry.entityToScreen(entity.getX(), entity.getY());
         position.x += squashVisualOffset(geometry);
         drawFrozenBehind(batch, animations, position);
+        drawPlantFoodGlow(batch, animations, position);
         drawArmorExplosion(batch, animations, position, false);
         drawPlant(batch, animations, position, board);
         drawActionEffects(batch, geometry, animations, board, position);
@@ -574,6 +580,42 @@ public final class PlantView extends EntityView<Plant> {
         String path = front ? GENERIC_EXPLOSION_FRONT_PATH : GENERIC_EXPLOSION_BACK_PATH;
         animations.draw(batch, path, "animation", armorExplosionTime,
             position.x, position.y, 0.56f, false);
+    }
+
+    private void drawPlantFoodGlow(
+        Batch batch,
+        PvzAnimationService animations,
+        Vector2 position
+    ) {
+        if (plantFoodEffectTime < 0f) {
+            return;
+        }
+        String clip;
+        float clipTime;
+        boolean loop;
+        if (plantFoodEffectTime < PLANT_FOOD_GLOW_ON_SECONDS) {
+            clip = "plantfood_on";
+            clipTime = plantFoodEffectTime;
+            loop = false;
+        } else if (plantFoodEffectTime < PLANT_FOOD_GLOW_OFF_START) {
+            clip = "plantfood";
+            clipTime = plantFoodEffectTime - PLANT_FOOD_GLOW_ON_SECONDS;
+            loop = true;
+        } else {
+            clip = "plantfood_off";
+            clipTime = plantFoodEffectTime - PLANT_FOOD_GLOW_OFF_START;
+            loop = false;
+        }
+        animations.draw(
+            batch,
+            PLANT_FOOD_GLOW_PATH,
+            clip,
+            clipTime,
+            position.x,
+            position.y,
+            PLANT_FOOD_GLOW_SCALE,
+            loop
+        );
     }
 
     private void drawFrozenBehind(Batch batch, PvzAnimationService animations, Vector2 position) {
