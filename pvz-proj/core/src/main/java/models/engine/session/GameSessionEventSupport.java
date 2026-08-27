@@ -154,7 +154,34 @@ abstract class GameSessionEventSupport extends GameSessionState {
                 int releasedSun = 50;
                 totalSunAmount += releasedSun;
                 totalSunProduced += releasedSun;
+            } else if (event.getType() == GameEventType.REWARD_DROPPED) {
+                applyTerrainReward(event);
             }
+        }
+    }
+
+
+    private void applyTerrainReward(GameEvent event) {
+        String reward = normalizeName(event.getEntityName());
+        int amount = Math.max(1, event.getAmount());
+        if (reward.equals("sun")) {
+            Position position = event.getX() > 0 && event.getY() > 0
+                    ? new Position((int) Math.round(event.getX()), (int) Math.round(event.getY()))
+                    : randomSunPosition();
+            sunManager.spawnGroundSun(position, amount, TERRAIN_REWARD_LIFETIME_TICKS);
+            return;
+        }
+        if (reward.equals("plant_food") || reward.equals("plant food")) {
+            Position position = event.getX() > 0 && event.getY() > 0
+                    ? new Position((int) Math.round(event.getX()), (int) Math.round(event.getY()))
+                    : randomSunPosition();
+            groundRewardDrops.add(new GroundRewardDrop(
+                    nextGroundRewardId++,
+                    "plant_food",
+                    amount,
+                    position,
+                    TERRAIN_REWARD_LIFETIME_TICKS
+            ));
         }
     }
 
