@@ -631,7 +631,7 @@ abstract class LaneCombatAttackSupport extends LaneCombatAbilitySupport {
         Zombie selected = null;
         double best = Double.MAX_VALUE;
         for (Zombie zombie : lane.getAllZombies()) {
-            if (zombie == null || !zombie.isAlive() || isHypnotized(zombie) || zombie == previous) {
+            if (!isPlantTargetableZombie(zombie) || zombie == previous) {
                 continue;
             }
             double distance = Math.abs(zombie.getX() - previous.getX());
@@ -723,7 +723,7 @@ abstract class LaneCombatAttackSupport extends LaneCombatAbilitySupport {
         if (fireDamage) damageTerrainAtTarget(target, adjusted);
     }
     private boolean canDamageTarget(Zombie target, int damage) {
-        return target != null && target.isAlive() && damage > 0 && !isHypnotized(target);
+        return damage > 0 && isPlantTargetableZombie(target);
     }
     private int adjustedPlantDamage(Plant source, int damage) {
         if (source != null && isFamilyBoosted(source.getType().getCategory())) return damage * 2;
