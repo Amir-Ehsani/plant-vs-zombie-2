@@ -1,5 +1,6 @@
 package models.level.core;
 
+
 import boss.core.BossRuntime;
 import models.core.zombie.Zombie;
 import models.core.zombie.ZombieFactory;

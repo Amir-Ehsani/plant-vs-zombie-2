@@ -1,5 +1,6 @@
 package models.engine.sun;
 
+
 import models.engine.board.Position;
 
 import java.util.ArrayList;
