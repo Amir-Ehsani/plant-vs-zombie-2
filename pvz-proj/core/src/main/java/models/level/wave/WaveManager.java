@@ -172,6 +172,27 @@ public class WaveManager {
         return nextWaveIndex;
     }
 
+    public int getTicksUntilNextWave(int currentTick) {
+        validateTick(currentTick);
+        if (activeSpawnSchedule != null || areAllWavesSpawned()) {
+            return -1;
+        }
+        Wave nextWave = waves.get(nextWaveIndex);
+        if (nextWaveIndex == 0) {
+            return Math.max(0, nextWave.getDelay() - currentTick);
+        }
+        Wave previousWave = waves.get(nextWaveIndex - 1);
+        if (!previousWave.hasLostSeventyFivePercentHealth()) {
+            return -1;
+        }
+        int thresholdTick = nextWaveThresholdReachedTick < 0
+                ? currentTick
+                : nextWaveThresholdReachedTick;
+        int gapRemaining = Math.max(0, NEXT_WAVE_GAP_TICKS - (currentTick - thresholdTick));
+        int delayRemaining = Math.max(0, nextWave.getDelay() - currentTick);
+        return Math.max(gapRemaining, delayRemaining);
+    }
+
     public Board getBoard() {
         return board;
     }

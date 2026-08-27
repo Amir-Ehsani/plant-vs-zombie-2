@@ -25,7 +25,9 @@ import com.badlogic.gdx.utils.Scaling;
 import com.pvz.Main;
 import controllers.features.TravelLogController;
 import game.animation.core.PvzAnimationService;
+import game.dialogue.LevelDialogueController;
 import game.minigame.MiniGameVisualRenderer;
+import game.notification.GameplayAnnouncementOverlay;
 import game.render.BoardGeometry;
 import models.engine.board.Position;
 import models.minigame.IZombieGame;
@@ -56,6 +58,8 @@ public final class MiniGameScreen extends BaseScreen {
     private final BoardGeometry geometry;
     private final PvzAnimationService animations;
     private final MiniGameVisualRenderer visualRenderer;
+    private final GameplayAnnouncementOverlay announcementOverlay;
+    private final LevelDialogueController dialogueController;
     private final Vector2 cursorWorld;
     private final ResourceBar resourceBar;
     private final Map<String, Image> zombieSelectionFrames;
@@ -69,6 +73,8 @@ public final class MiniGameScreen extends BaseScreen {
     private float visualStateTime;
     private boolean gameOverShown;
     private boolean paused;
+    private boolean startupUiInitialized;
+    private boolean introDialogueStarted;
     private PauseDialog pauseDialog;
 
     public MiniGameScreen(Main game) {
@@ -91,6 +97,10 @@ public final class MiniGameScreen extends BaseScreen {
         zombieSelectionFrames = new LinkedHashMap<>();
         selectedZombieName = firstZombieOption();
         buildHud();
+        announcementOverlay = new GameplayAnnouncementOverlay(stage, game.getSkin());
+        dialogueController = new LevelDialogueController(stage, game.getSkin(), animations);
+        startupUiInitialized = false;
+        introDialogueStarted = false;
         refreshHud();
     }
 
@@ -102,6 +112,7 @@ public final class MiniGameScreen extends BaseScreen {
 
     @Override
     public void render(float delta) {
+        initializeStartupUi();
         update(delta);
         Gdx.gl.glClearColor(0.05f, 0.08f, 0.05f, 1f);
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
@@ -469,6 +480,46 @@ public final class MiniGameScreen extends BaseScreen {
                 this::exitMiniGame
         );
         dialog.show(stage);
+        announcementOverlay.push(victory ? "LEVEL COMPLETE!" : "TRY AGAIN!");
+    }
+
+    private void initializeStartupUi() {
+        if (startupUiInitialized) {
+            return;
+        }
+        startupUiInitialized = true;
+        showIntroDialogueIfNeeded();
+    }
+
+    private void showIntroDialogueIfNeeded() {
+        if (introDialogueStarted) {
+            return;
+        }
+        introDialogueStarted = true;
+        paused = true;
+        boolean shown = dialogueController.showMiniGameIntro(
+                session.getType(),
+                session.getStage(),
+                this::finishIntroDialogue
+        );
+        if (!shown) {
+            finishIntroDialogue();
+        }
+    }
+
+    private void finishIntroDialogue() {
+        if (pauseDialog == null && session.isRunning()) {
+            paused = false;
+        }
+        announcementOverlay.push(miniGameAnnouncement());
+    }
+
+    private String miniGameAnnouncement() {
+        return switch (session.getType()) {
+            case VASEBREAKER -> "VASEBREAKER!";
+            case WALLNUT_BOWLING -> "WALL-NUT BOWLING!";
+            case I_ZOMBIE -> "I, ZOMBIE!";
+        };
     }
 
     private void retryMiniGame() {

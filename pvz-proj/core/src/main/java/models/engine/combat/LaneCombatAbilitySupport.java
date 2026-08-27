@@ -185,7 +185,8 @@ abstract class LaneCombatAbilitySupport extends LaneCombatTargetSupport {
     }
 
     protected void handleHunter(Lane lane, Zombie zombie, ZombieRuntimeState state) {
-        if (state.ageTicks % (5 * TICKS_PER_SECOND) != 0) {
+        if (board == null || !board.isFrostbiteMechanicsAllowed()
+                || state.ageTicks % (5 * TICKS_PER_SECOND) != 0) {
             return;
         }
         Plant target = nearestPlantInLane(lane, zombie.getX(), Double.MAX_VALUE, false);

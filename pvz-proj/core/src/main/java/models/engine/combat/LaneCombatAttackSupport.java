@@ -708,8 +708,6 @@ abstract class LaneCombatAttackSupport extends LaneCombatAbilitySupport {
         state.jugglerSpinTicks = 2 * TICKS_PER_SECOND;
         if (source != null) {
             source.takeDamage(new Damage(damage, "reflected projectile"));
-            if (isIceDamage(resolveDamageType(source))
-                || normalizeText(source.getName()).contains("snow")) source.addIceHit();
         }
         return true;
     }
