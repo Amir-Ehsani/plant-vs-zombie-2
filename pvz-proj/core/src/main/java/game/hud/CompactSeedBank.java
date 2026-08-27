@@ -25,15 +25,16 @@ import java.util.Map;
 import java.util.function.Predicate;
 
 public final class CompactSeedBank {
-    private static final float BANK_X = 14f;
-    private static final float BANK_TOP = 704f;
-    private static final float SLOT_WIDTH = 136f;
-    private static final float SLOT_HEIGHT = 76f;
-    private static final float SLOT_GAP = 3f;
+    private static final float BANK_X = 18f;
+    private static final float BANK_TOP = 710f;
+    private static final float SLOT_WIDTH = 122f;
+    private static final float CONVEYOR_SLOT_WIDTH = 104f;
+    private static final float CONVEYOR_BELT_WIDTH = 122f;
+    private static final float SLOT_HEIGHT = 70f;
+    private static final float SLOT_GAP = 4f;
     private static final float SLOT_INSET = 2f;
-    private static final float PLANT_X_OFFSET = SLOT_WIDTH * 0.50f;
     private static final float PLANT_Y_OFFSET = SLOT_HEIGHT * 0.52f;
-    private static final float COMPACT_SCALE_MULTIPLIER = 0.82f;
+    private static final float COMPACT_SCALE_MULTIPLIER = 0.78f;
     private static final int MAX_VISIBLE_SLOTS = 8;
     private static final float CONVEYOR_ENTRY_Y = -SLOT_HEIGHT - 24f;
     private static final float CONVEYOR_ANIMATION_SPEED = 8f;
@@ -78,11 +79,11 @@ public final class CompactSeedBank {
             return;
         }
         List<VisiblePlant> plants = visiblePlants(session);
+        syncConveyorState(session, plants);
+        drawConveyor(batch, session, stateTime);
         if (plants.isEmpty()) {
             return;
         }
-        syncConveyorState(session, plants);
-        drawConveyor(batch, session);
         drawSlots(shapes, session, plants, selectedPlantName);
         drawPlants(batch, session, plants, stateTime);
         drawCooldownShade(shapes, session, plants);
@@ -91,7 +92,12 @@ public final class CompactSeedBank {
     }
 
     public String findPlantAt(GameSession session, float x, float y) {
-        if (session == null || x < BANK_X || x > BANK_X + SLOT_WIDTH) {
+        if (session == null) {
+            return null;
+        }
+        float cardX = slotX(session);
+        float cardWidth = slotWidth(session);
+        if (x < cardX || x > cardX + cardWidth) {
             return null;
         }
         List<VisiblePlant> plants = visiblePlants(session);
@@ -104,26 +110,27 @@ public final class CompactSeedBank {
         return null;
     }
 
-    private void drawConveyor(Batch batch, GameSession session) {
+    private void drawConveyor(Batch batch, GameSession session, float stateTime) {
         if (!isConveyor(session) || conveyorBelt == null) {
             return;
         }
-        float beltWidth = SLOT_WIDTH;
+        float beltWidth = CONVEYOR_BELT_WIDTH;
         float beltSegmentHeight = scaledHeight(conveyorBelt, beltWidth);
         float topHeight = conveyorTop == null ? 0f : scaledHeight(conveyorTop, beltWidth);
         float totalHeight = BANK_TOP + topHeight;
+        float offset = (stateTime * 42f) % beltSegmentHeight;
 
         batch.begin();
-        for (float y = 0f; y < totalHeight; y += beltSegmentHeight) {
+        for (float y = -beltSegmentHeight + offset; y < totalHeight; y += beltSegmentHeight) {
             batch.draw(conveyorBelt, BANK_X, y, beltWidth, beltSegmentHeight);
         }
         if (conveyorTop != null) {
-            batch.draw(conveyorTop, BANK_X, BANK_TOP, beltWidth, topHeight);
+            batch.draw(conveyorTop, BANK_X, BANK_TOP + 4f, beltWidth, topHeight);
         }
         if (conveyorSide != null) {
-            float sideHeight = totalHeight;
+            float sideHeight = totalHeight + 4f;
             float sideWidth = conveyorSide.getRegionWidth() * sideHeight / conveyorSide.getRegionHeight();
-            batch.draw(conveyorSide, BANK_X + beltWidth - sideWidth, 0f, sideWidth, sideHeight);
+            batch.draw(conveyorSide, BANK_X + beltWidth - sideWidth + 6f, 0f, sideWidth, sideHeight);
         }
         batch.end();
     }
@@ -141,12 +148,14 @@ public final class CompactSeedBank {
             boolean ready = session.getPlantRechargeRemainingTicks(name) <= 0;
             boolean selected = isSelected(name, selectedPlantName);
             shapes.setColor(selected ? SELECTED_BORDER : ready ? READY_BORDER : COOLDOWN_BORDER);
-            shapes.rect(BANK_X, y, SLOT_WIDTH, SLOT_HEIGHT);
+            float x = slotX(session);
+            float width = slotWidth(session);
+            shapes.rect(x, y, width, SLOT_HEIGHT);
             shapes.setColor(SLOT_COLOR);
             shapes.rect(
-                BANK_X + SLOT_INSET,
+                x + SLOT_INSET,
                 y + SLOT_INSET,
-                SLOT_WIDTH - SLOT_INSET * 2f,
+                width - SLOT_INSET * 2f,
                 SLOT_HEIGHT - SLOT_INSET * 2f
             );
         }
@@ -181,10 +190,12 @@ public final class CompactSeedBank {
             float innerHeight = SLOT_HEIGHT - SLOT_INSET * 2f;
             float darkHeight = innerHeight * remainingRatio;
             float brightHeight = innerHeight - darkHeight;
+            float x = slotX(session);
+            float width = slotWidth(session);
             shapes.rect(
-                BANK_X + SLOT_INSET,
+                x + SLOT_INSET,
                 slotY(session, plant) + SLOT_INSET + brightHeight,
-                SLOT_WIDTH - SLOT_INSET * 2f,
+                width - SLOT_INSET * 2f,
                 darkHeight
             );
         }
@@ -208,7 +219,9 @@ public final class CompactSeedBank {
         font.setColor(TEXT_COLOR);
         for (VisiblePlant plant : plants) {
             int cost = session.getPlantCost(plant.name());
-            font.draw(batch, String.valueOf(cost), BANK_X + 100f, slotY(session, plant) + 21f);
+            float x = slotX(session);
+            float width = slotWidth(session);
+            font.draw(batch, String.valueOf(cost), x + width - 28f, slotY(session, plant) + 19f);
         }
         font.setColor(previousFontColor);
         batch.end();
@@ -228,7 +241,9 @@ public final class CompactSeedBank {
         font.setColor(TEXT_COLOR);
         for (VisiblePlant plant : plants) {
             if (boostedPlant.test(plant.name())) {
-                font.draw(batch, "BOOST", BANK_X + 78f, slotY(session, plant) + 66f);
+                float x = slotX(session);
+                float width = slotWidth(session);
+                font.draw(batch, "BOOST", x + width - 48f, slotY(session, plant) + 62f);
             }
         }
         font.setColor(previousFontColor);
@@ -251,7 +266,7 @@ public final class CompactSeedBank {
             profile.getPath(),
             clip,
             stateTime,
-            BANK_X + PLANT_X_OFFSET,
+            slotX(session) + slotWidth(session) * 0.50f,
             slotY(session, plant) + PLANT_Y_OFFSET,
             profile.getScale() * COMPACT_SCALE_MULTIPLIER,
             true
@@ -328,6 +343,15 @@ public final class CompactSeedBank {
         return plantName != null
             && selectedPlantName != null
             && plantName.equalsIgnoreCase(selectedPlantName);
+    }
+
+
+    private float slotX(GameSession session) {
+        return isConveyor(session) ? BANK_X + (CONVEYOR_BELT_WIDTH - CONVEYOR_SLOT_WIDTH) / 2f - 2f : BANK_X;
+    }
+
+    private float slotWidth(GameSession session) {
+        return isConveyor(session) ? CONVEYOR_SLOT_WIDTH : SLOT_WIDTH;
     }
 
     private float slotY(GameSession session, VisiblePlant plant) {
