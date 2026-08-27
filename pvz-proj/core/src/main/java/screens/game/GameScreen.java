@@ -34,6 +34,7 @@ import game.input.InteractionOverlayRenderer;
 import game.render.BoardBackgroundCatalog;
 import game.render.BoardGeometry;
 import game.render.BoardRenderer;
+import game.render.drop.PlantFoodDropRenderSystem;
 import game.render.entity.EntityRenderSystem;
 import game.render.mower.LawnMowerRenderSystem;
 import game.render.projectile.ProjectileRenderSystem;
@@ -47,6 +48,7 @@ import models.engine.board.Board;
 import models.engine.board.Position;
 import models.engine.session.GameSession;
 import models.engine.session.GameState;
+import models.engine.session.PlantFoodDrop;
 import models.engine.session.PlantRechargeStatus;
 import models.engine.sun.Sun;
 import models.level.core.AdventureLevelCatalog;
@@ -90,6 +92,7 @@ public final class GameScreen extends BaseScreen {
     private final ProjectileRenderSystem projectileRenderSystem;
     private final SunRenderSystem sunRenderSystem;
     private final LawnMowerRenderSystem lawnMowerRenderSystem;
+    private final PlantFoodDropRenderSystem plantFoodDropRenderSystem;
     private final CompactSeedBank compactSeedBank;
     private final WaveProgressHud waveProgressHud;
     private final GameplayWaveBanner gameplayWaveBanner;
@@ -139,9 +142,14 @@ public final class GameScreen extends BaseScreen {
         plantCardsTable = new Table();
         gameplayPlantCards = new LinkedHashMap<>();
         if (animations.isAvailable()) {
-            entityRenderSystem = new EntityRenderSystem(boardGeometry, animations);
+            entityRenderSystem = new EntityRenderSystem(
+                boardGeometry,
+                animations,
+                session.getCurrentLevel() == null ? null : session.getCurrentLevel().getSeasonType()
+            );
             projectileRenderSystem = new ProjectileRenderSystem(boardGeometry, animations);
             sunRenderSystem = new SunRenderSystem(boardGeometry, animations);
+            plantFoodDropRenderSystem = new PlantFoodDropRenderSystem(boardGeometry, animations);
             lawnMowerRenderSystem = new LawnMowerRenderSystem(
                 boardGeometry,
                 animations,
@@ -153,6 +161,7 @@ public final class GameScreen extends BaseScreen {
             projectileRenderSystem = null;
             sunRenderSystem = null;
             lawnMowerRenderSystem = null;
+            plantFoodDropRenderSystem = null;
             compactSeedBank = null;
         }
         waveProgressHud = new WaveProgressHud(animations);
@@ -197,6 +206,7 @@ public final class GameScreen extends BaseScreen {
         drawEntities();
         drawProjectiles();
         drawSuns();
+        drawPlantFoodDrops();
         drawHover();
         resetWorldTransform();
         drawSeedBank();
@@ -473,6 +483,9 @@ public final class GameScreen extends BaseScreen {
         if (sunRenderSystem != null) {
             sunRenderSystem.update(visualDelta, session.getSunManager());
         }
+        if (plantFoodDropRenderSystem != null) {
+            plantFoodDropRenderSystem.update(visualDelta);
+        }
     }
 
     private void refreshHud(float delta) {
@@ -665,6 +678,12 @@ public final class GameScreen extends BaseScreen {
         }
     }
 
+    private void drawPlantFoodDrops() {
+        if (plantFoodDropRenderSystem != null) {
+            plantFoodDropRenderSystem.render(batch, session);
+        }
+    }
+
     private void drawLawnMowers() {
         if (lawnMowerRenderSystem != null) {
             lawnMowerRenderSystem.render(batch, session.getBoard());
@@ -756,6 +775,9 @@ public final class GameScreen extends BaseScreen {
                     cancelInteraction();
                     return true;
                 }
+                if (button == Input.Buttons.LEFT && handlePlantFoodDropClick()) {
+                    return true;
+                }
                 if (button == Input.Buttons.LEFT && handleSeedBankClick()) {
                     return true;
                 }
@@ -767,6 +789,27 @@ public final class GameScreen extends BaseScreen {
                 return handleKey(keycode);
             }
         };
+    }
+
+    private boolean handlePlantFoodDropClick() {
+        if (plantFoodDropRenderSystem == null || gameplayClock.isPaused() || !session.isRunning()
+                || (pauseDialog != null && pauseDialog.getStage() != null) || gameOverShown) {
+            return false;
+        }
+        PlantFoodDrop drop = plantFoodDropRenderSystem.findAt(
+            session, cursorWorld.x, cursorWorld.y
+        );
+        if (drop == null) {
+            return false;
+        }
+        if (!session.collectPlantFoodDrop(drop)) {
+            refreshStatus("Plant Food storage is full.");
+            return true;
+        }
+        plantFoodDropRenderSystem.playCollection(drop);
+        refreshGameHud();
+        refreshStatus("Plant Food collected.");
+        return true;
     }
 
     private boolean handleBoardClick(int button) {
