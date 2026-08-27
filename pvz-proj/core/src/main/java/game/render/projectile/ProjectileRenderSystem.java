@@ -33,7 +33,7 @@ public final class ProjectileRenderSystem {
     private final BoardGeometry geometry;
     private final PvzAnimationService animations;
     private final EntityAnimationRegistry entityAnimations;
-    private final Map<Plant, Integer> previousCooldowns = new IdentityHashMap<>();
+    private final Map<Plant, Integer> previousAttackSerials = new IdentityHashMap<>();
     private final Map<Plant, Integer> previousPlantFoodSerials = new IdentityHashMap<>();
     private final List<ZombieSnapshot> previousZombies = new ArrayList<>();
     private final List<VisualProjectile> projectiles = new ArrayList<>();
@@ -41,7 +41,6 @@ public final class ProjectileRenderSystem {
     private final Map<ProjectileVisualType, VisualDefinition> definitions = new java.util.EnumMap<>(
         ProjectileVisualType.class
     );
-    private int lastObservedTick = -1;
     public ProjectileRenderSystem(BoardGeometry geometry, PvzAnimationService animations) {
         if (geometry == null || animations == null || animations.getCatalog() == null) {
             throw new IllegalArgumentException("Projectile renderer requires geometry and animations.");
@@ -54,22 +53,11 @@ public final class ProjectileRenderSystem {
     public void observe(Board board, int currentTick) {
         if (board == null) {
             clearModelSnapshots();
-            lastObservedTick = currentTick;
             return;
         }
-        if (lastObservedTick < 0) {
-            snapshot(board);
-            lastObservedTick = currentTick;
-            return;
-        }
-        if (currentTick == lastObservedTick) {
-            return;
-        }
-
         detectPlantShots(board);
         detectPlantFoodShots(board);
         snapshot(board);
-        lastObservedTick = currentTick;
     }
 
     public void update(float delta) {
@@ -97,8 +85,8 @@ public final class ProjectileRenderSystem {
     private void detectPlantShots(Board board) {
         for (Plant plant : board.getAllPlants()) {
             ProjectileVisualType baseType = ProjectileVisualType.fromPlant(plant);
-            Integer previousCooldown = previousCooldowns.get(plant);
-            if (baseType == null || previousCooldown == null || !didAttack(plant, previousCooldown)) {
+            int previousSerial = previousAttackSerials.getOrDefault(plant, 0);
+            if (baseType == null || plant.getVisualAttackSerial() <= previousSerial) {
                 continue;
             }
             spawnForPlant(board, plant, baseType);
@@ -107,8 +95,8 @@ public final class ProjectileRenderSystem {
 
     private void detectPlantFoodShots(Board board) {
         for (Plant plant : board.getAllPlants()) {
-            Integer previous = previousPlantFoodSerials.get(plant);
-            if (previous == null || plant.getVisualPlantFoodSerial() == previous) {
+            int previous = previousPlantFoodSerials.getOrDefault(plant, 0);
+            if (plant.getVisualPlantFoodSerial() <= previous) {
                 continue;
             }
             spawnPlantFoodProjectiles(board, plant);
@@ -195,15 +183,6 @@ public final class ProjectileRenderSystem {
             }
         }
         return Math.max(1, count);
-    }
-
-    private boolean didAttack(Plant plant, int previousCooldown) {
-        int current = plant.getCooldownRemaining();
-        int interval = Math.max(0, plant.getAttackIntervalTicks());
-        if (interval <= 0 || current <= 0) {
-            return false;
-        }
-        return current > previousCooldown || current == interval && previousCooldown != interval;
     }
 
     private void spawnForPlant(Board board, Plant plant, ProjectileVisualType baseType) {
@@ -548,7 +527,9 @@ public final class ProjectileRenderSystem {
     private void updateImpacts(float delta) {
         impacts.removeIf(impact -> {
             impact.elapsed += delta;
-            return impact.elapsed >= IMPACT_SECONDS;
+            float duration = impact.definition.impactDuration > 0f
+                ? impact.definition.impactDuration : IMPACT_SECONDS;
+            return impact.elapsed >= duration;
         });
     }
 
@@ -607,10 +588,10 @@ public final class ProjectileRenderSystem {
     }
 
     private void snapshot(Board board) {
-        previousCooldowns.clear();
+        previousAttackSerials.clear();
         previousPlantFoodSerials.clear();
         for (Plant plant : board.getAllPlants()) {
-            previousCooldowns.put(plant, plant.getCooldownRemaining());
+            previousAttackSerials.put(plant, plant.getVisualAttackSerial());
             previousPlantFoodSerials.put(plant, plant.getVisualPlantFoodSerial());
         }
         previousZombies.clear();
@@ -624,7 +605,7 @@ public final class ProjectileRenderSystem {
     }
 
     private void clearModelSnapshots() {
-        previousCooldowns.clear();
+        previousAttackSerials.clear();
         previousPlantFoodSerials.clear();
         previousZombies.clear();
     }
@@ -640,13 +621,16 @@ public final class ProjectileRenderSystem {
             if (impact != null) {
                 animations.preload(impact.getPath());
             }
+            String projectileClip = chooseClip(
+                projectile, type.getProjectileClip(), "animation", "animation2", "idle"
+            );
+            String impactClip = impact == null || type.getImpactClip() == null
+                ? null : chooseClip(impact, type.getImpactClip(), "animation", "animation2", "idle");
+            float impactDuration = impact == null || impactClip == null
+                ? 0f : Math.max(0.05f, impact.getClipDuration(impactClip));
             definitions.put(type, new VisualDefinition(
-                projectile.getPath(),
-                chooseClip(projectile, type.getProjectileClip(), "animation", "animation2", "idle"),
-                impact == null ? null : impact.getPath(),
-                impact == null || type.getImpactClip() == null
-                    ? null
-                    : chooseClip(impact, type.getImpactClip(), "animation", "animation2", "idle")
+                projectile.getPath(), projectileClip,
+                impact == null ? null : impact.getPath(), impactClip, impactDuration
             ));
         }
     }
@@ -696,17 +680,20 @@ public final class ProjectileRenderSystem {
         private final String projectileClip;
         private final String impactPath;
         private final String impactClip;
+        private final float impactDuration;
 
         private VisualDefinition(
             String projectilePath,
             String projectileClip,
             String impactPath,
-            String impactClip
+            String impactClip,
+            float impactDuration
         ) {
             this.projectilePath = projectilePath;
             this.projectileClip = projectileClip;
             this.impactPath = impactPath;
             this.impactClip = impactClip;
+            this.impactDuration = impactDuration;
         }
     }
 
