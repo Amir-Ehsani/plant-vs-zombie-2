@@ -80,6 +80,7 @@ abstract class GameSessionState {
     protected final Set<String> selectedPlantNames;
     protected final List<GameEvent> pendingEvents;
     protected final Map<Zombie, Boolean> glowingZombies;
+    protected final List<PlantFoodDrop> plantFoodDrops;
     protected final Random random;
     protected boolean plantRechargeDisabled;
     protected int nextSkySunTick;
@@ -102,6 +103,7 @@ abstract class GameSessionState {
         this.selectedPlantNames = new LinkedHashSet<>();
         this.pendingEvents = new ArrayList<>();
         this.glowingZombies = new IdentityHashMap<>();
+        this.plantFoodDrops = new ArrayList<>();
     }
 
 
@@ -296,6 +298,10 @@ abstract class GameSessionState {
 
     public int getPlantFoodCount() {
         return plantFoodCount;
+    }
+
+    public List<PlantFoodDrop> getPlantFoodDrops() {
+        return Collections.unmodifiableList(new ArrayList<>(plantFoodDrops));
     }
 
     public int getTotalSunProduced() {
