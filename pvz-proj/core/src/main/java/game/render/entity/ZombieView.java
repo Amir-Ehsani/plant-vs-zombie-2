@@ -10,6 +10,9 @@ import game.render.BoardGeometry;
 import models.core.zombie.Armor;
 import models.core.zombie.Zombie;
 import models.engine.board.Board;
+import models.engine.board.Position;
+import models.engine.board.Tile;
+import models.engine.board.TileType;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -97,7 +100,7 @@ public final class ZombieView extends EntityView<Zombie> {
         }
 
         List<String> effects = board.getZombieEffects(entity);
-        String clip = resolveClip(effects);
+        String clip = resolveClip(effects, board);
         lastClip = clip;
         Vector2 position = geometry.entityToScreen(visualX, entity.getY());
         boolean reversed = isReversed(effects);
@@ -505,9 +508,13 @@ public final class ZombieView extends EntityView<Zombie> {
         visualX += (targetX - visualX) * follow;
     }
 
-    private String resolveClip(List<String> effects) {
+    private String resolveClip(List<String> effects, Board board) {
         if (hasNewspaperArmor()) {
             return resolveNewspaperClip(effects);
+        }
+        String pushClip = resolvePushClip(effects, board);
+        if (pushClip != null) {
+            return pushClip;
         }
         if (entity.getType().hasTag("stationary") || isMovementBlocked(effects)) {
             return profile.firstClip("idle", "walk", "eat", "play");
@@ -516,6 +523,33 @@ public final class ZombieView extends EntityView<Zombie> {
             return profile.firstClip("eat", "idle", "walk", "play");
         }
         return profile.firstClip("walk", "idle", "eat", "play");
+    }
+
+    private String resolvePushClip(List<String> effects, Board board) {
+        if (isMovementBlocked(effects) || stationaryTime >= EATING_DELAY) {
+            return null;
+        }
+        String name = normalize(entity.getName());
+        if (name.equals("arcade") && entity.hasArmor()) {
+            return profile.firstClip("push", "walk", "idle");
+        }
+        if (name.equals("troglobite") && hasIceBlockAhead(board)) {
+            return profile.firstClip("push", "walk", "idle");
+        }
+        return null;
+    }
+
+    private boolean hasIceBlockAhead(Board board) {
+        if (board == null) {
+            return false;
+        }
+        int lane = Math.max(1, Math.min(board.getHeight(), (int) Math.round(entity.getY())));
+        int currentX = Math.max(1, Math.min(board.getWidth(), (int) Math.ceil(entity.getX())));
+        if (currentX <= 1) {
+            return false;
+        }
+        Tile tile = board.getTileAt(new Position(currentX - 1, lane));
+        return tile != null && tile.getTileType() == TileType.ICE;
     }
 
     private String resolveNewspaperClip(List<String> effects) {
