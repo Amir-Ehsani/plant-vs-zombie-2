@@ -26,9 +26,15 @@ public final class PlantView extends EntityView<Plant> {
     private int previousPlantFoodSerial;
     private int specialIndex;
     private float specialTime;
+    private final boolean showDamageAppearance;
 
     public PlantView(Plant plant, EntityAnimationProfile profile) {
+        this(plant, profile, true);
+    }
+
+    public PlantView(Plant plant, EntityAnimationProfile profile, boolean showDamageAppearance) {
         super(plant, profile);
+        this.showDamageAppearance = showDamageAppearance;
         previousAttackSerial = plant.getVisualAttackSerial();
         previousPlantFoodSerial = plant.getVisualPlantFoodSerial();
     }
@@ -205,9 +211,11 @@ public final class PlantView extends EntityView<Plant> {
                 return boostedIdle;
             }
         }
-        String damageClip = resolveDamageClip();
-        if (damageClip != null) {
-            return damageClip;
+        if (showDamageAppearance) {
+            String damageClip = resolveDamageClip();
+            if (damageClip != null) {
+                return damageClip;
+            }
         }
         return profile.firstClip("idle", "idle2", "idle_stage1", "stage1_idle", "loop", "animation", "charge");
     }
