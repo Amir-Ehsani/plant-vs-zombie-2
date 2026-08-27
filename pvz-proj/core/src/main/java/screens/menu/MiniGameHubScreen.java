@@ -7,7 +7,6 @@ import com.badlogic.gdx.utils.Align;
 import com.pvz.Main;
 import controllers.features.TravelLogController;
 import ui.BackButton;
-import ui.DialogActor;
 import ui.MenuButton;
 
 public class MiniGameHubScreen extends BaseMenuScreen {
@@ -82,9 +81,7 @@ public class MiniGameHubScreen extends BaseMenuScreen {
         if (!controller.wasSuccessful()) {
             return;
         }
-        String status = controller.showActiveMiniGameStatus();
-        new DialogActor("Minigame Ready", stripPrefix(status), skin).show(this.stage);
-        refreshGames();
+        game.getScreenManager().showActiveMiniGame();
     }
 
     private Label panelLabel(String text) {
