@@ -123,6 +123,10 @@ abstract class LaneCombatAttackSupport extends LaneCombatAbilitySupport {
             if (target == null) {
                 continue;
             }
+            Plant torchwood = !behind && isGreenPeaProjectilePlant(normalizeText(plant.getName()), plant)
+                ? findTorchwoodBetween(plant, target, targetLane) : null;
+            int shotDamage = torchwood == null ? damage : damage * (torchwood.hasBlueFlame() ? 3 : 2);
+            boolean fireDamage = torchwood != null;
             for (int repeat = 0; repeat < repeats; repeat++) {
                 int shotIndex = scheduled++;
                 int delay = PlantActionTiming.projectileImpactTicks(
@@ -135,7 +139,9 @@ abstract class LaneCombatAttackSupport extends LaneCombatAbilitySupport {
                     if (impactTarget == null) {
                         return;
                     }
-                    dealPlantDamage(plant, impactTarget, damage, resolveDamageType(plant), false);
+                    dealPlantDamage(
+                        plant, impactTarget, shotDamage, fireDamage ? "fire" : resolveDamageType(plant), fireDamage
+                    );
                     applyOnHitEffects(plant, impactTarget);
                 });
             }
@@ -254,6 +260,10 @@ abstract class LaneCombatAttackSupport extends LaneCombatAbilitySupport {
         if (target == null) {
             return;
         }
+        Plant torchwood = !behind && isGreenPeaProjectilePlant(normalizeText(plant.getName()), plant)
+            ? findTorchwoodBetween(plant, target, lane) : null;
+        int shotDamage = torchwood == null ? damage : damage * (torchwood.hasBlueFlame() ? 3 : 2);
+        boolean fireDamage = torchwood != null;
         int delay = PlantActionTiming.projectileImpactTicks(
             plant.getName(), behind ? "attack2" : "attack",
             Math.abs(target.getX() - plant.getX()), shotIndex
@@ -263,7 +273,7 @@ abstract class LaneCombatAttackSupport extends LaneCombatAbilitySupport {
             Zombie impactTarget = behind ? nearestZombieBehind(current, plant)
                 : nearestZombie(current, plant, false);
             if (impactTarget != null) {
-                dealPlantDamage(plant, impactTarget, damage, "pea", false);
+                dealPlantDamage(plant, impactTarget, shotDamage, fireDamage ? "fire" : "pea", fireDamage);
                 applyOnHitEffects(plant, impactTarget);
             }
         });
@@ -354,7 +364,7 @@ abstract class LaneCombatAttackSupport extends LaneCombatAbilitySupport {
             prepareBowlingBulbShot(state);
         }
         int damage = effectiveDamage(plant, resolveBaseDamage(plant, state, tile));
-        boolean peaProjectile = isPeaProjectilePlant(name, plant);
+        boolean peaProjectile = isGreenPeaProjectilePlant(name, plant);
         Plant torchwood = peaProjectile ? findTorchwoodBetween(plant, target, lane) : null;
         boolean fireDamage = isFirePlant(plant) || torchwood != null;
         if (torchwood != null) {
@@ -464,20 +474,15 @@ abstract class LaneCombatAttackSupport extends LaneCombatAbilitySupport {
         meltNearbyTerrain(name, plant);
     }
 
-    private boolean isPeaProjectilePlant(String name, Plant plant) {
+    private boolean isGreenPeaProjectilePlant(String name, Plant plant) {
         if (name == null || plant == null) {
             return false;
         }
-        String tags = plant.getType() == null ? "" : normalizeText(plant.getType().getTags());
-        return tags.contains("pea")
-                || name.equals("peashooter")
+        return name.equals("peashooter")
                 || name.equals("repeater")
                 || name.equals("threepeater")
                 || name.equals("split pea")
                 || name.equals("pea pod")
-                || name.equals("snow pea")
-                || name.equals("fire peashooter")
-                || name.equals("goo peashooter")
                 || name.equals("mega gatling pea");
     }
 
