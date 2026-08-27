@@ -70,6 +70,7 @@ public final class PlantView extends EntityView<Plant> {
 
     @Override
     public void update(float delta, Board board) {
+        updateHitFlash(delta, entity.getHp() + entity.getArmorHp());
         detectVisualActions();
         updateSpecialAnimation(delta);
         if (plantFoodEffectTime >= 0f && delta > 0f) {
@@ -411,6 +412,19 @@ public final class PlantView extends EntityView<Plant> {
             loop
         );
         batch.setColor(Color.WHITE);
+        if (beginHitFlash(batch)) {
+            animations.draw(
+                batch,
+                profile.getPath(),
+                clip,
+                clipTime,
+                position.x,
+                position.y,
+                profile.getScale(),
+                loop
+            );
+            endHitFlash(batch);
+        }
     }
 
     private void drawActionEffects(
