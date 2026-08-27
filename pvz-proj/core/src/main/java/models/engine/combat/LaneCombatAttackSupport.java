@@ -791,7 +791,7 @@ abstract class LaneCombatAttackSupport extends LaneCombatAbilitySupport {
     private boolean applyZombieStatusEffects(
         Lane lane, Zombie zombie, ZombieRuntimeState state
     ) {
-        if (state.poisonTicks > 0) {
+        if (state.poisonTicks > 0 && (board == null || board.isZombieOnLawn(zombie))) {
             zombie.recordDamageSource(
                 state.poisonSourcePlantName, state.poisonSourcePlantCategory, "poison");
             zombie.takeDamage(new Damage(state.poisonDamage, "poison"));

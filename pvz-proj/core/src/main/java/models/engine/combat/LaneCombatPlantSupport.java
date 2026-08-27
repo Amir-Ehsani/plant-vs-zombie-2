@@ -135,7 +135,7 @@ abstract class LaneCombatPlantSupport extends LaneCombatAttackSupport {
     private List<Zombie> squashLandingTargets(Lane lane, int landingX, int limit) {
         List<Zombie> targets = new ArrayList<>();
         for (Zombie zombie : lane.getAllZombies()) {
-            if (!zombie.isAlive() || isHypnotized(zombie)) {
+            if (!isPlantTargetableZombie(zombie)) {
                 continue;
             }
             if (Math.abs(zombie.getX() - landingX) <= MELEE_RANGE) {
@@ -224,7 +224,7 @@ abstract class LaneCombatPlantSupport extends LaneCombatAttackSupport {
         plant.prepareAttackAnimation("special");
         plant.attack();
         scheduleCombatAction(PlantActionTiming.specialImpactTicks("magnet shroom"), () -> {
-            if (target.isAlive() && target.getArmor() != null) {
+            if (isPlantTargetableZombie(target) && target.getArmor() != null) {
                 target.getArmor().reduceDamage(Integer.MAX_VALUE);
                 plant.triggerSpecialAnimation("catch");
             }
@@ -239,7 +239,7 @@ abstract class LaneCombatPlantSupport extends LaneCombatAttackSupport {
         plant.prepareAttackAnimation("attack");
         plant.attack();
         scheduleCombatAction(PlantActionTiming.specialImpactTicks("caulipower"), () -> {
-            if (target.isAlive()) hypnotize(target);
+            if (isPlantTargetableZombie(target)) hypnotize(target);
         });
         return true;
     }
@@ -253,7 +253,7 @@ abstract class LaneCombatPlantSupport extends LaneCombatAttackSupport {
         int impactDelay = PlantActionTiming.specialImpactTicks("electric blueberry");
         markElectricStrike(target, impactDelay);
         scheduleCombatAction(impactDelay, () -> {
-            if (target.isAlive()) {
+            if (isPlantTargetableZombie(target)) {
                 target.recordDamageSource(plant.getName(), plantCategory(plant), "electric burn");
                 target.kill();
             }
@@ -270,7 +270,7 @@ abstract class LaneCombatPlantSupport extends LaneCombatAttackSupport {
         plant.attack();
         int delay = PlantActionTiming.meleeImpactTicks("chomper", "bite");
         scheduleCombatAction(delay, () -> {
-            if (target.isAlive()) {
+            if (isPlantTargetableZombie(target)) {
                 target.recordDamageSource(plant.getName(), plantCategory(plant), "chomp");
                 target.kill();
                 state.digestTicks = plant.getDigestTimeTicks() > 0
@@ -286,7 +286,7 @@ abstract class LaneCombatPlantSupport extends LaneCombatAttackSupport {
         if (plant.getCooldownRemaining() != 0) return true;
         boolean hasTarget = false;
         for (Zombie zombie : board == null ? List.<Zombie>of() : board.getAllZombies()) {
-            if (zombie != null && zombie.isAlive()
+            if (isPlantTargetableZombie(zombie)
                     && Math.abs(zombie.getX() - plant.getX()) <= 1.5
                     && Math.abs(zombie.getY() - plant.getY()) <= 1.5) {
                 hasTarget = true;
@@ -311,7 +311,7 @@ abstract class LaneCombatPlantSupport extends LaneCombatAttackSupport {
         boolean hasTarget = false;
         if (board != null) {
             for (Zombie zombie : board.getAllZombies()) {
-                if (zombie != null && zombie.isAlive()
+                if (isPlantTargetableZombie(zombie)
                         && Math.abs(zombie.getX() - plant.getX()) <= radius + 0.5
                         && Math.abs(zombie.getY() - plant.getY()) <= radius + 0.5) {
                     hasTarget = true;
@@ -336,7 +336,7 @@ abstract class LaneCombatPlantSupport extends LaneCombatAttackSupport {
         }
         List<Zombie> candidates = new ArrayList<>();
         for (Zombie zombie : board.getAllZombies()) {
-            if (zombie != null && zombie.isAlive() && !isHypnotized(zombie)) {
+            if (isPlantTargetableZombie(zombie)) {
                 candidates.add(zombie);
             }
         }
