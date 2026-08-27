@@ -1145,7 +1145,8 @@ public final class GameScreen extends BaseScreen {
         }
         String chapter = AdventureLevelCatalog.normalizeChapterName(user.getCurrentChapterName());
         int levelNumber = user.getCurrentChapterLevel();
-        if (levelNumber < AdventureLevelCatalog.LAST_PLAYABLE_LEVEL
+        int chapterLastLevel = AdventureLevelCatalog.lastRequiredLevel(chapter);
+        if (levelNumber < chapterLastLevel
                 && user.isChapterLevelUnlocked(chapter, levelNumber + 1)) {
             game.getScreenManager().showAdventureMission(chapter, levelNumber + 1);
             return;
