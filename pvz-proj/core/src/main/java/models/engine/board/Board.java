@@ -42,6 +42,7 @@ public class Board extends BoardSupport {
         this.totalPlantsDestroyed = 0;
         this.brainEaten = false;
         this.graveSpawningAllowed = false;
+        this.frostbiteMechanicsAllowed = false;
         this.resourceHandler = null;
 
         initializeLanes();
