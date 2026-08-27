@@ -54,8 +54,12 @@ public final class BossHealthHud {
 
         batch.draw(fill, trackLeft, fillY, fillWidth, fill.getRegionHeight());
         batch.draw(meter, x, y);
-        drawNotch(batch, trackLeft + trackWidth / 3f, y, meterHeight);
-        drawNotch(batch, trackLeft + trackWidth * 2f / 3f, y, meterHeight);
+        int[] sections = boss.getHealth().getSectionMaximums();
+        float total = Math.max(1f, boss.getHealth().getMaximumHp());
+        float afterFirst = (sections[1] + sections[2]) / total;
+        float afterSecond = sections[2] / total;
+        drawNotch(batch, trackLeft + trackWidth * afterFirst, y, meterHeight);
+        drawNotch(batch, trackLeft + trackWidth * afterSecond, y, meterHeight);
         batch.draw(head, x - head.getRegionWidth() * 0.45f,
                 y + (meterHeight - head.getRegionHeight()) * 0.5f);
         batch.draw(skull, trackRight - skull.getRegionWidth() * 0.5f,
