@@ -58,6 +58,7 @@ abstract class PlantState extends GameEntity {
     protected boolean blueFlame;
     protected boolean plantFoodHypnoGargantuar;
     protected int iceHits;
+    protected int iceHealth;
     protected int octopusHits;
     protected Zombie transformedByWizard;
     protected int visualAttackSerial;
@@ -137,6 +138,7 @@ abstract class PlantState extends GameEntity {
         blueFlame = false;
         plantFoodHypnoGargantuar = false;
         iceHits = 0;
+        iceHealth = 0;
         octopusHits = 0;
         transformedByWizard = null;
         visualAttackSerial = 0;
@@ -233,6 +235,9 @@ abstract class PlantState extends GameEntity {
     public int getIceHits() {
         return iceHits;
     }
+    public int getIceHealth() {
+        return iceHealth;
+    }
     public int getOctopusHits() {
         return octopusHits;
     }
@@ -240,7 +245,7 @@ abstract class PlantState extends GameEntity {
         return transformedByWizard;
     }
     public boolean isFrozenByZombie() {
-        return iceHits >= 3;
+        return iceHits >= 3 && iceHealth > 0;
     }
     public boolean isCoveredByOctopus() {
         return octopusHits > 0;
