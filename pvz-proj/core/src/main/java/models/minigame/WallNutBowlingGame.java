@@ -4,7 +4,6 @@ import models.core.projectile.Damage;
 import models.core.zombie.Zombie;
 import models.core.zombie.ZombieFactory;
 import models.engine.board.Board;
-import models.engine.board.Lane;
 import models.engine.board.Position;
 import models.engine.board.Tile;
 
@@ -35,12 +34,10 @@ public class WallNutBowlingGame extends MiniGameSession {
 
         private static NutType fromText(String value) {
             String normalized = normalize(value);
-            if (normalized.equals("bowling") || normalized.equals("wallnut")
-                    || normalized.equals("bowling wallnut")) {
+            if (normalized.equals("bowling") || normalized.equals("wallnut") || normalized.equals("bowling wallnut")) {
                 return BOWLING;
             }
-            if (normalized.equals("explosive") || normalized.equals("explode o nut")
-                    || normalized.equals("exploding")) {
+            if (normalized.equals("explosive") || normalized.equals("explode o nut") || normalized.equals("exploding")) {
                 return EXPLOSIVE;
             }
             if (normalized.equals("giant") || normalized.equals("big")) {
@@ -51,6 +48,7 @@ public class WallNutBowlingGame extends MiniGameSession {
     }
 
     private static final class BowlingNut {
+        private final int id;
         private final NutType type;
         private final Set<Zombie> hitZombies;
         private double x;
@@ -60,11 +58,12 @@ public class WallNutBowlingGame extends MiniGameSession {
         private int collisionCount;
         private boolean active;
 
-        private BowlingNut(NutType type, double x, double y) {
+        private BowlingNut(int id, NutType type, double x, double y) {
+            this.id = id;
             this.type = type;
             this.x = x;
             this.y = y;
-            this.dx = 0.32;
+            this.dx = 0.34;
             this.dy = 0;
             this.collisionCount = 0;
             this.active = true;
@@ -92,22 +91,23 @@ public class WallNutBowlingGame extends MiniGameSession {
     private final Map<NutType, Integer> inventory;
     private final int redLineColumn;
     private int nextSpawnIndex;
+    private int nextNutId;
     private int launchedNuts;
     private int crushedZombies;
 
     public WallNutBowlingGame(int stage) {
         super(MiniGameType.WALLNUT_BOWLING, stage);
-        this.board = new Board();
-        this.zombieFactory = new ZombieFactory();
-        this.random = new Random(9_200L + stage);
-        this.activeNuts = new ArrayList<>();
-        this.spawnSchedule = new ArrayList<>();
-        this.inventory = new LinkedHashMap<>();
-        this.redLineColumn = 3;
-        this.nextSpawnIndex = 0;
-        this.launchedNuts = 0;
-        this.crushedZombies = 0;
-        disableMowers();
+        board = new Board();
+        zombieFactory = new ZombieFactory();
+        random = new Random(9_200L + stage);
+        activeNuts = new ArrayList<>();
+        spawnSchedule = new ArrayList<>();
+        inventory = new LinkedHashMap<>();
+        redLineColumn = 3;
+        nextSpawnIndex = 0;
+        nextNutId = 1;
+        launchedNuts = 0;
+        crushedZombies = 0;
         initializeInventory();
         initializeSchedule();
         success("Wall-nut Bowling stage " + stage + " started.");
@@ -138,7 +138,7 @@ public class WallNutBowlingGame extends MiniGameSession {
         }
 
         inventory.put(type, remaining - 1);
-        activeNuts.add(new BowlingNut(type, position.getX(), position.getY()));
+        activeNuts.add(new BowlingNut(nextNutId++, type, position.getX(), position.getY()));
         launchedNuts++;
         success(type.commandName + " nut launched from " + position + ".");
         return true;
@@ -178,8 +178,7 @@ public class WallNutBowlingGame extends MiniGameSession {
             markWon("All bowling waves were defeated.");
             return;
         }
-        if (activeNuts.isEmpty() && totalInventory() == 0
-                && (board.getActiveZombieCount() > 0 || !allSpawned)) {
+        if (activeNuts.isEmpty() && totalInventory() == 0 && (board.getActiveZombieCount() > 0 || !allSpawned)) {
             markLost("No bowling nuts remain while zombies are still coming.");
         }
     }
@@ -197,10 +196,7 @@ public class WallNutBowlingGame extends MiniGameSession {
             };
             overlays.put(new Position(x, y), symbol);
         }
-        StringBuilder builder = new StringBuilder();
-        builder.append("red line: column ").append(redLineColumn).append('\n');
-        builder.append(renderBoard(board, overlays));
-        return builder.toString();
+        return "red line: column " + redLineColumn + '\n' + renderBoard(board, overlays);
     }
 
     @Override
@@ -230,6 +226,29 @@ public class WallNutBowlingGame extends MiniGameSession {
         return board;
     }
 
+    public Map<String, Integer> getInventory() {
+        Map<String, Integer> result = new LinkedHashMap<>();
+        for (NutType type : NutType.values()) {
+            result.put(type.commandName, inventory.getOrDefault(type, 0));
+        }
+        return Collections.unmodifiableMap(result);
+    }
+
+    public List<BowlingNutView> getActiveNuts() {
+        List<BowlingNutView> result = new ArrayList<>();
+        for (BowlingNut nut : activeNuts) {
+            result.add(new BowlingNutView(nut.id, nut.type.commandName, nut.x, nut.y));
+        }
+        return Collections.unmodifiableList(result);
+    }
+
+    public int getRedLineColumn() {
+        return redLineColumn;
+    }
+
+    public record BowlingNutView(int id, String type, double x, double y) {
+    }
+
     private void moveNuts() {
         Iterator<BowlingNut> iterator = activeNuts.iterator();
         while (iterator.hasNext()) {
@@ -245,7 +264,7 @@ public class WallNutBowlingGame extends MiniGameSession {
                 nut.dy = -Math.abs(nut.dy);
             }
 
-            if (!nut.active || nut.x > board.getWidth() + 0.75) {
+            if (!nut.active || nut.x > board.getWidth() + 0.80) {
                 iterator.remove();
             }
         }
@@ -260,8 +279,7 @@ public class WallNutBowlingGame extends MiniGameSession {
                 if (!zombie.isAlive() || nut.hitZombies.contains(zombie)) {
                     continue;
                 }
-                if (Math.abs(nut.x - zombie.getX()) > 0.48
-                        || Math.abs(nut.y - zombie.getY()) > 0.48) {
+                if (Math.abs(nut.x - zombie.getX()) > 0.48 || Math.abs(nut.y - zombie.getY()) > 0.48) {
                     continue;
                 }
                 nut.hitZombies.add(zombie);
@@ -301,8 +319,7 @@ public class WallNutBowlingGame extends MiniGameSession {
     private void explodeAt(double centerX, double centerY) {
         int hits = 0;
         for (Zombie zombie : new ArrayList<>(board.getAllZombies())) {
-            if (Math.abs(zombie.getX() - centerX) <= 1.0
-                    && Math.abs(zombie.getY() - centerY) <= 1.0) {
+            if (Math.abs(zombie.getX() - centerX) <= 1.0 && Math.abs(zombie.getY() - centerY) <= 1.0) {
                 zombie.takeDamage(new Damage(NutType.EXPLOSIVE.damage, "exploding wall-nut"));
                 hits++;
             }
@@ -311,38 +328,43 @@ public class WallNutBowlingGame extends MiniGameSession {
     }
 
     private void spawnReadyZombies() {
-        while (nextSpawnIndex < spawnSchedule.size()
-                && spawnSchedule.get(nextSpawnIndex).tick <= getCurrentTick()) {
+        while (nextSpawnIndex < spawnSchedule.size() && spawnSchedule.get(nextSpawnIndex).tick <= getCurrentTick()) {
             SpawnEntry entry = spawnSchedule.get(nextSpawnIndex++);
-            Zombie zombie = zombieFactory.createZombie(
-                    entry.zombieName,
-                    board.getWidth(),
-                    entry.lane
-            );
+            Zombie zombie = zombieFactory.createZombie(entry.zombieName, board.getWidth() + 4.0, entry.lane);
             Tile tile = board.getTileAt(new Position(board.getWidth(), entry.lane));
             tile.addZombie(zombie);
         }
     }
 
     private void initializeInventory() {
-        int stage = getStage();
-        inventory.put(NutType.BOWLING, 12 + stage * 5);
-        inventory.put(NutType.EXPLOSIVE, 2 + stage);
-        inventory.put(NutType.GIANT, stage == 1 ? 1 : stage);
+        if (getStage() == 1) {
+            inventory.put(NutType.BOWLING, 18);
+            inventory.put(NutType.EXPLOSIVE, 4);
+            inventory.put(NutType.GIANT, 2);
+            return;
+        }
+        if (getStage() == 2) {
+            inventory.put(NutType.BOWLING, 24);
+            inventory.put(NutType.EXPLOSIVE, 5);
+            inventory.put(NutType.GIANT, 2);
+            return;
+        }
+        inventory.put(NutType.BOWLING, 30);
+        inventory.put(NutType.EXPLOSIVE, 6);
+        inventory.put(NutType.GIANT, 3);
     }
 
     private void initializeSchedule() {
-        int stage = getStage();
-        int zombieCount = 12 + stage * 8;
-        int interval = 28 - stage * 4;
+        int zombieCount = getStage() == 1 ? 14 : getStage() == 2 ? 20 : 26;
+        int interval = getStage() == 1 ? 30 : getStage() == 2 ? 24 : 20;
         String[][] pools = {
                 {"Default", "cone head", "Imp"},
                 {"Default", "cone head", "bucket head", "Explorer", "Imp"},
                 {"cone head", "bucket head", "brick head", "Explorer", "Hunter", "Imp"}
         };
-        String[] pool = pools[stage - 1];
+        String[] pool = pools[getStage() - 1];
         for (int index = 0; index < zombieCount; index++) {
-            int tick = 5 + index * interval;
+            int tick = 10 + index * interval;
             int lane = random.nextInt(board.getHeight()) + 1;
             String zombieName = pool[random.nextInt(pool.length)];
             spawnSchedule.add(new SpawnEntry(tick, lane, zombieName));
@@ -355,12 +377,6 @@ public class WallNutBowlingGame extends MiniGameSession {
             total += value;
         }
         return total;
-    }
-
-    private void disableMowers() {
-        for (Lane lane : board.getLanes()) {
-            lane.getLawnMower().disable();
-        }
     }
 
     private int clamp(int value, int minimum, int maximum) {
