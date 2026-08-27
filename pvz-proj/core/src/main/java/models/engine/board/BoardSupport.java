@@ -114,6 +114,17 @@ abstract class BoardSupport extends BoardState {
         return findTileContainingZombie(zombie);
     }
 
+    /**
+     * Returns whether a zombie has actually entered the playable lawn.
+     * Wave zombies are stored in the last tile while they approach from the
+     * right, so tile membership alone must not make them targetable.
+     */
+    public boolean isZombieOnLawn(Zombie zombie) {
+        return zombie != null
+                && zombie.isAlive()
+                && zombie.getX() <= width;
+    }
+
     public List<Zombie> getAllZombies() {
         List<Zombie> zombies = new ArrayList<>();
         for (Lane lane : lanes) {

@@ -27,6 +27,7 @@ public final class PvzAnimationService implements Disposable {
     private final Map<String, Set<String>> partNamesCache = new LinkedHashMap<>();
     private final Map<String, Map<String, Boolean>> visibilityCache = new LinkedHashMap<>();
     private final Map<String, String> detachableArmCache = new LinkedHashMap<>();
+    private final Map<String, String> detachableHeadCache = new LinkedHashMap<>();
 
     private TextureBank textureBank;
     private PamPlayer pamPlayer;
@@ -81,6 +82,21 @@ public final class PvzAnimationService implements Disposable {
         boolean loop,
         Map<String, Boolean> visibility
     ) {
+        return draw(batch, pamPath, clip, stateTime, x, y, scale, scale, loop, visibility);
+    }
+
+    public boolean draw(
+        Batch batch,
+        String pamPath,
+        String clip,
+        float stateTime,
+        float x,
+        float y,
+        float scaleX,
+        float scaleY,
+        boolean loop,
+        Map<String, Boolean> visibility
+    ) {
         if (!canDraw(pamPath, clip)) {
             return false;
         }
@@ -91,8 +107,8 @@ public final class PvzAnimationService implements Disposable {
             stateTime,
             x,
             y,
-            scale,
-            scale,
+            scaleX,
+            scaleY,
             loop,
             visibility == null || visibility.isEmpty() ? null : visibility
         );
@@ -148,6 +164,30 @@ public final class PvzAnimationService implements Disposable {
         return selected;
     }
 
+    public String findDetachableHeadPart(String pamPath) {
+        if (!available || pamPath == null || pamPath.isBlank()) {
+            return null;
+        }
+        String cached = detachableHeadCache.get(pamPath);
+        if (cached != null) {
+            return cached.isEmpty() ? null : cached;
+        }
+        String selected = null;
+        int bestScore = Integer.MIN_VALUE;
+        for (String partName : partNames(pamPath)) {
+            int score = headPartScore(partName);
+            if (score > bestScore) {
+                bestScore = score;
+                selected = partName;
+            }
+        }
+        if (bestScore < 0) {
+            selected = null;
+        }
+        detachableHeadCache.put(pamPath, selected == null ? "" : selected);
+        return selected;
+    }
+
     public TextureRegion region(String imageResourceId) {
         if (!available || imageResourceId == null || imageResourceId.isBlank()) {
             return null;
@@ -196,6 +236,64 @@ public final class PvzAnimationService implements Disposable {
         return result;
     }
 
+    public Map<String, Boolean> visibilityForArmorStage(
+        String pamPath,
+        Collection<String> tokens,
+        int damageStage
+    ) {
+        List<String> normalizedTokens = normalizeTokens(tokens);
+        if (!available || pamPath == null || normalizedTokens.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        int stage = Math.max(0, Math.min(2, damageStage));
+        String key = pamPath + "|armor|" + stage + "|" + String.join(",", normalizedTokens);
+        Map<String, Boolean> cached = visibilityCache.get(key);
+        if (cached != null) {
+            return cached;
+        }
+
+        List<String> candidates = armorPartNames(pamPath, normalizedTokens);
+        if (candidates.isEmpty() || !hasArmorDamageVariants(candidates, normalizedTokens)) {
+            return visibilityForTokens(pamPath, tokens);
+        }
+
+        Map<String, Boolean> visibility = new LinkedHashMap<>();
+        for (String partName : candidates) {
+            visibility.put(partName, armorDamageStage(partName, normalizedTokens) == stage);
+        }
+        Map<String, Boolean> result = Collections.unmodifiableMap(visibility);
+        visibilityCache.put(key, result);
+        return result;
+    }
+
+    public List<String> findArmorPartsForStage(
+        String pamPath,
+        Collection<String> tokens,
+        int damageStage
+    ) {
+        List<String> normalizedTokens = normalizeTokens(tokens);
+        if (!available || pamPath == null || normalizedTokens.isEmpty()) {
+            return Collections.emptyList();
+        }
+        int stage = Math.max(0, Math.min(2, damageStage));
+        List<String> candidates = armorPartNames(pamPath, normalizedTokens);
+        boolean staged = hasArmorDamageVariants(candidates, normalizedTokens);
+        List<String> selected = new ArrayList<>();
+        for (String partName : candidates) {
+            if (!staged || armorDamageStage(partName, normalizedTokens) == stage) {
+                selected.add(partName);
+            }
+        }
+        selected.sort((first, second) -> Integer.compare(
+            armorPartScore(second, normalizedTokens),
+            armorPartScore(first, normalizedTokens)
+        ));
+        if (selected.size() > 3) {
+            return Collections.unmodifiableList(new ArrayList<>(selected.subList(0, 3)));
+        }
+        return Collections.unmodifiableList(selected);
+    }
+
     public AnimationCatalog getCatalog() {
         return catalog;
     }
@@ -223,6 +321,7 @@ public final class PvzAnimationService implements Disposable {
         partNamesCache.clear();
         visibilityCache.clear();
         detachableArmCache.clear();
+        detachableHeadCache.clear();
         available = false;
     }
 
@@ -374,6 +473,109 @@ public final class PvzAnimationService implements Disposable {
         if (normalized.contains("upperarm") || normalized.contains("armupper")) score += 70;
         if (normalized.endsWith("arm")) score += 35;
         return score;
+    }
+
+    private int headPartScore(String partName) {
+        String normalized = normalizeToken(partName);
+        if (!normalized.contains("head") || normalized.contains("headwear")) {
+            return -1;
+        }
+        int score = 20 - Math.min(20, normalized.length() / 4);
+        if (normalized.equals("head") || normalized.endsWith("head")) score += 140;
+        if (normalized.contains("zombiehead") || normalized.contains("headzombie")) score += 120;
+        if (normalized.contains("head1") || normalized.contains("head01")) score += 90;
+        if (normalized.contains("helmet") || normalized.contains("hat") || normalized.contains("hair")) score -= 80;
+        if (normalized.contains("eye") || normalized.contains("jaw") || normalized.contains("mouth")) score -= 100;
+        return score;
+    }
+
+    private List<String> normalizeTokens(Collection<String> tokens) {
+        if (tokens == null || tokens.isEmpty()) {
+            return Collections.emptyList();
+        }
+        List<String> normalized = new ArrayList<>();
+        for (String token : tokens) {
+            String value = normalizeToken(token);
+            if (!value.isEmpty() && !normalized.contains(value)) {
+                normalized.add(value);
+            }
+        }
+        Collections.sort(normalized);
+        return normalized;
+    }
+
+    private List<String> armorPartNames(String pamPath, List<String> normalizedTokens) {
+        List<String> candidates = new ArrayList<>();
+        for (String partName : partNames(pamPath)) {
+            String normalizedPart = normalizeToken(partName);
+            for (String token : normalizedTokens) {
+                if (normalizedPart.contains(token)) {
+                    candidates.add(partName);
+                    break;
+                }
+            }
+        }
+        return candidates;
+    }
+
+    private boolean hasArmorDamageVariants(List<String> candidates, List<String> tokens) {
+        for (String candidate : candidates) {
+            if (armorDamageStage(candidate, tokens) > 0) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private int armorDamageStage(String partName, List<String> tokens) {
+        String normalized = normalizeToken(partName);
+        if (containsDamageMarker(normalized, 2)) {
+            return 2;
+        }
+        if (containsDamageMarker(normalized, 1)) {
+            return 1;
+        }
+        for (String token : tokens) {
+            if (normalized.endsWith(token + "3") || normalized.endsWith(token + "03")) {
+                return 2;
+            }
+            if (normalized.endsWith(token + "2") || normalized.endsWith(token + "02")) {
+                return 1;
+            }
+        }
+        return 0;
+    }
+
+    private boolean containsDamageMarker(String normalized, int stage) {
+        String value = Integer.toString(stage);
+        return normalized.contains("damage" + value)
+            || normalized.contains("damaged" + value)
+            || normalized.contains("dmg" + value)
+            || normalized.contains("crack" + value)
+            || normalized.contains("broken" + value);
+    }
+
+    private int armorPartScore(String partName, List<String> tokens) {
+        String normalized = normalizeToken(partName);
+        int score = 0;
+        for (String token : tokens) {
+            if (normalized.equals(token)) {
+                score += 180;
+            } else if (normalized.startsWith(token) || normalized.endsWith(token)) {
+                score += 120;
+            } else if (normalized.contains(token)) {
+                score += 80;
+            }
+        }
+        if (normalized.contains("damage") || normalized.contains("dmg")
+            || normalized.contains("crack") || normalized.contains("broken")) {
+            score += 35;
+        }
+        if (normalized.contains("shadow") || normalized.contains("glow")
+            || normalized.contains("spark") || normalized.contains("fx")) {
+            score -= 80;
+        }
+        return score - Math.min(40, normalized.length() / 3);
     }
 
     private String normalizeToken(String value) {

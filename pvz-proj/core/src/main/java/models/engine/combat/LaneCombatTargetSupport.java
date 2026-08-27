@@ -203,6 +203,13 @@ abstract class LaneCombatTargetSupport extends LaneCombatTerrainSupport {
                 || tags.contains("explosive");
     }
 
+    protected boolean isPlantTargetableZombie(Zombie zombie) {
+        return zombie != null
+                && zombie.isAlive()
+                && !isHypnotized(zombie)
+                && (board == null || board.isZombieOnLawn(zombie));
+    }
+
     protected Zombie selectPrimaryTarget(Plant plant, List<Zombie> candidates) {
         if (plant == null) {
             return null;
@@ -222,7 +229,7 @@ abstract class LaneCombatTargetSupport extends LaneCombatTerrainSupport {
         double maximumRange = resolveMaximumRange(plant);
 
         for (Zombie zombie : candidates) {
-            if (zombie == null || !zombie.isAlive() || isHypnotized(zombie)) {
+            if (!isPlantTargetableZombie(zombie)) {
                 continue;
             }
             double signedDistance = zombie.getX() - plant.getX();
@@ -259,8 +266,7 @@ abstract class LaneCombatTargetSupport extends LaneCombatTerrainSupport {
         Zombie selected = null;
         double selectedDistance = Double.MAX_VALUE;
         for (Zombie zombie : candidates) {
-            if (zombie == null || !zombie.isAlive() || isHypnotized(zombie)
-                    || zombie.getX() >= plant.getX()) {
+            if (!isPlantTargetableZombie(zombie) || zombie.getX() >= plant.getX()) {
                 continue;
             }
             double distance = plant.getX() - zombie.getX();
@@ -277,6 +283,7 @@ abstract class LaneCombatTargetSupport extends LaneCombatTerrainSupport {
         int strongest = Integer.MIN_VALUE;
         for (Zombie zombie : candidates) {
             if (zombie == null || !zombie.isAlive()
+                    || board != null && !board.isZombieOnLawn(zombie)
                     || (!includeHypnotized && isHypnotized(zombie))) {
                 continue;
             }
@@ -298,7 +305,7 @@ abstract class LaneCombatTargetSupport extends LaneCombatTerrainSupport {
     ) {
         List<Zombie> result = new ArrayList<>();
         for (Zombie zombie : candidates) {
-            if (zombie == null || !zombie.isAlive() || isHypnotized(zombie)) {
+            if (!isPlantTargetableZombie(zombie)) {
                 continue;
             }
             if (onlyNear && Math.abs(zombie.getX() - plant.getX()) > 1.25) {
@@ -316,14 +323,18 @@ abstract class LaneCombatTargetSupport extends LaneCombatTerrainSupport {
     protected List<Zombie> collectCandidateZombies(Plant plant, Lane ownLane) {
         String name = normalizeText(plant.getName());
         String category = normalizeCategory(plant);
+        List<Zombie> source;
         if (board != null && (category.equals("homing")
                 || name.equals("cat tail")
                 || name.equals("electric blueberry")
                 || name.equals("caulipower")
                 || name.equals("starfruit"))) {
-            return new ArrayList<>(board.getAllZombies());
+            source = new ArrayList<>(board.getAllZombies());
+        } else {
+            source = new ArrayList<>(ownLane.getAllZombies());
         }
-        return new ArrayList<>(ownLane.getAllZombies());
+        source.removeIf(zombie -> !isPlantTargetableZombie(zombie));
+        return source;
     }
 
     protected List<Zombie> allLivingEnemyZombies() {
@@ -332,7 +343,7 @@ abstract class LaneCombatTargetSupport extends LaneCombatTerrainSupport {
         }
         List<Zombie> result = new ArrayList<>();
         for (Zombie zombie : board.getAllZombies()) {
-            if (zombie != null && zombie.isAlive() && !isHypnotized(zombie)) {
+            if (isPlantTargetableZombie(zombie)) {
                 result.add(zombie);
             }
         }
@@ -366,6 +377,9 @@ abstract class LaneCombatTargetSupport extends LaneCombatTerrainSupport {
         }
         if (name.equals("wasabi whip")) {
             return 2 + bonus;
+        }
+        if (name.equals("fume shroom")) {
+            return 4 + bonus;
         }
         return Double.MAX_VALUE;
     }

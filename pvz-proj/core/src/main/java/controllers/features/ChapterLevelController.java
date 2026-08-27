@@ -43,10 +43,10 @@ public class ChapterLevelController {
 
         builder.append("\n\nCommands:")
                 .append("\nshow levels")
-                .append("\nselect level -l <1|2|3>")
+                .append("\nselect level -l <1|2|3|4>")
                 .append("\nmenu show current")
                 .append("\nmenu exit")
-                .append("\n\nBoss level is shown only as a placeholder. Completing level 3 unlocks the next chapter.");
+                .append("\n\nP2-09 boss battles are available for Ancient Egypt and Ice Cave.");
 
         success(builder.toString());
     }
@@ -63,13 +63,14 @@ public class ChapterLevelController {
             return;
         }
 
-        if (levelNumber == AdventureLevelCatalog.BOSS_LEVEL) {
-            fail("Boss levels are not implemented. Complete level 3 to unlock the next chapter.");
+        if (!AdventureLevelCatalog.isPlayableLevel(levelNumber)) {
+            fail("Level number must be between 1 and 4.");
             return;
         }
 
-        if (!AdventureLevelCatalog.isPlayableLevel(levelNumber)) {
-            fail("Level number must be between 1 and 3.");
+        if (levelNumber == AdventureLevelCatalog.BOSS_LEVEL
+                && !AdventureLevelCatalog.isBossLevelAvailable(chapterName)) {
+            fail("This chapter boss is not part of P2-09.");
             return;
         }
 
@@ -98,10 +99,9 @@ public class ChapterLevelController {
     }
 
     private String levelStatus(User user, String chapterName, int levelNumber) {
-        if (levelNumber == AdventureLevelCatalog.BOSS_LEVEL) {
-            return user.isChapterLevelUnlocked(chapterName, levelNumber)
-                    ? "OPEN / NOT IMPLEMENTED"
-                    : "LOCKED / NOT IMPLEMENTED";
+        if (levelNumber == AdventureLevelCatalog.BOSS_LEVEL
+                && !AdventureLevelCatalog.isBossLevelAvailable(chapterName)) {
+            return "HANDLED BY OTHER BOSS CONTENT";
         }
         if (user.isChapterLevelCompleted(chapterName, levelNumber)) {
             return "COMPLETED";

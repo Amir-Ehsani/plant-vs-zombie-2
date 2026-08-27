@@ -124,7 +124,7 @@ public class Board extends BoardSupport {
 
                 if (xDistance <= zombieRadius && yDistance <= zombieRadius) {
                     for (Zombie zombie : new ArrayList<>(tile.getZombies())) {
-                        if (zombie != null && zombie.isAlive()) {
+                        if (isZombieOnLawn(zombie)) {
                             zombie.takeDamage(new Damage(zombieDamage, "radioactive sun"));
                         }
                     }
@@ -219,12 +219,15 @@ public class Board extends BoardSupport {
             throw new IllegalArgumentException("Damage center, radii and amount are invalid.");
         }
 
+        double xReach = xRadius + 0.5;
+        double yReach = yRadius + 0.5;
         for (Zombie zombie : new ArrayList<>(getAllZombies())) {
-            int x = Math.max(1, Math.min(width, (int) Math.ceil(zombie.getX())));
-            int y = Math.max(1, Math.min(height, (int) Math.round(zombie.getY())));
-
-            if (Math.abs(x - center.getX()) <= xRadius
-                    && Math.abs(y - center.getY()) <= yRadius) {
+            if (!isZombieOnLawn(zombie)) {
+                continue;
+            }
+            double xDistance = Math.abs(zombie.getX() - center.getX());
+            double yDistance = Math.abs(zombie.getY() - center.getY());
+            if (xDistance <= xReach && yDistance <= yReach) {
                 zombie.recordDamageSource(sourcePlantName, sourcePlantCategory, damageType);
                 zombie.takeDamage(new Damage(damage, damageType));
             }
@@ -251,6 +254,9 @@ public class Board extends BoardSupport {
         }
 
         for (Zombie zombie : new ArrayList<>(lane.getAllZombies())) {
+            if (!isZombieOnLawn(zombie)) {
+                continue;
+            }
             zombie.recordDamageSource(sourcePlantName, sourcePlantCategory, damageType);
             zombie.takeDamage(new Damage(damage, damageType));
         }
@@ -273,6 +279,9 @@ public class Board extends BoardSupport {
         }
 
         for (Zombie zombie : new ArrayList<>(getAllZombies())) {
+            if (!isZombieOnLawn(zombie)) {
+                continue;
+            }
             zombie.recordDamageSource(sourcePlantName, sourcePlantCategory, damageType);
             zombie.takeDamage(new Damage(damage, damageType));
         }
@@ -302,7 +311,12 @@ public class Board extends BoardSupport {
         }
 
         java.util.Random generator = random == null ? new java.util.Random() : random;
-        List<Zombie> living = new ArrayList<>(getAllZombies());
+        List<Zombie> living = new ArrayList<>();
+        for (Zombie zombie : getAllZombies()) {
+            if (isZombieOnLawn(zombie)) {
+                living.add(zombie);
+            }
+        }
 
         for (int index = 0; index < hitCount && !living.isEmpty(); index++) {
             Zombie target = living.get(generator.nextInt(living.size()));
@@ -319,7 +333,9 @@ public class Board extends BoardSupport {
 
     public void freezeAllZombies(int ticks) {
         for (Zombie zombie : getAllZombies()) {
-            combatStrategy.applyFreeze(zombie, ticks);
+            if (isZombieOnLawn(zombie)) {
+                combatStrategy.applyFreeze(zombie, ticks);
+            }
         }
     }
 
@@ -336,19 +352,27 @@ public class Board extends BoardSupport {
     }
 
     public void applyFreeze(Zombie zombie, int ticks) {
-        combatStrategy.applyFreeze(zombie, ticks);
+        if (isZombieOnLawn(zombie)) {
+            combatStrategy.applyFreeze(zombie, ticks);
+        }
     }
 
     public void applyChill(Zombie zombie, int ticks) {
-        combatStrategy.applyChill(zombie, ticks);
+        if (isZombieOnLawn(zombie)) {
+            combatStrategy.applyChill(zombie, ticks);
+        }
     }
 
     public void applyPoison(Zombie zombie, int damagePerTick, int ticks) {
-        combatStrategy.applyPoison(zombie, damagePerTick, ticks);
+        if (isZombieOnLawn(zombie)) {
+            combatStrategy.applyPoison(zombie, damagePerTick, ticks);
+        }
     }
 
     public void applyButter(Zombie zombie, int ticks) {
-        combatStrategy.applyButterStun(zombie, ticks);
+        if (isZombieOnLawn(zombie)) {
+            combatStrategy.applyButterStun(zombie, ticks);
+        }
     }
 
     public void hypnotizeZombie(Zombie zombie) {

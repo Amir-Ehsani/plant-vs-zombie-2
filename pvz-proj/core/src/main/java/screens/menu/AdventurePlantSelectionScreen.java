@@ -1,5 +1,6 @@
 package screens.menu;
 
+
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.scenes.scene2d.InputEvent;
@@ -432,6 +433,7 @@ public class AdventurePlantSelectionScreen extends BaseMenuScreen {
         if (user == null || level == null) {
             return result;
         }
+        boolean debugMode = user.getSettings() != null && user.getSettings().isDebugMode();
         for (PlantData data : user.getCollection().getOwnedPlants()) {
             if (data == null || !data.isUnlocked() || !isPlantVisibleInGrid(level, data.getName())) {
                 continue;

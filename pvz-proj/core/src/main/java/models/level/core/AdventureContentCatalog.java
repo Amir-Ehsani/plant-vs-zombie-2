@@ -24,7 +24,8 @@ public final class AdventureContentCatalog {
         if (chapterIndex < 0 || !AdventureLevelCatalog.isPlayableLevel(levelNumber)) {
             return -1;
         }
-        return chapterIndex * AdventureLevelCatalog.LAST_PLAYABLE_LEVEL + levelNumber - 1;
+        int contentLevel = Math.min(levelNumber, AdventureLevelCatalog.LAST_CONTENT_LEVEL);
+        return chapterIndex * AdventureLevelCatalog.LAST_CONTENT_LEVEL + contentLevel - 1;
     }
 
     public static List<String> plantNamesUnlockedThrough(
@@ -71,13 +72,16 @@ public final class AdventureContentCatalog {
             ZombieRegistry registry
     ) {
         int targetStage = stageOrdinal(chapterName, levelNumber);
+        SeasonType seasonType = seasonTypeForChapter(chapterName);
         List<String> names = new ArrayList<>();
-        if (targetStage < 0 || registry == null) {
+        if (targetStage < 0 || registry == null || seasonType == null) {
             return names;
         }
 
         for (ZombieType type : registry.getAllZombieTypes()) {
-            if (type != null && assignedZombieStage(type) <= targetStage) {
+            if (type != null
+                    && seasonType.isZombieAllowed(type.getName())
+                    && assignedZombieStage(type) <= targetStage) {
                 names.add(type.getName());
             }
         }
@@ -90,17 +94,30 @@ public final class AdventureContentCatalog {
             ZombieRegistry registry
     ) {
         int targetStage = stageOrdinal(chapterName, levelNumber);
+        SeasonType seasonType = seasonTypeForChapter(chapterName);
         List<String> names = new ArrayList<>();
-        if (targetStage < 0 || registry == null) {
+        if (targetStage < 0 || registry == null || seasonType == null) {
             return names;
         }
 
         for (ZombieType type : registry.getAllZombieTypes()) {
-            if (type != null && assignedZombieStage(type) == targetStage) {
+            if (type != null
+                    && seasonType.isZombieAllowed(type.getName())
+                    && assignedZombieStage(type) == targetStage) {
                 names.add(type.getName());
             }
         }
         return names;
+    }
+
+    private static SeasonType seasonTypeForChapter(String chapterName) {
+        return switch (AdventureLevelCatalog.normalizeChapterName(chapterName)) {
+            case "ancient-egypt" -> SeasonType.ANCIENT_EGYPT;
+            case "ice-cave" -> SeasonType.FROSTBITE_CAVES;
+            case "wave-beach" -> SeasonType.BIG_WAVE_BEACH;
+            case "wild-west" -> SeasonType.DARK_AGES;
+            default -> null;
+        };
     }
 
     private static int assignedPlantStage(PlantType type) {

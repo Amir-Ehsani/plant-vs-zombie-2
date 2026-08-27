@@ -68,6 +68,14 @@ public class Plant extends PlantState {
         pendingVisualAttackClip = clip;
     }
 
+    public void triggerSpecialAnimation(String clip) {
+        if (clip == null || clip.isBlank()) {
+            return;
+        }
+        visualSpecialClip = clip;
+        visualSpecialSerial++;
+    }
+
     private void registerAttackVisual() {
         visualAttackClip = pendingVisualAttackClip == null ? "attack" : pendingVisualAttackClip;
         pendingVisualAttackClip = null;
@@ -96,9 +104,14 @@ public class Plant extends PlantState {
 
         int remainingDamage = damage.getAmount();
         if (armorHp > 0) {
+            int armorBefore = armorHp;
             int absorbed = Math.min(armorHp, remainingDamage);
             armorHp -= absorbed;
             remainingDamage -= absorbed;
+            if (explosiveArmor && armorBefore > 0 && armorHp == 0) {
+                explosiveArmorBreakPending = true;
+                explosiveArmor = false;
+            }
         }
         if (remainingDamage > 0) {
             hp = Math.max(0, hp - remainingDamage);
@@ -129,6 +142,20 @@ public class Plant extends PlantState {
         }
     }
 
+    public void addExplosiveArmor(int amount) {
+        if (amount > 0) {
+            armorHp += amount;
+            explosiveArmor = true;
+            explosiveArmorBreakPending = false;
+        }
+    }
+
+    public boolean consumeExplosiveArmorBreak() {
+        boolean pending = explosiveArmorBreakPending;
+        explosiveArmorBreakPending = false;
+        return pending;
+    }
+
     public void healToFull() {
         if (isAlive()) {
             hp = maxHp;
@@ -142,10 +169,12 @@ public class Plant extends PlantState {
 
     public void finishGrowth() {
         growTimeTicks = 0;
+        growthFinished = true;
     }
 
     public void finishArming() {
         armTimeTicks = 0;
+        armingFinished = true;
     }
 
     public void enableBlueFlame() {

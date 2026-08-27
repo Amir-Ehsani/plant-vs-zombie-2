@@ -24,7 +24,8 @@ public final class BoardRenderer {
         TextureRegion center,
         TextureRegion right,
         float worldHeight,
-        float centerX
+        float centerX,
+        float centerYOffset
     ) {
         if (center == null) {
             return;
@@ -32,7 +33,15 @@ public final class BoardRenderer {
 
         float centerWidth = scaledWidth(center, worldHeight);
         drawRegion(batch, left, centerX - scaledWidth(left, worldHeight), worldHeight);
+
+        // Keep the unshifted center as a backing layer so a small chapter-specific
+        // vertical correction never exposes the clear color at the top of the screen.
+        // The visible center image itself is still drawn at its native aspect ratio.
         batch.draw(center, centerX, 0f, centerWidth, worldHeight);
+        if (Math.abs(centerYOffset) > 0.001f) {
+            batch.draw(center, centerX, centerYOffset, centerWidth, worldHeight);
+        }
+
         drawRegion(batch, right, centerX + centerWidth, worldHeight);
     }
 

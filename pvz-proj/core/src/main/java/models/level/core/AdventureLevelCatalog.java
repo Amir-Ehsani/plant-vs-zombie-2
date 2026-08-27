@@ -10,7 +10,8 @@ import java.util.Locale;
 
 public final class AdventureLevelCatalog {
     public static final int FIRST_PLAYABLE_LEVEL = 1;
-    public static final int LAST_PLAYABLE_LEVEL = 3;
+    public static final int LAST_PLAYABLE_LEVEL = 4;
+    public static final int LAST_CONTENT_LEVEL = 3;
     public static final int BOSS_LEVEL = 4;
 
     private static final List<String> CHAPTERS = Collections.unmodifiableList(Arrays.asList(
@@ -87,6 +88,15 @@ public final class AdventureLevelCatalog {
         return levelNumber >= FIRST_PLAYABLE_LEVEL && levelNumber <= LAST_PLAYABLE_LEVEL;
     }
 
+    public static boolean isBossLevelAvailable(String chapterName) {
+        String chapter = normalizeChapterName(chapterName);
+        return chapter.equals("ancient-egypt") || chapter.equals("ice-cave");
+    }
+
+    public static int lastRequiredLevel(String chapterName) {
+        return isBossLevelAvailable(chapterName) ? BOSS_LEVEL : LAST_CONTENT_LEVEL;
+    }
+
     public static SpecialLevelType specialTypeFor(String chapterName, int levelNumber) {
         if (levelNumber == 1) {
             return SpecialLevelType.NONE;
@@ -114,7 +124,7 @@ public final class AdventureLevelCatalog {
             return "Normal Defense";
         }
         if (levelNumber == BOSS_LEVEL) {
-            return "Boss Battle (not implemented)";
+            return isBossLevelAvailable(chapterName) ? "Zomboss Battle" : "Boss Battle";
         }
 
         return switch (specialTypeFor(chapterName, levelNumber)) {

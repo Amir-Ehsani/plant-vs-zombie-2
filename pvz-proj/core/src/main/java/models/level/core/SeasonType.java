@@ -21,7 +21,7 @@ public enum SeasonType {
     ),
     DARK_AGES(
             "Dark Ages",
-            Arrays.asList("knight", "Juggler", "Wizard", "King", "Imp Dragon")
+            Arrays.asList("Juggler", "Wizard", "King", "Imp Dragon")
     );
 
     private static List<String> commonZombies() {
@@ -30,6 +30,7 @@ public enum SeasonType {
                 "cone head",
                 "bucket head",
                 "brick head",
+                "knight",
                 "Gargantuar",
                 "Imp",
                 "Allstar",
@@ -38,7 +39,8 @@ public enum SeasonType {
                 "Turquoise",
                 "Prospector",
                 "Piano",
-                "News Paper"
+                "News Paper",
+                "Barrel Roller"
         );
     }
 

@@ -234,7 +234,8 @@ abstract class GameControllerQuestSupport extends GameControllerQuestRules {
         CompletionUpdate update = new CompletionUpdate();
         if (!won) return update;
         update.newlyCompleted = user.completeChapterLevel(currentChapterName, currentLevelNumber);
-        if (currentLevelNumber == AdventureLevelCatalog.LAST_PLAYABLE_LEVEL) {
+        int chapterLastLevel = AdventureLevelCatalog.lastRequiredLevel(currentChapterName);
+        if (currentLevelNumber == chapterLastLevel) {
             update.unlockedChapter = AdventureLevelCatalog.nextChapter(currentChapterName);
             if (update.unlockedChapter != null) user.unlockChapter(update.unlockedChapter);
         }
@@ -243,11 +244,11 @@ abstract class GameControllerQuestSupport extends GameControllerQuestRules {
 
     private void appendSavedProgress(StringBuilder builder, boolean won, CompletionUpdate update) {
         builder.append("\nProgress and quest stats were saved.");
-        if (won && update.newlyCompleted
-                && currentLevelNumber < AdventureLevelCatalog.LAST_PLAYABLE_LEVEL) {
+        int chapterLastLevel = AdventureLevelCatalog.lastRequiredLevel(currentChapterName);
+        if (won && update.newlyCompleted && currentLevelNumber < chapterLastLevel) {
             builder.append("\nLevel ").append(currentLevelNumber).append(" completed. Level ")
                     .append(currentLevelNumber + 1).append(" is now unlocked.");
-        } else if (won && currentLevelNumber == AdventureLevelCatalog.LAST_PLAYABLE_LEVEL) {
+        } else if (won && currentLevelNumber == chapterLastLevel) {
             appendChapterCompletion(builder, update.unlockedChapter);
         }
         builder.append("\nType 'return to level menu' to return to the chapter level selection page.");

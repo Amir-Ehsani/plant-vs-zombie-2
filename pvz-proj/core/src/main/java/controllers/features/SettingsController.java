@@ -2,8 +2,14 @@ package controllers.features;
 
 import controllers.auth.AuthController;
 import controllers.core.GameController;
+import models.account.Collection;
+import models.account.PlantData;
 import models.account.Settings;
 import models.account.User;
+import models.core.plant.DefaultPlantRegistry;
+import models.core.plant.PlantType;
+import models.core.zombie.DefaultZombieRegistry;
+import models.core.zombie.ZombieType;
 import models.engine.session.GameSession;
 
 public class SettingsController {
@@ -39,7 +45,15 @@ public class SettingsController {
     }
 
     public void setDebugMode(boolean enabled) {
-        updateSettings(settings -> settings.setDebugMode(enabled), true, "", "Debug mode updated.");
+        User user = getLoggedInUserOrFail();
+        if (user == null) {
+            return;
+        }
+        if (!enabled) {
+            user.disableDebugAdventureUnlockOverride();
+        }
+        user.getSettings().setDebugMode(enabled);
+        saveAndSucceed("Debug mode updated.");
     }
 
     public void setMusicVolume(float volume) {
@@ -54,6 +68,64 @@ public class SettingsController {
 
     public void setMusicEnabled(boolean enabled) {
         updateSettings(settings -> settings.setMusicEnabled(enabled), true, "", "Music setting updated.");
+    }
+
+    public void unlockAllAdventureContentForDebug() {
+        User user = getLoggedInUserOrFail();
+        if (user == null) {
+            return;
+        }
+        if (!user.getSettings().isDebugMode()) {
+            fail("Debug mode is disabled.");
+            return;
+        }
+        user.enableDebugAdventureUnlockOverride();
+        success("All adventure chapters and levels are temporarily unlocked for debug mode.");
+    }
+
+    public boolean isDebugAdventureUnlockActive() {
+        User user = authController.getLoggedInUser();
+        return user != null && user.isDebugAdventureUnlockOverride();
+    }
+
+    public void unlockAllCollectionContent() {
+        User user = getLoggedInUserOrFail();
+        if (user == null) {
+            return;
+        }
+        if (!user.getSettings().isDebugMode()) {
+            fail("Debug mode is disabled.");
+            return;
+        }
+
+        Collection collection = user.getCollection();
+        int plantsUnlocked = 0;
+        int zombiesUnlocked = 0;
+
+        for (PlantType type : DefaultPlantRegistry.getInstance().getAllPlantTypes()) {
+            if (!collection.hasPlant(type.getName())) {
+                collection.addPlant(new PlantData(
+                        type.getName(),
+                        CollectionController.PLANT_PURCHASE_PRICE,
+                        false
+                ));
+            }
+            if (!collection.hasOwnedPlant(type.getName()) && collection.unlockPlant(type.getName())) {
+                plantsUnlocked++;
+            }
+        }
+
+        for (ZombieType type : DefaultZombieRegistry.getInstance().getAllZombieTypes()) {
+            if (!collection.hasZombie(type.getName())) {
+                collection.addZombie(type.getName(), false);
+            }
+            if (!collection.hasOwnedZombie(type.getName()) && collection.unlockZombie(type.getName())) {
+                zombiesUnlocked++;
+            }
+        }
+
+        saveAndSucceed("Unlocked all plants and zombies. Plants: "
+                + plantsUnlocked + ", zombies: " + zombiesUnlocked + ".");
     }
 
     public void addDebugCoins(int amount) {

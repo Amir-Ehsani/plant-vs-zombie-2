@@ -21,14 +21,14 @@ public final class PvzAnimationCatalog {
             Map.entry("rotobaga", "ROTORUTABAGA"),
             Map.entry("mega gatling pea", "MEGAGATLING"),
             Map.entry("kernel pult", "KERNALPULT"),
-            Map.entry("iceberg lettuce", "HEADBUTTER_LETTUCE"),
+            Map.entry("iceberg lettuce", "ICEBURG"),
             Map.entry("phat beet", "PHATBEETS"),
             Map.entry("primal sunflower", "PRIMAL_SUNFLOWER"),
             Map.entry("primal potato mine", "PRIMAL_POTATOMINE"),
             Map.entry("pierce mint", "SPEARMINT"),
             Map.entry("cattail mint", "AILMINT"),
             Map.entry("cat tail mint", "AILMINT"),
-            Map.entry("cat tail", "PEASHOOTER")
+            Map.entry("cat tail", "HOMINGTHISTLE")
     );
     private static final Map<String, String> ZOMBIE_ID_PATHS = Map.ofEntries(
             Map.entry("ZombieDefault", "768/INITIAL/ZOMBIE/ZOMBIE_TUTORIAL/ZOMBIE_TUTORIAL.PAM"),

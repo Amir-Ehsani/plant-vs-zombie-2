@@ -124,7 +124,12 @@ public class GameController extends GameControllerPlaySupport {
             return null;
         }
         if (!AdventureLevelCatalog.isPlayableLevel(levelNumber)) {
-            fail("Only adventure levels 1 to 3 are playable. Boss levels are not implemented.");
+            fail("Adventure level number must be between 1 and 4.");
+            return null;
+        }
+        if (levelNumber == AdventureLevelCatalog.BOSS_LEVEL
+                && !AdventureLevelCatalog.isBossLevelAvailable(chapter)) {
+            fail("This chapter boss is handled outside P2-09 and is not available yet.");
             return null;
         }
         if (!user.isChapterLevelUnlocked(chapter, levelNumber)) {

@@ -9,9 +9,6 @@ import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.scenes.scene2d.ui.Label;
 import com.badlogic.gdx.scenes.scene2d.ui.Skin;
-import game.animation.core.EntityAnimationProfile;
-import game.animation.core.EntityAnimationRegistry;
-import game.animation.core.PvzAnimationService;
 import models.core.plant.PlantType;
 import models.engine.session.GameSession;
 import models.level.core.Level;
@@ -47,7 +44,6 @@ public final class CompactSeedBank {
     private static final Color TEXT_COLOR = new Color(0.20f, 0.16f, 0.08f, 1f);
 
     private final PvzAnimationService animations;
-    private final EntityAnimationRegistry registry;
     private final BitmapFont font;
     private final Map<String, EntityAnimationProfile> profiles = new LinkedHashMap<>();
     private final Map<String, Float> conveyorCardY = new LinkedHashMap<>();
@@ -56,11 +52,10 @@ public final class CompactSeedBank {
     private final TextureRegion conveyorSide;
 
     public CompactSeedBank(PvzAnimationService animations, Skin skin) {
-        if (animations == null || animations.getCatalog() == null || skin == null) {
+        if (animations == null || skin == null) {
             throw new IllegalArgumentException("Seed bank requires animations and skin.");
         }
         this.animations = animations;
-        this.registry = new EntityAnimationRegistry(animations.getCatalog());
         this.font = skin.get("secondary", Label.LabelStyle.class).font;
         this.conveyorBelt = animations.region("IMAGE_UI_CONVEYOR_CONVEYOR_BELT");
         this.conveyorTop = animations.region("IMAGE_UI_CONVEYOR_CONVEYOR_TOP");
@@ -85,7 +80,7 @@ public final class CompactSeedBank {
             return;
         }
         drawSlots(shapes, session, plants, selectedPlantName);
-        drawPlants(batch, session, plants, stateTime);
+        drawPlants(batch, plants);
         drawCooldownShade(shapes, session, plants);
         drawCosts(batch, session, plants);
         drawBoostState(batch, session, plants, boostedPlant);
@@ -271,20 +266,11 @@ public final class CompactSeedBank {
             profile.getScale() * COMPACT_SCALE_MULTIPLIER,
             true
         );
-    }
-
-    private EntityAnimationProfile profileFor(GameSession session, String plantName) {
-        EntityAnimationProfile cached = profiles.get(plantName);
-        if (cached != null) {
-            return cached;
-        }
-        PlantType type = session.getPlantType(plantName);
-        EntityAnimationProfile profile = registry.forPlantType(type);
-        if (profile != null) {
-            animations.preload(profile.getPath());
-            profiles.put(plantName, profile);
-        }
-        return profile;
+        float width = region.getRegionWidth() * scale;
+        float height = region.getRegionHeight() * scale;
+        float x = BANK_X + (SLOT_WIDTH - width) * 0.5f;
+        float drawY = y + (SLOT_HEIGHT - height) * 0.5f;
+        batch.draw(region, x, drawY, width, height);
     }
 
     private void syncConveyorState(GameSession session, List<VisiblePlant> plants) {

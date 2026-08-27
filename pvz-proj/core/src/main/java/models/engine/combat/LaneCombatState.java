@@ -1,5 +1,6 @@
 package models.engine.combat;
 
+
 import models.core.plant.Plant;
 import models.core.projectile.Damage;
 import models.core.zombie.Armor;
@@ -49,7 +50,12 @@ abstract class LaneCombatState {
         protected String poisonSourcePlantName;
         protected String poisonSourcePlantCategory;
         protected int butterTicks;
+        protected int electricStrikeTicks;
         protected boolean hypnotized;
+        protected Zombie hypnotizedTarget;
+        protected int hypnotizedBiteTicks;
+        protected Zombie hostileDuelTarget;
+        protected int hostileDuelBiteTicks;
         protected int pendingLaneShift;
         protected int ageTicks;
         protected int lastDamageRevision;
@@ -60,6 +66,8 @@ abstract class LaneCombatState {
         protected boolean torchLit = true;
         protected int turquoiseChannelTicks;
         protected int jugglerSpinTicks;
+        protected int tombRaiserGravesCreated;
+        protected int tombRaiserNextThrowTick;
         protected boolean frontObjectObserved;
         protected boolean frontObjectBrokenHandled;
         protected boolean deathHandled;
@@ -70,8 +78,12 @@ abstract class LaneCombatState {
         protected int ageTicks;
         protected int digestTicks;
         protected int shotCycle;
+        protected int bowlingBlueRechargeTicks;
+        protected int bowlingOrangeRechargeTicks;
+        protected int bowlingShotTier;
         protected int crushCount;
         protected boolean hasAttacked;
+        protected boolean actionPending;
         protected boolean deathEffectHandled;
     }
 
@@ -81,6 +93,8 @@ abstract class LaneCombatState {
     protected final Map<Plant, PlantRuntimeState> plantStates;
     protected final Map<String, Integer> familyBoostTicks;
     protected final Set<Zombie> processedZombiesThisBoardTick;
+    private final List<PendingCombatAction> pendingCombatActions;
+    private int combatTick;
 
 
     protected LaneCombatState() {
@@ -98,10 +112,14 @@ abstract class LaneCombatState {
         this.plantStates = new IdentityHashMap<>();
         this.familyBoostTicks = new LinkedHashMap<>();
         this.processedZombiesThisBoardTick = Collections.newSetFromMap(new IdentityHashMap<>());
+        this.pendingCombatActions = new ArrayList<>();
+        this.combatTick = 0;
     }
 
 
     public void beginBoardTick() {
+        combatTick++;
+        runReadyCombatActions();
         processedZombiesThisBoardTick.clear();
         for (String category : new ArrayList<>(familyBoostTicks.keySet())) {
             int remaining = familyBoostTicks.get(category) - 1;
@@ -201,11 +219,22 @@ abstract class LaneCombatState {
         zombie.setCurrentSpeed(0);
     }
 
+    protected void markElectricStrike(Zombie zombie, int ticks) {
+        if (zombie == null || !zombie.isAlive() || ticks <= 0) {
+            return;
+        }
+        ZombieRuntimeState state = stateOf(zombie);
+        state.electricStrikeTicks = Math.max(state.electricStrikeTicks, ticks);
+    }
+
     public void hypnotize(Zombie zombie) {
         if (zombie == null || !zombie.isAlive()) {
             return;
         }
-        stateOf(zombie).hypnotized = true;
+        ZombieRuntimeState state = stateOf(zombie);
+        state.hypnotized = true;
+        state.hypnotizedTarget = null;
+        state.hypnotizedBiteTicks = 0;
     }
 
     public boolean isHypnotized(Zombie zombie) {
@@ -234,6 +263,9 @@ abstract class LaneCombatState {
         }
         if (state.butterTicks > 0) {
             effects.add("buttered(" + state.butterTicks + " ticks)");
+        }
+        if (state.electricStrikeTicks > 0) {
+            effects.add("electric-strike(" + state.electricStrikeTicks + " ticks)");
         }
         if (state.hypnotized) {
             effects.add("hypnotized");
