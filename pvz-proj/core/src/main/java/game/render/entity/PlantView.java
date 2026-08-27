@@ -69,6 +69,9 @@ public final class PlantView extends EntityView<Plant> {
     private int previousSpecialSerial;
     private int specialIndex;
     private float specialTime;
+    private float plantFoodEffectTime = -1f;
+    private float armorExplosionTime = -1f;
+    private int squashLandingDirection;
     private final boolean showDamageAppearance;
 
     public PlantView(Plant plant, EntityAnimationProfile profile) {

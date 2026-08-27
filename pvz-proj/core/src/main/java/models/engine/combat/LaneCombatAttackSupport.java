@@ -290,22 +290,6 @@ abstract class LaneCombatAttackSupport extends LaneCombatAbilitySupport {
         double range = resolveMaximumRange(plant);
         if (front != null && Math.abs(front.getX() - plant.getX()) > range) front = null;
         if (back != null && Math.abs(back.getX() - plant.getX()) > range) back = null;
-        int damage = effectiveDamage(plant, 15);
-        if (front != null) dealPlantDamage(plant, front, damage, "melee", false);
-        if (back != null && back != front) dealPlantDamage(plant, back, damage, "melee", false);
-        boolean hitGrave = false;
-        if (front == null) {
-            Tile grave = findNearestGraveTerrain(lane, plant, range);
-            if (grave != null) {
-                board.damageTerrain(grave.getPosition(), damage, false);
-                hitGrave = true;
-            }
-        }
-        if (front != null || back != null || hitGrave) {
-            plant.prepareAttackAnimation(resolveBonkAttackClip(front, back));
-            plant.attack();
-            state.hasAttacked = true;
-        }
         String clip = resolveBonkAttackClip(front, back);
         int delay = PlantActionTiming.meleeImpactTicks(plant.getName(), clip);
         int damage = effectiveDamage(plant, 15);
@@ -374,17 +358,97 @@ abstract class LaneCombatAttackSupport extends LaneCombatAbilitySupport {
     ) {
         List<Zombie> candidates = collectCandidateZombies(plant, lane);
         Zombie target = selectPrimaryTarget(plant, candidates);
-        if (!isChargeReady(name, plant, state)) return;
-        int damage = effectiveDamage(plant, resolveBaseDamage(plant, state, tile));
-        if (target == null) {
-            Tile grave = findNearestGraveTerrain(lane, plant, resolveMaximumRange(plant));
-            if (grave != null) {
-                board.damageTerrain(grave.getPosition(), damage, isFirePlant(plant));
-                finishAttack(plant, state);
-            }
+        if (target == null || !isChargeReady(name, plant, state)) {
             return;
         }
-        boolean fireDamage = isFirePlant(plant) || hasTorchwoodBetween(plant, target, lane);
+        if (name.equals("bowling bulb")) {
+            prepareBowlingBulbShot(state);
+        }
+        int damage = effectiveDamage(plant, resolveBaseDamage(plant, state, tile));
+        boolean peaProjectile = isGreenPeaProjectilePlant(name, plant);
+        Plant torchwood = peaProjectile ? findTorchwoodBetween(plant, target, lane) : null;
+        boolean fireDamage = isFirePlant(plant) || torchwood != null;
+        if (torchwood != null) {
+            damage *= torchwood.hasBlueFlame() ? 3 : 2;
+        }
+        boolean butterShot = name.equals("kernel pult")
+            && random.nextInt(100) < Math.min(100, 25 + plant.getButterChancePercent());
+        String attackClip = resolveAttackClip(name, state, tile, butterShot);
+        int shotCount = resolveShotCount(plant, tile);
+        int damagePerShot = damage;
+        boolean fireAtImpact = fireDamage;
+        for (int shot = 0; shot < shotCount; shot++) {
+            int shotIndex = shot;
+            int delay = PlantActionTiming.projectileImpactTicks(
+                plant.getName(), attackClip, Math.abs(target.getX() - plant.getX()), shotIndex
+            );
+            scheduleCombatAction(delay, () -> applyStandardProjectileImpact(
+                name, lane, plant, damagePerShot, fireAtImpact, butterShot, shotIndex
+            ));
+        }
+        plant.prepareAttackAnimation(attackClip);
+        state.shotCycle++;
+        finishAttack(plant, state);
+    }
+
+    private void prepareBowlingBulbShot(PlantRuntimeState state) {
+        if (state.bowlingOrangeRechargeTicks <= 0) {
+            state.bowlingShotTier = 3;
+            state.bowlingOrangeRechargeTicks = 10 * TICKS_PER_SECOND;
+            return;
+        }
+        if (state.bowlingBlueRechargeTicks <= 0) {
+            state.bowlingShotTier = 2;
+            state.bowlingBlueRechargeTicks = 5 * TICKS_PER_SECOND;
+            return;
+        }
+        state.bowlingShotTier = 1;
+    }
+
+    private String resolveAttackClip(
+        String name, PlantRuntimeState state, Tile tile, boolean butterShot
+    ) {
+        if (name.equals("pea pod") && tile != null) {
+            int heads = 0;
+            for (Plant layer : tile.getPlants()) {
+                if (normalizeText(layer.getName()).equals("pea pod")) {
+                    heads++;
+                }
+            }
+            return heads <= 1 ? "attack" : "attack " + Math.min(5, heads);
+        }
+        if (name.equals("kernel pult")) {
+            return butterShot ? "attack2" : "attack";
+        }
+        if (name.equals("bowling bulb")) {
+            return state.bowlingShotTier >= 3 ? "special3"
+                : state.bowlingShotTier == 2 ? "special2" : "special";
+        }
+        if (name.equals("fume shroom")) {
+            return "special";
+        }
+        if (name.equals("kiwibeast")) {
+            if (state.ageTicks >= 72 * TICKS_PER_SECOND) return "attack_stage3";
+            if (state.ageTicks >= 24 * TICKS_PER_SECOND) return "attack_stage2";
+            return "attack_stage1";
+        }
+        return "attack";
+    }
+
+    private void applyStandardProjectileImpact(
+        String name,
+        Lane lane,
+        Plant plant,
+        int damage,
+        boolean fireDamage,
+        boolean butterShot,
+        int shotIndex
+    ) {
+        List<Zombie> candidates = collectCandidateZombies(plant, lane);
+        Zombie target = selectPrimaryTarget(plant, candidates);
+        if (target == null) {
+            return;
+        }
         Tile blockingTerrain = findBlockingTerrain(lane, plant, target);
         if (blockingTerrain != null) {
             if (board == null) {
@@ -708,6 +772,8 @@ abstract class LaneCombatAttackSupport extends LaneCombatAbilitySupport {
         state.jugglerSpinTicks = 2 * TICKS_PER_SECOND;
         if (source != null) {
             source.takeDamage(new Damage(damage, "reflected projectile"));
+            if (isIceDamage(resolveDamageType(source))
+                || normalizeText(source.getName()).contains("snow")) source.addIceHit();
         }
         return true;
     }

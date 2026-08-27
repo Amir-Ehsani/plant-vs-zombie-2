@@ -107,7 +107,9 @@ public final class ZombieView extends EntityView<Zombie> {
         String clip = resolveClip(effects, board);
         lastClip = clip;
         Vector2 position = geometry.entityToScreen(visualX, visualY);
-        float renderX = position.x + eatingOffset(geometry, clip);
+        boolean reversed = isReversed(effects);
+        float direction = reversed ? -1f : 1f;
+        float renderX = position.x + eatingOffset(geometry, clip) * direction;
 
         float clipTime = timeForClip(clip);
         Map<String, Boolean> visibility = resolveVisibility(animations, effects);
