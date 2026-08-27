@@ -109,7 +109,8 @@ abstract class LaneCombatTargetSupport extends LaneCombatTerrainSupport {
         if (target.isCoveredByOctopus()) {
             target.damageOctopus();
         } else if (target.isFrozenByZombie()) {
-            target.removeIceHit();
+            int damage = Math.max(1, attacker.getAttackDamage());
+            target.damageIce(damage, isFirePlant(attacker));
         }
         return true;
     }
