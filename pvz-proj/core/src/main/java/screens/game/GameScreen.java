@@ -187,7 +187,6 @@ public final class GameScreen extends BaseScreen {
         drawEntities();
         drawProjectiles();
         drawSuns();
-        drawWaveProgress();
         drawInteractionCursor();
         drawHover();
         drawWaveNotification();
@@ -195,6 +194,7 @@ public final class GameScreen extends BaseScreen {
         float stageDelta = gameplayClock.isPaused() ? 0f : Math.min(delta, 1f / 15f);
         stage.act(stageDelta);
         stage.draw();
+        drawWaveProgress();
     }
 
     @Override
@@ -660,7 +660,7 @@ public final class GameScreen extends BaseScreen {
 
     private void drawWaveProgress() {
         batch.begin();
-        waveProgressHud.render(batch, session);
+        waveProgressHud.render(batch, session, WORLD_WIDTH, WORLD_HEIGHT);
         batch.end();
     }
 
