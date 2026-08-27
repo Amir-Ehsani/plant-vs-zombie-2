@@ -184,8 +184,8 @@ public class PlantFoodContext {
         Zombie nearest = null;
         double best = Double.MAX_VALUE;
         for (Zombie zombie : lane.getAllZombies()) {
-            if (zombie == null || !zombie.isAlive() || board.isHypnotized(zombie)
-                    || zombie.getX() < source.getX()) {
+            if (zombie == null || !zombie.isAlive() || !board.isZombieOnLawn(zombie)
+                    || board.isHypnotized(zombie) || zombie.getX() < source.getX()) {
                 continue;
             }
             double distance = zombie.getX() - source.getX();
@@ -324,7 +324,7 @@ public class PlantFoodContext {
             return;
         }
         for (Zombie zombie : lane.getAllZombies()) {
-            if (zombie != null && zombie.isAlive()) {
+            if (board.isZombieOnLawn(zombie)) {
                 zombie.moveBy(distance, 0);
             }
         }
@@ -339,7 +339,9 @@ public class PlantFoodContext {
             return;
         }
         for (Zombie zombie : new ArrayList<>(lane.getAllZombies())) {
-            board.shiftZombieToAdjacentLane(zombie, random);
+            if (board.isZombieOnLawn(zombie)) {
+                board.shiftZombieToAdjacentLane(zombie, random);
+            }
         }
     }
 
@@ -349,7 +351,7 @@ public class PlantFoodContext {
         }
         int targetLane = laneOf(source);
         for (Zombie zombie : new ArrayList<>(board.getAllZombies())) {
-            if (zombie == null || !zombie.isAlive()) {
+            if (!board.isZombieOnLawn(zombie)) {
                 continue;
             }
             int zombieLane = Math.max(1, Math.min(board.getHeight(), (int) Math.round(zombie.getY())));
@@ -365,7 +367,7 @@ public class PlantFoodContext {
         }
         List<Zombie> armored = new ArrayList<>();
         for (Zombie zombie : board.getAllZombies()) {
-            if (zombie != null && zombie.isAlive() && zombie.hasArmor()) {
+            if (board.isZombieOnLawn(zombie) && zombie.hasArmor()) {
                 armored.add(zombie);
             }
         }
@@ -522,7 +524,7 @@ public class PlantFoodContext {
             return result;
         }
         for (Zombie zombie : board.getAllZombies()) {
-            if (zombie != null && zombie.isAlive() && !board.isHypnotized(zombie)) {
+            if (zombie != null && board.isZombieOnLawn(zombie) && !board.isHypnotized(zombie)) {
                 result.add(zombie);
             }
         }

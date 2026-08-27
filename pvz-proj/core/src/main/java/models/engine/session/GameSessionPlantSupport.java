@@ -579,7 +579,7 @@ abstract class GameSessionPlantSupport extends GameSessionEventSupport {
         }
         List<Zombie> targets = new ArrayList<>();
         for (Zombie zombie : lane.getAllZombies()) {
-            if (zombie != null && zombie.isAlive() && !board.isHypnotized(zombie)
+            if (zombie != null && board.isZombieOnLawn(zombie) && !board.isHypnotized(zombie)
                     && zombie.getX() >= position.getX()) {
                 targets.add(zombie);
             }
@@ -599,7 +599,7 @@ abstract class GameSessionPlantSupport extends GameSessionEventSupport {
     private void splashAppeaseMintChildren(Plant plant, Zombie impactTarget) {
         List<Zombie> nearby = new ArrayList<>();
         for (Zombie zombie : board.getAllZombies()) {
-            if (zombie == null || zombie == impactTarget || !zombie.isAlive()
+            if (zombie == null || zombie == impactTarget || !board.isZombieOnLawn(zombie)
                     || board.isHypnotized(zombie)) {
                 continue;
             }
