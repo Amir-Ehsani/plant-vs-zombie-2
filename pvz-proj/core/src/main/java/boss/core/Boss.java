@@ -94,6 +94,10 @@ public final class Boss {
         this.firstLane = Math.max(1, Math.min(4, firstLane));
     }
 
+    void setX(double x) {
+        this.x = x;
+    }
+
     public String getId() { return id; }
     public String getDisplayName() { return displayName; }
     public String getChapterName() { return chapterName; }
@@ -121,6 +125,8 @@ public final class Boss {
             case ACTION -> switch (action) {
                 case MOVE_LANES -> idleClip;
                 case SPAWN_ZOMBIES -> spawnClip;
+                case MISSILE -> "missile_start";
+                case CHARGE -> "walk_forward";
                 default -> idleClip;
             };
             default -> idleClip;
