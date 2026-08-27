@@ -4,6 +4,7 @@ import boss.core.BossRuntime;
 import models.core.zombie.Zombie;
 import models.core.zombie.ZombieFactory;
 import models.engine.board.Board;
+import models.engine.board.GraveSpawnRules;
 import models.engine.board.Position;
 import models.engine.board.Tile;
 import models.engine.board.TileType;
@@ -574,6 +575,11 @@ public class Level extends LevelState {
     }
 
     private void growDarkAgesGraves(int waveNumber) {
+        int remainingCapacity = GraveSpawnRules.remainingCapacity(board);
+        if (remainingCapacity <= 0) {
+            return;
+        }
+
         List<Tile> candidates = new ArrayList<>();
         for (int y = 1; y <= board.getHeight(); y++) {
             for (int x = 2; x < board.getWidth(); x++) {
@@ -585,13 +591,17 @@ public class Level extends LevelState {
             }
         }
         Collections.shuffle(candidates, chapterRandom);
-        int count = waveNumber == waveManager.getTotalWaves() ? 2 : 1;
-        for (int index = 0; index < Math.min(count, candidates.size()); index++) {
+        int requestedCount = waveNumber == waveManager.getTotalWaves() ? 2 : 1;
+        int createdCount = Math.min(
+                requestedCount,
+                Math.min(remainingCapacity, candidates.size())
+        );
+        for (int index = 0; index < createdCount; index++) {
             candidates.get(index).setTileType(randomDarkAgesGraveType());
         }
-        if (!candidates.isEmpty()) {
+        if (createdCount > 0) {
             chapterEvents.add(GameEvent.chapterEffect(
-                    Math.min(count, candidates.size()) + " new grave(s) rose from the dark ground."
+                    createdCount + " new grave(s) rose from the dark ground."
             ));
         }
     }
