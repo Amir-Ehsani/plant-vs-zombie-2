@@ -24,6 +24,10 @@ public final class ZombieView extends EntityView<Zombie> {
     private static final float VISUAL_FOLLOW_RATE = 18f;
     private static final float TELEPORT_SNAP_DISTANCE = 1.25f;
     private static final double ARM_DETACH_HEALTH_RATIO = 0.50;
+    private static final double ARMOR_DAMAGE_STAGE_TWO_RATIO = 0.66;
+    private static final double ARMOR_DAMAGE_STAGE_THREE_RATIO = 0.33;
+    private static final double NEAR_FINISH_BOARD_X = 1.65;
+    private static final Color NEAR_FINISH_COLOR = new Color(1f, 0.28f, 0.24f, 1f);
     private static final float ASH_VISUAL_SCALE = 0.50f;
     private static final float ELECTRIC_ASH_VISUAL_SCALE = 0.72f;
     private static final float ELECTRIC_CLOUD_SCALE = 0.58f;
@@ -54,6 +58,11 @@ public final class ZombieView extends EntityView<Zombie> {
     private String detachedArmPart;
     private String detachedHeadPart;
     private String lastClip;
+    private int previousArmorHp;
+    private int armorMaximumHp;
+    private String armorSignature;
+    private boolean armorBreakPending;
+    private int detachedArmorStage;
     private float electricStrikeTime;
     private boolean electricStrikeActive;
     private boolean electricCloudPreloaded;
@@ -62,6 +71,7 @@ public final class ZombieView extends EntityView<Zombie> {
         super(zombie, profile);
         lastX = zombie.getX();
         visualX = (float) zombie.getX();
+        initializeArmorTracking();
     }
 
     @Override
@@ -71,6 +81,7 @@ public final class ZombieView extends EntityView<Zombie> {
         updateMovementState(delta);
         updateVisualPosition(delta);
         updateElectricStrike(delta, board);
+        updateArmorTracking();
         detectArmDetach();
     }
 
@@ -154,6 +165,35 @@ public final class ZombieView extends EntityView<Zombie> {
             visualX,
             (int) Math.round(entity.getY())
         );
+    }
+
+    List<ZombiePartVisual> takeDetachedArmorVisuals(PvzAnimationService animations) {
+        detectArmorBreakAfterRemoval();
+        if (!armorBreakPending || animations == null) {
+            return List.of();
+        }
+        armorBreakPending = false;
+        List<String> tokens = currentArmorTokens();
+        if (tokens.isEmpty()) {
+            return List.of();
+        }
+        List<String> parts = animations.findArmorPartsForStage(
+            profile.getPath(), tokens, detachedArmorStage
+        );
+        if (parts.isEmpty()) {
+            return List.of();
+        }
+        String clip = lastClip == null ? profile.firstClip("walk", "idle", "eat") : lastClip;
+        if (clip == null) {
+            return List.of();
+        }
+        List<ZombiePartVisual> visuals = new ArrayList<>();
+        for (String part : parts) {
+            visuals.add(new ZombiePartVisual(
+                profile, clip, part, stateTime, visualX, (int) Math.round(entity.getY())
+            ));
+        }
+        return visuals;
     }
 
     ZombieDeathVisual createDeathVisual(PvzAnimationService animations) {
@@ -345,6 +385,104 @@ public final class ZombieView extends EntityView<Zombie> {
         }
     }
 
+    private void detectArmorBreakAfterRemoval() {
+        Armor armor = entity.getArmor();
+        if (!armorBreakPending && armor != null && previousArmorHp > 0 && armor.isBroken()) {
+            armorBreakPending = true;
+            detachedArmorStage = 2;
+            previousArmorHp = 0;
+        }
+    }
+
+    private void initializeArmorTracking() {
+        Armor armor = entity.getArmor();
+        previousArmorHp = armor == null ? 0 : Math.max(0, armor.getHp());
+        armorSignature = armorSignature(armor);
+        armorMaximumHp = resolveArmorMaximumHp(armor);
+    }
+
+    private void updateArmorTracking() {
+        Armor armor = entity.getArmor();
+        String signature = armorSignature(armor);
+        int currentHp = armor == null ? 0 : Math.max(0, armor.getHp());
+        if (!signature.equals(armorSignature)) {
+            armorSignature = signature;
+            previousArmorHp = currentHp;
+            armorMaximumHp = resolveArmorMaximumHp(armor);
+            return;
+        }
+        if (currentHp > armorMaximumHp) {
+            armorMaximumHp = currentHp;
+        }
+        if (previousArmorHp > 0 && currentHp == 0) {
+            armorBreakPending = true;
+            detachedArmorStage = 2;
+        }
+        previousArmorHp = currentHp;
+    }
+
+    private int armorDamageStage(Armor armor) {
+        if (armor == null || armor.isBroken()) {
+            return 2;
+        }
+        int maximumHp = Math.max(Math.max(1, armorMaximumHp), armor.getHp());
+        double ratio = armor.getHp() / (double) maximumHp;
+        if (ratio > ARMOR_DAMAGE_STAGE_TWO_RATIO) {
+            return 0;
+        }
+        if (ratio > ARMOR_DAMAGE_STAGE_THREE_RATIO) {
+            return 1;
+        }
+        return 2;
+    }
+
+    private int resolveArmorMaximumHp(Armor armor) {
+        if (armor == null) {
+            return 0;
+        }
+        String normalized = normalize(armor.getName());
+        if (normalized.contains("cone")) {
+            return Math.max(370, armor.getHp());
+        }
+        if (normalized.contains("bucket")) {
+            return Math.max(1100, armor.getHp());
+        }
+        if (normalized.contains("brick")) {
+            return Math.max(2200, armor.getHp());
+        }
+        if (normalized.contains("newspaper")) {
+            return Math.max(800, armor.getHp());
+        }
+        if (normalized.contains("crown") && normalized.contains("shoulder")) {
+            return Math.max(3200, armor.getHp());
+        }
+        if (normalized.contains("crown") || normalized.contains("shoulder")) {
+            return Math.max(1600, armor.getHp());
+        }
+        if (normalized.contains("barrel") || normalized.contains("arcade")) {
+            return Math.max(1100, armor.getHp());
+        }
+        return Math.max(1, armor.getHp());
+    }
+
+    private String armorSignature(Armor armor) {
+        if (armor == null) {
+            return "";
+        }
+        return normalize(armor.getName()) + "|" + normalize(armor.getArmorType());
+    }
+
+    private List<String> currentArmorTokens() {
+        Armor armor = entity.getArmor();
+        if (armor == null) {
+            return List.of();
+        }
+        List<String> tokens = new ArrayList<>();
+        addArmorTokens(tokens, armor.getName());
+        addArmorTokens(tokens, armor.getArmorType());
+        return tokens;
+    }
+
     private void updateMovementState(float delta) {
         double movement = Math.abs(entity.getX() - lastX);
         if (movement > POSITION_EPSILON) {
@@ -411,48 +549,57 @@ public final class ZombieView extends EntityView<Zombie> {
     }
 
     private Color resolveTint(List<String> effects) {
+        Color tint = Color.WHITE;
         if (hasEffect(effects, "frozen")) {
-            return new Color(0.50f, 0.72f, 1f, 1f);
-        }
-        if (hasEffect(effects, "buttered")) {
-            return new Color(1f, 0.88f, 0.40f, 1f);
-        }
-        if (hasEffect(effects, "chilled")) {
-            return new Color(0.70f, 0.90f, 1f, 1f);
-        }
-        if (hasEffect(effects, "poisoned")) {
-            return new Color(0.70f, 1f, 0.65f, 1f);
-        }
-        if (hasEffect(effects, "electric-strike")) {
-            return ((int) (electricStrikeTime * 14f) & 1) == 0
+            tint = new Color(0.50f, 0.72f, 1f, 1f);
+        } else if (hasEffect(effects, "buttered")) {
+            tint = new Color(1f, 0.88f, 0.40f, 1f);
+        } else if (hasEffect(effects, "chilled")) {
+            tint = new Color(0.70f, 0.90f, 1f, 1f);
+        } else if (hasEffect(effects, "poisoned")) {
+            tint = new Color(0.70f, 1f, 0.65f, 1f);
+        } else if (hasEffect(effects, "electric-strike")) {
+            tint = ((int) (electricStrikeTime * 14f) & 1) == 0
                 ? new Color(0.82f, 0.94f, 1f, 1f)
                 : new Color(1f, 1f, 1f, 1f);
+        } else if (hasEffect(effects, "hypnotized")) {
+            tint = new Color(0.82f, 0.62f, 1f, 1f);
         }
-        if (hasEffect(effects, "hypnotized")) {
-            return new Color(0.82f, 0.62f, 1f, 1f);
+        return applyNearFinishWarning(tint, effects);
+    }
+
+    private Color applyNearFinishWarning(Color baseTint, List<String> effects) {
+        if (entity.getX() > NEAR_FINISH_BOARD_X || isReversed(effects)) {
+            return baseTint;
         }
-        return Color.WHITE;
+        float pulse = 0.46f + 0.12f * (float) Math.sin(stateTime * 8f);
+        return new Color(baseTint).lerp(NEAR_FINISH_COLOR, pulse);
     }
 
     private Map<String, Boolean> resolveVisibility(
         PvzAnimationService animations,
         List<String> effects
     ) {
-        List<String> tokens = new ArrayList<>();
+        Map<String, Boolean> visibility = new LinkedHashMap<>();
         Armor armor = entity.getArmor();
         if (armor != null && !armor.isBroken()) {
-            addArmorTokens(tokens, armor.getName());
-            addArmorTokens(tokens, armor.getArmorType());
+            List<String> armorTokens = new ArrayList<>();
+            addArmorTokens(armorTokens, armor.getName());
+            addArmorTokens(armorTokens, armor.getArmorType());
+            visibility.putAll(animations.visibilityForArmorStage(
+                profile.getPath(), armorTokens, armorDamageStage(armor)
+            ));
         }
         if (hasEffect(effects, "buttered")) {
-            tokens.add("butter");
+            visibility.putAll(animations.visibilityForTokens(
+                profile.getPath(), List.of("butter")
+            ));
         }
-        Map<String, Boolean> visibility = new LinkedHashMap<>(
-            animations.visibilityForTokens(profile.getPath(), tokens)
-        );
         if (armDetached) {
             String armPart = resolveDetachedArmPart(animations);
-            if (armPart != null) visibility.put(armPart, false);
+            if (armPart != null) {
+                visibility.put(armPart, false);
+            }
         }
         return visibility;
     }
