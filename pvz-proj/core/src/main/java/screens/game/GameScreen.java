@@ -23,6 +23,8 @@ import controllers.core.GameController;
 import controllers.features.SettingsController;
 import game.animation.core.PvzAnimationService;
 import game.hud.CompactSeedBank;
+import game.hud.GameplayWaveBanner;
+import game.hud.WaveProgressHud;
 import game.input.GameplayInputMode;
 import game.input.GameplayInteractionSystem;
 import game.input.InteractionOverlayRenderer;
@@ -82,6 +84,8 @@ public final class GameScreen extends BaseScreen {
     private final SunRenderSystem sunRenderSystem;
     private final LawnMowerRenderSystem lawnMowerRenderSystem;
     private final CompactSeedBank compactSeedBank;
+    private final WaveProgressHud waveProgressHud;
+    private final GameplayWaveBanner gameplayWaveBanner;
     private final GameplayInteractionSystem interactions;
     private final InteractionOverlayRenderer interactionOverlay;
     private final Vector2 cursorWorld;
@@ -141,6 +145,8 @@ public final class GameScreen extends BaseScreen {
             lawnMowerRenderSystem = null;
             compactSeedBank = null;
         }
+        waveProgressHud = new WaveProgressHud(animations);
+        gameplayWaveBanner = new GameplayWaveBanner(animations, game.getSkin());
         interactionOverlay = new InteractionOverlayRenderer(boardGeometry, animations);
         interactions = new GameplayInteractionSystem(
             controller,
@@ -181,10 +187,13 @@ public final class GameScreen extends BaseScreen {
         drawEntities();
         drawProjectiles();
         drawSuns();
+        drawWaveProgress();
         drawInteractionCursor();
         drawHover();
+        drawWaveNotification();
         syncInteractionControlState();
-        stage.act(Math.min(delta, 1f / 15f));
+        float stageDelta = gameplayClock.isPaused() ? 0f : Math.min(delta, 1f / 15f);
+        stage.act(stageDelta);
         stage.draw();
     }
 
@@ -425,6 +434,8 @@ public final class GameScreen extends BaseScreen {
         int currentTick = gameplayClock.getCurrentTick();
         float visualDelta = gameplayClock.isPaused() ? 0f : delta * gameplayClock.getGameSpeed();
         visualStateTime += visualDelta;
+        waveProgressHud.update(session);
+        gameplayWaveBanner.update(visualDelta, session);
         updateRenderSystems(visualDelta, currentTick);
         collectSunUnderPointer();
         if (!session.isRunning() && interactions.isActive()) {
@@ -645,6 +656,18 @@ public final class GameScreen extends BaseScreen {
         if (lawnMowerRenderSystem != null) {
             lawnMowerRenderSystem.render(batch, session.getBoard());
         }
+    }
+
+    private void drawWaveProgress() {
+        batch.begin();
+        waveProgressHud.render(batch, session);
+        batch.end();
+    }
+
+    private void drawWaveNotification() {
+        batch.begin();
+        gameplayWaveBanner.render(batch, WORLD_WIDTH, WORLD_HEIGHT, visualStateTime);
+        batch.end();
     }
 
     private void drawHover() {
