@@ -19,6 +19,7 @@ public class Lane {
     private int totalZombiesKilled;
     private int totalPlantsDestroyed;
     private boolean brainEaten;
+    private boolean continueAfterBrainEaten;
 
     public Lane(int laneId, int width) {
         if (laneId <= 0) {
@@ -36,6 +37,7 @@ public class Lane {
         this.totalZombiesKilled = 0;
         this.totalPlantsDestroyed = 0;
         this.brainEaten = false;
+        this.continueAfterBrainEaten = false;
 
         initializeTiles(width);
     }
@@ -48,7 +50,7 @@ public class Lane {
     }
 
     public LaneTickResult updateLaneTicks() {
-        if (brainEaten) {
+        if (brainEaten && !continueAfterBrainEaten) {
             return lastTickResult;
         }
 
@@ -96,6 +98,11 @@ public class Lane {
 
     public boolean hasBrainBeenEaten() {
         return brainEaten;
+    }
+
+
+    public void setContinueAfterBrainEaten(boolean continueAfterBrainEaten) {
+        this.continueAfterBrainEaten = continueAfterBrainEaten;
     }
 
     public int getActiveZombieCount() {

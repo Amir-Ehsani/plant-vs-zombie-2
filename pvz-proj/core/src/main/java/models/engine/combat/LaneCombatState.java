@@ -39,8 +39,8 @@ abstract class LaneCombatState {
     protected static final int DEFAULT_PRIMAL_POTATO_ARM_TICKS = 5 * TICKS_PER_SECOND;
     protected static final int DEFAULT_SHROOM_LIFESPAN_TICKS = 60 * TICKS_PER_SECOND;
     protected static final int DEFAULT_CHOMPER_DIGEST_TICKS = 40 * TICKS_PER_SECOND;
-    protected static final int HYPNOTIZED_BITE_WINDUP_TICKS = 5;
-    protected static final int HYPNOTIZED_BITE_INTERVAL_TICKS = 8;
+    protected static final int INITIAL_FROZEN_ZOMBIE_ICE_HEALTH = 600;
+    protected static final int INITIAL_FROZEN_ZOMBIE_MELT_PER_TICK = 2;
 
     protected static final class ZombieRuntimeState {
         protected int frozenTicks;
@@ -71,6 +71,7 @@ abstract class LaneCombatState {
         protected boolean frontObjectObserved;
         protected boolean frontObjectBrokenHandled;
         protected boolean deathHandled;
+        protected int initialIceHealth;
     }
 
     protected static final class PlantRuntimeState {
@@ -153,41 +154,22 @@ abstract class LaneCombatState {
     }
 
 
-    protected void scheduleCombatAction(int delayTicks, Runnable action) {
-        if (action == null) {
+    public void freezeInitialZombie(Zombie zombie) {
+        if (zombie == null || !zombie.isAlive()) {
             return;
         }
-        if (delayTicks <= 0) {
-            action.run();
-            return;
-        }
-        pendingCombatActions.add(new PendingCombatAction(combatTick + delayTicks, action));
+        ZombieRuntimeState state = stateOf(zombie);
+        state.initialIceHealth = INITIAL_FROZEN_ZOMBIE_ICE_HEALTH;
+        zombie.setCurrentSpeed(0);
     }
 
-    private void runReadyCombatActions() {
-        if (pendingCombatActions.isEmpty()) {
-            return;
-        }
-        List<PendingCombatAction> ready = new ArrayList<>();
-        for (PendingCombatAction pending : pendingCombatActions) {
-            if (pending.dueTick <= combatTick) {
-                ready.add(pending);
-            }
-        }
-        pendingCombatActions.removeAll(ready);
-        for (PendingCombatAction pending : ready) {
-            pending.action.run();
-        }
+    public int getInitialZombieIceHealth(Zombie zombie) {
+        ZombieRuntimeState state = zombieStates.get(zombie);
+        return state == null ? 0 : Math.max(0, state.initialIceHealth);
     }
 
-    private static final class PendingCombatAction {
-        private final int dueTick;
-        private final Runnable action;
-
-        private PendingCombatAction(int dueTick, Runnable action) {
-            this.dueTick = dueTick;
-            this.action = action;
-        }
+    public boolean isInitialZombieFrozen(Zombie zombie) {
+        return getInitialZombieIceHealth(zombie) > 0;
     }
 
     public void applyFreeze(Zombie zombie, int ticks) {
@@ -266,6 +248,9 @@ abstract class LaneCombatState {
             return Collections.emptyList();
         }
         List<String> effects = new ArrayList<>();
+        if (state.initialIceHealth > 0) {
+            effects.add("frozen");
+        }
         if (state.frozenTicks > 0) {
             effects.add("frozen(" + state.frozenTicks + " ticks)");
         }

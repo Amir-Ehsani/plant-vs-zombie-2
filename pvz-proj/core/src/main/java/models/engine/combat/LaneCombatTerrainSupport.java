@@ -66,6 +66,24 @@ abstract class LaneCombatTerrainSupport extends LaneCombatState {
             || name.equals("mega gatling pea");
     }
 
+    protected Tile findNearestGraveTerrain(Lane lane, Plant plant, double maximumRange) {
+        if (lane == null || plant == null) {
+            return null;
+        }
+        int startX = Math.max(1, (int) Math.floor(plant.getX()) + 1);
+        int endX = lane.getWidth();
+        if (maximumRange < Double.MAX_VALUE) {
+            endX = Math.min(endX, (int) Math.floor(plant.getX() + maximumRange));
+        }
+        for (int x = startX; x <= endX; x++) {
+            Tile tile = lane.getTileAt(x);
+            if (tile != null && tile.isGraveTerrain() && tile.getTerrainHealth() > 0) {
+                return tile;
+            }
+        }
+        return null;
+    }
+
     protected Tile findBlockingTerrain(Lane lane, Plant plant, Zombie target) {
         int startX = Math.max(1, (int) Math.floor(plant.getX()) + 1);
         String category = normalizeCategory(plant);

@@ -60,6 +60,7 @@ abstract class GameSessionState {
     protected static final int RADIOACTIVE_PLANT_DAMAGE = 80;
     protected static final int RADIOACTIVE_ZOMBIE_RADIUS = 2;
     protected static final int RADIOACTIVE_PLANT_RADIUS = 1;
+    protected static final int TERRAIN_REWARD_LIFETIME_TICKS = 3 * TICKS_PER_SECOND;
 
     protected GameState state;
     protected Season currentSeason;
@@ -80,11 +81,13 @@ abstract class GameSessionState {
     protected final Map<String, Integer> plantRechargeUntilTick;
     protected final Set<String> selectedPlantNames;
     protected final List<GameEvent> pendingEvents;
+    protected final List<GroundRewardDrop> groundRewardDrops;
     protected final Map<Zombie, Boolean> glowingZombies;
     protected final List<PlantFoodDrop> plantFoodDrops;
     protected final Random random;
     protected boolean plantRechargeDisabled;
     protected int nextSkySunTick;
+    protected int nextGroundRewardId;
     protected int lastAdvancedTickCount;
 
 
@@ -103,8 +106,9 @@ abstract class GameSessionState {
         this.plantRechargeUntilTick = new HashMap<>();
         this.selectedPlantNames = new LinkedHashSet<>();
         this.pendingEvents = new ArrayList<>();
+        this.groundRewardDrops = new ArrayList<>();
         this.glowingZombies = new IdentityHashMap<>();
-        this.plantFoodDrops = new ArrayList<>();
+        this.nextGroundRewardId = 1;
     }
 
 
@@ -327,6 +331,10 @@ abstract class GameSessionState {
 
     public SunManager getSunManager() {
         return sunManager;
+    }
+
+    public List<GroundRewardDrop> getGroundRewardDrops() {
+        return Collections.unmodifiableList(groundRewardDrops);
     }
 
     public Wave getLastSpawnedWave() {

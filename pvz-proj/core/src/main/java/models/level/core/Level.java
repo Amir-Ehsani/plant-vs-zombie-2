@@ -66,8 +66,12 @@ public class Level extends LevelState {
         }
 
         this.board = board;
+        board.setGraveSpawningAllowed(
+                seasonType == SeasonType.ANCIENT_EGYPT || seasonType == SeasonType.DARK_AGES
+        );
         terrainSpawnedZombies.clear();
         chapterEvents.clear();
+        activeNecromancyGravePositions.clear();
         appliedTerrainTicks.clear();
         appliedTerrainWaves.clear();
         applyTerrainLayout(board);
@@ -327,6 +331,14 @@ public class Level extends LevelState {
         return readOnlyNestedMap(terrainChangesByWave);
     }
 
+    public Set<Position> getActiveNecromancyGravePositions() {
+        return Collections.unmodifiableSet(new LinkedHashSet<>(activeNecromancyGravePositions));
+    }
+
+    public Set<Position> getLowTidePositions() {
+        return Collections.unmodifiableSet(new LinkedHashSet<>(lowTidePositions));
+    }
+
     public List<Zombie> drainTerrainSpawnedZombies() {
         List<Zombie> result = new ArrayList<>(terrainSpawnedZombies);
         terrainSpawnedZombies.clear();
@@ -498,20 +510,37 @@ public class Level extends LevelState {
             if (zombie == null || !zombie.isAlive()) {
                 continue;
             }
-            int advance = chapterRandom.nextInt(4) + 1;
+            int lane = Math.max(1, Math.min(board.getHeight(), (int) Math.round(zombie.getY())));
+            int minimumColumn = Math.max(board.getWidth() - 4, rightmostPlantColumn(lane) + 1);
+            int maximumColumn = board.getWidth();
+            if (minimumColumn > maximumColumn) {
+                minimumColumn = maximumColumn;
+            }
+            int targetColumn = minimumColumn + chapterRandom.nextInt(maximumColumn - minimumColumn + 1);
+            double targetX = targetColumn - 0.15 + chapterRandom.nextDouble() * 0.30;
             Tile sourceTile = board.getTileContainingZombie(zombie);
-            zombie.moveBy(-advance, 0);
-            int targetX = Math.max(1, Math.min(board.getWidth(), (int) Math.ceil(zombie.getX())));
-            Tile targetTile = board.getTileAt(new Position(targetX, (int) zombie.getY()));
+            zombie.moveBy(targetX - zombie.getX(), lane - zombie.getY());
+            int tileX = Math.max(1, Math.min(board.getWidth(), (int) Math.ceil(zombie.getX())));
+            Tile targetTile = board.getTileAt(new Position(tileX, lane));
             if (sourceTile != null && targetTile != null && sourceTile != targetTile) {
                 sourceTile.removeZombie(zombie);
                 targetTile.addZombie(zombie);
             }
             chapterEvents.add(GameEvent.chapterEffect(
-                    "A sandstorm carried " + zombie.getName() + " " + advance
-                            + " column(s) into lane " + (int) zombie.getY() + "."
+                    "A sandstorm carried " + zombie.getName() + " to column " + targetColumn
+                            + " in lane " + lane + "."
             ));
         }
+    }
+
+    private int rightmostPlantColumn(int laneNumber) {
+        int rightmost = 0;
+        for (Plant plant : board.getAllPlants()) {
+            if (plant != null && plant.isAlive() && (int) Math.round(plant.getY()) == laneNumber) {
+                rightmost = Math.max(rightmost, (int) Math.ceil(plant.getX()));
+            }
+        }
+        return rightmost;
     }
 
     private void applyFrostWind(int waveNumber) {
@@ -565,7 +594,7 @@ public class Level extends LevelState {
                 flooded.add(position);
             }
         }
-        if (flooded.isEmpty()) {
+        if (flooded.isEmpty() || chapterRandom.nextInt(100) >= 35) {
             return;
         }
         Position position = flooded.get(chapterRandom.nextInt(flooded.size()));
@@ -592,17 +621,14 @@ public class Level extends LevelState {
             }
         }
         Collections.shuffle(candidates, chapterRandom);
-        int requestedCount = waveNumber == waveManager.getTotalWaves() ? 2 : 1;
-        int createdCount = Math.min(
-                requestedCount,
-                Math.min(remainingCapacity, candidates.size())
-        );
-        for (int index = 0; index < createdCount; index++) {
+        int count = Math.min(candidates.size(), 2 + chapterRandom.nextInt(2));
+        for (int index = 0; index < count; index++) {
             candidates.get(index).setTileType(randomDarkAgesGraveType());
         }
-        if (createdCount > 0) {
+        rebuildActiveNecromancyGraves();
+        if (count > 0) {
             chapterEvents.add(GameEvent.chapterEffect(
-                    createdCount + " new grave(s) rose from the dark ground."
+                    count + " new grave(s) rose from the dark ground."
             ));
         }
     }
@@ -630,36 +656,49 @@ public class Level extends LevelState {
         if (seasonType != SeasonType.DARK_AGES || board == null) {
             return;
         }
-        String zombieName = resolveDefaultTerrainZombie();
-        for (Position position : necromancyPositions()) {
-            spawnTerrainZombie(position, zombieName);
+        if (activeNecromancyGravePositions.isEmpty()) {
+            return;
         }
-        if (!necromancyPositions().isEmpty()) {
+        String zombieName = resolveDefaultTerrainZombie();
+        int spawned = 0;
+        for (Position position : new ArrayList<>(activeNecromancyGravePositions)) {
+            Tile tile = board.getTileAt(position);
+            if (tile == null || tile.getTileType() != TileType.GRAVE) {
+                activeNecromancyGravePositions.remove(position);
+                continue;
+            }
+            spawnTerrainZombie(position, zombieName);
+            spawned++;
+        }
+        if (spawned > 0) {
             chapterEvents.add(GameEvent.chapterEffect(
-                    "Necromancy raised zombies from the marked ground."
+                    "Necromancy raised zombies from the cursed graves."
             ));
         }
     }
 
-    private List<Position> necromancyPositions() {
-        List<Position> positions = new ArrayList<>();
-        if (board == null) {
-            return positions;
+    private void rebuildActiveNecromancyGraves() {
+        activeNecromancyGravePositions.clear();
+        if (board == null || seasonType != SeasonType.DARK_AGES) {
+            return;
         }
         for (int y = 1; y <= board.getHeight(); y++) {
-            for (int x = 1; x <= board.getWidth(); x++) {
+            for (int x = 2; x < board.getWidth(); x++) {
                 Position position = new Position(x, y);
-                if (board.getTileAt(position).getTileType() == TileType.NECROMANCY) {
-                    positions.add(position);
+                Tile tile = board.getTileAt(position);
+                if (tile != null && tile.getTileType() == TileType.GRAVE && chapterRandom.nextInt(10) == 0) {
+                    activeNecromancyGravePositions.add(position);
                 }
             }
         }
-        return positions;
     }
 
     private void spawnInitialTerrainZombies() {
         for (Map.Entry<Position, String> entry : initialTerrainZombieSpawns.entrySet()) {
-            spawnTerrainZombie(entry.getKey(), entry.getValue());
+            Zombie zombie = spawnTerrainZombie(entry.getKey(), entry.getValue());
+            if (zombie != null && seasonType == SeasonType.FROSTBITE_CAVES) {
+                board.freezeInitialZombie(zombie);
+            }
         }
         if (!initialTerrainZombieSpawns.isEmpty()) {
             chapterEvents.add(GameEvent.chapterEffect(
@@ -668,12 +707,12 @@ public class Level extends LevelState {
         }
     }
 
-    private void spawnTerrainZombie(Position position, String zombieName) {
+    private Zombie spawnTerrainZombie(Position position, String zombieName) {
         if (board == null || position == null || zombieName == null) {
-            return;
+            return null;
         }
         if (!board.isValidPosition(position)) {
-            return;
+            return null;
         }
         try {
             Zombie zombie = zombieFactory.createZombie(
@@ -686,7 +725,9 @@ public class Level extends LevelState {
             }
             board.getTileAt(position).addZombie(zombie);
             terrainSpawnedZombies.add(zombie);
+            return zombie;
         } catch (IllegalArgumentException ignored) {
+            return null;
         }
     }
 

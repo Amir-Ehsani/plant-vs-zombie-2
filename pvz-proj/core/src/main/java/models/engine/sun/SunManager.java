@@ -44,15 +44,15 @@ public class SunManager {
         return sun;
     }
 
-    public Sun spawnLooseSun(Position position, int sunAmount) {
+    public Sun spawnGroundSun(Position position, int sunAmount, int groundLifetimeTicks) {
         if (position == null) {
             throw new IllegalArgumentException("Position cannot be null.");
         }
-        if (sunAmount <= 0) {
-            throw new IllegalArgumentException("Amount must be positive.");
+        if (sunAmount <= 0 || groundLifetimeTicks <= 0) {
+            throw new IllegalArgumentException("Amount and lifetime must be positive.");
         }
 
-        Sun sun = new Sun(position, SunType.NORMAL, sunAmount, false, 0, false);
+        Sun sun = Sun.groundSun(position, sunAmount, groundLifetimeTicks);
         suns.add(sun);
         return sun;
     }

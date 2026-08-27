@@ -55,7 +55,7 @@ public final class EntityRenderSystem {
     private final BoardGeometry geometry;
     private final PvzAnimationService animations;
     private final EntityAnimationRegistry registry;
-    private final SeasonType seasonType;
+    private final boolean showPlantDamageAppearance;
     private final Map<Plant, PlantView> plantViews = new IdentityHashMap<>();
     private final Map<Zombie, ZombieView> zombieViews = new IdentityHashMap<>();
     private final List<ZombiePartVisual> detachedParts = new ArrayList<>();
@@ -67,20 +67,20 @@ public final class EntityRenderSystem {
     private float terrainObjectTime;
 
     public EntityRenderSystem(BoardGeometry geometry, PvzAnimationService animations) {
-        this(geometry, animations, null);
+        this(geometry, animations, true);
     }
 
     public EntityRenderSystem(
-        BoardGeometry geometry,
-        PvzAnimationService animations,
-        SeasonType seasonType
+            BoardGeometry geometry,
+            PvzAnimationService animations,
+            boolean showPlantDamageAppearance
     ) {
         if (geometry == null || animations == null || animations.getCatalog() == null) {
             throw new IllegalArgumentException("Entity renderer requires board geometry and animation catalog.");
         }
         this.geometry = geometry;
         this.animations = animations;
-        this.seasonType = seasonType;
+        this.showPlantDamageAppearance = showPlantDamageAppearance;
         registry = new EntityAnimationRegistry(animations.getCatalog());
         preloadGraveAnimations();
         preloadInteractiveTerrainAnimations();
@@ -491,7 +491,7 @@ public final class EntityRenderSystem {
             return null;
         }
         animations.preload(profile.getPath());
-        return new PlantView(plant, profile);
+        return new PlantView(plant, profile, showPlantDamageAppearance);
     }
 
     private boolean isBossHitbox(Zombie zombie) {

@@ -56,6 +56,7 @@ public final class GameplayEventFeedback {
 
     private boolean isDropFeedback(String line) {
         return line.startsWith("A zombie dropped a plant food")
+            || line.startsWith("A reward grave released")
             || line.startsWith("A zombie dropped 50 coins")
             || line.startsWith("A zombie dropped 1 diamond")
             || line.startsWith("A zombie dropped a greenhouse pot");

@@ -24,8 +24,7 @@ import com.pvz.Main;
 import controllers.core.GameController;
 import controllers.features.SettingsController;
 import game.animation.core.PvzAnimationService;
-import game.effects.CombatFeedbackSystem;
-import game.effects.ScreenShakeController;
+import game.chapter.ChapterVisualRenderer;
 import game.hud.CompactSeedBank;
 import game.hud.BossHealthHud;
 import game.hud.GameplayWaveBanner;
@@ -33,6 +32,8 @@ import game.hud.WaveProgressHud;
 import game.input.GameplayInputMode;
 import game.input.GameplayInteractionSystem;
 import game.input.InteractionOverlayRenderer;
+import game.modes.AdventureLevelModeAdapter;
+import game.modes.LevelModeAdapter;
 import game.render.BoardBackgroundCatalog;
 import game.render.BoardGeometry;
 import game.render.BoardRenderer;
@@ -52,7 +53,7 @@ import models.engine.board.Board;
 import models.engine.board.Position;
 import models.engine.session.GameSession;
 import models.engine.session.GameState;
-import models.engine.session.PlantFoodDrop;
+import models.engine.session.GroundRewardDrop;
 import models.engine.session.PlantRechargeStatus;
 import models.engine.sun.Sun;
 import models.level.core.AdventureLevelCatalog;
@@ -98,18 +99,17 @@ public final class GameScreen extends BaseScreen {
     private final LawnMowerRenderSystem lawnMowerRenderSystem;
     private final PlantFoodDropRenderSystem plantFoodDropRenderSystem;
     private final CompactSeedBank compactSeedBank;
-    private final WaveProgressHud waveProgressHud;
-    private final BossRenderSystem bossRenderSystem;
-    private final BossHealthHud bossHealthHud;
-    private final GameplayWaveBanner gameplayWaveBanner;
+    private final ChapterVisualRenderer chapterVisualRenderer;
     private final GameplayInteractionSystem interactions;
     private final InteractionOverlayRenderer interactionOverlay;
+    private final LevelModeAdapter levelModeAdapter;
     private final Vector2 cursorWorld;
     private Button shovelButton;
 
     private TextureRegion background;
     private TextureRegion backgroundLeft;
     private TextureRegion backgroundRight;
+    private TextureRegion plantFoodDropRegion;
     private float backgroundCenterX;
     private Position hoveredTile;
     private float hudRefreshAccumulator;
@@ -121,6 +121,7 @@ public final class GameScreen extends BaseScreen {
     private PauseDialog pauseDialog;
     private GameOverDialog gameOverDialog;
     private boolean gameOverShown;
+    private String draggedConveyorPlantName;
 
     public GameScreen(Main game) {
         this(game, prepareController(game));
@@ -140,6 +141,7 @@ public final class GameScreen extends BaseScreen {
         boardGeometry = new BoardGeometry(BOARD_X, BOARD_Y, BOARD_WIDTH, BOARD_HEIGHT);
         boardRenderer = new BoardRenderer(boardGeometry);
         animations = new PvzAnimationService();
+        plantFoodDropRegion = animations.region("IMAGE_UI_ALMANAC_ALMANAC_STAT_ICON_PLANTFOOD_LARGE");
         gameplayClock = new GameplayClock(controller);
         gameplayClock.setGameSpeed(resolveInitialGameSpeed());
         statusLabel = new Label("", game.getSkin());
@@ -185,12 +187,25 @@ public final class GameScreen extends BaseScreen {
         }
         gameplayWaveBanner = new GameplayWaveBanner(animations, game.getSkin());
         interactionOverlay = new InteractionOverlayRenderer(boardGeometry, animations);
+        chapterVisualRenderer = new ChapterVisualRenderer(
+            session.getCurrentLevel(),
+            boardGeometry,
+            animations
+        );
         interactions = new GameplayInteractionSystem(
             controller,
             game.getAuthController().getLoggedInUser()
         );
+        levelModeAdapter = new AdventureLevelModeAdapter(
+            controller,
+            boardGeometry,
+            shapes,
+            stage,
+            game.getSkin()
+        );
         buildHud();
         buildInteractionControls();
+        levelModeAdapter.setup();
         loadStageAssets();
         debugMessage = "Adventure session connected";
         pauseDialog = null;
@@ -218,14 +233,17 @@ public final class GameScreen extends BaseScreen {
         shapes.setProjectionMatrix(stage.getCamera().combined);
         applyWorldShake();
         drawBackground();
-        drawGrid();
+        drawChapterBehindEntities();
+        levelModeAdapter.renderOverlay();
         drawInteractionTileHighlight();
         drawLawnMowers();
         drawEntities();
         drawBoss();
         drawProjectiles();
         drawSuns();
-        drawPlantFoodDrops();
+        drawGroundRewards();
+        drawChapterAboveEntities();
+        drawInteractionCursor();
         drawHover();
         resetWorldTransform();
         drawSeedBank();
@@ -258,6 +276,7 @@ public final class GameScreen extends BaseScreen {
 
     @Override
     public void dispose() {
+        levelModeAdapter.dispose();
         super.dispose();
         animations.dispose();
         batch.dispose();
@@ -472,6 +491,7 @@ public final class GameScreen extends BaseScreen {
         animations.update();
         updateCursorWorld();
         gameplayClock.update(delta);
+        levelModeAdapter.update();
         int currentTick = gameplayClock.getCurrentTick();
         float visualDelta = gameplayClock.isPaused() ? 0f : delta * gameplayClock.getGameSpeed();
         visualStateTime += visualDelta;
@@ -480,6 +500,7 @@ public final class GameScreen extends BaseScreen {
         updateRenderSystems(visualDelta, currentTick);
         combatFeedback.update(visualDelta, session.getBoard());
         collectSunUnderPointer();
+        collectGroundRewardUnderPointer();
         if (!session.isRunning() && interactions.isActive()) {
             interactions.cancel();
         }
@@ -505,9 +526,7 @@ public final class GameScreen extends BaseScreen {
         if (sunRenderSystem != null) {
             sunRenderSystem.update(visualDelta, session.getSunManager());
         }
-        if (plantFoodDropRenderSystem != null) {
-            plantFoodDropRenderSystem.update(visualDelta);
-        }
+        chapterVisualRenderer.update(visualDelta);
     }
 
     private void refreshHud(float delta) {
@@ -627,14 +646,6 @@ public final class GameScreen extends BaseScreen {
     }
 
     private void drawGrid() {
-        if (settings == null || !settings.isGridVisible()) {
-            return;
-        }
-        enableAlphaBlending();
-        shapes.begin(ShapeRenderer.ShapeType.Line);
-        boardRenderer.drawGrid(shapes);
-        shapes.end();
-        disableAlphaBlending();
     }
 
     private void drawSeedBank() {
@@ -647,8 +658,22 @@ public final class GameScreen extends BaseScreen {
             batch,
             session,
             visualStateTime,
-            interactions.getSelectedPlantName()
+            interactions.getSelectedPlantName(),
+            controller::isPlantBoostedForGameplay
         );
+        disableAlphaBlending();
+    }
+
+
+    private void drawChapterBehindEntities() {
+        enableAlphaBlending();
+        chapterVisualRenderer.renderBehindEntities(batch, shapes);
+        disableAlphaBlending();
+    }
+
+    private void drawChapterAboveEntities() {
+        enableAlphaBlending();
+        chapterVisualRenderer.renderAboveEntities(batch, shapes);
         disableAlphaBlending();
     }
 
@@ -714,10 +739,23 @@ public final class GameScreen extends BaseScreen {
         }
     }
 
-    private void drawPlantFoodDrops() {
-        if (plantFoodDropRenderSystem != null) {
-            plantFoodDropRenderSystem.render(batch, session);
+    private void drawGroundRewards() {
+        if (plantFoodDropRegion == null || session.getGroundRewardDrops().isEmpty()) {
+            return;
         }
+        batch.begin();
+        for (GroundRewardDrop drop : session.getGroundRewardDrops()) {
+            if (!drop.getType().equals("plant_food")) {
+                continue;
+            }
+            Vector2 center = boardGeometry.entityToScreen(drop.getPosition().getX(), drop.getPosition().getY());
+            float size = boardGeometry.getTileHeight() * 0.48f;
+            float alpha = Math.min(1f, drop.getRemainingTicks() / 5f);
+            batch.setColor(1f, 1f, 1f, alpha);
+            batch.draw(plantFoodDropRegion, center.x - size / 2f, center.y - size / 2f, size, size);
+        }
+        batch.setColor(com.badlogic.gdx.graphics.Color.WHITE);
+        batch.end();
     }
 
     private void drawLawnMowers() {
@@ -775,20 +813,24 @@ public final class GameScreen extends BaseScreen {
         }
     }
 
-    private void applyWorldShake() {
-        worldTransform.idt().translate(
-            screenShake.getOffsetX(),
-            screenShake.getOffsetY(),
-            0f
-        );
-        batch.setTransformMatrix(worldTransform);
-        shapes.setTransformMatrix(worldTransform);
-    }
-
-    private void resetWorldTransform() {
-        worldTransform.idt();
-        batch.setTransformMatrix(worldTransform);
-        shapes.setTransformMatrix(worldTransform);
+    private void collectGroundRewardUnderPointer() {
+        if (gameplayClock.isPaused() || !session.isRunning()
+                || (pauseDialog != null && pauseDialog.getStage() != null) || gameOverShown) {
+            return;
+        }
+        Vector2 world = new Vector2(Gdx.input.getX(), Gdx.input.getY());
+        stage.getViewport().unproject(world);
+        float radius = boardGeometry.getTileWidth() * 0.30f;
+        for (GroundRewardDrop drop : new ArrayList<>(session.getGroundRewardDrops())) {
+            Vector2 center = boardGeometry.entityToScreen(drop.getPosition().getX(), drop.getPosition().getY());
+            if (Vector2.dst2(world.x, world.y, center.x, center.y) > radius * radius) {
+                continue;
+            }
+            if (session.collectGroundReward(drop.getId())) {
+                refreshGameHud();
+            }
+            return;
+        }
     }
 
     private void enableAlphaBlending() {
@@ -812,6 +854,7 @@ public final class GameScreen extends BaseScreen {
             public boolean touchDown(int screenX, int screenY, int pointer, int button) {
                 updatePointer(screenX, screenY);
                 if (button == Input.Buttons.RIGHT && interactions.isActive()) {
+                    draggedConveyorPlantName = null;
                     cancelInteraction();
                     return true;
                 }
@@ -822,6 +865,37 @@ public final class GameScreen extends BaseScreen {
                     return true;
                 }
                 return handleBoardClick(button);
+            }
+
+            @Override
+            public boolean touchDragged(int screenX, int screenY, int pointer) {
+                if (draggedConveyorPlantName == null) {
+                    return false;
+                }
+                updatePointer(screenX, screenY);
+                return true;
+            }
+
+            @Override
+            public boolean touchUp(int screenX, int screenY, int pointer, int button) {
+                if (button != Input.Buttons.LEFT || draggedConveyorPlantName == null) {
+                    return false;
+                }
+                updatePointer(screenX, screenY);
+                draggedConveyorPlantName = null;
+                if (hoveredTile == null || gameplayClock.isPaused() || !session.isRunning()) {
+                    interactions.cancel();
+                    refreshGameHud();
+                    return true;
+                }
+                interactions.handleTileClick(hoveredTile);
+                boolean successful = interactions.wasSuccessful();
+                showInteractionResult();
+                if (!successful) {
+                    interactions.cancel();
+                }
+                refreshGameHud();
+                return true;
             }
 
             @Override
@@ -994,9 +1068,21 @@ public final class GameScreen extends BaseScreen {
         if (plantName == null) {
             return false;
         }
-        interactions.selectPlant(plantName);
+        if (isConveyorLevel()
+                && plantName.equalsIgnoreCase(interactions.getSelectedPlantName())) {
+            interactions.cancel();
+        }
+        boolean selected = interactions.selectPlant(plantName);
+        if (selected && isConveyorLevel()
+                && interactions.getMode() == GameplayInputMode.PLANTING) {
+            draggedConveyorPlantName = plantName;
+        }
         showInteractionResult();
         return true;
+    }
+
+    private boolean isConveyorLevel() {
+        return session.getCurrentLevel() != null && session.getCurrentLevel().usesConveyorBelt();
     }
 
     private boolean handleKey(int keycode) {

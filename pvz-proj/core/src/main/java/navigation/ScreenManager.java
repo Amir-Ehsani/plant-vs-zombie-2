@@ -21,6 +21,7 @@ import screens.menu.RegisterScreen;
 import screens.menu.SettingsScreen;
 import screens.menu.ShopScreen;
 import screens.game.GameScreen;
+import screens.game.MiniGameScreen;
 
 public class ScreenManager {
     private final Main game;
@@ -103,6 +104,10 @@ public class ScreenManager {
 
     public void showMiniGames() {
         show(new MiniGameHubScreen(game));
+    }
+
+    public void showActiveMiniGame() {
+        show(new MiniGameScreen(game));
     }
 
     public void showAdventureMission(String chapterName, int levelNumber) {

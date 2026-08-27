@@ -22,6 +22,7 @@ import models.core.plant.PlantRegistry;
 import models.core.plant.PlantType;
 import models.engine.session.GameSession;
 import models.level.core.Level;
+import models.level.rules.impl.LockedPlantsRule;
 import ui.AdventureMissionCatalog;
 import ui.BackButton;
 import ui.MenuButton;
@@ -34,11 +35,11 @@ import java.util.Locale;
 import java.util.Set;
 
 public class AdventurePlantSelectionScreen extends BaseMenuScreen {
-    private static final int MAX_SELECTED_PLANTS = 8;
     private static final Color TEXT_COLOR = Color.valueOf("4A3A1F");
     private static final Color TITLE_COLOR = Color.WHITE;
     private static final float PACKET_WIDTH = 132f;
     private static final float PACKET_HEIGHT = 88f;
+    private static final Color LOCKED_DIM_COLOR = new Color(0f, 0f, 0f, 0.50f);
 
     private final String chapterName;
     private final int levelNumber;
@@ -170,18 +171,23 @@ public class AdventurePlantSelectionScreen extends BaseMenuScreen {
         selectedSlots.top();
         selectedSlots.defaults().padBottom(3f);
         List<String> selected = selectedPlantNames();
-        selectionCount.setText("Selected Plants: " + selected.size() + " / " + MAX_SELECTED_PLANTS);
-        for (int index = 0; index < MAX_SELECTED_PLANTS; index++) {
-            String plantName = index < selected.size() ? selected.get(index) : null;
-            selectedSlots.add(createSelectedSlot(index + 1, plantName)).width(140f).height(56f).row();
+        int selectionLimit = controller.getCurrentPlantSelectionLimit();
+        int totalSlotCount = totalSelectionSlotCount();
+        selectionCount.setText("Selected Plants: " + selected.size() + " / " + selectionLimit);
+        for (int index = 0; index < totalSlotCount; index++) {
+            boolean lockedSlot = isLockedSelectionSlot(index);
+            String plantName = !lockedSlot && index < selected.size() ? selected.get(index) : null;
+            selectedSlots.add(createSelectedSlot(index + 1, plantName, lockedSlot)).width(140f).height(56f).row();
         }
     }
 
-    private Table createSelectedSlot(int slotNumber, String plantName) {
+    private Table createSelectedSlot(int slotNumber, String plantName, boolean lockedSlot) {
         Table slot = new Table();
         Stack stack = createPacketStack(plantName, 134f, 54f, 84f, 42f);
         slot.add(stack).width(134f).height(54f);
-        if (plantName == null) {
+        if (lockedSlot) {
+            addLockedOverlay(stack, 134f, 54f);
+        } else if (plantName == null) {
             Label empty = new Label(String.valueOf(slotNumber), skin, "secondary");
             empty.setColor(TEXT_COLOR);
             empty.setAlignment(Align.center);
@@ -228,8 +234,21 @@ public class AdventurePlantSelectionScreen extends BaseMenuScreen {
         Table actions = new Table();
         actions.top();
         boolean selected = isSelected(data.getName());
-        MenuButton select = new MenuButton(selected ? "Remove" : "Select", skin, selected ? "brown" : "green_small",
-                () -> togglePlant(data.getName()));
+        boolean locked = isPlantLockedForCurrentLevel(data.getName());
+        MenuButton select = new MenuButton(
+                selected ? "Remove" : locked ? "Locked" : "Select",
+                skin,
+                selected ? "brown" : "green_small",
+                () -> {
+                    if (locked) {
+                        showControllerMessage("This seed packet is locked for this level.");
+                        refreshAll();
+                        return;
+                    }
+                    togglePlant(data.getName());
+                }
+        );
+        select.setDisabled(locked && !selected);
         actions.add(select).width(150f).height(38f).padBottom(5f).row();
         MenuButton boost = new MenuButton("Boost", skin, "purple", () -> boostPlant(data.getName()));
         boost.setDisabled(!selected || paidBoostNames.contains(normalize(data.getName())));
@@ -259,6 +278,7 @@ public class AdventurePlantSelectionScreen extends BaseMenuScreen {
     private Table createSeedPacketChoice(PlantData data) {
         Table card = new Table();
         Stack stack = createPacketStack(data.getName(), PACKET_WIDTH, PACKET_HEIGHT, 92f, 58f);
+        boolean locked = isPlantLockedForCurrentLevel(data.getName());
 
         Table overlay = new Table();
         overlay.setFillParent(true);
@@ -276,6 +296,8 @@ public class AdventurePlantSelectionScreen extends BaseMenuScreen {
             selected.setColor(TITLE_COLOR);
             selectedOverlay.add(selected).padRight(6f).padBottom(4f);
             stack.add(selectedOverlay);
+        } else if (locked) {
+            addLockedOverlay(stack, PACKET_WIDTH, PACKET_HEIGHT);
         }
 
         card.add(stack).width(PACKET_WIDTH).height(PACKET_HEIGHT);
@@ -283,6 +305,11 @@ public class AdventurePlantSelectionScreen extends BaseMenuScreen {
             @Override
             public void clicked(InputEvent event, float x, float y) {
                 focusedPlantName = data.getName();
+                if (locked) {
+                    showControllerMessage("This seed packet is locked for this level.");
+                    refreshAll();
+                    return;
+                }
                 togglePlant(data.getName());
             }
         });
@@ -322,13 +349,40 @@ public class AdventurePlantSelectionScreen extends BaseMenuScreen {
         return stack;
     }
 
+
+    private void addLockedOverlay(Stack stack, float width, float height) {
+        TextureRegion backgroundRegion = game.getAnimationService().region("IMAGE_UI_PACKETS_SELECTED");
+        if (backgroundRegion != null) {
+            Image dim = new Image(new TextureRegionDrawable(backgroundRegion));
+            dim.setColor(LOCKED_DIM_COLOR);
+            dim.setScaling(Scaling.fill);
+            stack.add(dim);
+        }
+
+        TextureRegion lockRegion = game.getAnimationService().region("IMAGE_UI_CARDS_LOCK_MEDIUM_GOLD");
+        Table overlay = new Table();
+        overlay.setFillParent(true);
+        overlay.center();
+        if (lockRegion != null) {
+            Image lock = new Image(new TextureRegionDrawable(lockRegion));
+            lock.setScaling(Scaling.fit);
+            overlay.add(lock).width(Math.min(width * 0.34f, 44f)).height(Math.min(height * 0.68f, 50f)).padBottom(2f).row();
+        }
+        Label locked = new Label("LOCKED", skin, "secondary");
+        locked.setColor(TITLE_COLOR);
+        locked.setAlignment(Align.center);
+        overlay.add(locked).padBottom(2f);
+        stack.add(overlay);
+    }
+
     private void togglePlant(String plantName) {
         if (isSelected(plantName)) {
             removePlant(plantName);
             return;
         }
-        if (selectedPlantNames().size() >= MAX_SELECTED_PLANTS) {
-            showControllerMessage("ERROR: You can select at most 8 plants.");
+        int selectionLimit = controller.getCurrentPlantSelectionLimit();
+        if (selectedPlantNames().size() >= selectionLimit) {
+            showControllerMessage("ERROR: You can select at most " + selectionLimit + " plants.");
             return;
         }
         controller.addPlantToSelection(plantName);
@@ -381,14 +435,64 @@ public class AdventurePlantSelectionScreen extends BaseMenuScreen {
         }
         boolean debugMode = user.getSettings() != null && user.getSettings().isDebugMode();
         for (PlantData data : user.getCollection().getOwnedPlants()) {
-            if (data != null
-                    && data.isUnlocked()
-                    && (debugMode || level.isPlantAllowed(data.getName()))) {
-                result.add(data);
+            if (data == null || !data.isUnlocked() || !isPlantVisibleInGrid(level, data.getName())) {
+                continue;
             }
+            result.add(data);
         }
         result.sort((first, second) -> first.getName().compareToIgnoreCase(second.getName()));
         return result;
+    }
+
+
+    private boolean isPlantVisibleInGrid(Level level, String plantName) {
+        if (level == null || plantName == null || plantName.isBlank()) {
+            return false;
+        }
+        if (level.getLevelRule() instanceof LockedPlantsRule) {
+            List<String> allowedPlants = level.getAllowedPlants();
+            return allowedPlants.isEmpty() || containsIgnoreCase(allowedPlants, plantName);
+        }
+        return level.isPlantAllowed(plantName);
+    }
+
+    private boolean isPlantLockedForCurrentLevel(String plantName) {
+        if (plantName == null || isSelected(plantName)) {
+            return false;
+        }
+        GameSession session = controller.getGameSession();
+        Level level = session == null ? null : session.getCurrentLevel();
+        return level != null
+                && level.getLevelRule() instanceof LockedPlantsRule
+                && !level.isPlantAllowed(plantName);
+    }
+
+    private int totalSelectionSlotCount() {
+        LockedPlantsRule rule = lockedPlantsRule();
+        return rule == null ? controller.getCurrentPlantSelectionLimit() : rule.getTotalSelectionSlotCount();
+    }
+
+    private boolean isLockedSelectionSlot(int slotIndex) {
+        LockedPlantsRule rule = lockedPlantsRule();
+        return rule != null && slotIndex >= rule.getAvailableSelectionSlotCount();
+    }
+
+    private LockedPlantsRule lockedPlantsRule() {
+        GameSession session = controller.getGameSession();
+        Level level = session == null ? null : session.getCurrentLevel();
+        return level != null && level.getLevelRule() instanceof LockedPlantsRule
+                ? (LockedPlantsRule) level.getLevelRule()
+                : null;
+    }
+
+    private boolean containsIgnoreCase(List<String> values, String target) {
+        String normalizedTarget = normalize(target);
+        for (String value : values) {
+            if (normalize(value).equals(normalizedTarget)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private PlantData findPlantData(String plantName) {

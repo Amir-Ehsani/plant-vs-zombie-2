@@ -21,7 +21,8 @@ public class Sun {
             sunAmount,
             timeLeft != Integer.MAX_VALUE && timeLeft > 0,
             timeLeft == Integer.MAX_VALUE ? 0 : Math.max(0, timeLeft),
-            timeLeft == Integer.MAX_VALUE
+            timeLeft == Integer.MAX_VALUE,
+            DEFAULT_GROUND_LIFETIME_TICKS
         );
     }
 
@@ -32,6 +33,19 @@ public class Sun {
         boolean falling,
         int fallingTicksRemaining,
         boolean producedByPlant
+    ) {
+        this(position, type, sunAmount, falling, fallingTicksRemaining, producedByPlant,
+            DEFAULT_GROUND_LIFETIME_TICKS);
+    }
+
+    public Sun(
+        Position position,
+        SunType type,
+        int sunAmount,
+        boolean falling,
+        int fallingTicksRemaining,
+        boolean producedByPlant,
+        int groundLifetimeTicks
     ) {
         if (position == null) {
             throw new IllegalArgumentException("Sun position cannot be null.");
@@ -52,7 +66,7 @@ public class Sun {
         this.falling = falling;
         this.fallingTicksRemaining = falling ? fallingTicksRemaining : 0;
         this.producedByPlant = producedByPlant;
-        groundTicksRemaining = producedByPlant ? Integer.MAX_VALUE : DEFAULT_GROUND_LIFETIME_TICKS;
+        groundTicksRemaining = producedByPlant ? Integer.MAX_VALUE : Math.max(1, groundLifetimeTicks);
         expired = false;
 
         if (this.falling && this.fallingTicksRemaining == 0) {
@@ -73,6 +87,10 @@ public class Sun {
 
     public static Sun plantSun(Position position, int amount) {
         return new Sun(position, SunType.NORMAL, amount, false, 0, true);
+    }
+
+    public static Sun groundSun(Position position, int amount, int groundLifetimeTicks) {
+        return new Sun(position, resolveTypeFromAmount(amount), amount, false, 0, false, groundLifetimeTicks);
     }
 
     public Position getPosition() {

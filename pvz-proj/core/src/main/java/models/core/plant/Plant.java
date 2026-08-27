@@ -186,11 +186,31 @@ public class Plant extends PlantState {
     }
 
     public void addIceHit() {
-        iceHits = Math.min(3, iceHits + 1);
+        if (iceHits < 3) {
+            iceHits++;
+        }
+        if (iceHits >= 3 && iceHealth <= 0) {
+            iceHealth = 600;
+        }
     }
 
     public void removeIceHit() {
         iceHits = Math.max(0, iceHits - 1);
+        if (iceHits < 3) {
+            iceHealth = 0;
+        }
+    }
+
+    public boolean damageIce(int amount, boolean fireDamage) {
+        if (!isFrozenByZombie() || amount <= 0) {
+            return false;
+        }
+        iceHealth = fireDamage ? 0 : Math.max(0, iceHealth - amount);
+        if (iceHealth == 0) {
+            iceHits = 0;
+            return true;
+        }
+        return false;
     }
 
     public void addOctopus() {

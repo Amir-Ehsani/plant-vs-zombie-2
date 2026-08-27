@@ -117,6 +117,18 @@ abstract class TravelLogControllerMiniGameSupport extends TravelLogControllerQue
         return result;
     }
 
+    public boolean collectIZombieSun(int dropId) {
+        MiniGameSession session = requireActiveMiniGame();
+
+        if (!(session instanceof IZombieGame game)) {
+            return fail("sun collection is only available in I, Zombie.");
+        }
+
+        boolean result = game.collectSunDrop(dropId);
+        synchronizeMiniGameMessage();
+        return result;
+    }
+
     public String showActiveMiniGameMap() {
         MiniGameSession session = requireActiveMiniGame();
 
@@ -217,6 +229,10 @@ abstract class TravelLogControllerMiniGameSupport extends TravelLogControllerQue
 
     public boolean hasActiveMiniGame() {
         return activeMiniGame != null;
+    }
+
+    public MiniGameSession getActiveMiniGameSession() {
+        return activeMiniGame;
     }
 
     public boolean isActiveMiniGameRunning() {

@@ -133,16 +133,9 @@ abstract class LaneCombatAbilitySupport extends LaneCombatTargetSupport {
         zombie.addStolenSun(board.stealLooseSuns());
     }
 
-    private static final int TOMB_RAISER_MAX_CREATED_GRAVES = 6;
-    private static final int TOMB_RAISER_MIN_THROW_DELAY_TICKS = 4 * TICKS_PER_SECOND;
-    private static final int TOMB_RAISER_THROW_DELAY_SPREAD_TICKS = 2 * TICKS_PER_SECOND + 1;
-
-    protected void handleTombRaiser(
-            Lane lane,
-            Zombie zombie,
-            ZombieRuntimeState state
-    ) {
-        if (zombie == null || state.tombRaiserGravesCreated >= TOMB_RAISER_MAX_CREATED_GRAVES) {
+    protected void handleTombRaiser(Lane lane, ZombieRuntimeState state) {
+        if (board == null || !board.isGraveSpawningAllowed()
+                || state.ageTicks % (10 * TICKS_PER_SECOND) != 0) {
             return;
         }
         if (state.tombRaiserNextThrowTick <= 0) {

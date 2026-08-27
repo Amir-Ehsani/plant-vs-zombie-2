@@ -100,6 +100,8 @@ public class GameSession extends GameSessionPlantSupport {
         resetScheduledPlantActions();
         plantRechargeUntilTick.clear();
         pendingEvents.clear();
+        groundRewardDrops.clear();
+        nextGroundRewardId = 1;
         glowingZombies.clear();
         plantFoodDrops.clear();
         plantRechargeDisabled = false;
@@ -132,6 +134,7 @@ public class GameSession extends GameSessionPlantSupport {
         }
 
         updateFallingSuns();
+        updateGroundRewardDrops();
         updatePlantFoodEffects();
         updateScheduledPlantActions();
         BoardTickResult boardResult = board.updateTicks();
@@ -149,6 +152,26 @@ public class GameSession extends GameSessionPlantSupport {
             state.setStatus(GameState.Status.LOST);
             tickManager.pause();
         }
+    }
+
+    private void updateGroundRewardDrops() {
+        groundRewardDrops.removeIf(GroundRewardDrop::tick);
+    }
+
+    public boolean collectGroundReward(int rewardId) {
+        java.util.Iterator<GroundRewardDrop> iterator = groundRewardDrops.iterator();
+        while (iterator.hasNext()) {
+            GroundRewardDrop drop = iterator.next();
+            if (drop.getId() != rewardId) {
+                continue;
+            }
+            if (drop.getType().equals("plant_food")) {
+                plantFoodCount = Math.min(MAX_PLANT_FOOD, plantFoodCount + drop.getAmount());
+            }
+            iterator.remove();
+            return true;
+        }
+        return false;
     }
 
     public boolean advanceTicks(int count) {

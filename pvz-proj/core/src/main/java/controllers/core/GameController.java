@@ -79,6 +79,19 @@ public class GameController extends GameControllerPlaySupport {
         return gameSession;
     }
 
+    public int getCurrentPlantSelectionLimit() {
+        return currentPlantSelectionLimit();
+    }
+
+    public boolean isPlantBoostedForGameplay(String plantName) {
+        if (isPlantBoostedForThisGame(plantName)) {
+            return true;
+        }
+        User user = authController == null ? null : authController.getLoggedInUser();
+        PlantData data = user == null ? null : user.getCollection().findOwnedPlant(plantName);
+        return data != null && data.getBoostCount() > 0;
+    }
+
     public void prepareChapter(String chapterName) {
         prepareChapterLevel(chapterName, 1);
     }

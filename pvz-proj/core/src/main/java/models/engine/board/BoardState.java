@@ -35,6 +35,7 @@ abstract class BoardState {
     protected int totalZombiesKilled;
     protected int totalPlantsDestroyed;
     protected boolean brainEaten;
+    protected boolean graveSpawningAllowed;
     protected BoardResourceHandler resourceHandler;
     protected List<GameEvent> terrainEvents;
 
@@ -124,16 +125,16 @@ abstract class BoardState {
         TileType previousType = tile.getTileType();
         boolean destroyed = tile.damageTerrain(damage, fireDamage);
         if (destroyed) {
-            recordTerrainReward(previousType);
+            recordTerrainReward(previousType, position);
         }
         return destroyed;
     }
 
-    protected void recordTerrainReward(TileType previousType) {
+    protected void recordTerrainReward(TileType previousType, Position position) {
         if (previousType == TileType.SUN_GRAVE) {
-            terrainEvents.add(GameEvent.rewardDropped("sun", 50));
+            terrainEvents.add(GameEvent.rewardDropped("sun", 50, position));
         } else if (previousType == TileType.PLANT_FOOD_GRAVE) {
-            terrainEvents.add(GameEvent.rewardDropped("plant_food", 1));
+            terrainEvents.add(GameEvent.rewardDropped("plant_food", 1, position));
         }
     }
 }
