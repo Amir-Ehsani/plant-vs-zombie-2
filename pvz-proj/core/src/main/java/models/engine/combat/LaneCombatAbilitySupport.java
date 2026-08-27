@@ -132,7 +132,8 @@ abstract class LaneCombatAbilitySupport extends LaneCombatTargetSupport {
     }
 
     protected void handleTombRaiser(Lane lane, ZombieRuntimeState state) {
-        if (state.ageTicks % (3 * TICKS_PER_SECOND) != 0) {
+        if (board == null || !board.isGraveSpawningAllowed()
+                || state.ageTicks % (10 * TICKS_PER_SECOND) != 0) {
             return;
         }
         List<Tile> available = new ArrayList<>();
