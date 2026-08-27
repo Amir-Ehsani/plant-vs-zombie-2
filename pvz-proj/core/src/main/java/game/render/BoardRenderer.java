@@ -24,6 +24,17 @@ public final class BoardRenderer {
         TextureRegion center,
         TextureRegion right,
         float worldHeight,
+        float centerX
+    ) {
+        drawBackground(batch, left, center, right, worldHeight, centerX, 0f);
+    }
+
+    public void drawBackground(
+        Batch batch,
+        TextureRegion left,
+        TextureRegion center,
+        TextureRegion right,
+        float worldHeight,
         float centerX,
         float centerYOffset
     ) {
