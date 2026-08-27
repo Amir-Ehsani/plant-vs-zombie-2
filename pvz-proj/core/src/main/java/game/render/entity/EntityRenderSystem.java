@@ -202,6 +202,9 @@ public final class EntityRenderSystem {
 
     private void updateZombieViews(float delta, Board board, Set<Zombie> activeZombies) {
         for (Zombie zombie : board.getAllZombies()) {
+            if (isBossHitbox(zombie)) {
+                continue;
+            }
             activeZombies.add(zombie);
             ZombieView view = zombieViews.computeIfAbsent(zombie, this::createZombieView);
             if (view == null) {
@@ -488,6 +491,11 @@ public final class EntityRenderSystem {
         }
         animations.preload(profile.getPath());
         return new PlantView(plant, profile);
+    }
+
+    private boolean isBossHitbox(Zombie zombie) {
+        return zombie != null && zombie.getType() != null
+                && zombie.getType().hasTag("boss_hitbox");
     }
 
     private ZombieView createZombieView(Zombie zombie) {

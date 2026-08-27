@@ -26,6 +26,7 @@ import game.animation.core.PvzAnimationService;
 import game.effects.CombatFeedbackSystem;
 import game.effects.ScreenShakeController;
 import game.hud.CompactSeedBank;
+import game.hud.BossHealthHud;
 import game.hud.GameplayWaveBanner;
 import game.hud.WaveProgressHud;
 import game.input.GameplayInputMode;
@@ -34,6 +35,7 @@ import game.input.InteractionOverlayRenderer;
 import game.render.BoardBackgroundCatalog;
 import game.render.BoardGeometry;
 import game.render.BoardRenderer;
+import game.render.boss.BossRenderSystem;
 import game.render.drop.PlantFoodDropRenderSystem;
 import game.render.entity.EntityRenderSystem;
 import game.render.mower.LawnMowerRenderSystem;
@@ -95,6 +97,8 @@ public final class GameScreen extends BaseScreen {
     private final PlantFoodDropRenderSystem plantFoodDropRenderSystem;
     private final CompactSeedBank compactSeedBank;
     private final WaveProgressHud waveProgressHud;
+    private final BossRenderSystem bossRenderSystem;
+    private final BossHealthHud bossHealthHud;
     private final GameplayWaveBanner gameplayWaveBanner;
     private final GameplayInteractionSystem interactions;
     private final InteractionOverlayRenderer interactionOverlay;
@@ -165,6 +169,18 @@ public final class GameScreen extends BaseScreen {
             compactSeedBank = null;
         }
         waveProgressHud = new WaveProgressHud(animations);
+        if (animations.isAvailable() && session.getCurrentLevel() != null
+                && session.getCurrentLevel().getBossRuntime() != null) {
+            bossRenderSystem = new BossRenderSystem(
+                    boardGeometry, animations, session.getCurrentLevel().getBossRuntime()
+            );
+            bossHealthHud = new BossHealthHud(
+                    animations, session.getCurrentLevel().getBossRuntime()
+            );
+        } else {
+            bossRenderSystem = null;
+            bossHealthHud = null;
+        }
         gameplayWaveBanner = new GameplayWaveBanner(animations, game.getSkin());
         interactionOverlay = new InteractionOverlayRenderer(boardGeometry, animations);
         interactions = new GameplayInteractionSystem(
@@ -204,6 +220,7 @@ public final class GameScreen extends BaseScreen {
         drawInteractionTileHighlight();
         drawLawnMowers();
         drawEntities();
+        drawBoss();
         drawProjectiles();
         drawSuns();
         drawPlantFoodDrops();
@@ -473,6 +490,9 @@ public final class GameScreen extends BaseScreen {
         if (entityRenderSystem != null) {
             entityRenderSystem.update(visualDelta, board);
         }
+        if (bossRenderSystem != null) {
+            bossRenderSystem.update(visualDelta);
+        }
         if (projectileRenderSystem != null) {
             projectileRenderSystem.observe(board, currentTick);
             projectileRenderSystem.update(visualDelta);
@@ -666,6 +686,12 @@ public final class GameScreen extends BaseScreen {
         }
     }
 
+    private void drawBoss() {
+        if (bossRenderSystem != null) {
+            bossRenderSystem.render(batch);
+        }
+    }
+
     private void drawProjectiles() {
         if (projectileRenderSystem != null) {
             projectileRenderSystem.render(batch);
@@ -693,7 +719,11 @@ public final class GameScreen extends BaseScreen {
     private void drawWaveProgress() {
         float waveHudHeight = WORLD_HEIGHT - (isDebugMode() ? DEBUG_WAVE_PROGRESS_OFFSET : 0f);
         batch.begin();
-        waveProgressHud.render(batch, session, WORLD_WIDTH, waveHudHeight);
+        if (bossHealthHud != null) {
+            bossHealthHud.render(batch, WORLD_WIDTH, waveHudHeight);
+        } else {
+            waveProgressHud.render(batch, session, WORLD_WIDTH, waveHudHeight);
+        }
         batch.end();
     }
 
