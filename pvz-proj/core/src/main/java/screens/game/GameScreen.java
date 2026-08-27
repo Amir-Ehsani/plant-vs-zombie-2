@@ -54,6 +54,7 @@ import models.engine.session.PlantFoodDrop;
 import models.engine.session.PlantRechargeStatus;
 import models.engine.sun.Sun;
 import models.level.core.AdventureLevelCatalog;
+import models.level.core.SeasonType;
 import screens.BaseScreen;
 import ui.*;
 
@@ -71,6 +72,7 @@ public final class GameScreen extends BaseScreen {
     private static final float BOARD_WIDTH_RATIO = BOARD_WIDTH / WORLD_WIDTH;
     private static final float TICK_SECONDS = 0.1f;
     private static final float DEBUG_WAVE_PROGRESS_OFFSET = 72f;
+    private static final float FROSTBITE_CENTER_BACKGROUND_Y_OFFSET = -18f;
     private static final String SHOVEL_BUTTON_ID = "IMAGE_UI_HUD_INGAME_SHOVEL_BUTTON";
     private static final String SHOVEL_BUTTON_DOWN_ID = "IMAGE_UI_HUD_INGAME_SHOVEL_BUTTON_DOWN";
 
@@ -606,7 +608,8 @@ public final class GameScreen extends BaseScreen {
             background,
             backgroundRight,
             WORLD_HEIGHT,
-            backgroundCenterX
+            backgroundCenterX,
+            centerBackgroundYOffset()
         );
         batch.end();
         enableAlphaBlending();
@@ -614,6 +617,14 @@ public final class GameScreen extends BaseScreen {
         boardRenderer.drawBoardFill(shapes, background != null);
         shapes.end();
         disableAlphaBlending();
+    }
+
+
+    private float centerBackgroundYOffset() {
+        return session.getCurrentLevel() != null
+                && session.getCurrentLevel().getSeasonType() == SeasonType.FROSTBITE_CAVES
+                ? FROSTBITE_CENTER_BACKGROUND_Y_OFFSET
+                : 0f;
     }
 
     private void drawGrid() {
