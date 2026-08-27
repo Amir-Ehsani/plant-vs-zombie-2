@@ -3,6 +3,7 @@ package game.render.entity;
 import com.badlogic.gdx.graphics.g2d.Batch;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.math.Rectangle;
+import com.badlogic.gdx.math.Vector2;
 import game.animation.core.EntityAnimationProfile;
 import game.animation.core.EntityAnimationRegistry;
 import game.animation.core.PvzAnimationService;
@@ -15,6 +16,7 @@ import models.engine.board.Lane;
 import models.engine.board.Position;
 import models.engine.board.Tile;
 import models.engine.board.TileType;
+import models.level.core.SeasonType;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -30,9 +32,19 @@ public final class EntityRenderSystem {
     private static final float DOOM_SHROOM_ACTION_SCALE = 0.80f;
     private static final float CRATER_WIDTH_RATIO = 0.64f;
     private static final String CRATER_REGION = "IMAGE_EFFECTS_CRATER_CRATER_84X53";
+    private static final String EGYPT_GRAVE_PATH =
+        "768/INITIAL/GRAVESTONES/EGYPT_HIEROGLYPH/EGYPT_HIEROGLYPH.PAM";
+    private static final String DARK_GRAVE_PATH =
+        "768/FULL/GRAVESTONES/DARK_NOOP/DARK_NOOP.PAM";
+    private static final String DARK_SUN_GRAVE_PATH =
+        "768/FULL/GRAVESTONES/DARK_SUN/DARK_SUN.PAM";
+    private static final String DARK_PLANT_FOOD_GRAVE_PATH =
+        "768/FULL/GRAVESTONES/DARK_PLANTFOOD/DARK_PLANTFOOD.PAM";
+    private static final float GRAVE_SCALE = 0.52f;
     private final BoardGeometry geometry;
     private final PvzAnimationService animations;
     private final EntityAnimationRegistry registry;
+    private final SeasonType seasonType;
     private final Map<Plant, PlantView> plantViews = new IdentityHashMap<>();
     private final Map<Zombie, ZombieView> zombieViews = new IdentityHashMap<>();
     private final List<ZombiePartVisual> detachedParts = new ArrayList<>();
@@ -43,12 +55,22 @@ public final class EntityRenderSystem {
     private TextureRegion craterRegion;
 
     public EntityRenderSystem(BoardGeometry geometry, PvzAnimationService animations) {
+        this(geometry, animations, null);
+    }
+
+    public EntityRenderSystem(
+        BoardGeometry geometry,
+        PvzAnimationService animations,
+        SeasonType seasonType
+    ) {
         if (geometry == null || animations == null || animations.getCatalog() == null) {
             throw new IllegalArgumentException("Entity renderer requires board geometry and animation catalog.");
         }
         this.geometry = geometry;
         this.animations = animations;
+        this.seasonType = seasonType;
         registry = new EntityAnimationRegistry(animations.getCatalog());
+        preloadGraveAnimations();
     }
 
     public void playPlantAction(PlantType type, Position position, String clip) {
@@ -171,6 +193,7 @@ public final class EntityRenderSystem {
                 continue;
             }
             view.update(delta, board);
+            detachedParts.addAll(view.takeDetachedArmorVisuals(animations));
             ZombiePartVisual part = view.takeDetachedArmVisual(animations);
             if (part != null) {
                 detachedParts.add(part);
@@ -185,6 +208,7 @@ public final class EntityRenderSystem {
                 continue;
             }
             ZombieView view = entry.getValue();
+            detachedParts.addAll(view.takeDetachedArmorVisuals(animations));
             ZombieDeathVisual death = view.createDeathVisual(animations);
             if (death != null) {
                 deathVisuals.add(death);
@@ -248,6 +272,11 @@ public final class EntityRenderSystem {
     }
 
     private void renderTerrainOverlays(Batch batch, Board board) {
+        renderCraters(batch, board);
+        renderGraves(batch, board);
+    }
+
+    private void renderCraters(Batch batch, Board board) {
         if (craterRegion == null) {
             craterRegion = animations.region(CRATER_REGION);
         }
@@ -279,6 +308,61 @@ public final class EntityRenderSystem {
                 );
             }
         }
+    }
+
+    private void renderGraves(Batch batch, Board board) {
+        for (int row = 1; row <= board.getHeight(); row++) {
+            Lane lane = board.getLaneAt(row);
+            if (lane == null) {
+                continue;
+            }
+            for (Tile tile : lane.getTiles()) {
+                if (!tile.isGraveTerrain()) {
+                    continue;
+                }
+                String path = gravePath(tile.getTileType());
+                String clip = graveDamageClip(tile);
+                Vector2 position = geometry.entityToScreen(
+                    tile.getPosition().getX(), tile.getPosition().getY()
+                );
+                animations.draw(batch, path, clip, 0f, position.x, position.y, GRAVE_SCALE, false);
+            }
+        }
+    }
+
+    private String gravePath(TileType type) {
+        if (type == TileType.SUN_GRAVE) {
+            return DARK_SUN_GRAVE_PATH;
+        }
+        if (type == TileType.PLANT_FOOD_GRAVE) {
+            return DARK_PLANT_FOOD_GRAVE_PATH;
+        }
+        return seasonType == SeasonType.DARK_AGES ? DARK_GRAVE_PATH : EGYPT_GRAVE_PATH;
+    }
+
+    private String graveDamageClip(Tile tile) {
+        int maximum = Math.max(1, tile.getMaximumTerrainHealth());
+        double ratio = tile.getTerrainHealth() / (double) maximum;
+        if (ratio > 0.80) {
+            return "undamaged";
+        }
+        if (ratio > 0.60) {
+            return "damage1";
+        }
+        if (ratio > 0.40) {
+            return "damage2";
+        }
+        if (ratio > 0.20) {
+            return "damage3";
+        }
+        return "damage4";
+    }
+
+    private void preloadGraveAnimations() {
+        animations.preload(EGYPT_GRAVE_PATH);
+        animations.preload(DARK_GRAVE_PATH);
+        animations.preload(DARK_SUN_GRAVE_PATH);
+        animations.preload(DARK_PLANT_FOOD_GRAVE_PATH);
     }
 
     private void renderFieldEffects(Batch batch) {
