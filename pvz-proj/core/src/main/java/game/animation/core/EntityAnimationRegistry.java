@@ -65,6 +65,10 @@ public final class EntityAnimationRegistry {
         plantAliases.put(normalize("Mega Gatling Pea"), "MEGAGATLING");
         plantAliases.put(normalize("Phat Beet"), "PHATBEETS");
         plantAliases.put(normalize("Kernel-pult"), "KERNALPULT");
+        plantAliases.put(normalize("Pea-nut"), "PEANUT");
+        plantAliases.put(normalize("Banana Launcher"), "BANANA");
+        plantAliases.put(normalize("Homing Thistle"), "HOMINGTHISTLE");
+        plantAliases.put(normalize("Guacodile"), "GUACODILE");
         plantAliases.put(normalize("Iceberg Lettuce"), "ICEBURG");
         plantAliases.put(normalize("Cat-tail"), "HOMINGTHISTLE");
         plantAliases.put(normalize("Pierce-mint"), "SPEARMINT");
@@ -100,6 +104,8 @@ public final class EntityAnimationRegistry {
         zombieAliases.put("ZombiePiano", "ZOMBIE_PIANO");
         zombieAliases.put("ZombieNewspaper", "ZOMBIE_MODERN_NEWSPAPER");
         zombieAliases.put("ZombieBarrelRoller", "ZOMBIE_PIRATE_BARREL_PUSHER");
+        zombieAliases.put("ZombotanyJalapeno", "ZOMBIE_BIGHEAD_SUPERFAN");
+        zombieAliases.put("ZombotanySquash", "ZOMBIE_WEST_BASIC");
     }
 
     private float plantScale(String name) {
