@@ -60,8 +60,6 @@ public final class BossRenderSystem {
     private static final String PULLED_PATH =
             "768/FULL/EFFECTS/ZOMBOSS_PLANT_PULLED/ZOMBOSS_PLANT_PULLED.PAM";
 
-    private static final float DAMAGE_CHUNKS_DURATION = 1.24f;
-    private static final float EGYPT_MISSILE_SCALE = 0.58f;
     private static final float DARK_EFFECT_SCALE = 0.72f;
     private static final float DARK_BREATH_SCALE = 0.66f;
     private static final float SHARK_SCALE = 0.68f;
@@ -274,18 +272,17 @@ public final class BossRenderSystem {
             if (runtime.getActionStage() > 0) {
                 return "fire_attack_end";
             }
-            if (boss.getAction() == BossAction.ICE_MISSILE && isFrostbiteBoss(boss)) {
-                return "slingshot";
-            }
-            if (boss.getAction() == BossAction.ICE_WIND && isFrostbiteBoss(boss)) {
-                return "wind_" + Math.min(4, Math.max(1, runtime.getFrostVisualVariant()));
-            }
-            if (boss.getAction() == BossAction.FREEZE_COLUMN && isFrostbiteBoss(boss)) {
-                return "glacier_column_" + Math.min(6, Math.max(1, runtime.getFrostVisualVariant()));
-            }
-
             float attackDuration = clipDuration(boss.getAnimationPath(), "fire_attack", 1.8f);
             return actionTime < attackDuration ? "fire_attack" : "fire_attack_idle";
+        }
+        if (boss.getAction() == BossAction.ICE_MISSILE && isFrostbiteBoss(boss)) {
+            return "slingshot";
+        }
+        if (boss.getAction() == BossAction.ICE_WIND && isFrostbiteBoss(boss)) {
+            return "wind_" + Math.min(4, Math.max(1, runtime.getFrostVisualVariant()));
+        }
+        if (boss.getAction() == BossAction.FREEZE_COLUMN && isFrostbiteBoss(boss)) {
+            return "glacier_column_" + Math.min(6, Math.max(1, runtime.getFrostVisualVariant()));
         }
         if (boss.getAction() == BossAction.BEACH_BABY_SHARKS) {
             return "spawn";
