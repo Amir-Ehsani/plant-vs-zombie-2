@@ -12,7 +12,9 @@ import models.engine.board.TileType;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.LinkedHashMap;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Random;
 
 public final class BossRuntime {
@@ -35,11 +37,22 @@ public final class BossRuntime {
     private static final int EGYPT_CHARGE_BACKWARD_TICKS = 12;
     private static final double EGYPT_CHARGE_FRONT_X = 2.25;
 
+    // Frostbite boss PAM timings: slingshot=3.5s, wind=2.8333s, glacier_column=6.3s.
+    private static final int FROST_MISSILE_LAUNCH_TICKS = 29;
+    private static final int FROST_MISSILE_IMPACT_TICKS = 30;
+    private static final int FROST_MISSILE_END_TICKS = 37;
+    private static final int FROST_WIND_IMPACT_TICKS = 8;
+    private static final int FROST_WIND_ACTION_TICKS = 28;
+    private static final int FROST_GLACIER_RESOLVE_TICKS = 31;
+    private static final int FROST_GLACIER_ACTION_TICKS = 63;
+
     private final Boss boss;
     private final Random random;
     private final ZombieFactory zombieFactory;
     private final List<BossHitbox> hitboxes;
     private final List<String> summonPool;
+    private final List<String> frozenZombiePool;
+    private final Map<Position, String> frozenZombieSpawns;
 
     private Board board;
     private boolean started;
@@ -61,6 +74,17 @@ public final class BossRuntime {
     private int chargeReturnTick;
     private boolean chargeImpactResolved;
 
+    private int frostMissileLaunchTick;
+    private int frostMissileImpactTick;
+    private boolean frostMissileResolved;
+    private final List<Integer> frostWindLanes;
+    private int frostWindImpactTick;
+    private boolean frostWindResolved;
+    private int frostFreezeColumn;
+    private int frostFreezeResolveTick;
+    private boolean frostFreezeResolved;
+    private int frostVisualVariant;
+
     public BossRuntime(Boss boss, long seed) {
         if (boss == null) {
             throw new IllegalArgumentException("Boss runtime requires a boss.");
@@ -70,6 +94,9 @@ public final class BossRuntime {
         zombieFactory = new ZombieFactory();
         hitboxes = new ArrayList<>();
         summonPool = new ArrayList<>();
+        frozenZombiePool = new ArrayList<>();
+        frozenZombieSpawns = new LinkedHashMap<>();
+        frostWindLanes = new ArrayList<>();
         started = false;
         stateUntilTick = 0;
         nextActionTick = Integer.MAX_VALUE;
@@ -90,12 +117,20 @@ public final class BossRuntime {
         this.board = board;
         this.currentTick = currentTick;
         summonPool.clear();
+        frozenZombiePool.clear();
+        frozenZombieSpawns.clear();
         if (allowedZombieNames != null) {
             for (String name : allowedZombieNames) {
                 if (isSafeSummon(name)) {
                     summonPool.add(name.trim());
                 }
+                if (isSafeFrozenZombie(name)) {
+                    frozenZombiePool.add(name.trim());
+                }
             }
+        }
+        if (frozenZombiePool.isEmpty()) {
+            frozenZombiePool.add("Default");
         }
         boss.setFirstLane(Math.min(2, Math.max(1, board.getHeight() - 1)));
         boss.setX(BOSS_X);
@@ -112,6 +147,7 @@ public final class BossRuntime {
         if (!started || boss.getState() == BossState.DEFEATED) {
             return;
         }
+        releaseThawedFrozenZombies();
         observeHealth(currentTick);
         if (deathStarted) {
             if (currentTick >= stateUntilTick) {
@@ -181,6 +217,10 @@ public final class BossRuntime {
         if (isEgyptBoss()) {
             choices.add(BossAction.MISSILE);
             choices.add(BossAction.CHARGE);
+        } else if (isFrostbiteBoss()) {
+            choices.add(BossAction.ICE_MISSILE);
+            choices.add(BossAction.ICE_WIND);
+            choices.add(BossAction.FREEZE_COLUMN);
         }
         if (choices.isEmpty()) {
             nextActionTick = currentTick + nextActionDelay();
@@ -193,6 +233,9 @@ public final class BossRuntime {
             case SPAWN_ZOMBIES -> startZombieSpawn(currentTick);
             case MISSILE -> startEgyptMissile(currentTick);
             case CHARGE -> startEgyptCharge(currentTick);
+            case ICE_MISSILE -> startFrostMissile(currentTick);
+            case ICE_WIND -> startFrostWind(currentTick);
+            case FREEZE_COLUMN -> startFrostFreezeColumn(currentTick);
             default -> nextActionTick = currentTick + nextActionDelay();
         }
     }
@@ -238,10 +281,47 @@ public final class BossRuntime {
         boss.setState(BossState.ACTION, BossAction.CHARGE);
     }
 
+
+    private void startFrostMissile(int currentTick) {
+        clearActionState();
+        actionStartTick = currentTick;
+        actionStageStartTick = currentTick;
+        actionTarget = chooseRandomBoardTile();
+        frostMissileLaunchTick = currentTick + FROST_MISSILE_LAUNCH_TICKS;
+        frostMissileImpactTick = currentTick + FROST_MISSILE_IMPACT_TICKS;
+        stateUntilTick = currentTick + FROST_MISSILE_END_TICKS;
+        boss.setState(BossState.ACTION, BossAction.ICE_MISSILE);
+    }
+
+    private void startFrostWind(int currentTick) {
+        clearActionState();
+        actionStartTick = currentTick;
+        actionStageStartTick = currentTick;
+        frostWindLanes.addAll(chooseDistinctLanes(2));
+        frostVisualVariant = random.nextInt(4) + 1;
+        frostWindImpactTick = currentTick + FROST_WIND_IMPACT_TICKS;
+        stateUntilTick = currentTick + FROST_WIND_ACTION_TICKS;
+        boss.setState(BossState.ACTION, BossAction.ICE_WIND);
+    }
+
+    private void startFrostFreezeColumn(int currentTick) {
+        clearActionState();
+        actionStartTick = currentTick;
+        actionStageStartTick = currentTick;
+        frostFreezeColumn = chooseFrostFreezeColumn();
+        frostVisualVariant = random.nextInt(6) + 1;
+        frostFreezeResolveTick = currentTick + FROST_GLACIER_RESOLVE_TICKS;
+        stateUntilTick = currentTick + FROST_GLACIER_ACTION_TICKS;
+        boss.setState(BossState.ACTION, BossAction.FREEZE_COLUMN);
+    }
+
     private void updateCurrentAction(int currentTick) {
         switch (boss.getAction()) {
             case MISSILE -> updateEgyptMissile(currentTick);
             case CHARGE -> updateEgyptCharge(currentTick);
+            case ICE_MISSILE -> updateFrostMissile(currentTick);
+            case ICE_WIND -> updateFrostWind(currentTick);
+            case FREEZE_COLUMN -> updateFrostFreezeColumn(currentTick);
             default -> {
             }
         }
@@ -280,6 +360,169 @@ public final class BossRuntime {
             }
             float progress = fraction(currentTick - chargeReturnTick, EGYPT_CHARGE_BACKWARD_TICKS);
             moveBossX(lerp(EGYPT_CHARGE_FRONT_X, BOSS_X, progress));
+        }
+    }
+
+
+    private void updateFrostMissile(int currentTick) {
+        if (currentTick >= frostMissileLaunchTick && actionStage == 0) {
+            actionStage = 1;
+            actionStageStartTick = frostMissileLaunchTick;
+        }
+        if (!frostMissileResolved && currentTick >= frostMissileImpactTick) {
+            frostMissileResolved = true;
+            actionStage = 2;
+            actionStageStartTick = frostMissileImpactTick;
+            destroyPlantsAt(actionTarget);
+        }
+    }
+
+    private void updateFrostWind(int currentTick) {
+        if (!frostWindResolved && currentTick >= frostWindImpactTick) {
+            frostWindResolved = true;
+            actionStage = 1;
+            actionStageStartTick = frostWindImpactTick;
+            for (int lane : frostWindLanes) {
+                applyFrostWindToLane(lane);
+            }
+        }
+    }
+
+    private void updateFrostFreezeColumn(int currentTick) {
+        if (!frostFreezeResolved && currentTick >= frostFreezeResolveTick) {
+            frostFreezeResolved = true;
+            actionStage = 1;
+            actionStageStartTick = frostFreezeResolveTick;
+            resolveFrostFreezeColumn();
+        }
+    }
+
+    private void destroyPlantsAt(Position position) {
+        if (board == null || position == null || !board.isValidPosition(position)) {
+            return;
+        }
+        Tile tile = board.getTileAt(position);
+        for (Plant plant : new ArrayList<>(tile.getPlants())) {
+            if (plant != null && plant.isAlive()) {
+                plant.kill();
+            }
+        }
+        board.removeDeadEntities();
+    }
+
+    private void applyFrostWindToLane(int laneNumber) {
+        if (board == null || laneNumber < 1 || laneNumber > board.getHeight()) {
+            return;
+        }
+        for (Plant plant : board.getAllPlants()) {
+            if (plant == null || !plant.isAlive()
+                    || (int) Math.round(plant.getY()) != laneNumber
+                    || isFirePlant(plant)) {
+                continue;
+            }
+            plant.addIceHit();
+        }
+    }
+
+    private boolean isFirePlant(Plant plant) {
+        if (plant == null || plant.getType() == null) {
+            return false;
+        }
+        String tags = plant.getType().getTags() == null
+                ? "" : plant.getType().getTags().toLowerCase(Locale.ROOT);
+        if (tags.contains("fire")) {
+            return true;
+        }
+        String name = plant.getName() == null ? "" : plant.getName().toLowerCase(Locale.ROOT);
+        return name.contains("fire")
+                || name.contains("pepper")
+                || name.contains("jalapeno")
+                || name.contains("torchwood")
+                || name.contains("wasabi")
+                || name.contains("hot potato");
+    }
+
+    private List<Integer> chooseDistinctLanes(int count) {
+        if (board == null || board.getHeight() <= 0 || count <= 0) {
+            return Collections.emptyList();
+        }
+        List<Integer> lanes = new ArrayList<>();
+        for (int lane = 1; lane <= board.getHeight(); lane++) {
+            lanes.add(lane);
+        }
+        Collections.shuffle(lanes, random);
+        return new ArrayList<>(lanes.subList(0, Math.min(count, lanes.size())));
+    }
+
+    private int chooseFrostFreezeColumn() {
+        if (board == null) {
+            return 1;
+        }
+        int maximumColumn = Math.max(1, board.getWidth() - 1);
+        int bestOccupancy = Integer.MAX_VALUE;
+        List<Integer> bestColumns = new ArrayList<>();
+        for (int x = 1; x <= maximumColumn; x++) {
+            int occupancy = 0;
+            for (int lane = 1; lane <= board.getHeight(); lane++) {
+                Tile tile = board.getTileAt(new Position(x, lane));
+                for (Zombie zombie : tile.getZombies()) {
+                    if (zombie != null && zombie.isAlive() && !(zombie instanceof BossHitbox)) {
+                        occupancy++;
+                    }
+                }
+            }
+            if (occupancy < bestOccupancy) {
+                bestOccupancy = occupancy;
+                bestColumns.clear();
+                bestColumns.add(x);
+            } else if (occupancy == bestOccupancy) {
+                bestColumns.add(x);
+            }
+        }
+        return bestColumns.isEmpty() ? 1 : bestColumns.get(random.nextInt(bestColumns.size()));
+    }
+
+    private void resolveFrostFreezeColumn() {
+        if (board == null || frostFreezeColumn < 1 || frostFreezeColumn > board.getWidth()) {
+            return;
+        }
+        for (int lane = 1; lane <= board.getHeight(); lane++) {
+            Position position = new Position(frostFreezeColumn, lane);
+            Tile tile = board.getTileAt(position);
+            for (Plant plant : new ArrayList<>(tile.getPlants())) {
+                if (plant != null && plant.isAlive()) {
+                    plant.kill();
+                }
+            }
+            tile.setTileType(TileType.ICE);
+            frozenZombieSpawns.put(position, chooseFrozenZombieName());
+        }
+        board.removeDeadEntities();
+    }
+
+    private String chooseFrozenZombieName() {
+        return frozenZombiePool.get(random.nextInt(frozenZombiePool.size()));
+    }
+
+    private void releaseThawedFrozenZombies() {
+        if (board == null || frozenZombieSpawns.isEmpty()) {
+            return;
+        }
+        for (Map.Entry<Position, String> entry : new ArrayList<>(frozenZombieSpawns.entrySet())) {
+            Position position = entry.getKey();
+            Tile tile = board.getTileAt(position);
+            if (tile == null || tile.getTileType() == TileType.ICE) {
+                continue;
+            }
+            try {
+                Zombie zombie = zombieFactory.createZombie(
+                        entry.getValue(), position.getX(), position.getY()
+                );
+                zombie.setSeasonalIceImmune(true);
+                tile.addZombie(zombie);
+            } catch (IllegalArgumentException ignored) {
+            }
+            frozenZombieSpawns.remove(position);
         }
     }
 
@@ -385,6 +628,22 @@ public final class BossRuntime {
         }
     }
 
+    private boolean isSafeFrozenZombie(String name) {
+        if (name == null || name.isBlank()) {
+            return false;
+        }
+        String normalized = name.trim().toLowerCase(Locale.ROOT);
+        return normalized.equals("default")
+                || normalized.equals("cone head")
+                || normalized.equals("bucket head")
+                || normalized.equals("brick head")
+                || normalized.equals("knight")
+                || normalized.equals("imp")
+                || normalized.equals("dodo")
+                || normalized.equals("hunter")
+                || normalized.equals("troglobite");
+    }
+
     private boolean isSafeSummon(String name) {
         if (name == null || name.isBlank()) {
             return false;
@@ -399,6 +658,11 @@ public final class BossRuntime {
     private boolean isEgyptBoss() {
         return boss.getChapterName().equals("ancient-egypt")
                 || boss.getId().equals("zomboss-egypt");
+    }
+
+    private boolean isFrostbiteBoss() {
+        return boss.getChapterName().equals("ice-cave")
+                || boss.getId().equals("zomboss-frostbite");
     }
 
     private int nextActionDelay() {
@@ -465,6 +729,16 @@ public final class BossRuntime {
         chargeImpactTick = Integer.MAX_VALUE;
         chargeReturnTick = Integer.MAX_VALUE;
         chargeImpactResolved = false;
+        frostMissileLaunchTick = Integer.MAX_VALUE;
+        frostMissileImpactTick = Integer.MAX_VALUE;
+        frostMissileResolved = false;
+        frostWindLanes.clear();
+        frostWindImpactTick = Integer.MAX_VALUE;
+        frostWindResolved = false;
+        frostFreezeColumn = 0;
+        frostFreezeResolveTick = Integer.MAX_VALUE;
+        frostFreezeResolved = false;
+        frostVisualVariant = 1;
     }
 
     private void finishDefeat() {
@@ -503,4 +777,14 @@ public final class BossRuntime {
     public Position getActionTarget() { return actionTarget; }
     public int getMissileLaunchTick() { return missileLaunchTick; }
     public int getMissileImpactTick() { return missileImpactTick; }
+    public int getFrostMissileLaunchTick() { return frostMissileLaunchTick; }
+    public int getFrostMissileImpactTick() { return frostMissileImpactTick; }
+    public List<Integer> getFrostWindLanes() {
+        return Collections.unmodifiableList(new ArrayList<>(frostWindLanes));
+    }
+    public int getFrostFreezeColumn() { return frostFreezeColumn; }
+    public int getFrostVisualVariant() { return frostVisualVariant; }
+    public Map<Position, String> getPendingFrozenZombieSpawns() {
+        return Collections.unmodifiableMap(new LinkedHashMap<>(frozenZombieSpawns));
+    }
 }

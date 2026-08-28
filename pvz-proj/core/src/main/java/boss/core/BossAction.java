@@ -5,5 +5,8 @@ public enum BossAction {
     MOVE_LANES,
     SPAWN_ZOMBIES,
     MISSILE,
-    CHARGE
+    CHARGE,
+    ICE_MISSILE,
+    ICE_WIND,
+    FREEZE_COLUMN
 }
