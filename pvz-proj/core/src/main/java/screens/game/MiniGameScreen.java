@@ -19,26 +19,35 @@ import com.badlogic.gdx.scenes.scene2d.ui.Label;
 import com.badlogic.gdx.scenes.scene2d.ui.Stack;
 import com.badlogic.gdx.scenes.scene2d.ui.Table;
 import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
+import com.badlogic.gdx.scenes.scene2d.utils.Drawable;
 import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable;
 import com.badlogic.gdx.utils.Align;
 import com.badlogic.gdx.utils.Scaling;
 import com.pvz.Main;
+import controllers.features.SettingsController;
 import controllers.features.TravelLogController;
 import game.animation.core.PvzAnimationService;
 import game.dialogue.LevelDialogueController;
+import game.hud.CompactSeedBank;
+import game.hud.GameplayWaveBanner;
+import game.hud.WaveProgressHud;
 import game.minigame.MiniGameVisualRenderer;
 import game.notification.GameplayAnnouncementOverlay;
 import game.render.BoardGeometry;
+import models.account.Settings;
 import models.engine.board.Position;
 import models.minigame.IZombieGame;
+import models.minigame.MatchThreeGame;
 import models.minigame.MiniGameSession;
 import models.minigame.MiniGameType;
 import models.minigame.VasebreakerGame;
 import models.minigame.WallNutBowlingGame;
+import models.minigame.ZombotanyGame;
 import screens.BaseScreen;
 import ui.GameOverDialog;
 import ui.MenuButton;
 import ui.PauseDialog;
+import ui.ProgressBarActor;
 import ui.ResourceBar;
 
 import java.util.LinkedHashMap;
@@ -50,6 +59,9 @@ public final class MiniGameScreen extends BaseScreen {
     private static final float BOARD_WIDTH = 920f;
     private static final float BOARD_HEIGHT = 457f;
     private static final float TICK_SECONDS = 0.1f;
+    private static final float MATCH_TRANSITION_SECONDS = 0.75f;
+    private static final String SHOVEL_BUTTON_ID = "IMAGE_UI_HUD_INGAME_SHOVEL_BUTTON";
+    private static final String SHOVEL_BUTTON_DOWN_ID = "IMAGE_UI_HUD_INGAME_SHOVEL_BUTTON_DOWN";
 
     private final TravelLogController controller;
     private final MiniGameSession session;
@@ -63,18 +75,35 @@ public final class MiniGameScreen extends BaseScreen {
     private final Vector2 cursorWorld;
     private final ResourceBar resourceBar;
     private final Map<String, Image> zombieSelectionFrames;
+    private final Map<String, MenuButton> matchUpgradeButtons;
+    private final CompactSeedBank compactSeedBank;
+    private final WaveProgressHud zombotanyWaveHud;
+    private final GameplayWaveBanner zombotanyWaveBanner;
     private Position hoveredTile;
+    private Position selectedMatchTile;
     private Integer selectedPacketId;
     private Integer draggedPacketId;
     private String draggedNutType;
     private String selectedNutType;
     private String selectedZombieName;
+    private String selectedPlantName;
+    private Label matchProgressLabel;
+    private ProgressBarActor matchProgressBar;
+    private Table matchUpgradeTable;
+    private String matchUpgradeSignature;
     private float tickAccumulator;
     private float visualStateTime;
+    private float matchTransitionTime;
     private boolean gameOverShown;
     private boolean paused;
     private boolean startupUiInitialized;
     private boolean introDialogueStarted;
+    private boolean resourceBarConfigured;
+    private boolean debugControlsVisible;
+    private boolean zombotanyShovelSelected;
+    private boolean zombotanyPlantFoodSelected;
+    private Button zombotanyShovelButton;
+    private MenuButton zombotanyPlantFoodButton;
     private PauseDialog pauseDialog;
 
     public MiniGameScreen(Main game) {
@@ -95,7 +124,21 @@ public final class MiniGameScreen extends BaseScreen {
         cursorWorld = new Vector2();
         resourceBar = new ResourceBar(game.getSkin(), game.getAnimationService());
         zombieSelectionFrames = new LinkedHashMap<>();
+        matchUpgradeButtons = new LinkedHashMap<>();
+        compactSeedBank = session instanceof ZombotanyGame
+                ? new CompactSeedBank(animations, game.getSkin()) : null;
+        zombotanyWaveHud = session instanceof ZombotanyGame
+                ? new WaveProgressHud(animations) : null;
+        zombotanyWaveBanner = session instanceof ZombotanyGame
+                ? new GameplayWaveBanner(animations, game.getSkin()) : null;
         selectedZombieName = firstZombieOption();
+        selectedPlantName = firstPlantOption();
+        matchUpgradeSignature = "";
+        matchTransitionTime = 0f;
+        resourceBarConfigured = false;
+        debugControlsVisible = false;
+        zombotanyShovelSelected = false;
+        zombotanyPlantFoodSelected = false;
         buildHud();
         announcementOverlay = new GameplayAnnouncementOverlay(stage, game.getSkin());
         dialogueController = new LevelDialogueController(stage, game.getSkin(), animations);
@@ -121,6 +164,11 @@ public final class MiniGameScreen extends BaseScreen {
         shapes.setProjectionMatrix(stage.getCamera().combined);
         enableBlending();
         visualRenderer.render(batch, shapes, visualStateTime, hoveredTile);
+        if (session instanceof ZombotanyGame gameSession && compactSeedBank != null) {
+            compactSeedBank.renderZombotany(
+                    shapes, batch, gameSession, visualStateTime, selectedPlantName
+            );
+        }
         if (draggedPacketId != null && session instanceof VasebreakerGame gameSession) {
             visualRenderer.renderDraggedPacket(
                     batch,
@@ -143,6 +191,16 @@ public final class MiniGameScreen extends BaseScreen {
         disableBlending();
         stage.act(Math.min(delta, 1f / 15f));
         stage.draw();
+        if (session instanceof ZombotanyGame gameSession && zombotanyWaveHud != null) {
+            batch.begin();
+            zombotanyWaveHud.renderZombotany(batch, gameSession, WORLD_WIDTH, WORLD_HEIGHT);
+            batch.end();
+        }
+        if (zombotanyWaveBanner != null) {
+            batch.begin();
+            zombotanyWaveBanner.render(batch, WORLD_WIDTH, WORLD_HEIGHT, visualStateTime);
+            batch.end();
+        }
     }
 
     @Override
@@ -167,14 +225,99 @@ public final class MiniGameScreen extends BaseScreen {
         hud.top().pad(10f);
         hud.add().expandX();
         hud.add(createPauseButton()).size(54f).padRight(8f).top();
-        if (session instanceof IZombieGame) {
+        if (usesSunResourceBar()) {
             resourceBar.showMiniGameResources();
-            hud.add(resourceBar).right().top();
+        } else {
+            resourceBar.showMiniGameCurrencies();
         }
+        hud.add(resourceBar).right().top();
         stage.addActor(hud);
 
         if (session instanceof IZombieGame gameSession) {
             buildIZombieBar(gameSession);
+        } else if (session instanceof MatchThreeGame gameSession) {
+            buildMatchThreeHud(gameSession);
+        } else if (session instanceof ZombotanyGame) {
+            buildZombotanyInteractionControls();
+        }
+    }
+
+    private boolean usesSunResourceBar() {
+        return session instanceof IZombieGame
+                || session instanceof MatchThreeGame
+                || session instanceof ZombotanyGame;
+    }
+
+    private void buildZombotanyInteractionControls() {
+        Table controls = new Table();
+        controls.setFillParent(true);
+        controls.bottom().right().padRight(14f).padBottom(12f);
+        zombotanyShovelButton = createZombotanyShovelButton();
+        controls.add(zombotanyShovelButton).width(76f).height(76f).padRight(8f);
+        zombotanyPlantFoodButton = new MenuButton(
+                "Plant Food [F]",
+                game.getSkin(),
+                "purple",
+                this::selectZombotanyPlantFood
+        );
+        controls.add(zombotanyPlantFoodButton).width(142f).height(36f);
+        stage.addActor(controls);
+    }
+
+    private Button createZombotanyShovelButton() {
+        TextureRegion normal = animations.region(SHOVEL_BUTTON_ID);
+        TextureRegion pressed = animations.region(SHOVEL_BUTTON_DOWN_ID);
+        if (normal == null || pressed == null) {
+            return new MenuButton("Shovel [S]", game.getSkin(), "green_small", this::selectZombotanyShovel);
+        }
+        ImageButton.ImageButtonStyle style = new ImageButton.ImageButtonStyle();
+        style.up = new TextureRegionDrawable(normal);
+        style.down = new TextureRegionDrawable(pressed);
+        style.checked = new TextureRegionDrawable(pressed);
+        ImageButton button = new ImageButton(style);
+        button.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                selectZombotanyShovel();
+            }
+        });
+        return button;
+    }
+
+    private void selectZombotanyShovel() {
+        zombotanyShovelSelected = !zombotanyShovelSelected;
+        zombotanyPlantFoodSelected = false;
+        if (zombotanyShovelButton != null) {
+            zombotanyShovelButton.setChecked(zombotanyShovelSelected);
+        }
+        if (zombotanyPlantFoodButton != null) {
+            zombotanyPlantFoodButton.setChecked(false);
+        }
+    }
+
+    private void selectZombotanyPlantFood() {
+        if (!(session instanceof ZombotanyGame gameSession) || gameSession.getPlantFoodAmount() <= 0) {
+            notificationManager.showError("No plant food available.");
+            return;
+        }
+        zombotanyPlantFoodSelected = !zombotanyPlantFoodSelected;
+        zombotanyShovelSelected = false;
+        if (zombotanyPlantFoodButton != null) {
+            zombotanyPlantFoodButton.setChecked(zombotanyPlantFoodSelected);
+        }
+        if (zombotanyShovelButton != null) {
+            zombotanyShovelButton.setChecked(false);
+        }
+    }
+
+    private void cancelZombotanyInteraction() {
+        zombotanyShovelSelected = false;
+        zombotanyPlantFoodSelected = false;
+        if (zombotanyShovelButton != null) {
+            zombotanyShovelButton.setChecked(false);
+        }
+        if (zombotanyPlantFoodButton != null) {
+            zombotanyPlantFoodButton.setChecked(false);
         }
     }
 
@@ -259,31 +402,298 @@ public final class MiniGameScreen extends BaseScreen {
         return card;
     }
 
+    private void buildMatchThreeHud(MatchThreeGame gameSession) {
+        Table host = new Table();
+        host.setFillParent(true);
+        host.left().top().padLeft(18f).padTop(86f);
+
+        Table panel = new Table();
+        panel.setBackground(matchPanelDrawable());
+        panel.pad(14f, 12f, 16f, 12f);
+
+        Label title = new Label("BEGHOULED", game.getSkin(), "medium_outline");
+        title.setColor(Color.valueOf("FFF2A6"));
+        title.setAlignment(Align.center);
+        panel.add(title).width(250f).padBottom(1f).row();
+
+        Label subtitle = createWhiteSecondaryLabel("SWAP  •  MATCH  •  SURVIVE");
+        subtitle.setAlignment(Align.center);
+        panel.add(subtitle).width(250f).padBottom(8f).row();
+
+        matchProgressBar = new ProgressBarActor(game.getSkin(), 0f, gameSession.getTargetMatches());
+        matchProgressBar.setTextColor(Color.WHITE);
+        panel.add(matchProgressBar).width(220f).padBottom(2f).row();
+
+        matchProgressLabel = createWhiteSecondaryLabel("");
+        matchProgressLabel.setAlignment(Align.center);
+        panel.add(matchProgressLabel).width(240f).padBottom(9f).row();
+
+        Label hint = createWhiteSecondaryLabel("Swap adjacent plants to make 3+");
+        hint.setAlignment(Align.center);
+        panel.add(hint).width(240f).padBottom(10f).row();
+
+        Label upgrades = createWhiteSecondaryLabel("UPGRADES");
+        upgrades.setAlignment(Align.center);
+        panel.add(upgrades).width(240f).padBottom(5f).row();
+
+        matchUpgradeTable = new Table();
+        panel.add(matchUpgradeTable).width(245f).top().row();
+        host.add(panel).width(275f).top().left();
+        stage.addActor(host);
+        rebuildMatchUpgradeButtons(gameSession);
+    }
+
+    private Label createWhiteSecondaryLabel(String text) {
+        Label.LabelStyle style = new Label.LabelStyle(
+                game.getSkin().get("secondary", Label.LabelStyle.class)
+        );
+        style.fontColor = Color.WHITE;
+        return new Label(text == null ? "" : text, style);
+    }
+
+    private Drawable matchPanelDrawable() {
+        try {
+            return game.getSkin().getDrawable("image_ui_quests_panel_edge_to_edge_ten");
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    private void rebuildMatchUpgradeButtons(MatchThreeGame gameSession) {
+        if (matchUpgradeTable == null) {
+            return;
+        }
+        matchUpgradeTable.clearChildren();
+        matchUpgradeButtons.clear();
+        matchUpgradeTable.defaults().padBottom(6f);
+        for (MatchThreeGame.UpgradeOptionView option : gameSession.getUpgradeOptions()) {
+            Table row = new Table();
+            row.pad(2f);
+            Label route = createWhiteSecondaryLabel(
+                    option.sourcePlantName() + "  →  " + option.targetPlantName()
+            );
+            route.setWrap(true);
+            route.setAlignment(Align.center);
+            row.add(route).width(230f).padBottom(3f).row();
+
+            MenuButton button = new MenuButton(
+                    "UPGRADE   " + option.cost() + " SUN",
+                    game.getSkin(),
+                    "green_small",
+                    () -> {
+                        boolean upgraded = controller.upgradeMatchThreePlant(option.sourcePlantName());
+                        if (upgraded) {
+                            visualRenderer.startMatchUpgradeEffect(option.targetPlantName());
+                        }
+                        showActionMessage();
+                        drainMatchAnnouncements();
+                        refreshHud();
+                    }
+            );
+            button.setDisabled(gameSession.getSunAmount() < option.cost());
+            matchUpgradeButtons.put(option.sourcePlantName(), button);
+            row.add(button).width(220f).height(36f);
+            matchUpgradeTable.add(row).width(240f).row();
+        }
+        matchUpgradeSignature = matchUpgradeSignature(gameSession);
+    }
+
     private void update(float delta) {
         updatePointer();
-        if (!paused && session.isRunning()) {
-            advanceGame(delta);
+        int gameSpeed = resolveGameSpeed();
+        float gameplayDelta = paused ? 0f : Math.max(0f, delta) * gameSpeed;
+        if (matchTransitionTime > 0f) {
+            matchTransitionTime = Math.max(0f, matchTransitionTime - gameplayDelta);
         }
-        float visualDelta = paused ? 0f : Math.min(delta, 1f / 15f);
+        if (!paused && session.isRunning() && matchTransitionTime <= 0f) {
+            advanceGame(gameplayDelta);
+        }
+        float visualDelta = paused ? 0f : Math.min(delta, 1f / 15f) * gameSpeed;
         visualStateTime += visualDelta;
         visualRenderer.setSelectedNutType(selectedNutType);
+        visualRenderer.setSelectedMatchTile(selectedMatchTile);
         visualRenderer.update(visualDelta);
+        collectZombotanySunUnderPointer();
+        if (session instanceof ZombotanyGame gameSession && zombotanyWaveHud != null) {
+            zombotanyWaveHud.updateZombotany(gameSession);
+        }
+        if (zombotanyWaveBanner != null) {
+            zombotanyWaveBanner.update(visualDelta, null);
+        }
         syncPacketSelection();
         refreshHud();
+        if (!paused) {
+            drainMatchAnnouncements();
+            drainZombotanyAnnouncements();
+        }
         showGameOverIfNeeded();
     }
 
-    private void advanceGame(float delta) {
-        tickAccumulator += delta;
+    private void advanceGame(float gameplayDelta) {
+        tickAccumulator += gameplayDelta;
         while (tickAccumulator >= TICK_SECONDS && session.isRunning()) {
             controller.advanceMiniGameTime(1);
             tickAccumulator -= TICK_SECONDS;
         }
     }
 
+    private int resolveGameSpeed() {
+        Settings settings = game.getSettingsController().getSettings();
+        if (settings == null) {
+            return Settings.MIN_GAME_SPEED;
+        }
+        return Math.max(
+                Settings.MIN_GAME_SPEED,
+                Math.min(Settings.MAX_GAME_SPEED, settings.getGameSpeed())
+        );
+    }
+
     private void refreshHud() {
+        configureMiniGameResourceBar();
+        resourceBar.refresh(game.getAuthController().getLoggedInUser());
         if (session instanceof IZombieGame gameSession) {
             resourceBar.refreshMiniGame(game.getAuthController().getLoggedInUser(), gameSession.getSunAmount());
+        } else if (session instanceof MatchThreeGame gameSession) {
+            resourceBar.refreshMiniGame(game.getAuthController().getLoggedInUser(), gameSession.getSunAmount());
+            if (matchProgressBar != null) {
+                matchProgressBar.setValue(gameSession.getCompletedMatches());
+            }
+            if (matchProgressLabel != null) {
+                matchProgressLabel.setText(
+                        gameSession.getCompletedMatches() + " / " + gameSession.getTargetMatches()
+                                + " matches   •   " + gameSession.getRemainingMatches() + " left"
+                );
+            }
+            String signature = matchUpgradeSignature(gameSession);
+            if (!signature.equals(matchUpgradeSignature)) {
+                rebuildMatchUpgradeButtons(gameSession);
+            } else {
+                refreshMatchUpgradeButtonState(gameSession);
+            }
+        } else if (session instanceof ZombotanyGame gameSession) {
+            resourceBar.refreshGame(
+                    game.getAuthController().getLoggedInUser(),
+                    gameSession.getSunAmount(),
+                    gameSession.getPlantFoodAmount()
+            );
+            if (zombotanyPlantFoodButton != null) {
+                zombotanyPlantFoodButton.setDisabled(gameSession.getPlantFoodAmount() <= 0);
+            }
+        }
+    }
+
+    private String matchUpgradeSignature(MatchThreeGame gameSession) {
+        StringBuilder result = new StringBuilder();
+        for (MatchThreeGame.UpgradeOptionView option : gameSession.getUpgradeOptions()) {
+            result.append(option.sourcePlantName()).append('>')
+                    .append(option.targetPlantName()).append(':')
+                    .append(option.cost()).append(';');
+        }
+        return result.toString();
+    }
+
+    private void refreshMatchUpgradeButtonState(MatchThreeGame gameSession) {
+        for (MatchThreeGame.UpgradeOptionView option : gameSession.getUpgradeOptions()) {
+            MenuButton button = matchUpgradeButtons.get(option.sourcePlantName());
+            if (button != null) {
+                button.setDisabled(gameSession.getSunAmount() < option.cost());
+            }
+        }
+    }
+
+    private void configureMiniGameResourceBar() {
+        boolean debug = isDebugMode();
+        if (resourceBarConfigured && debugControlsVisible == debug) {
+            return;
+        }
+        if (session instanceof ZombotanyGame) {
+            resourceBar.setGameDebugControls(
+                    debug,
+                    this::addDebugCoins,
+                    this::addDebugDiamonds,
+                    this::addDebugSun,
+                    this::addDebugPlantFood
+            );
+        } else {
+            resourceBar.setMiniGameDebugControls(
+                    usesSunResourceBar(),
+                    debug,
+                    this::addDebugCoins,
+                    this::addDebugDiamonds,
+                    usesSunResourceBar() ? this::addDebugSun : null
+            );
+        }
+        resourceBarConfigured = true;
+        debugControlsVisible = debug;
+    }
+
+    private boolean isDebugMode() {
+        Settings settings = game.getSettingsController().getSettings();
+        return settings != null && settings.isDebugMode();
+    }
+
+    private void addDebugCoins() {
+        SettingsController settingsController = game.getSettingsController();
+        settingsController.addDebugCoins(1000);
+        showSettingsMessage(settingsController);
+        refreshHud();
+    }
+
+    private void addDebugDiamonds() {
+        SettingsController settingsController = game.getSettingsController();
+        settingsController.addDebugDiamonds(10);
+        showSettingsMessage(settingsController);
+        refreshHud();
+    }
+
+    private void addDebugSun() {
+        if (session instanceof MatchThreeGame gameSession) {
+            gameSession.addDebugSun(250);
+        } else if (session instanceof IZombieGame gameSession) {
+            gameSession.addDebugSun(250);
+            announcementOverlay.push("DEBUG +250 SUN");
+        } else if (session instanceof ZombotanyGame gameSession) {
+            gameSession.addDebugSun(250);
+            announcementOverlay.push("DEBUG +250 SUN");
+        }
+        refreshHud();
+    }
+
+    private void addDebugPlantFood() {
+        if (session instanceof ZombotanyGame) {
+            controller.addZombotanyDebugPlantFood();
+            showActionMessage();
+            refreshHud();
+        }
+    }
+
+    private void showSettingsMessage(SettingsController settingsController) {
+        String message = settingsController.getLastMessage();
+        if (message == null || message.isBlank()) {
+            return;
+        }
+        if (message.startsWith("ERROR:")) {
+            notificationManager.showError(stripPrefix(message));
+        } else {
+            announcementOverlay.push(stripPrefix(message));
+        }
+    }
+
+    private void drainMatchAnnouncements() {
+        if (!(session instanceof MatchThreeGame gameSession)) {
+            return;
+        }
+        for (String message : gameSession.consumeAnnouncements()) {
+            announcementOverlay.push(message);
+        }
+    }
+
+    private void drainZombotanyAnnouncements() {
+        if (!(session instanceof ZombotanyGame gameSession)) {
+            return;
+        }
+        for (String message : gameSession.consumeAnnouncements()) {
+            announcementOverlay.push(message);
         }
     }
 
@@ -293,8 +703,30 @@ public final class MiniGameScreen extends BaseScreen {
         }
     }
 
+
     private InputAdapter createInput() {
         return new InputAdapter() {
+            @Override
+            public boolean keyDown(int keycode) {
+                if (keycode == Input.Keys.S && session instanceof ZombotanyGame) {
+                    selectZombotanyShovel();
+                    return true;
+                }
+                if (keycode == Input.Keys.F && session instanceof ZombotanyGame) {
+                    selectZombotanyPlantFood();
+                    return true;
+                }
+                if (keycode == Input.Keys.P || keycode == Input.Keys.SPACE) {
+                    if (pauseDialog == null) {
+                        showPauseDialog();
+                    } else {
+                        resumeFromPause();
+                    }
+                    return true;
+                }
+                return false;
+            }
+
             @Override
             public boolean mouseMoved(int screenX, int screenY) {
                 updatePointer(screenX, screenY);
@@ -343,6 +775,26 @@ public final class MiniGameScreen extends BaseScreen {
                     }
                 }
 
+                if (session instanceof ZombotanyGame) {
+                    Integer sunDropId = visualRenderer.findSunDropAt(cursorWorld.x, cursorWorld.y);
+                    if (sunDropId != null) {
+                        controller.collectZombotanySun(sunDropId);
+                        refreshHud();
+                        return true;
+                    }
+                }
+
+                if (session instanceof ZombotanyGame gameSession && compactSeedBank != null) {
+                    String plantName = compactSeedBank.findZombotanyPlantAt(
+                            gameSession, cursorWorld.x, cursorWorld.y
+                    );
+                    if (plantName != null) {
+                        selectedPlantName = plantName;
+                        cancelZombotanyInteraction();
+                        return true;
+                    }
+                }
+
                 return handleBoardClick();
             }
 
@@ -386,6 +838,8 @@ public final class MiniGameScreen extends BaseScreen {
             case VASEBREAKER -> handleVasebreakerClick();
             case WALLNUT_BOWLING -> handleBowlingClick();
             case I_ZOMBIE -> handleIZombieClick();
+            case MATCH_THREE -> handleMatchThreeClick();
+            case PLANT_ZOMBIES -> handleZombotanyClick();
         };
     }
 
@@ -424,6 +878,77 @@ public final class MiniGameScreen extends BaseScreen {
         return true;
     }
 
+    private boolean handleMatchThreeClick() {
+        if (!(session instanceof MatchThreeGame gameSession)) {
+            return false;
+        }
+        if (gameSession.getCraters().contains(hoveredTile)
+                || !gameSession.getBoard().getTileAt(hoveredTile).hasPlant()) {
+            selectedMatchTile = null;
+            visualRenderer.setSelectedMatchTile(null);
+            return false;
+        }
+        if (selectedMatchTile == null) {
+            selectedMatchTile = hoveredTile;
+            visualRenderer.setSelectedMatchTile(selectedMatchTile);
+            return true;
+        }
+        if (selectedMatchTile.equals(hoveredTile)) {
+            selectedMatchTile = null;
+            visualRenderer.setSelectedMatchTile(null);
+            return true;
+        }
+        int distance = Math.abs(selectedMatchTile.getX() - hoveredTile.getX())
+                + Math.abs(selectedMatchTile.getY() - hoveredTile.getY());
+        if (distance != 1) {
+            selectedMatchTile = hoveredTile;
+            visualRenderer.setSelectedMatchTile(selectedMatchTile);
+            return true;
+        }
+
+        if (matchTransitionTime > 0f) {
+            return true;
+        }
+        boolean matched = controller.swapMatchThreePlants(selectedMatchTile, hoveredTile);
+        if (matched) {
+            matchTransitionTime = MATCH_TRANSITION_SECONDS;
+        }
+        selectedMatchTile = null;
+        visualRenderer.setSelectedMatchTile(null);
+        showActionMessage();
+        drainMatchAnnouncements();
+        refreshHud();
+        return true;
+    }
+
+    private boolean handleZombotanyClick() {
+        if (zombotanyShovelSelected) {
+            controller.pluckZombotany(hoveredTile);
+            showActionMessage();
+            refreshHud();
+            return true;
+        }
+        if (zombotanyPlantFoodSelected) {
+            boolean fed = controller.feedZombotanyPlant(hoveredTile);
+            showActionMessage();
+            if (fed) {
+                zombotanyPlantFoodSelected = false;
+                if (zombotanyPlantFoodButton != null) {
+                    zombotanyPlantFoodButton.setChecked(false);
+                }
+            }
+            refreshHud();
+            return true;
+        }
+        if (selectedPlantName == null) {
+            return false;
+        }
+        controller.plantZombotany(selectedPlantName, hoveredTile);
+        showActionMessage();
+        refreshHud();
+        return true;
+    }
+
     private String currentVaseKindAt(Position position) {
         if (!(session instanceof VasebreakerGame gameSession) || position == null) {
             return null;
@@ -454,6 +979,25 @@ public final class MiniGameScreen extends BaseScreen {
             return null;
         }
         return gameSession.getAvailableZombieOptions().get(0).zombieName();
+    }
+
+    private String firstPlantOption() {
+        if (!(session instanceof ZombotanyGame gameSession) || gameSession.getSeedOptions().isEmpty()) {
+            return null;
+        }
+        return gameSession.getSeedOptions().get(0).plantName();
+    }
+
+    private void collectZombotanySunUnderPointer() {
+        if (paused || !(session instanceof ZombotanyGame) || !session.isRunning()) {
+            return;
+        }
+        Integer sunDropId = visualRenderer.findSunDropAt(cursorWorld.x, cursorWorld.y);
+        if (sunDropId == null) {
+            return;
+        }
+        controller.collectZombotanySun(sunDropId);
+        refreshHud();
     }
 
     private void showActionMessage() {
@@ -511,7 +1055,9 @@ public final class MiniGameScreen extends BaseScreen {
         if (pauseDialog == null && session.isRunning()) {
             paused = false;
         }
-        announcementOverlay.push(miniGameAnnouncement());
+        if (session.getType() != MiniGameType.PLANT_ZOMBIES) {
+            announcementOverlay.push(miniGameAnnouncement());
+        }
     }
 
     private String miniGameAnnouncement() {
@@ -519,6 +1065,8 @@ public final class MiniGameScreen extends BaseScreen {
             case VASEBREAKER -> "VASEBREAKER!";
             case WALLNUT_BOWLING -> "WALL-NUT BOWLING!";
             case I_ZOMBIE -> "I, ZOMBIE!";
+            case MATCH_THREE -> "BEGHOULED!";
+            case PLANT_ZOMBIES -> "ZOMBOTANY!";
         };
     }
 
@@ -529,8 +1077,16 @@ public final class MiniGameScreen extends BaseScreen {
         }
         MiniGameType type = session.getType();
         int stageNumber = session.getStage();
-        controller.enterMiniGame(type.getDisplayName(), stageNumber);
-        if (controller.wasSuccessful()) {
+        java.util.List<String> zombotanyPlants = session instanceof ZombotanyGame gameSession
+                ? new java.util.ArrayList<>(gameSession.getSelectedPlantNames())
+                : java.util.List.of();
+        if (controller.hasActiveMiniGame()) {
+            controller.abandonMiniGame();
+        }
+        boolean started = type == MiniGameType.PLANT_ZOMBIES
+                ? controller.enterZombotanyMiniGame(stageNumber, zombotanyPlants)
+                : controller.enterMiniGame(type.getDisplayName(), stageNumber);
+        if (started && controller.wasSuccessful()) {
             game.getScreenManager().showActiveMiniGame();
         }
     }
