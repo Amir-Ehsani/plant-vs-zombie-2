@@ -180,7 +180,7 @@ abstract class GameControllerLevelSupport extends GameControllerStatusSupport {
         );
 
         if (levelNumber == AdventureLevelCatalog.BOSS_LEVEL) {
-            return createBossLevel(chapterName, allowedPlants, allowedZombies);
+            return createBossLevel(chapterName, allowedPlants);
         }
 
         List<String> newlyUnlockedZombies = chapterZombiePool(
@@ -240,28 +240,28 @@ abstract class GameControllerLevelSupport extends GameControllerStatusSupport {
 
     private Level createBossLevel(
             String chapterName,
-            List<String> allowedPlants,
-            List<String> allowedZombies
+            List<String> allowedPlants
     ) {
         if (!BossCatalog.supportsChapter(chapterName)) {
             throw new IllegalArgumentException(
-                    "P2-09 boss core currently supports Ancient Egypt and Frostbite Caves only."
+                    "No boss implementation is available for this chapter."
             );
         }
         WaveManager waveManager = new WaveManager(
                 new ArrayList<>(), null, AttackPattern.ROUND_ROBIN
         );
+        List<String> bossPlants = bossPlantPool(chapterName, allowedPlants);
         ConveyorBeltRule conveyor = new ConveyorBeltRule(
-                ownedAllowedPlants(allowedPlants),
-                75,
+                bossPlants,
+                20,
                 new java.util.Random(AdventureLevelCatalog.levelId(chapterName, 4) * 7919L)
         );
         Level level = new Level(
                 AdventureLevelCatalog.levelId(chapterName, AdventureLevelCatalog.BOSS_LEVEL),
                 waveManager,
                 LevelType.BOSS,
-                allowedPlants,
-                allowedZombies,
+                bossPlants,
+                bossZombiePool(chapterName),
                 conveyor,
                 0
         );
@@ -271,6 +271,37 @@ abstract class GameControllerLevelSupport extends GameControllerStatusSupport {
                 AdventureLevelCatalog.levelId(chapterName, AdventureLevelCatalog.BOSS_LEVEL) * 104729L
         ));
         return level;
+    }
+
+    private List<String> bossZombiePool(String chapterName) {
+        return switch (AdventureLevelCatalog.normalizeChapterName(chapterName)) {
+            case "ancient-egypt" -> new ArrayList<>(Arrays.asList(
+                    "Ra", "Explorer", "Tomb raiser"
+            ));
+            case "ice-cave" -> new ArrayList<>(Arrays.asList(
+                    "Dodo", "Hunter", "Troglobite"
+            ));
+            case "wave-beach" -> new ArrayList<>(Arrays.asList(
+                    "Fisherman", "Octopus", "Snorkel"
+            ));
+            case "wild-west" -> new ArrayList<>(Arrays.asList(
+                    "Juggler", "Wizard", "Imp Dragon"
+            ));
+            default -> new ArrayList<>();
+        };
+    }
+
+    private List<String> bossPlantPool(String chapterName, List<String> fallback) {
+        return switch (AdventureLevelCatalog.normalizeChapterName(chapterName)) {
+            case "wild-west" -> new ArrayList<>(Arrays.asList(
+                    "Puff-shroom", "Fume-shroom", "Pea-nut", "Kernel-pult", "Magnet-shroom"
+            ));
+            case "wave-beach" -> new ArrayList<>(Arrays.asList(
+                    "Lily Pad", "Banana Launcher", "Homing Thistle",
+                    "Guacodile", "Tangle Kelp", "Bowling Bulb"
+            ));
+            default -> ownedAllowedPlants(fallback);
+        };
     }
 
     protected LevelRule createSpecialRule(
