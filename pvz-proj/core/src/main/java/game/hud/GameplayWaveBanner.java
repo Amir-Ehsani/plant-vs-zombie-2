@@ -44,7 +44,7 @@ public final class GameplayWaveBanner {
         zombieHead = region(animations, ZOMBIE_HEAD_ID);
         font = resolveFont(skin);
         layout = new GlyphLayout();
-        introElapsed = 0f;
+        introElapsed = introDuration();
         hugeWaveRemaining = 0f;
         hugeWaveShown = false;
     }
