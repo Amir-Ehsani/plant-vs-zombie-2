@@ -127,6 +127,10 @@ public final class Boss {
                 case SPAWN_ZOMBIES -> spawnClip;
                 case MISSILE -> "missile_start";
                 case CHARGE -> "walk_forward";
+                case DARK_FIREBALLS -> "fire_bomb";
+                case DARK_FIRE_BREATH -> "fire_attack";
+                case BEACH_BABY_SHARKS -> "spawn";
+                case BEACH_TURBINE -> "suction_on";
                 default -> idleClip;
             };
             default -> idleClip;
