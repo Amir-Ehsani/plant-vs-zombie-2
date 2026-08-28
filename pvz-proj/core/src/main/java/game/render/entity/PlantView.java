@@ -73,14 +73,29 @@ public final class PlantView extends EntityView<Plant> {
     private float armorExplosionTime = -1f;
     private int squashLandingDirection;
     private final boolean showDamageAppearance;
+    private final boolean smoothMovement;
+    private double visualX;
+    private double visualY;
 
     public PlantView(Plant plant, EntityAnimationProfile profile) {
-        this(plant, profile, true);
+        this(plant, profile, true, false);
     }
 
     public PlantView(Plant plant, EntityAnimationProfile profile, boolean showDamageAppearance) {
+        this(plant, profile, showDamageAppearance, false);
+    }
+
+    public PlantView(
+            Plant plant,
+            EntityAnimationProfile profile,
+            boolean showDamageAppearance,
+            boolean smoothMovement
+    ) {
         super(plant, profile);
         this.showDamageAppearance = showDamageAppearance;
+        this.smoothMovement = smoothMovement;
+        visualX = plant.getX();
+        visualY = smoothMovement ? 0.15 : plant.getY();
         previousAttackSerial = plant.getVisualAttackSerial();
         previousPlantFoodSerial = plant.getVisualPlantFoodSerial();
         previousSpecialSerial = plant.getVisualSpecialSerial();
@@ -88,6 +103,7 @@ public final class PlantView extends EntityView<Plant> {
 
     @Override
     public void update(float delta, Board board) {
+        updateVisualPosition(delta);
         updateHitFlash(delta, entity.getHp() + entity.getArmorHp());
         detectVisualActions();
         updateSpecialAnimation(delta);
@@ -118,7 +134,7 @@ public final class PlantView extends EntityView<Plant> {
         if (!entity.isAlive()) {
             return;
         }
-        Vector2 position = geometry.entityToScreen(entity.getX(), entity.getY());
+        Vector2 position = geometry.entityToScreen(visualX, visualY);
         position.x += squashVisualOffset(geometry);
         drawFrozenBehind(batch, animations, position);
         drawPlantFoodGlow(batch, animations, position);
@@ -128,6 +144,24 @@ public final class PlantView extends EntityView<Plant> {
         drawArmorExplosion(batch, animations, position, true);
         drawFrozenFront(batch, animations, position);
         drawOctopus(batch, animations, position);
+    }
+
+
+    private void updateVisualPosition(float delta) {
+        if (!smoothMovement) {
+            visualX = entity.getX();
+            visualY = entity.getY();
+            return;
+        }
+        float alpha = 1f - (float) Math.exp(-7f * Math.max(0f, delta));
+        visualX += (entity.getX() - visualX) * alpha;
+        visualY += (entity.getY() - visualY) * alpha;
+        if (Math.abs(entity.getX() - visualX) < 0.01) {
+            visualX = entity.getX();
+        }
+        if (Math.abs(entity.getY() - visualY) < 0.01) {
+            visualY = entity.getY();
+        }
     }
 
     private void detectVisualActions() {

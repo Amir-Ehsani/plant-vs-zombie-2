@@ -9,10 +9,12 @@ import models.core.plant.PlantRegistry;
 import models.core.plant.PlantType;
 import models.engine.board.Position;
 import models.minigame.IZombieGame;
+import models.minigame.MatchThreeGame;
 import models.minigame.MiniGameSession;
 import models.minigame.MiniGameType;
 import models.minigame.VasebreakerGame;
 import models.minigame.WallNutBowlingGame;
+import models.minigame.ZombotanyGame;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -129,6 +131,83 @@ abstract class TravelLogControllerMiniGameSupport extends TravelLogControllerQue
         return result;
     }
 
+    public boolean swapMatchThreePlants(Position first, Position second) {
+        MiniGameSession session = requireActiveMiniGame();
+        if (!(session instanceof MatchThreeGame game)) {
+            return fail("plant swapping is only available in Beghouled.");
+        }
+        boolean result = game.swapPlants(first, second);
+        synchronizeMiniGameMessage();
+        return result;
+    }
+
+    public boolean upgradeMatchThreePlant(String plantName) {
+        MiniGameSession session = requireActiveMiniGame();
+        if (!(session instanceof MatchThreeGame game)) {
+            return fail("plant upgrades are only available in Beghouled.");
+        }
+        boolean result = game.upgradePlant(plantName);
+        synchronizeMiniGameMessage();
+        return result;
+    }
+
+    public boolean plantZombotany(String plantName, Position position) {
+        MiniGameSession session = requireActiveMiniGame();
+        if (!(session instanceof ZombotanyGame game)) {
+            return fail("planting is only available in Zombotany.");
+        }
+        boolean result = game.plant(plantName, position);
+        synchronizeMiniGameMessage();
+        return result;
+    }
+
+    public boolean pluckZombotany(Position position) {
+        MiniGameSession session = requireActiveMiniGame();
+        if (!(session instanceof ZombotanyGame game)) {
+            return fail("plant removal is only available in Zombotany.");
+        }
+        boolean result = game.pluck(position);
+        synchronizeMiniGameMessage();
+        return result;
+    }
+
+    public boolean collectZombotanySun(int dropId) {
+        MiniGameSession session = requireActiveMiniGame();
+        if (!(session instanceof ZombotanyGame game)) {
+            return fail("sun collection is only available in Zombotany.");
+        }
+        boolean result = game.collectSunDrop(dropId);
+        synchronizeMiniGameMessage();
+        return result;
+    }
+
+    public boolean feedZombotanyPlant(Position position) {
+        MiniGameSession session = requireActiveMiniGame();
+        if (!(session instanceof ZombotanyGame game)) {
+            return fail("plant food is only available in Zombotany.");
+        }
+        boolean result = game.feedPlant(position);
+        synchronizeMiniGameMessage();
+        return result;
+    }
+
+    public boolean addZombotanyDebugPlantFood() {
+        MiniGameSession session = requireActiveMiniGame();
+        if (!(session instanceof ZombotanyGame game)) {
+            return fail("plant food is only available in Zombotany.");
+        }
+        boolean result = game.addDebugPlantFood();
+        synchronizeMiniGameMessage();
+        return result;
+    }
+
+    public boolean enterZombotanyMiniGame(int stage, List<String> selectedPlants) {
+        if (selectedPlants == null || selectedPlants.isEmpty()) {
+            return fail("Select at least one plant before starting Zombotany.");
+        }
+        return enterMiniGame(MiniGameType.PLANT_ZOMBIES, stage, selectedPlants);
+    }
+
     public String showActiveMiniGameMap() {
         MiniGameSession session = requireActiveMiniGame();
 
@@ -210,6 +289,18 @@ abstract class TravelLogControllerMiniGameSupport extends TravelLogControllerQue
         }
 
         success("Current sun: " + game.getSunAmount());
+        return lastMessage;
+    }
+
+    public String showZombotanyPlants() {
+        MiniGameSession session = requireActiveMiniGame();
+
+        if (!(session instanceof ZombotanyGame game)) {
+            fail("show plants is only available in Zombotany.");
+            return lastMessage;
+        }
+
+        success(game.renderPlantOptions());
         return lastMessage;
     }
 
@@ -296,6 +387,10 @@ abstract class TravelLogControllerMiniGameSupport extends TravelLogControllerQue
     }
 
     protected boolean enterMiniGame(MiniGameType type, int stage) {
+        return enterMiniGame(type, stage, null);
+    }
+
+    private boolean enterMiniGame(MiniGameType type, int stage, List<String> selectedPlants) {
         User user = getLoggedInUserOrFail();
 
         if (user == null) {
@@ -321,6 +416,10 @@ abstract class TravelLogControllerMiniGameSupport extends TravelLogControllerQue
                 case VASEBREAKER -> new VasebreakerGame(stage);
                 case WALLNUT_BOWLING -> new WallNutBowlingGame(stage);
                 case I_ZOMBIE -> new IZombieGame(stage);
+                case MATCH_THREE -> new MatchThreeGame(stage);
+                case PLANT_ZOMBIES -> selectedPlants == null
+                        ? new ZombotanyGame(stage)
+                        : new ZombotanyGame(stage, selectedPlants);
             };
         } catch (IllegalArgumentException | IllegalStateException exception) {
             activeMiniGame = null;

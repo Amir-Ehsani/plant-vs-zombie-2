@@ -70,7 +70,7 @@ public class ChapterLevelController {
 
         if (levelNumber == AdventureLevelCatalog.BOSS_LEVEL
                 && !AdventureLevelCatalog.isBossLevelAvailable(chapterName)) {
-            fail("This chapter boss is not part of P2-09.");
+            fail("This chapter boss is not available.");
             return;
         }
 
@@ -101,7 +101,7 @@ public class ChapterLevelController {
     private String levelStatus(User user, String chapterName, int levelNumber) {
         if (levelNumber == AdventureLevelCatalog.BOSS_LEVEL
                 && !AdventureLevelCatalog.isBossLevelAvailable(chapterName)) {
-            return "HANDLED BY OTHER BOSS CONTENT";
+            return "LOCKED";
         }
         if (user.isChapterLevelCompleted(chapterName, levelNumber)) {
             return "COMPLETED";

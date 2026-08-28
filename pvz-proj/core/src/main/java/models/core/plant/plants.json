@@ -1034,6 +1034,66 @@
       "level4Upgrade": "reset family cooldowns",
       "actionIntervalSeconds": 0,
       "rechargeSeconds": 85
+    },
+    {
+      "name": "Pea-nut",
+      "category": "Shooter",
+      "tags": "Pea",
+      "sunCost": 150,
+      "baseHp": 3000,
+      "damage": "20",
+      "baseAbility": "Shoots peas and also works as a defensive plant.",
+      "plantFoodEffect": "Rapid pea barrage and temporary extra toughness.",
+      "level2Upgrade": "Dmg +10",
+      "level3Upgrade": "HP +500",
+      "level4Upgrade": "Cost -25",
+      "actionIntervalSeconds": 1.5,
+      "rechargeSeconds": 15
+    },
+    {
+      "name": "Banana Launcher",
+      "category": "Lobber",
+      "tags": "AoE",
+      "sunCost": 500,
+      "baseHp": 300,
+      "damage": "120",
+      "baseAbility": "Launches a banana at a target tile.",
+      "plantFoodEffect": "Launches a stronger banana strike.",
+      "level2Upgrade": "Dmg +20",
+      "level3Upgrade": "Recharge -2s",
+      "level4Upgrade": "Cost -25",
+      "actionIntervalSeconds": 4.0,
+      "rechargeSeconds": 20
+    },
+    {
+      "name": "Homing Thistle",
+      "category": "Homing",
+      "tags": "",
+      "sunCost": 250,
+      "baseHp": 300,
+      "damage": "40",
+      "baseAbility": "Fires homing spikes at zombies anywhere on the lawn.",
+      "plantFoodEffect": "Rapidly fires homing spikes.",
+      "level2Upgrade": "Dmg +10",
+      "level3Upgrade": "HP +150",
+      "level4Upgrade": "Cost -25",
+      "actionIntervalSeconds": 1.5,
+      "rechargeSeconds": 5
+    },
+    {
+      "name": "Guacodile",
+      "category": "Shooter",
+      "tags": "Water",
+      "sunCost": 125,
+      "baseHp": 300,
+      "damage": "20",
+      "baseAbility": "Shoots seeds and can be planted directly on water.",
+      "plantFoodEffect": "Fires rapidly before charging forward.",
+      "level2Upgrade": "Dmg +10",
+      "level3Upgrade": "HP +150",
+      "level4Upgrade": "Cost -25",
+      "actionIntervalSeconds": 1.5,
+      "rechargeSeconds": 5
     }
   ]
 }

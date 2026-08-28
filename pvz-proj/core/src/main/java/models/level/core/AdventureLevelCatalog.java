@@ -90,7 +90,8 @@ public final class AdventureLevelCatalog {
 
     public static boolean isBossLevelAvailable(String chapterName) {
         String chapter = normalizeChapterName(chapterName);
-        return chapter.equals("ancient-egypt") || chapter.equals("ice-cave");
+        return chapter.equals("ancient-egypt") || chapter.equals("ice-cave")
+                || chapter.equals("wave-beach") || chapter.equals("wild-west");
     }
 
     public static int lastRequiredLevel(String chapterName) {

@@ -57,6 +57,7 @@ public final class EntityRenderSystem {
     private final EntityAnimationRegistry registry;
     private final boolean showPlantDamageAppearance;
     private final SeasonType seasonType;
+    private final boolean smoothPlantMovement;
     private final Map<Plant, PlantView> plantViews = new IdentityHashMap<>();
     private final Map<Zombie, ZombieView> zombieViews = new IdentityHashMap<>();
     private final List<ZombiePartVisual> detachedParts = new ArrayList<>();
@@ -68,7 +69,7 @@ public final class EntityRenderSystem {
     private float terrainObjectTime;
 
     public EntityRenderSystem(BoardGeometry geometry, PvzAnimationService animations) {
-        this(geometry, animations, true, null);
+        this(geometry, animations, true, null, false);
     }
 
     public EntityRenderSystem(
@@ -76,7 +77,7 @@ public final class EntityRenderSystem {
             PvzAnimationService animations,
             boolean showPlantDamageAppearance
     ) {
-        this(geometry, animations, showPlantDamageAppearance, null);
+        this(geometry, animations, showPlantDamageAppearance, null, false);
     }
 
     public EntityRenderSystem(
@@ -84,14 +85,24 @@ public final class EntityRenderSystem {
             PvzAnimationService animations,
             SeasonType seasonType
     ) {
-        this(geometry, animations, true, seasonType);
+        this(geometry, animations, true, seasonType, false);
+    }
+
+    public EntityRenderSystem(
+            BoardGeometry geometry,
+            PvzAnimationService animations,
+            boolean showPlantDamageAppearance,
+            boolean smoothPlantMovement
+    ) {
+        this(geometry, animations, showPlantDamageAppearance, null, smoothPlantMovement);
     }
 
     private EntityRenderSystem(
             BoardGeometry geometry,
             PvzAnimationService animations,
             boolean showPlantDamageAppearance,
-            SeasonType seasonType
+            SeasonType seasonType,
+            boolean smoothPlantMovement
     ) {
         if (geometry == null || animations == null || animations.getCatalog() == null) {
             throw new IllegalArgumentException("Entity renderer requires board geometry and animation catalog.");
@@ -100,6 +111,7 @@ public final class EntityRenderSystem {
         this.animations = animations;
         this.showPlantDamageAppearance = showPlantDamageAppearance;
         this.seasonType = seasonType;
+        this.smoothPlantMovement = smoothPlantMovement;
         registry = new EntityAnimationRegistry(animations.getCatalog());
         preloadGraveAnimations();
         preloadInteractiveTerrainAnimations();
@@ -510,7 +522,7 @@ public final class EntityRenderSystem {
             return null;
         }
         animations.preload(profile.getPath());
-        return new PlantView(plant, profile, showPlantDamageAppearance);
+        return new PlantView(plant, profile, showPlantDamageAppearance, smoothPlantMovement);
     }
 
     private boolean isBossHitbox(Zombie zombie) {

@@ -16,6 +16,7 @@ import models.engine.board.Position;
 import models.engine.board.Tile;
 import models.engine.board.TileType;
 import models.level.core.Level;
+import models.level.core.LevelType;
 import models.level.core.SeasonType;
 
 import java.util.ArrayList;
@@ -31,6 +32,10 @@ public final class ChapterVisualRenderer {
     private static final float NECROMANCY_DURATION = 1.0f;
     private static final float GRAVE_RISE_DURATION = 0.55f;
     private static final float ZOMBIE_ICE_HEALTH = 600f;
+    private static final float WORLD_WIDTH = 1280f;
+    private static final String WATER_TIDE_LINE_PAM =
+            "768/FULL/BACKGROUNDS/WATER_TIDE_LINE/WATER_TIDE_LINE.PAM";
+    private static final float TIDE_LINE_X_ANCHOR_OFFSET = 14.4f;
 
     private static final Color WATER_COLOR = new Color(0.12f, 0.48f, 0.72f, 0.34f);
     private static final Color WATER_SHINE_COLOR = new Color(0.60f, 0.92f, 1f, 0.24f);
@@ -53,7 +58,9 @@ public final class ChapterVisualRenderer {
     private final TextureRegion darkSunGrave;
     private final TextureRegion darkPlantFoodGrave;
     private final TextureRegion frostWind;
-    private final TextureRegion tideLine;
+    private final TextureRegion waterTile;
+    private final TextureRegion scorchedTile;
+    private final TextureRegion scorchedEdge;
     private final TextureRegion lowBeachMarker;
     private final TextureRegion sandRearA;
     private final TextureRegion sandRearB;
@@ -84,7 +91,9 @@ public final class ChapterVisualRenderer {
         this.darkSunGrave = animations.region("IMAGE_GRAVESTONES_DARK_SUN_DARK_SUN_132X160");
         this.darkPlantFoodGrave = animations.region("IMAGE_GRAVESTONES_DARK_PLANTFOOD_DARK_PLANTFOOD_132X160");
         this.frostWind = animations.region("IMAGE_EFFECTS_FROSTBITE_CHILL_WIND_FROSTBITE_CHILL_WIND_290X163");
-        this.tideLine = animations.region("IMAGE_BACKGROUNDS_WATER_TIDE_LINE_WATER_TIDE_LINE_161X397");
+        this.waterTile = animations.region("IMAGE_UI_CARDS_BACKGROUNDS_CARD_PLANT_BG_BEACH_WATER");
+        this.scorchedTile = animations.region("IMAGE_EFFECTS_SCORCHED_EARTH_SCORCHED_EARTH_128X152");
+        this.scorchedEdge = animations.region("IMAGE_EFFECTS_SCORCHED_EARTH_EDGE_SCORCHED_EARTH_EDGE_128X152");
         this.lowBeachMarker = animations.region("IMAGE_EFFECTS_ZOMBIE_OCTOPUS_PROJECTILE_ZOMBIE_OCTOPUS_PROJECTILE_87X61_3");
         this.sandRearA = animations.region("IMAGE_EFFECTS_SANDSTORM_REAR_SANDSTORM_BACK1");
         this.sandRearB = animations.region("IMAGE_EFFECTS_SANDSTORM_REAR_SANDSTORM_BACK2");
@@ -108,6 +117,7 @@ public final class ChapterVisualRenderer {
         this.observedWave = 0;
         syncGraves(0f);
         if (season == SeasonType.BIG_WAVE_BEACH) {
+            animations.preload(WATER_TIDE_LINE_PAM);
             displayedTideX = targetTideX();
         }
     }
@@ -273,12 +283,22 @@ public final class ChapterVisualRenderer {
 
     private void drawTerrainSprites(Batch batch) {
         batch.begin();
+        if (season == SeasonType.BIG_WAVE_BEACH && level.getLevelType() == LevelType.BOSS) {
+            drawBossOceanExtension(batch);
+        }
         for (int row = 1; row <= board.getHeight(); row++) {
             for (int column = 1; column <= board.getWidth(); column++) {
                 Position position = new Position(column, row);
                 Tile tile = board.getTileAt(position);
                 if (tile == null) {
                     continue;
+                }
+                if (season == SeasonType.BIG_WAVE_BEACH && tile.getTileType() == TileType.WATER) {
+                    drawWaterTile(batch, position);
+                }
+                if (season == SeasonType.DARK_AGES && level.getBossRuntime() != null
+                        && level.getBossRuntime().getBurningTiles().containsKey(position)) {
+                    drawScorchedTile(batch, position);
                 }
                 if (tile.isGraveTerrain()
                         && (season == SeasonType.ANCIENT_EGYPT || season == SeasonType.DARK_AGES)) {
@@ -293,6 +313,50 @@ public final class ChapterVisualRenderer {
             drawTideLine(batch);
         }
         batch.end();
+    }
+
+    private void drawScorchedTile(Batch batch, Position position) {
+        TextureRegion region = scorchedTile;
+        if (position.getX() == BoardGeometry.COLUMNS - 1
+                && level.getBossRuntime().getCurrentTick() < level.getBossRuntime().getArrivalScorchUntilTick()) {
+            region = scorchedEdge;
+        }
+        if (region == null) {
+            return;
+        }
+        Rectangle tile = geometry.getTileBounds(position.getY(), position.getX());
+        batch.setColor(Color.WHITE);
+        batch.draw(region, tile.x, tile.y, tile.width, tile.height);
+    }
+
+    private void drawWaterTile(Batch batch, Position position) {
+        if (waterTile == null) {
+            return;
+        }
+        Rectangle tile = geometry.getTileBounds(position.getY(), position.getX());
+        float pulse = 0.78f + 0.08f * MathUtils.sin(elapsed * 1.9f + position.getX() * 0.7f + position.getY());
+        batch.setColor(0.82f, 0.96f, 1f, pulse);
+        batch.draw(waterTile, tile.x, tile.y, tile.width, tile.height);
+        batch.setColor(Color.WHITE);
+    }
+
+    private void drawBossOceanExtension(Batch batch) {
+        if (waterTile == null) {
+            return;
+        }
+        Rectangle boardBounds = geometry.getBoardBounds();
+        float startX = boardBounds.x + boardBounds.width;
+        float endX = Math.max(startX, WORLD_WIDTH);
+        float stripWidth = geometry.getTileWidth();
+        for (float x = startX; x < endX; x += stripWidth) {
+            float width = Math.min(stripWidth, endX - x);
+            for (int row = 0; row < BoardGeometry.ROWS; row++) {
+                float y = boardBounds.y + row * geometry.getTileHeight();
+                batch.setColor(0.82f, 0.96f, 1f, 0.84f);
+                batch.draw(waterTile, x, y, width, geometry.getTileHeight());
+            }
+        }
+        batch.setColor(Color.WHITE);
     }
 
     private void drawLowBeachMarker(Batch batch, Position position) {
@@ -342,16 +406,7 @@ public final class ChapterVisualRenderer {
         if (season != SeasonType.BIG_WAVE_BEACH || board == null) {
             return;
         }
-        float target = targetTideX();
-        if (Float.isNaN(target)) {
-            return;
-        }
-        if (Float.isNaN(displayedTideX)) {
-            displayedTideX = target;
-            return;
-        }
-        float follow = 1f - (float) Math.exp(-3.2f * Math.max(0f, delta));
-        displayedTideX += (target - displayedTideX) * follow;
+        displayedTideX = targetTideX();
     }
 
     private float targetTideX() {
@@ -371,16 +426,13 @@ public final class ChapterVisualRenderer {
     }
 
     private void drawTideLine(Batch batch) {
-        if (tideLine == null || Float.isNaN(displayedTideX)) {
+        if (Float.isNaN(displayedTideX)) {
             return;
         }
         Rectangle boardBounds = geometry.getBoardBounds();
-        float height = boardBounds.height * 1.04f;
-        float width = height * tideLine.getRegionWidth() / tideLine.getRegionHeight();
-        float wobble = MathUtils.sin(elapsed * 1.8f) * 3f;
-        batch.setColor(1f, 1f, 1f, 0.86f);
-        batch.draw(tideLine, displayedTideX - width * 0.54f + wobble, boardBounds.y - 2f, width, height);
-        batch.setColor(Color.WHITE);
+        animations.draw(batch, WATER_TIDE_LINE_PAM, "idle", elapsed,
+                displayedTideX + TIDE_LINE_X_ANCHOR_OFFSET,
+                boardBounds.y + boardBounds.height / 2f, 1f, true);
     }
 
     private void drawFrozenEntities(Batch batch) {

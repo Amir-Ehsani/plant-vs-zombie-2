@@ -12,9 +12,11 @@ import com.badlogic.gdx.scenes.scene2d.ui.Skin;
 import game.animation.core.EntityAnimationProfile;
 import game.animation.core.EntityAnimationRegistry;
 import game.animation.core.PvzAnimationService;
+import models.core.plant.DefaultPlantRegistry;
 import models.core.plant.PlantType;
 import models.engine.session.GameSession;
 import models.level.core.Level;
+import models.minigame.ZombotanyGame;
 
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -89,6 +91,109 @@ public final class CompactSeedBank {
         drawCooldownShade(shapes, session, plants);
         drawCosts(batch, session, plants);
         drawBoostState(batch, session, plants, boostedPlant);
+    }
+
+    public void renderZombotany(
+        ShapeRenderer shapes,
+        Batch batch,
+        ZombotanyGame game,
+        float stateTime,
+        String selectedPlantName
+    ) {
+        if (shapes == null || batch == null || game == null) {
+            return;
+        }
+        List<ZombotanyGame.SeedOptionView> options = game.getSeedOptions();
+        if (options.isEmpty()) {
+            return;
+        }
+
+        shapes.begin(ShapeRenderer.ShapeType.Filled);
+        for (int index = 0; index < options.size() && index < MAX_VISIBLE_SLOTS; index++) {
+            ZombotanyGame.SeedOptionView option = options.get(index);
+            float y = staticSlotY(index);
+            boolean ready = option.remainingRechargeTicks() <= 0;
+            boolean selected = isSelected(option.plantName(), selectedPlantName);
+            shapes.setColor(selected ? SELECTED_BORDER : ready ? READY_BORDER : COOLDOWN_BORDER);
+            shapes.rect(BANK_X, y, SLOT_WIDTH, SLOT_HEIGHT);
+            shapes.setColor(SLOT_COLOR);
+            shapes.rect(
+                BANK_X + SLOT_INSET, y + SLOT_INSET,
+                SLOT_WIDTH - SLOT_INSET * 2f, SLOT_HEIGHT - SLOT_INSET * 2f
+            );
+        }
+        shapes.end();
+
+        batch.begin();
+        for (int index = 0; index < options.size() && index < MAX_VISIBLE_SLOTS; index++) {
+            ZombotanyGame.SeedOptionView option = options.get(index);
+            EntityAnimationProfile profile = profileForZombotany(option.plantName());
+            if (profile != null) {
+                String clip = profile.firstClip("idle", "play", "walk");
+                animations.draw(
+                    batch, profile.getPath(), clip, stateTime,
+                    BANK_X + SLOT_WIDTH * 0.50f,
+                    staticSlotY(index) + PLANT_Y_OFFSET,
+                    profile.getScale() * COMPACT_SCALE_MULTIPLIER, true
+                );
+            }
+        }
+        Color previousFontColor = new Color(font.getColor());
+        font.setColor(TEXT_COLOR);
+        for (int index = 0; index < options.size() && index < MAX_VISIBLE_SLOTS; index++) {
+            ZombotanyGame.SeedOptionView option = options.get(index);
+            font.draw(batch, String.valueOf(option.sunCost()),
+                BANK_X + SLOT_WIDTH - 28f, staticSlotY(index) + 19f);
+        }
+        font.setColor(previousFontColor);
+        batch.end();
+
+        shapes.begin(ShapeRenderer.ShapeType.Filled);
+        shapes.setColor(COOLDOWN_SHADE);
+        for (int index = 0; index < options.size() && index < MAX_VISIBLE_SLOTS; index++) {
+            ZombotanyGame.SeedOptionView option = options.get(index);
+            if (option.remainingRechargeTicks() <= 0) {
+                continue;
+            }
+            int total = Math.max(option.rechargeTicks(), option.remainingRechargeTicks());
+            float ratio = MathUtils.clamp(option.remainingRechargeTicks() / (float) Math.max(1, total), 0f, 1f);
+            float innerHeight = SLOT_HEIGHT - SLOT_INSET * 2f;
+            float darkHeight = innerHeight * ratio;
+            float brightHeight = innerHeight - darkHeight;
+            shapes.rect(
+                BANK_X + SLOT_INSET, staticSlotY(index) + SLOT_INSET + brightHeight,
+                SLOT_WIDTH - SLOT_INSET * 2f, darkHeight
+            );
+        }
+        shapes.end();
+    }
+
+    public String findZombotanyPlantAt(ZombotanyGame game, float x, float y) {
+        if (game == null || x < BANK_X || x > BANK_X + SLOT_WIDTH) {
+            return null;
+        }
+        List<ZombotanyGame.SeedOptionView> options = game.getSeedOptions();
+        for (int index = 0; index < options.size() && index < MAX_VISIBLE_SLOTS; index++) {
+            float slotY = staticSlotY(index);
+            if (y >= slotY && y <= slotY + SLOT_HEIGHT) {
+                return options.get(index).plantName();
+            }
+        }
+        return null;
+    }
+
+    private EntityAnimationProfile profileForZombotany(String plantName) {
+        EntityAnimationProfile cached = profiles.get(plantName);
+        if (cached != null) {
+            return cached;
+        }
+        PlantType type = DefaultPlantRegistry.getInstance().getByName(plantName);
+        EntityAnimationProfile profile = registry.forPlantType(type);
+        if (profile != null) {
+            animations.preload(profile.getPath());
+            profiles.put(plantName, profile);
+        }
+        return profile;
     }
 
     public String findPlantAt(GameSession session, float x, float y) {

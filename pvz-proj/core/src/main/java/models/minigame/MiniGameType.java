@@ -5,7 +5,9 @@ import java.util.Locale;
 public enum MiniGameType {
     VASEBREAKER("Vasebreaker"),
     WALLNUT_BOWLING("Wall-nut Bowling"),
-    I_ZOMBIE("I, Zombie");
+    I_ZOMBIE("I, Zombie"),
+    MATCH_THREE("Beghouled"),
+    PLANT_ZOMBIES("Zombotany");
 
     private final String displayName;
 
@@ -31,6 +33,16 @@ public enum MiniGameType {
                 || normalized.equals("izombie")
                 || normalized.equals("i, zombie")) {
             return I_ZOMBIE;
+        }
+        if (normalized.equals("match 3")
+                || normalized.equals("match three")
+                || normalized.equals("beghouled")) {
+            return MATCH_THREE;
+        }
+        if (normalized.equals("plant zombies")
+                || normalized.equals("plant zombie")
+                || normalized.equals("zombotany")) {
+            return PLANT_ZOMBIES;
         }
         return null;
     }

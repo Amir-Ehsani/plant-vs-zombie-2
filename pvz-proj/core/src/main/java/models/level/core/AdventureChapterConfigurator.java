@@ -56,6 +56,14 @@ public final class AdventureChapterConfigurator {
 
     private static void configureBigWaveBeach(Level level, int levelNumber) {
         level.bindSeasonType(SeasonType.BIG_WAVE_BEACH);
+        if (levelNumber == AdventureLevelCatalog.BOSS_LEVEL) {
+            for (int row = 1; row <= 5; row++) {
+                for (int column = 3; column <= 9; column++) {
+                    level.setTerrainTile(position(column, row), TileType.WATER);
+                }
+            }
+            return;
+        }
         for (int row = 1; row <= 5; row++) {
             level.setTerrainTile(position(8, row), TileType.WATER);
             level.setTerrainTile(position(9, row), TileType.WATER);
@@ -80,6 +88,13 @@ public final class AdventureChapterConfigurator {
 
     private static void configureDarkAges(Level level, int levelNumber) {
         level.bindSeasonType(SeasonType.DARK_AGES);
+        if (levelNumber == AdventureLevelCatalog.BOSS_LEVEL) {
+            for (int row = 1; row <= 5; row++) {
+                level.setTerrainTile(position(6, row), TileType.GRAVE);
+                level.setTerrainTile(position(7, row), TileType.GRAVE);
+            }
+            return;
+        }
         level.setTerrainTile(position(5, 1), TileType.SUN_GRAVE);
         level.setTerrainTile(position(6, 3), TileType.PLANT_FOOD_GRAVE);
         level.setTerrainTile(position(4, 5), TileType.GRAVE);

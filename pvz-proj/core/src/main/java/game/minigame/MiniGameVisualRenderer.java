@@ -8,6 +8,7 @@ import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Matrix4;
 import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.math.Vector2;
+import game.animation.core.AnimationDefinition;
 import game.animation.core.EntityAnimationProfile;
 import game.animation.core.EntityAnimationRegistry;
 import game.animation.core.PvzAnimationService;
@@ -17,16 +18,19 @@ import game.render.entity.EntityRenderSystem;
 import game.render.mower.LawnMowerRenderSystem;
 import game.render.projectile.ProjectileRenderSystem;
 import models.core.plant.DefaultPlantRegistry;
+import models.core.plant.Plant;
 import models.core.plant.PlantType;
 import models.engine.board.Board;
 import models.engine.board.Lane;
 import models.engine.board.Position;
 import models.level.core.SeasonType;
 import models.minigame.IZombieGame;
+import models.minigame.MatchThreeGame;
 import models.minigame.MiniGameSession;
 import models.minigame.MiniGameType;
 import models.minigame.VasebreakerGame;
 import models.minigame.WallNutBowlingGame;
+import models.minigame.ZombotanyGame;
 import ui.SeedPacketCatalog;
 
 import java.util.ArrayList;
@@ -50,9 +54,16 @@ public final class MiniGameVisualRenderer {
     private static final Color NUT_CARD = new Color(0.88f, 0.84f, 0.68f, 1f);
     private static final Color NUT_CARD_BORDER = new Color(0.18f, 0.34f, 0.15f, 1f);
     private static final Color NUT_SELECTED_BORDER = new Color(0.95f, 0.68f, 0.12f, 1f);
+    private static final Color MATCH_SELECTED_COLOR = new Color(1f, 0.72f, 0.12f, 0.38f);
+    private static final Color ZOMBOTANY_PEA_FALLBACK = new Color(0.35f, 0.75f, 0.18f, 1f);
 
     private static final String WALLNUT_PAM = "768/INITIAL/PLANT/WALLNUT/WALLNUT.PAM";
     private static final String EXPLODE_O_NUT_PAM = "768/INITIAL/PLANT/EXPLODEONUT/EXPLODEONUT.PAM";
+    private static final String UPGRADE_EFFECT_PAM =
+            "768/INITIAL/EFFECTS/COLLECTED_UPGRADE_EFFECT/COLLECTED_UPGRADE_EFFECT.PAM";
+    private static final String JALAPENO_FIRE_PAM =
+            "768/INITIAL/EFFECTS/JALAPENO_FIRE/JALAPENO_FIRE.PAM";
+    private static final float MATCH_UPGRADE_EFFECT_DURATION = 1.15f;
     private static final float CONVEYOR_X = 18f;
     private static final float CONVEYOR_TOP = 710f;
     private static final float CONVEYOR_WIDTH = 122f;
@@ -94,18 +105,26 @@ public final class MiniGameVisualRenderer {
     private final TextureRegion gargVaseBroken;
     private final TextureRegion vaseBreakFlashA;
     private final TextureRegion vaseBreakFlashB;
+    private final TextureRegion craterImage;
+    private final TextureRegion peaImage;
+    private final String peaProjectilePath;
+    private final String peaProjectileClip;
     private final Map<Integer, Rectangle> packetBounds;
     private final Map<Integer, Rectangle> sunDropBounds;
     private final List<BrokenVaseVisual> brokenVases;
     private final List<NutCardVisual> nutCards;
     private final Map<String, Integer> observedNutInventory;
     private final Map<Integer, SmoothNutVisual> smoothNuts;
+    private final Map<Integer, SmoothPeaVisual> smoothPeas;
     private final Map<Integer, Float> sunVisualAges;
     private final Map<Integer, Float> brainFadeTimes;
     private final Random nutRandom;
     private float backgroundCenterX;
     private float nutSpawnTimer;
     private String selectedNutType;
+    private Position selectedMatchTile;
+    private String upgradedMatchPlantName;
+    private float matchUpgradeEffectTime;
 
     public MiniGameVisualRenderer(
             MiniGameSession session,
@@ -122,7 +141,8 @@ public final class MiniGameVisualRenderer {
         this.entityRenderer = new EntityRenderSystem(
                 geometry,
                 animations,
-                !(session instanceof IZombieGame)
+                !(session instanceof IZombieGame),
+                session instanceof MatchThreeGame
         );
         this.plantAnimationRegistry = new EntityAnimationRegistry(animations.getCatalog());
         this.packetPlantProfiles = new LinkedHashMap<>();
@@ -146,19 +166,40 @@ public final class MiniGameVisualRenderer {
         gargVaseBroken = animations.region("IMAGE_VASEBREAKER_VASE_GARGANTUAR_VASE_GARGANTUAR_76X59");
         vaseBreakFlashA = animations.region("IMAGE_VASEBREAKER_VASE_BROWN_VASE_BROWN_293X263");
         vaseBreakFlashB = animations.region("IMAGE_VASEBREAKER_VASE_BROWN_VASE_BROWN_68X51");
+        craterImage = animations.region("IMAGE_EFFECTS_CRATER_CRATER_129X131");
+        peaImage = animations.region("IMAGE_EFFECTS_T_PEA_PROJECTILE_T_PEA_PROJECTILE_39X36");
+        AnimationDefinition peaProjectile = animations.getCatalog().findByName("T_PEA_PROJECTILE", null);
+        if (peaProjectile == null) {
+            peaProjectilePath = null;
+            peaProjectileClip = null;
+        } else {
+            peaProjectilePath = peaProjectile.getPath();
+            peaProjectileClip = peaProjectile.hasClip("animation")
+                    ? "animation"
+                    : peaProjectile.getClips().isEmpty()
+                    ? null
+                    : peaProjectile.getClips().iterator().next();
+            animations.preload(peaProjectilePath);
+        }
         packetBounds = new LinkedHashMap<>();
         sunDropBounds = new LinkedHashMap<>();
         brokenVases = new ArrayList<>();
         nutCards = new ArrayList<>();
         observedNutInventory = new LinkedHashMap<>();
         smoothNuts = new LinkedHashMap<>();
+        smoothPeas = new LinkedHashMap<>();
         sunVisualAges = new LinkedHashMap<>();
         brainFadeTimes = new LinkedHashMap<>();
         nutRandom = new Random(13_700L + session.getStage());
         nutSpawnTimer = NUT_SPAWN_INTERVAL;
         selectedNutType = null;
+        selectedMatchTile = null;
+        upgradedMatchPlantName = null;
+        matchUpgradeEffectTime = 0f;
         animations.preload(WALLNUT_PAM);
         animations.preload(EXPLODE_O_NUT_PAM);
+        animations.preload(UPGRADE_EFFECT_PAM);
+        animations.preload(JALAPENO_FIRE_PAM);
         updateBackgroundLayout();
     }
 
@@ -168,6 +209,12 @@ public final class MiniGameVisualRenderer {
         entityRenderer.update(delta, board);
         projectileRenderer.observe(board, session.getCurrentTick());
         projectileRenderer.update(delta);
+        if (matchUpgradeEffectTime > 0f) {
+            matchUpgradeEffectTime = Math.max(0f, matchUpgradeEffectTime - Math.max(0f, delta));
+            if (matchUpgradeEffectTime == 0f) {
+                upgradedMatchPlantName = null;
+            }
+        }
         if (session instanceof WallNutBowlingGame game) {
             mowerRenderer.update(delta, board);
             updateNutConveyor(delta, game);
@@ -175,6 +222,10 @@ public final class MiniGameVisualRenderer {
         } else if (session instanceof IZombieGame game) {
             updateSunVisuals(delta, game);
             updateBrainTransitions(delta, game);
+        } else if (session instanceof ZombotanyGame game) {
+            mowerRenderer.update(delta, board);
+            updateSmoothPeas(delta, game);
+            updateZombotanySunVisuals(delta, game);
         }
         Iterator<BrokenVaseVisual> iterator = brokenVases.iterator();
         while (iterator.hasNext()) {
@@ -192,10 +243,19 @@ public final class MiniGameVisualRenderer {
             drawConveyor(batch, stateTime);
         }
         drawBoardLines(shapes, hoveredTile);
-        if (session instanceof WallNutBowlingGame) {
+        if (session instanceof MatchThreeGame game) {
+            drawMatchThreeCraters(batch, shapes, game);
+        }
+        if (session instanceof WallNutBowlingGame || session instanceof ZombotanyGame) {
             mowerRenderer.render(batch, board());
         }
         entityRenderer.render(batch, board());
+        if (session instanceof ZombotanyGame game) {
+            drawZombotanyPlantHeads(batch, game, stateTime);
+        }
+        if (session instanceof MatchThreeGame game) {
+            drawMatchUpgradeEffect(batch, game);
+        }
         projectileRenderer.render(batch);
         drawSpecialEntities(batch, shapes, stateTime);
     }
@@ -233,6 +293,18 @@ public final class MiniGameVisualRenderer {
 
     public void setSelectedNutType(String selectedNutType) {
         this.selectedNutType = selectedNutType;
+    }
+
+    public void setSelectedMatchTile(Position selectedMatchTile) {
+        this.selectedMatchTile = selectedMatchTile;
+    }
+
+    public void startMatchUpgradeEffect(String plantName) {
+        if (plantName == null || plantName.isBlank()) {
+            return;
+        }
+        upgradedMatchPlantName = plantName;
+        matchUpgradeEffectTime = MATCH_UPGRADE_EFFECT_DURATION;
     }
 
     public void renderDraggedPacket(
@@ -288,7 +360,14 @@ public final class MiniGameVisualRenderer {
 
     private void drawBackground(Batch batch, ShapeRenderer shapes) {
         batch.begin();
-        boardRenderer.drawBackground(batch, backgroundLeft, background, backgroundRight, worldHeight, backgroundCenterX);
+        boardRenderer.drawBackground(
+                batch,
+                backgroundLeft,
+                background,
+                backgroundRight,
+                worldHeight,
+                backgroundCenterX
+        );
         batch.end();
         shapes.begin(ShapeRenderer.ShapeType.Filled);
         boardRenderer.drawBoardFill(shapes, background != null);
@@ -297,6 +376,11 @@ public final class MiniGameVisualRenderer {
 
     private void drawBoardLines(ShapeRenderer shapes, Position hoveredTile) {
         shapes.begin(ShapeRenderer.ShapeType.Filled);
+        if (selectedMatchTile != null) {
+            Rectangle tile = geometry.getTileBounds(selectedMatchTile.getY(), selectedMatchTile.getX());
+            shapes.setColor(MATCH_SELECTED_COLOR);
+            shapes.rect(tile.x, tile.y, tile.width, tile.height);
+        }
         if (hoveredTile != null) {
             Rectangle tile = geometry.getTileBounds(hoveredTile.getY(), hoveredTile.getX());
             shapes.setColor(HOVER_COLOR);
@@ -338,6 +422,185 @@ public final class MiniGameVisualRenderer {
         if (session instanceof IZombieGame game) {
             drawBrains(batch, shapes, game);
             drawSunDrops(batch, game, stateTime);
+            return;
+        }
+        if (session instanceof ZombotanyGame game) {
+            drawZombotanyLaneFire(batch, game, stateTime);
+            drawZombotanyPeas(batch, shapes, game);
+            drawZombotanySunDrops(batch, game, stateTime);
+        }
+    }
+
+    private void drawMatchThreeCraters(Batch batch, ShapeRenderer shapes, MatchThreeGame game) {
+        if (craterImage == null) {
+            shapes.begin(ShapeRenderer.ShapeType.Filled);
+            shapes.setColor(new Color(0.28f, 0.16f, 0.08f, 0.88f));
+            for (Position position : game.getCraters()) {
+                Rectangle tile = geometry.getTileBounds(position.getY(), position.getX());
+                shapes.ellipse(
+                        tile.x + tile.width * 0.12f,
+                        tile.y + tile.height * 0.20f,
+                        tile.width * 0.76f,
+                        tile.height * 0.50f
+                );
+            }
+            shapes.end();
+            return;
+        }
+        batch.begin();
+        for (Position position : game.getCraters()) {
+            Rectangle tile = geometry.getTileBounds(position.getY(), position.getX());
+            float height = tile.height * 0.76f;
+            float width = height * craterImage.getRegionWidth() / craterImage.getRegionHeight();
+            batch.draw(
+                    craterImage,
+                    tile.x + (tile.width - width) / 2f,
+                    tile.y + tile.height * 0.08f,
+                    width,
+                    height
+            );
+        }
+        batch.end();
+    }
+
+
+
+    private void drawMatchUpgradeEffect(Batch batch, MatchThreeGame game) {
+        if (matchUpgradeEffectTime <= 0f || upgradedMatchPlantName == null) {
+            return;
+        }
+        float elapsed = MATCH_UPGRADE_EFFECT_DURATION - matchUpgradeEffectTime;
+        float scale = 0.48f + 0.08f * (float) Math.sin(elapsed * 12f);
+        batch.begin();
+        for (Plant plant : game.getBoard().getAllPlants()) {
+            if (plant == null || !plant.isAlive()
+                    || !upgradedMatchPlantName.equalsIgnoreCase(plant.getName())) {
+                continue;
+            }
+            Vector2 position = geometry.entityToScreen(plant.getX(), plant.getY());
+            animations.draw(batch, UPGRADE_EFFECT_PAM, "idle", elapsed,
+                    position.x, position.y, scale, false);
+        }
+        batch.end();
+    }
+
+    private void drawZombotanyPlantHeads(Batch batch, ZombotanyGame game, float stateTime) {
+        batch.begin();
+        for (ZombotanyGame.PlantZombieView view : game.getPlantZombies()) {
+            String plantName = zombotanyPlantName(view.kind());
+            PlantType type = DefaultPlantRegistry.getInstance().getByName(plantName);
+            if (type == null) {
+                continue;
+            }
+            EntityAnimationProfile profile = packetPlantProfiles.computeIfAbsent(
+                    "zombotany:" + plantName, ignored -> plantAnimationRegistry.forPlantType(type));
+            if (profile == null) {
+                continue;
+            }
+            animations.preload(profile.getPath());
+            Vector2 position = geometry.entityToScreen(view.zombie().getX(), view.zombie().getY());
+            position.y += geometry.getTileHeight() * 0.43f;
+            String clip = profile.firstClip("idle", "idle2");
+            if (clip != null) {
+                animations.draw(batch, profile.getPath(), clip, stateTime,
+                        position.x, position.y, profile.getScale() * 0.60f, true);
+            }
+        }
+        batch.end();
+    }
+
+    private String zombotanyPlantName(String kind) {
+        String normalized = kind == null ? "" : kind.toLowerCase(Locale.ROOT);
+        if (normalized.contains("wall")) {
+            return "Wall-nut";
+        }
+        if (normalized.contains("jalapeno")) {
+            return "Jalapeno";
+        }
+        if (normalized.contains("squash")) {
+            return "Squash";
+        }
+        return "Peashooter";
+    }
+
+    private void drawZombotanyLaneFire(Batch batch, ZombotanyGame game, float stateTime) {
+        if (game.getBurningLanes().isEmpty()) {
+            return;
+        }
+        batch.begin();
+        for (Integer lane : game.getBurningLanes()) {
+            if (lane == null || lane < 1 || lane > BoardGeometry.ROWS) {
+                continue;
+            }
+            for (int column = 1; column <= BoardGeometry.COLUMNS; column++) {
+                Vector2 center = geometry.boardToScreen(lane, column);
+                animations.draw(
+                        batch,
+                        JALAPENO_FIRE_PAM,
+                        "idle2",
+                        stateTime,
+                        center.x,
+                        center.y,
+                        0.46f,
+                        true
+                );
+            }
+        }
+        batch.end();
+    }
+
+    private void drawZombotanyPeas(Batch batch, ShapeRenderer shapes, ZombotanyGame game) {
+        if (peaProjectilePath != null && peaProjectileClip != null) {
+            batch.begin();
+            for (SmoothPeaVisual pea : smoothPeas.values()) {
+                Vector2 position = geometry.entityToScreen(pea.x, pea.y);
+                position.y += geometry.getTileHeight() * 0.48f;
+                animations.draw(
+                        batch, peaProjectilePath, peaProjectileClip, pea.age,
+                        position.x, position.y, 0.56f, true
+                );
+            }
+            batch.end();
+            return;
+        }
+        if (peaImage != null) {
+            batch.begin();
+            for (SmoothPeaVisual pea : smoothPeas.values()) {
+                Vector2 position = geometry.entityToScreen(pea.x, pea.y);
+                position.y += geometry.getTileHeight() * 0.48f;
+                float height = 20f;
+                float width = height * peaImage.getRegionWidth() / peaImage.getRegionHeight();
+                batch.draw(peaImage, position.x - width / 2f, position.y - height / 2f, width, height);
+            }
+            batch.end();
+            return;
+        }
+        shapes.begin(ShapeRenderer.ShapeType.Filled);
+        shapes.setColor(ZOMBOTANY_PEA_FALLBACK);
+        for (SmoothPeaVisual pea : smoothPeas.values()) {
+            Vector2 position = geometry.entityToScreen(pea.x, pea.y);
+            position.y += geometry.getTileHeight() * 0.48f;
+            shapes.circle(position.x, position.y, 9f);
+        }
+        shapes.end();
+    }
+
+    private void updateSmoothPeas(float delta, ZombotanyGame game) {
+        Set<Integer> activeIds = new HashSet<>();
+        for (ZombotanyGame.PeaShotView shot : game.getPeaShots()) {
+            activeIds.add(shot.id());
+            smoothPeas.computeIfAbsent(shot.id(), ignored -> new SmoothPeaVisual(shot));
+        }
+
+        float safeDelta = Math.max(0f, delta);
+        Iterator<Map.Entry<Integer, SmoothPeaVisual>> iterator = smoothPeas.entrySet().iterator();
+        while (iterator.hasNext()) {
+            Map.Entry<Integer, SmoothPeaVisual> entry = iterator.next();
+            SmoothPeaVisual pea = entry.getValue();
+            pea.update(safeDelta);
+            if (!activeIds.contains(entry.getKey()) && pea.isFinished()) {
+                iterator.remove();
+            }
         }
     }
 
@@ -511,7 +774,9 @@ public final class MiniGameVisualRenderer {
         float rotation = (float) ((visualX - 1.0) * -180.0);
         Matrix4 original = new Matrix4(batch.getTransformMatrix());
         Matrix4 rotated = new Matrix4(original);
-        rotated.translate(position.x, position.y, 0f).rotate(0f, 0f, 1f, rotation).translate(-position.x, -position.y, 0f);
+        rotated.translate(position.x, position.y, 0f)
+                .rotate(0f, 0f, 1f, rotation)
+                .translate(-position.x, -position.y, 0f);
         batch.setTransformMatrix(rotated);
         boolean drawn = animations.draw(batch, path, "idle", stateTime, position.x, position.y, scale, true);
         batch.setTransformMatrix(original);
@@ -774,9 +1039,45 @@ public final class MiniGameVisualRenderer {
         batch.end();
     }
 
+    private void drawZombotanySunDrops(Batch batch, ZombotanyGame game, float stateTime) {
+        sunDropBounds.clear();
+        if (sunImage == null) {
+            return;
+        }
+        batch.begin();
+        for (ZombotanyGame.SunDropView drop : game.getSunDrops()) {
+            Vector2 basePosition = geometry.entityToScreen(drop.x(), drop.y());
+            float age = sunVisualAges.getOrDefault(drop.id(), 0f);
+            float fallProgress = MathUtils.clamp(age / SUN_FALL_DURATION, 0f, 1f);
+            float fallOffset = 210f * (1f - fallProgress) * (1f - fallProgress);
+            float bounce = fallProgress >= 0.78f && fallProgress < 1f
+                    ? 5f * (float) Math.sin((fallProgress - 0.78f) / 0.22f * Math.PI)
+                    : 0f;
+            float pulse = 1f + 0.05f * (float) Math.sin(stateTime * 7f + drop.id());
+            float size = SUN_BASE_SIZE * pulse;
+            float x = basePosition.x - size / 2f;
+            float y = basePosition.y + fallOffset - bounce - size / 2f;
+            Rectangle bounds = new Rectangle(x, y, size, size);
+            sunDropBounds.put(drop.id(), bounds);
+            batch.setColor(Color.WHITE);
+            batch.draw(sunImage, bounds.x, bounds.y, bounds.width, bounds.height);
+        }
+        batch.setColor(Color.WHITE);
+        batch.end();
+    }
+
     private void updateSunVisuals(float delta, IZombieGame game) {
         Set<Integer> activeIds = new HashSet<>();
         for (IZombieGame.SunDropView drop : game.getSunDrops()) {
+            activeIds.add(drop.id());
+            sunVisualAges.put(drop.id(), sunVisualAges.getOrDefault(drop.id(), 0f) + Math.max(0f, delta));
+        }
+        sunVisualAges.keySet().removeIf(id -> !activeIds.contains(id));
+    }
+
+    private void updateZombotanySunVisuals(float delta, ZombotanyGame game) {
+        Set<Integer> activeIds = new HashSet<>();
+        for (ZombotanyGame.SunDropView drop : game.getSunDrops()) {
             activeIds.add(drop.id());
             sunVisualAges.put(drop.id(), sunVisualAges.getOrDefault(drop.id(), 0f) + Math.max(0f, delta));
         }
@@ -836,7 +1137,13 @@ public final class MiniGameVisualRenderer {
         if (session instanceof WallNutBowlingGame game) {
             return game.getBoard();
         }
-        return ((IZombieGame) session).getBoard();
+        if (session instanceof IZombieGame game) {
+            return game.getBoard();
+        }
+        if (session instanceof MatchThreeGame game) {
+            return game.getBoard();
+        }
+        return ((ZombotanyGame) session).getBoard();
     }
 
     private String backgroundId(MiniGameType type) {
@@ -845,6 +1152,12 @@ public final class MiniGameVisualRenderer {
         }
         if (type == MiniGameType.I_ZOMBIE) {
             return "IMAGE_BACKGROUNDS_BACKGROUND_LOD_BIGBRAINZ_TEXTURE";
+        }
+        if (type == MiniGameType.MATCH_THREE) {
+            return "IMAGE_BACKGROUNDS_BACKGROUND_LOD_SUMMERNIGHTS_TEXTURE";
+        }
+        if (type == MiniGameType.PLANT_ZOMBIES) {
+            return "IMAGE_BACKGROUNDS_EGYPT_TEXTURE";
         }
         return "IMAGE_BACKGROUNDS_FRONTLAWN_TEXTURE";
     }
@@ -881,6 +1194,47 @@ public final class MiniGameVisualRenderer {
         private Rectangle bounds() {
             float x = CONVEYOR_X + (CONVEYOR_WIDTH - CONVEYOR_CARD_WIDTH) / 2f - 2f;
             return new Rectangle(x, y, CONVEYOR_CARD_WIDTH, CONVEYOR_CARD_HEIGHT);
+        }
+    }
+
+    private static final class SmoothPeaVisual {
+        private static final float TILES_PER_SECOND = 8.5f;
+        private static final float MIN_TRAVEL_SECONDS = 0.20f;
+        private static final float MAX_TRAVEL_SECONDS = 0.90f;
+
+        private final double startX;
+        private final double targetX;
+        private final double y;
+        private final float duration;
+        private float age;
+        private double x;
+
+        private SmoothPeaVisual(ZombotanyGame.PeaShotView shot) {
+            startX = shot.startX();
+            targetX = shot.targetX();
+            y = shot.y();
+            float distance = Math.max(0.5f, Math.abs((float) (targetX - startX)));
+            duration = MathUtils.clamp(
+                    distance / TILES_PER_SECOND, MIN_TRAVEL_SECONDS, MAX_TRAVEL_SECONDS
+            );
+            float modelProgress = 1f - shot.remainingTicks() / (float) Math.max(1, shot.totalTicks());
+            age = duration * MathUtils.clamp(modelProgress, 0f, 1f);
+            x = startX;
+            updatePosition();
+        }
+
+        private void update(float delta) {
+            age = Math.min(duration, age + delta);
+            updatePosition();
+        }
+
+        private void updatePosition() {
+            float progress = MathUtils.clamp(age / duration, 0f, 1f);
+            x = MathUtils.lerp((float) startX, (float) targetX, progress);
+        }
+
+        private boolean isFinished() {
+            return age >= duration;
         }
     }
 
