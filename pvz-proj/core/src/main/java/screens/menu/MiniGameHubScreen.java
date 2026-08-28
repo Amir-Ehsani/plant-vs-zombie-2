@@ -6,6 +6,7 @@ import com.badlogic.gdx.scenes.scene2d.ui.Table;
 import com.badlogic.gdx.utils.Align;
 import com.pvz.Main;
 import controllers.features.TravelLogController;
+import models.minigame.MiniGameType;
 import ui.BackButton;
 import ui.MenuButton;
 
@@ -40,14 +41,20 @@ public class MiniGameHubScreen extends BaseMenuScreen {
         panel.add(gameList).row();
         panel.add(new BackButton(skin, game.getScreenManager()::showQuests))
                 .width(180f).height(44f).padTop(12f);
-        root.add(panel).width(900f).height(540f);
+        root.add(panel).width(900f).height(650f);
     }
 
     private void refreshGames() {
         gameList.clearChildren();
-        gameList.defaults().pad(8f);
+        gameList.defaults().pad(6f);
+        int column = 0;
         for (TravelLogController.MiniGameInfo gameInfo : controller.getMiniGames()) {
-            gameList.add(createMiniGameCard(gameInfo)).width(250f).height(330f);
+            gameList.add(createMiniGameCard(gameInfo)).width(250f).height(245f);
+            column++;
+            if (column == 3) {
+                gameList.row();
+                column = 0;
+            }
         }
     }
 
@@ -76,6 +83,10 @@ public class MiniGameHubScreen extends BaseMenuScreen {
     }
 
     private void openMiniGame(String gameName, int stage) {
+        if (MiniGameType.fromText(gameName) == MiniGameType.PLANT_ZOMBIES) {
+            game.getScreenManager().showZombotanyPlantSelection(stage);
+            return;
+        }
         controller.enterMiniGame(gameName, stage);
         showControllerMessage(controller.getLastMessage());
         if (!controller.wasSuccessful()) {
