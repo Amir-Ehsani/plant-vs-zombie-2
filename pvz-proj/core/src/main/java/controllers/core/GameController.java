@@ -129,7 +129,7 @@ public class GameController extends GameControllerPlaySupport {
         }
         if (levelNumber == AdventureLevelCatalog.BOSS_LEVEL
                 && !AdventureLevelCatalog.isBossLevelAvailable(chapter)) {
-            fail("This chapter boss is handled outside P2-09 and is not available yet.");
+            fail("This chapter boss is not available.");
             return null;
         }
         if (!user.isChapterLevelUnlocked(chapter, levelNumber)) {

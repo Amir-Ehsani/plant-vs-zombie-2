@@ -48,11 +48,21 @@ public class ResourceBar extends Table {
     }
 
     public void showMiniGameResources() {
-        clearChildren();
-        Table content = new Table();
-        content.add(diamondsActor).width(112f).height(46f).padRight(8f);
-        content.add(sunActor).padLeft(4f);
-        add(content);
+        rebuildMiniGame(true, false, null, null, null);
+    }
+
+    public void showMiniGameCurrencies() {
+        rebuildMiniGame(false, false, null, null, null);
+    }
+
+    public void setMiniGameDebugControls(
+            boolean sunVisible,
+            boolean debugVisible,
+            Runnable addCoin,
+            Runnable addDiamond,
+            Runnable addSun
+    ) {
+        rebuildMiniGame(sunVisible, debugVisible, addCoin, addDiamond, addSun);
     }
 
     public void refreshMiniGame(User user, int sun) {
@@ -72,6 +82,31 @@ public class ResourceBar extends Table {
             Runnable addPlantFood
     ) {
         rebuild(true, visible, addCoin, addDiamond, addSun, addPlantFood);
+    }
+
+
+    private void rebuildMiniGame(
+            boolean sunVisible,
+            boolean debugVisible,
+            Runnable addCoin,
+            Runnable addDiamond,
+            Runnable addSun
+    ) {
+        clearChildren();
+        Table content = new Table();
+        content.add(coinsActor).width(112f).height(46f).padRight(8f);
+        content.add(diamondsActor).width(112f).height(46f);
+        if (sunVisible) {
+            content.add(sunActor).padLeft(10f);
+        }
+        if (debugVisible) {
+            addDebugButton(content, "+Coin", 92f, addCoin);
+            addDebugButton(content, "+Diamond", 110f, addDiamond);
+            if (sunVisible && addSun != null) {
+                addDebugButton(content, "+Sun", 84f, addSun);
+            }
+        }
+        add(content);
     }
 
     private void rebuild(

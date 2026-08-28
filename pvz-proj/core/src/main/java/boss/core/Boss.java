@@ -129,6 +129,11 @@ public final class Boss {
                 case CHARGE -> "walk_forward";
                 case ICE_MISSILE -> "slingshot";
                 case ICE_WIND, FREEZE_COLUMN -> idleClip;
+
+                case DARK_FIREBALLS -> "fire_bomb";
+                case DARK_FIRE_BREATH -> "fire_attack";
+                case BEACH_BABY_SHARKS -> "spawn";
+                case BEACH_TURBINE -> "suction_on";
                 default -> idleClip;
             };
             default -> idleClip;

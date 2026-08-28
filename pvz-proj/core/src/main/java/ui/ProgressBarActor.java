@@ -32,9 +32,13 @@ public class ProgressBarActor extends Table {
     }
 
     public void setTextColor(Color color) {
-        if (color != null) {
-            valueLabel.setColor(color);
+        if (color == null) {
+            return;
         }
+        Label.LabelStyle style = new Label.LabelStyle(valueLabel.getStyle());
+        style.fontColor = new Color(color);
+        valueLabel.setStyle(style);
+        valueLabel.setColor(Color.WHITE);
     }
 
     public void setValueText(String text) {

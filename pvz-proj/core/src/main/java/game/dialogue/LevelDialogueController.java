@@ -66,11 +66,19 @@ public final class LevelDialogueController {
         List<DialogueLine> outro = new ArrayList<>();
         if (victory) {
             outro.add(new DialogueLine("Zomboss", "Impossible! My brilliant plan was flawless!", ZOMBOSS_IMAGE));
-            outro.add(new DialogueLine("Zomboss", "Enjoy this victory. I will return with something much worse.", ZOMBOSS_IMAGE));
+            outro.add(new DialogueLine(
+                    "Zomboss",
+                    "Enjoy this victory. I will return with something much worse.",
+                    ZOMBOSS_IMAGE
+            ));
             outro.add(new DialogueLine("Crazy Dave", "Wabby wabbo! We did it!", DAVE_IMAGE));
         } else {
             outro.add(new DialogueLine("Zomboss", "Another lawn falls before my superior intellect.", ZOMBOSS_IMAGE));
-            outro.add(new DialogueLine("Penny", "We can retry. I have already recalculated our strategy.", PENNY_IMAGE));
+            outro.add(new DialogueLine(
+                    "Penny",
+                    "We can retry. I have already recalculated our strategy.",
+                    PENNY_IMAGE
+            ));
         }
         show(outro, onComplete);
         return true;
@@ -165,16 +173,59 @@ public final class LevelDialogueController {
         List<DialogueLine> result = new ArrayList<>();
         switch (type) {
             case VASEBREAKER -> {
-                result.add(new DialogueLine("Crazy Dave", "Vases! Smash 'em, see what pops out, then plant fast!", DAVE_IMAGE));
-                result.add(new DialogueLine("Penny", "Vasebreaker stage " + stage + ". Plant packets can be dragged onto open lawn tiles.", PENNY_IMAGE));
+                result.add(new DialogueLine(
+                        "Crazy Dave",
+                        "Vases! Smash 'em, see what pops out, then plant fast!",
+                        DAVE_IMAGE
+                ));
+                result.add(new DialogueLine(
+                        "Penny",
+                        "Vasebreaker stage " + stage
+                                + ". Plant packets can be dragged onto open lawn tiles.",
+                        PENNY_IMAGE
+                ));
             }
             case WALLNUT_BOWLING -> {
                 result.add(new DialogueLine("Crazy Dave", "Time to bowl some wall-nuts!", DAVE_IMAGE));
-                result.add(new DialogueLine("Penny", "Wall-nut Bowling stage " + stage + ". Drag a nut from the conveyor into a lane.", PENNY_IMAGE));
+                result.add(new DialogueLine(
+                        "Penny",
+                        "Wall-nut Bowling stage " + stage
+                                + ". Drag a nut from the conveyor into a lane.",
+                        PENNY_IMAGE
+                ));
             }
             case I_ZOMBIE -> {
                 result.add(new DialogueLine("Crazy Dave", "Whoa! This time WE'RE sending in the zombies!", DAVE_IMAGE));
-                result.add(new DialogueLine("Penny", "I, Zombie stage " + stage + ". Spend sun carefully and eat every brain.", PENNY_IMAGE));
+                result.add(new DialogueLine(
+                        "Penny",
+                        "I, Zombie stage " + stage
+                                + ". Spend sun carefully and eat every brain.",
+                        PENNY_IMAGE
+                ));
+            }
+            case MATCH_THREE -> {
+                result.add(new DialogueLine(
+                        "Crazy Dave",
+                        "Match plants! Smash zombies! It's two games at once!",
+                        DAVE_IMAGE
+                ));
+                result.add(new DialogueLine(
+                        "Penny",
+                        "Beghouled stage " + stage + ". Swap adjacent plants to make lines of three or more.",
+                        PENNY_IMAGE
+                ));
+            }
+            case PLANT_ZOMBIES -> {
+                result.add(new DialogueLine(
+                        "Crazy Dave",
+                        "Those zombies have PLANTS for heads!",
+                        DAVE_IMAGE
+                ));
+                result.add(new DialogueLine(
+                        "Penny",
+                        "Zombotany stage " + stage + ". Defend normally, but watch each plant-zombie ability.",
+                        PENNY_IMAGE
+                ));
             }
         }
         return result;
@@ -209,7 +260,8 @@ public final class LevelDialogueController {
 
     private String frostbitePennyLine(int level) {
         return switch (level) {
-            case 1 -> "Frost winds can raise a plant's freeze level. Frozen plants stop working until their ice breaks.";
+            case 1 -> "Frost winds can raise a plant's freeze level. "
+                    + "Frozen plants stop working until their ice breaks.";
             case 2 -> "Protect the marked plants and account for slippery ice tiles.";
             case 3 -> "Complete the objective before time expires while managing frost winds.";
             default -> "Frostbite conditions detected.";

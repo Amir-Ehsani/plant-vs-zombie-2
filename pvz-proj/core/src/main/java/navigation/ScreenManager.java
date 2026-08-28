@@ -19,6 +19,7 @@ import screens.menu.PlaceholderMenuScreen;
 import screens.menu.ProfileScreen;
 import screens.menu.RegisterScreen;
 import screens.menu.SettingsScreen;
+import screens.menu.ZombotanyPlantSelectionScreen;
 import screens.menu.ShopScreen;
 import screens.game.GameScreen;
 import screens.game.MiniGameScreen;
@@ -108,6 +109,10 @@ public class ScreenManager {
 
     public void showActiveMiniGame() {
         show(new MiniGameScreen(game));
+    }
+
+    public void showZombotanyPlantSelection(int stage) {
+        show(new ZombotanyPlantSelectionScreen(game, stage));
     }
 
     public void showAdventureMission(String chapterName, int levelNumber) {

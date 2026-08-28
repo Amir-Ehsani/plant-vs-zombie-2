@@ -110,6 +110,8 @@ abstract class TravelLogControllerData {
             case VASEBREAKER -> "vasebreaker";
             case WALLNUT_BOWLING -> "wallnut-bowling";
             case I_ZOMBIE -> "i-zombie";
+            case MATCH_THREE -> "match-3";
+            case PLANT_ZOMBIES -> "plant-zombies";
         };
     }
 

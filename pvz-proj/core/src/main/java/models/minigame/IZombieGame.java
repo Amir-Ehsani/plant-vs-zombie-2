@@ -174,6 +174,14 @@ public class IZombieGame extends MiniGameSession {
         return sunAmount;
     }
 
+    public void addDebugSun(int amount) {
+        if (amount <= 0) {
+            return;
+        }
+        sunAmount += amount;
+        success(amount + " debug sun added.");
+    }
+
     @Override
     protected void onTick() {
         updateSunDrops();

@@ -10,6 +10,7 @@ import models.engine.board.Position;
 import models.engine.board.Tile;
 import models.engine.board.TileType;
 import models.core.plant.Plant;
+import models.core.plant.PlantFactory;
 import models.engine.events.GameEvent;
 import models.level.rules.LevelRule;
 import models.level.rules.LevelRuntimeContext;
@@ -77,6 +78,7 @@ public class Level extends LevelState {
         appliedTerrainWaves.clear();
         applyTerrainLayout(board);
         applyTerrainChangesForTick(0);
+        placeBossStartingPlants();
         captureLowTidePositions();
         waveManager.bindBoard(board);
         spawnInitialTerrainZombies();
@@ -86,6 +88,30 @@ public class Level extends LevelState {
         }
         status = LevelStatus.RUNNING;
         evaluate(context);
+    }
+
+    private void placeBossStartingPlants() {
+        if (levelType != LevelType.BOSS || seasonType != SeasonType.BIG_WAVE_BEACH) {
+            return;
+        }
+        PlantFactory factory = new PlantFactory();
+        int waterColumn = firstWaterColumn();
+        for (int lane = 2; lane <= 4; lane++) {
+            Position position = new Position(waterColumn, lane);
+            Plant lilyPad = factory.createPlant("Lily Pad", position.getX(), position.getY());
+            board.placePlant(lilyPad, position);
+        }
+    }
+
+    private int firstWaterColumn() {
+        for (int column = 1; column <= board.getWidth(); column++) {
+            for (int lane = 1; lane <= board.getHeight(); lane++) {
+                if (board.getTileAt(new Position(column, lane)).getTileType() == TileType.WATER) {
+                    return column;
+                }
+            }
+        }
+        return 1;
     }
 
     public void startLevel() {

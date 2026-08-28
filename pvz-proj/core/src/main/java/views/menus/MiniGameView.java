@@ -37,6 +37,21 @@ public class MiniGameView extends BaseView {
             Pattern.CASE_INSENSITIVE
     );
 
+    private static final Pattern SWAP_MATCH_PATTERN = Pattern.compile(
+            "^swap\\s+plants\\s+-a\\s*" + LOCATION + "\\s+-b\\s*" + LOCATION + "\\s*$",
+            Pattern.CASE_INSENSITIVE
+    );
+
+    private static final Pattern UPGRADE_MATCH_PATTERN = Pattern.compile(
+            "^upgrade\\s+plant\\s+-t\\s+(.+?)\\s*$",
+            Pattern.CASE_INSENSITIVE
+    );
+
+    private static final Pattern PLANT_ZOMBOTANY_PATTERN = Pattern.compile(
+            "^plant\\s+-t\\s+(.+?)\\s+-l\\s*" + LOCATION + "\\s*$",
+            Pattern.CASE_INSENSITIVE
+    );
+
     private final MenuManager menuManager;
     private final TravelLogController controller;
 
@@ -96,6 +111,14 @@ public class MiniGameView extends BaseView {
         }
 
         if (handleIZombieCommand(command)) {
+            return;
+        }
+
+        if (handleMatchThreeCommand(command)) {
+            return;
+        }
+
+        if (handleZombotanyCommand(command)) {
             return;
         }
 
@@ -234,6 +257,50 @@ public class MiniGameView extends BaseView {
             controller.spawnIZombie(zombieType, position);
         }
 
+        printControllerMessage(controller.getLastMessage());
+        return true;
+    }
+
+    private boolean handleMatchThreeCommand(String command) {
+        Matcher swapMatcher = SWAP_MATCH_PATTERN.matcher(command);
+        if (swapMatcher.matches()) {
+            Position first = positionFromGroups(swapMatcher, 1, 2);
+            Position second = positionFromGroups(swapMatcher, 3, 4);
+            if (first == null || second == null) {
+                controller.invalidCommand("mini-game menu");
+            } else {
+                controller.swapMatchThreePlants(first, second);
+            }
+            printControllerMessage(controller.getLastMessage());
+            return true;
+        }
+
+        Matcher upgradeMatcher = UPGRADE_MATCH_PATTERN.matcher(command);
+        if (!upgradeMatcher.matches()) {
+            return false;
+        }
+        controller.upgradeMatchThreePlant(upgradeMatcher.group(1).trim());
+        printControllerMessage(controller.getLastMessage());
+        return true;
+    }
+
+    private boolean handleZombotanyCommand(String command) {
+        if ("show plants".equalsIgnoreCase(command)) {
+            printControllerMessage(controller.showZombotanyPlants());
+            return true;
+        }
+
+        Matcher matcher = PLANT_ZOMBOTANY_PATTERN.matcher(command);
+        if (!matcher.matches()) {
+            return false;
+        }
+        String plantType = matcher.group(1).trim();
+        Position position = positionFromGroups(matcher, 2, 3);
+        if (position == null) {
+            controller.invalidCommand("mini-game menu");
+        } else {
+            controller.plantZombotany(plantType, position);
+        }
         printControllerMessage(controller.getLastMessage());
         return true;
     }

@@ -107,6 +107,7 @@ public final class ZombieView extends EntityView<Zombie> {
         String clip = resolveClip(effects, board);
         lastClip = clip;
         Vector2 position = geometry.entityToScreen(visualX, visualY);
+        position.y += geometry.getTileHeight() * (float) entity.getVisualVerticalOffset();
         boolean reversed = isReversed(effects);
         float direction = reversed ? -1f : 1f;
         float renderX = position.x + eatingOffset(geometry, clip) * direction;
