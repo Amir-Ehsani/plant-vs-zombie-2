@@ -5,5 +5,9 @@ public enum BossAction {
     MOVE_LANES,
     SPAWN_ZOMBIES,
     MISSILE,
-    CHARGE
+    CHARGE,
+    DARK_FIREBALLS,
+    DARK_FIRE_BREATH,
+    BEACH_BABY_SHARKS,
+    BEACH_TURBINE
 }
