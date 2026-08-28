@@ -13,7 +13,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Random;
@@ -233,13 +232,11 @@ public final class BossRuntime {
 
     private void startRandomAction(int currentTick) {
         List<BossAction> choices = new ArrayList<>();
-        if (boss.isLaneChangesAllowed()) choices.add(BossAction.MOVE_LANES);
+        if (boss.isLaneChangesAllowed()) {
+            choices.add(BossAction.MOVE_LANES);
+        }
         if (boss.isZombieSpawnsAllowed() && !summonPool.isEmpty()) {
             choices.add(BossAction.SPAWN_ZOMBIES);
-            if (isDarkBoss() || isBeachBoss()) {
-                choices.add(BossAction.SPAWN_ZOMBIES);
-                choices.add(BossAction.SPAWN_ZOMBIES);
-            }
         }
         if (isEgyptBoss()) {
             choices.add(BossAction.MISSILE);
@@ -255,11 +252,11 @@ public final class BossRuntime {
             choices.add(BossAction.BEACH_BABY_SHARKS);
             choices.add(BossAction.BEACH_TURBINE);
         }
-        }
         if (choices.isEmpty()) {
             nextActionTick = currentTick + nextActionDelay();
             return;
         }
+
         BossAction action = choices.get(random.nextInt(choices.size()));
         switch (action) {
             case MOVE_LANES -> startLaneMove(currentTick);
@@ -365,6 +362,7 @@ public final class BossRuntime {
         frostFreezeResolveTick = currentTick + FROST_GLACIER_RESOLVE_TICKS;
         stateUntilTick = currentTick + FROST_GLACIER_ACTION_TICKS;
         boss.setState(BossState.ACTION, BossAction.FREEZE_COLUMN);
+    }
 
     private void startDarkFireballs(int currentTick) {
         clearActionState();
@@ -650,15 +648,6 @@ public final class BossRuntime {
             frozenZombieSpawns.remove(position);
         }
     }
-
-    private void resolveEgyptMissileImpact() {
-        if (board == null || actionTarget == null) {
-            return;
-        }
-        Tile target = board.getTileAt(actionTarget);
-        for (Plant plant : new ArrayList<>(target.getPlants())) {
-            if (plant != null && plant.isAlive()) {
-                plant.kill();
 
     private void updateDarkFireballs(int tick) {
         if (!specialImpactResolved && tick >= specialImpactTick) {
@@ -1172,6 +1161,7 @@ public final class BossRuntime {
     public int getFrostVisualVariant() { return frostVisualVariant; }
     public Map<Position, String> getPendingFrozenZombieSpawns() {
         return Collections.unmodifiableMap(new LinkedHashMap<>(frozenZombieSpawns));
+    }
 
     public int getSpecialImpactTick() { return specialImpactTick; }
     public int getSpecialResolveTick() { return specialResolveTick; }
