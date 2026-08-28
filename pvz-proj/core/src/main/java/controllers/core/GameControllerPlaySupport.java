@@ -105,13 +105,19 @@ abstract class GameControllerPlaySupport extends GameControllerDisplaySupport {
             fail("Plant is not selected.");
             return null;
         }
-        if (!isPlantUnlockedByUser(type.getName())) {
+        Level level = gameSession.getCurrentLevel();
+        if ((level == null || level.getLevelType() != LevelType.BOSS)
+                && !isPlantUnlockedByUser(type.getName())) {
             fail("Plant is locked in your collection.");
             return null;
         }
-        Level level = gameSession.getCurrentLevel();
         if (level != null && !level.isPlantAllowed(type.getName())) {
             fail("Plant is locked or unavailable in this level.");
+            return null;
+        }
+        if (level != null && level.getBossRuntime() != null
+                && level.getBossRuntime().isPlantingBlocked(position)) {
+            fail("This tile is burning and cannot be planted on yet.");
             return null;
         }
         return type;
