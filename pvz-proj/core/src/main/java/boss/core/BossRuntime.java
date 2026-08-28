@@ -233,13 +233,11 @@ public final class BossRuntime {
 
     private void startRandomAction(int currentTick) {
         List<BossAction> choices = new ArrayList<>();
-        if (boss.isLaneChangesAllowed()) choices.add(BossAction.MOVE_LANES);
+        if (boss.isLaneChangesAllowed()) {
+            choices.add(BossAction.MOVE_LANES);
+        }
         if (boss.isZombieSpawnsAllowed() && !summonPool.isEmpty()) {
             choices.add(BossAction.SPAWN_ZOMBIES);
-            if (isDarkBoss() || isBeachBoss()) {
-                choices.add(BossAction.SPAWN_ZOMBIES);
-                choices.add(BossAction.SPAWN_ZOMBIES);
-            }
         }
         if (isEgyptBoss()) {
             choices.add(BossAction.MISSILE);
@@ -255,11 +253,11 @@ public final class BossRuntime {
             choices.add(BossAction.BEACH_BABY_SHARKS);
             choices.add(BossAction.BEACH_TURBINE);
         }
-        }
         if (choices.isEmpty()) {
             nextActionTick = currentTick + nextActionDelay();
             return;
         }
+
         BossAction action = choices.get(random.nextInt(choices.size()));
         switch (action) {
             case MOVE_LANES -> startLaneMove(currentTick);
