@@ -277,7 +277,7 @@ public class AdventurePlantSelectionScreen extends BaseMenuScreen {
 
     private Table createSeedPacketChoice(PlantData data) {
         Table card = new Table();
-        Stack stack = createPacketStack(data.getName(), PACKET_WIDTH, PACKET_HEIGHT, 92f, 58f);
+        Stack stack = createPacketStack(data.getName(), PACKET_WIDTH, PACKET_HEIGHT, 115f, 72f);
         boolean locked = isPlantLockedForCurrentLevel(data.getName());
 
         Table overlay = new Table();
@@ -332,7 +332,7 @@ public class AdventurePlantSelectionScreen extends BaseMenuScreen {
                 packetHolder.bottom().left();
                 Image packet = new Image(new TextureRegionDrawable(packetRegion));
                 packet.setScaling(Scaling.fit);
-                packetHolder.add(packet).width(packetWidth).height(packetHeight).left().bottom();
+                packetHolder.add(packet).width(packetWidth).height(packetHeight).left().bottom().padBottom(8);
                 stack.add(packetHolder);
             } else {
                 Table fallback = new Table();
@@ -384,7 +384,7 @@ public class AdventurePlantSelectionScreen extends BaseMenuScreen {
         Label.LabelStyle style = new Label.LabelStyle(skin.get("secondary", Label.LabelStyle.class));
         style.font = skin.getFont("FBUSV8C6EI_3");
         Label label = new Label(String.valueOf(sunCost), style);
-        label.setColor(TEXT_COLOR);
+        label.setColor(Color.YELLOW);
         return label;
     }
 

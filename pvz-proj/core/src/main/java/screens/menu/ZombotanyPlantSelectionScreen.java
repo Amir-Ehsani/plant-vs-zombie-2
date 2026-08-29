@@ -314,7 +314,7 @@ public final class ZombotanyPlantSelectionScreen extends BaseMenuScreen {
         Label.LabelStyle style = new Label.LabelStyle(skin.get("secondary", Label.LabelStyle.class));
         style.font = skin.getFont("FBUSV8C6EI_3");
         Label label = new Label(String.valueOf(sunCost), style);
-        label.setColor(TEXT_COLOR);
+        label.setColor(Color.YELLOW);
         return label;
     }
 
