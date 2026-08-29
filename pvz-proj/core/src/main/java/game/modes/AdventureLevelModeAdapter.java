@@ -14,7 +14,6 @@ import models.engine.session.GameSession;
 import models.level.core.Level;
 import models.level.rules.LevelRuntimeContext;
 import models.level.rules.SpecialLevelType;
-import models.level.rules.TimedWarObjective;
 import models.level.rules.impl.DeadLineRule;
 import models.level.rules.impl.LoveYourPlantsRule;
 import models.level.rules.impl.SaveOurSeedsRule;
@@ -65,10 +64,10 @@ public final class AdventureLevelModeAdapter implements LevelModeAdapter {
         }
         hud = new Table();
         hud.setFillParent(true);
-        hud.top().left().padTop(66f).padLeft(320f);
+        hud.top().center().padTop(118f);
         modeLabel = new Label("", skin, "medium_outline");
         modeLabel.setColor(Color.WHITE);
-        hud.add(modeLabel).left();
+        hud.add(modeLabel).center();
         if (type == SpecialLevelType.PLANT_WHAT_YOU_GET) {
             startButton = new MenuButton("START", skin, "green", this::startZombieWaves);
             hud.add(startButton).width(150f).height(44f).padLeft(14f);
@@ -115,18 +114,21 @@ public final class AdventureLevelModeAdapter implements LevelModeAdapter {
     private String timedWarText(TimedWarRule rule) {
         LevelRuntimeContext context = createContext();
         float seconds = rule.getRemainingTicks(context) / TICKS_PER_SECOND;
-        int progress = rule.getProgress(context);
-        int target = rule.getTargetAmount();
-        String objective = rule.getObjective() == TimedWarObjective.ZOMBIE_KILLS
-                ? "Kill Objective" : "Sun Objective";
-        int percent = Math.min(100, Math.round(progress * 100f / target));
+        int kills = rule.getKillProgress(context);
+        int suns = rule.getSunProgress(context);
+        int killTarget = rule.getKillTarget();
+        int sunTarget = rule.getSunTarget();
+        int killPercent = killTarget <= 0 ? 100 : Math.min(100, kills * 100 / killTarget);
+        int sunPercent = sunTarget <= 0 ? 100 : Math.min(100, suns * 100 / sunTarget);
+        int percent = Math.min(killPercent, sunPercent);
         return String.format(
                 Locale.ROOT,
-                "Time Left: %.1fs | %s: %d/%d | Progress: %d%%",
+                "Time Left: %.1fs | Zombies: %d/%d | Sun: %d/%d | Progress: %d%%",
                 seconds,
-                objective,
-                progress,
-                target,
+                kills,
+                killTarget,
+                suns,
+                sunTarget,
                 percent
         );
     }
