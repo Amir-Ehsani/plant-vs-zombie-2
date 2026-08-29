@@ -11,7 +11,7 @@ import java.util.Locale;
 import java.util.Random;
 
 public class ConveyorBeltRule extends AbstractLevelRule {
-    private static final int DEFAULT_INTERVAL_TICKS = 120;
+    private static final int DEFAULT_INTERVAL_TICKS = 20;
 
     private final List<String> plantPool;
     private final List<String> conveyorPlants;
