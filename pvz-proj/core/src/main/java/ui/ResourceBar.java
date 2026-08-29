@@ -21,14 +21,8 @@ public class ResourceBar extends Table {
         TextureRegion diamondBackground = animations == null
                 ? null
                 : animations.region("IMAGE_UI_GENERIC_BUTTONS_PREMIUM_NORMAL");
-        TextureRegion coinIcon = animations == null
-                ? null
-                : animations.region("IMAGE_UI_THYMED_EVENTS_ECS_CONVRT_COIN");
-        TextureRegion diamondIcon = animations == null
-                ? null
-                : animations.region("IMAGE_EFFECTS_COIN_DIAMOND_COIN_DIAMOND_141X146");
-        coinsActor = new CurrencyActor(skin, "Coins", coinBackground, coinIcon);
-        diamondsActor = new CurrencyActor(skin, "Diamonds", diamondBackground, diamondIcon);
+        coinsActor = new CurrencyActor(skin, "Coins", coinBackground, null);
+        diamondsActor = new CurrencyActor(skin, "Diamonds", diamondBackground, null);
         sunActor = new CurrencyActor(skin, "Sun");
         plantFoodActor = new CurrencyActor(skin, "Plant Food");
         rebuild(false, false, null, null, null, null);
