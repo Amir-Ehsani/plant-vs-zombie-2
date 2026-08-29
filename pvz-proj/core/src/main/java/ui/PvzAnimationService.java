@@ -52,19 +52,28 @@ public class PvzAnimationService {
     public PamAnimationActor createZombieActor(ZombieType zombieType) {
         String pamPath = PvzAnimationCatalog.zombiePath(zombieType);
         PamAnimationActor actor = new PamAnimationActor(this, pamPath);
-        if (zombieType != null) {
-            String armor = normalize(zombieType.getDefaultArmorName());
-            if (armor.contains("cone")) {
-                actor.setArmorVisibilityTokens("armor1", "cone");
-            } else if (armor.contains("bucket")) {
-                actor.setArmorVisibilityTokens("armor2", "bucket");
-            }
-        }
+        applyArmorVisibility(actor, zombieType == null ? null : zombieType.getName(),
+                zombieType == null ? null : zombieType.getDefaultArmorName());
         return actor;
     }
 
     public PamAnimationActor createZombieActor(String zombieName) {
-        return new PamAnimationActor(this, PvzAnimationCatalog.zombiePath(zombieName));
+        PamAnimationActor actor = new PamAnimationActor(this, PvzAnimationCatalog.zombiePath(zombieName));
+        applyArmorVisibility(actor, zombieName, zombieName);
+        return actor;
+    }
+
+    private void applyArmorVisibility(PamAnimationActor actor, String zombieName, String armorName) {
+        if (actor == null) {
+            return;
+        }
+        String normalizedName = normalize(zombieName);
+        String normalizedArmor = normalize(armorName);
+        if (normalizedArmor.contains("cone") || normalizedName.contains("cone")) {
+            actor.setArmorVisibilityTokens("cone", "armor", "armor1", "helmet");
+        } else if (normalizedArmor.contains("bucket") || normalizedName.contains("bucket")) {
+            actor.setArmorVisibilityTokens("bucket", "armor", "armor2", "helmet");
+        }
     }
 
     public boolean isAvailable() {
