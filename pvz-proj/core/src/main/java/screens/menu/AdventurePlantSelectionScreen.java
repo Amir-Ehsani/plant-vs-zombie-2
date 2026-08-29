@@ -107,15 +107,15 @@ public class AdventurePlantSelectionScreen extends BaseMenuScreen {
         browser.add(detailPanel).width(820f).height(120f).padBottom(4f).row();
 
         plantGrid.top().left();
-        plantGrid.padRight(18f);
+        plantGrid.padRight(8f);
         plantGrid.defaults().pad(3f);
         ScrollPane scrollPane = new ScrollPane(plantGrid, skin);
         scrollPane.setFadeScrollBars(false);
         scrollPane.setOverscroll(false, false);
         scrollPane.setScrollingDisabled(true, false);
         scrollPane.setScrollbarsOnTop(false);
-        browser.add(scrollPane).width(832f).height(280f).padRight(8f);
-        body.add(browser).width(850f).height(410f).top().center();
+        browser.add(scrollPane).width(868f).height(280f);
+        body.add(browser).width(885f).height(410f).top().center();
 
         panel.add(body).width(1015f).height(410f).center().row();
 
