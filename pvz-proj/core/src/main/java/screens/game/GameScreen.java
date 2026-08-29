@@ -207,7 +207,8 @@ public final class GameScreen extends BaseScreen {
         chapterVisualRenderer = new ChapterVisualRenderer(
             session.getCurrentLevel(),
             boardGeometry,
-            animations
+            animations,
+            stage.getCamera()
         );
         interactions = new GameplayInteractionSystem(
             controller,
