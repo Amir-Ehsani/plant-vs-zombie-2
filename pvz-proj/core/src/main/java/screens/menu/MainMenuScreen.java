@@ -25,7 +25,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class MainMenuScreen extends BaseMenuScreen {
-    private static final Color SHORTCUT_TEXT_COLOR = Color.valueOf("FFFBEA");
+    private static final Color SHORTCUT_TEXT_COLOR = Color.WHITE;
     private final MainMenuController controller;
     private final PvzAnimationService animations;
     private Texture backgroundTexture;
@@ -273,11 +273,13 @@ public class MainMenuScreen extends BaseMenuScreen {
                 action.run();
             }
         });
-        Label label = new Label(title, skin, "secondary");
-        label.setColor(SHORTCUT_TEXT_COLOR);
+        Label.LabelStyle shortcutStyle = new Label.LabelStyle(skin.getFont("FBUSV8C6EI_3"), Color.WHITE);
+        Label label = new Label(title, shortcutStyle);
+        label.setColor(Color.WHITE);
+        label.setFontScale(1.12f);
         label.setAlignment(Align.center);
         shortcut.add(button).size(iconSize).center().row();
-        shortcut.add(label).width(106f).padTop(3f).center();
+        shortcut.add(label).width(132f).padTop(3f).center();
         return shortcut;
     }
 

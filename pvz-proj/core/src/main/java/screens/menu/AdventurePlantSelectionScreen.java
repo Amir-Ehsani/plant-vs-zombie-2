@@ -87,7 +87,7 @@ public class AdventurePlantSelectionScreen extends BaseMenuScreen {
         addResourceBar(root);
 
         Table panel = createPanel();
-        panel.pad(14f, 18f, 14f, 18f);
+        panel.pad(24f, 24f, 22f, 24f);
 
         Label screenTitle = createTitle("Choose Your Plants");
         screenTitle.setColor(TITLE_COLOR);
@@ -100,40 +100,33 @@ public class AdventurePlantSelectionScreen extends BaseMenuScreen {
         panel.add(selectionCount).padBottom(4f).row();
 
         Table body = new Table();
-        body.top();
-
-        Table selectedColumn = new Table();
-        selectedColumn.top();
-        Label selectedTitle = new Label("Selected", skin, "medium_outline");
-        selectedTitle.setColor(TITLE_COLOR);
-        selectedTitle.setAlignment(Align.center);
-        selectedColumn.add(selectedTitle).width(142f).padBottom(4f).row();
-        selectedColumn.add(selectedSlots).width(146f).top();
-        body.add(selectedColumn).width(150f).height(500f).top().padRight(10f);
+        body.top().center();
 
         Table browser = new Table();
         browser.top();
-        browser.add(detailPanel).width(820f).height(150f).padBottom(6f).row();
+        browser.add(detailPanel).width(820f).height(120f).padBottom(4f).row();
 
         plantGrid.top().left();
-        plantGrid.defaults().pad(4f);
+        plantGrid.padRight(8f);
+        plantGrid.defaults().pad(3f);
         ScrollPane scrollPane = new ScrollPane(plantGrid, skin);
         scrollPane.setFadeScrollBars(false);
         scrollPane.setOverscroll(false, false);
         scrollPane.setScrollingDisabled(true, false);
-        browser.add(scrollPane).width(840f).height(330f);
-        body.add(browser).width(850f).height(500f).top();
+        scrollPane.setScrollbarsOnTop(false);
+        browser.add(scrollPane).width(868f).height(280f);
+        body.add(browser).width(885f).height(410f).top().center();
 
-        panel.add(body).width(1015f).height(500f).row();
+        panel.add(body).width(1015f).height(410f).center().row();
 
         Table actions = new Table();
         actions.add(new BackButton(skin, () -> game.getScreenManager().showAdventureMission(chapterName, levelNumber)))
                 .width(180f).height(46f).padRight(14f);
         actions.add(new MenuButton("LET'S ROCK", skin, "purple", this::startLevel))
                 .width(220f).height(52f);
-        panel.add(actions).padTop(6f);
+        panel.add(actions).padTop(4f).padBottom(4f);
 
-        root.add(panel).width(1100f).height(650f);
+        root.add(panel).width(1100f).height(600f);
     }
 
     private boolean ensurePreparedLevel() {
@@ -143,7 +136,6 @@ public class AdventurePlantSelectionScreen extends BaseMenuScreen {
         }
         controller.prepareChapterLevel(chapterName, levelNumber);
         if (!controller.wasSuccessful()) {
-            showControllerMessage(controller.getLastMessage());
             game.getScreenManager().showAdventure();
             return false;
         }
@@ -169,7 +161,7 @@ public class AdventurePlantSelectionScreen extends BaseMenuScreen {
     private void rebuildSelectedSlots() {
         selectedSlots.clearChildren();
         selectedSlots.top();
-        selectedSlots.defaults().padBottom(3f);
+        selectedSlots.defaults().padBottom(6f);
         List<String> selected = selectedPlantNames();
         int selectionLimit = controller.getCurrentPlantSelectionLimit();
         int totalSlotCount = totalSelectionSlotCount();
@@ -241,7 +233,6 @@ public class AdventurePlantSelectionScreen extends BaseMenuScreen {
                 selected ? "brown" : "green_small",
                 () -> {
                     if (locked) {
-                        showControllerMessage("This seed packet is locked for this level.");
                         refreshAll();
                         return;
                     }
@@ -277,14 +268,13 @@ public class AdventurePlantSelectionScreen extends BaseMenuScreen {
 
     private Table createSeedPacketChoice(PlantData data) {
         Table card = new Table();
-        Stack stack = createPacketStack(data.getName(), PACKET_WIDTH, PACKET_HEIGHT, 92f, 58f);
+        Stack stack = createPacketStack(data.getName(), PACKET_WIDTH, PACKET_HEIGHT, 115f, 72f);
         boolean locked = isPlantLockedForCurrentLevel(data.getName());
 
         Table overlay = new Table();
         overlay.setFillParent(true);
         overlay.top().right();
-        Label cost = new Label(String.valueOf(resolveSunCost(data.getName())), skin, "secondary");
-        cost.setColor(TEXT_COLOR);
+        Label cost = createSunCostLabel(resolveSunCost(data.getName()));
         overlay.add(cost).padTop(6f).padRight(8f);
         stack.add(overlay);
 
@@ -306,7 +296,6 @@ public class AdventurePlantSelectionScreen extends BaseMenuScreen {
             public void clicked(InputEvent event, float x, float y) {
                 focusedPlantName = data.getName();
                 if (locked) {
-                    showControllerMessage("This seed packet is locked for this level.");
                     refreshAll();
                     return;
                 }
@@ -318,7 +307,7 @@ public class AdventurePlantSelectionScreen extends BaseMenuScreen {
 
     private Stack createPacketStack(String plantName, float width, float height, float packetWidth, float packetHeight) {
         Stack stack = new Stack();
-        TextureRegion backgroundRegion = game.getAnimationService().region("IMAGE_UI_PACKETS_SELECTED");
+        TextureRegion backgroundRegion = game.getAnimationService().region(packetBackgroundId(plantName));
         if (backgroundRegion != null) {
             Image background = new Image(backgroundRegion);
             background.setScaling(Scaling.fill);
@@ -333,7 +322,7 @@ public class AdventurePlantSelectionScreen extends BaseMenuScreen {
                 packetHolder.bottom().left();
                 Image packet = new Image(new TextureRegionDrawable(packetRegion));
                 packet.setScaling(Scaling.fit);
-                packetHolder.add(packet).width(packetWidth).height(packetHeight).left().bottom();
+                packetHolder.add(packet).width(packetWidth).height(packetHeight).left().bottom().padBottom(8);
                 stack.add(packetHolder);
             } else {
                 Table fallback = new Table();
@@ -351,7 +340,7 @@ public class AdventurePlantSelectionScreen extends BaseMenuScreen {
 
 
     private void addLockedOverlay(Stack stack, float width, float height) {
-        TextureRegion backgroundRegion = game.getAnimationService().region("IMAGE_UI_PACKETS_SELECTED");
+        TextureRegion backgroundRegion = game.getAnimationService().region("IMAGE_UI_PACKETS_HOMELESS");
         if (backgroundRegion != null) {
             Image dim = new Image(new TextureRegionDrawable(backgroundRegion));
             dim.setColor(LOCKED_DIM_COLOR);
@@ -375,6 +364,20 @@ public class AdventurePlantSelectionScreen extends BaseMenuScreen {
         stack.add(overlay);
     }
 
+    private String packetBackgroundId(String plantName) {
+        return plantName != null && !plantName.isBlank() && isSelected(plantName)
+                ? "IMAGE_UI_PACKETS_READY_PREMIUM"
+                : "IMAGE_UI_PACKETS_HOMELESS";
+    }
+
+    private Label createSunCostLabel(int sunCost) {
+        Label.LabelStyle style = new Label.LabelStyle(skin.getFont("FBUSV8C5EI_1_outline"), Color.WHITE);
+        Label label = new Label(String.valueOf(sunCost), style);
+        label.setColor(Color.YELLOW);
+        label.setFontScale(0.42f);
+        return label;
+    }
+
     private void togglePlant(String plantName) {
         if (isSelected(plantName)) {
             removePlant(plantName);
@@ -382,24 +385,20 @@ public class AdventurePlantSelectionScreen extends BaseMenuScreen {
         }
         int selectionLimit = controller.getCurrentPlantSelectionLimit();
         if (selectedPlantNames().size() >= selectionLimit) {
-            showControllerMessage("ERROR: You can select at most " + selectionLimit + " plants.");
             return;
         }
         controller.addPlantToSelection(plantName);
-        showControllerMessage(controller.getLastMessage());
         refreshAll();
     }
 
     private void removePlant(String plantName) {
         controller.removePlantFromSelection(plantName);
-        showControllerMessage(controller.getLastMessage());
         paidBoostNames.remove(normalize(plantName));
         refreshAll();
     }
 
     private void boostPlant(String plantName) {
         controller.boostPlant(plantName);
-        showControllerMessage(controller.getLastMessage());
         if (controller.wasSuccessful()) {
             paidBoostNames.add(normalize(plantName));
         }
@@ -408,18 +407,15 @@ public class AdventurePlantSelectionScreen extends BaseMenuScreen {
 
     private void upgradePlant(String plantName) {
         game.getCollectionController().upgradePlant(plantName);
-        showControllerMessage(game.getCollectionController().getLastMessage());
         refreshAll();
     }
 
     private void startLevel() {
         if (selectedPlantNames().isEmpty()) {
-            showControllerMessage("ERROR: Select at least one plant before starting the level.");
             return;
         }
         controller.startGame();
         if (!controller.wasSuccessful()) {
-            showControllerMessage(controller.getLastMessage());
             return;
         }
         game.getScreenManager().showPreparedGame();
@@ -435,7 +431,8 @@ public class AdventurePlantSelectionScreen extends BaseMenuScreen {
         }
         boolean debugMode = user.getSettings() != null && user.getSettings().isDebugMode();
         for (PlantData data : user.getCollection().getOwnedPlants()) {
-            if (data == null || !data.isUnlocked() || !isPlantVisibleInGrid(level, data.getName())) {
+            if (data == null || !data.isUnlocked() || isHiddenSelectionPlant(data.getName())
+                    || !isPlantVisibleInGrid(level, data.getName())) {
                 continue;
             }
             result.add(data);
@@ -444,6 +441,11 @@ public class AdventurePlantSelectionScreen extends BaseMenuScreen {
         return result;
     }
 
+
+    private boolean isHiddenSelectionPlant(String plantName) {
+        String normalized = normalize(plantName);
+        return normalized.equals("goo peashooter") || normalized.equals("rotobaga");
+    }
 
     private boolean isPlantVisibleInGrid(Level level, String plantName) {
         if (level == null || plantName == null || plantName.isBlank()) {

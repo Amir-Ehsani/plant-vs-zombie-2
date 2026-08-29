@@ -8,8 +8,11 @@ import com.badlogic.gdx.scenes.scene2d.Actor;
 import pvz.libpvz.pam.ClipRef;
 import pvz.libpvz.pam.PamPlayer;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 public class PamAnimationActor extends Actor {
     private final PvzAnimationService service;
@@ -22,6 +25,8 @@ public class PamAnimationActor extends Actor {
     private float stateTime;
     private boolean loading;
     private boolean failed;
+    private final List<String> armorVisibilityTokens;
+    private Map<String, Boolean> visibilityOverrides;
 
     public PamAnimationActor(PvzAnimationService service, String pamPath) {
         this.service = service;
@@ -33,6 +38,8 @@ public class PamAnimationActor extends Actor {
         stateTime = 0f;
         loading = false;
         failed = false;
+        armorVisibilityTokens = new ArrayList<>();
+        visibilityOverrides = Collections.emptyMap();
         setSize(120f, 120f);
     }
 
@@ -68,6 +75,18 @@ public class PamAnimationActor extends Actor {
         stateTime = 0f;
     }
 
+    public void setArmorVisibilityTokens(String... tokens) {
+        armorVisibilityTokens.clear();
+        if (tokens == null) {
+            return;
+        }
+        for (String token : tokens) {
+            if (token != null && !token.isBlank()) {
+                armorVisibilityTokens.add(token);
+            }
+        }
+    }
+
     private void startLoadingIfNeeded() {
         if (loading || failed || !isOnScreen() || !canLoad()) {
             return;
@@ -87,6 +106,7 @@ public class PamAnimationActor extends Actor {
             String clipName = chooseClip(player.clips(pamPath));
             clip = player.getClip(pamPath, clipName);
             bounds = player.bounds(pamPath, clipName);
+            visibilityOverrides = service.armorVisibility(pamPath, armorVisibilityTokens);
             failed = clip == null;
         } catch (RuntimeException exception) {
             clip = null;
@@ -144,7 +164,10 @@ public class PamAnimationActor extends Actor {
         batch.setTransformMatrix(workingTransform);
         float drawX = -(bounds.x + bounds.width / 2f);
         float drawY = -(bounds.y + bounds.height / 2f);
-        service.getPamPlayer().draw(batch, clip, stateTime, drawX, drawY, true);
+        service.getPamPlayer().draw(
+                batch, clip, stateTime, drawX, drawY, true,
+                visibilityOverrides == null || visibilityOverrides.isEmpty() ? null : visibilityOverrides
+        );
         batch.setTransformMatrix(originalTransform);
     }
 

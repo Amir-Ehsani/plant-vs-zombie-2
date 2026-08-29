@@ -74,7 +74,7 @@ public final class ZombotanyPlantSelectionScreen extends BaseMenuScreen {
         addResourceBar(root);
 
         Table panel = createPanel();
-        panel.pad(14f, 18f, 14f, 18f);
+        panel.pad(24f, 24f, 22f, 24f);
 
         Label title = createTitle("Choose Your Plants");
         title.setColor(TITLE_COLOR);
@@ -89,40 +89,33 @@ public final class ZombotanyPlantSelectionScreen extends BaseMenuScreen {
         panel.add(selectionCount).padBottom(4f).row();
 
         Table body = new Table();
-        body.top();
-
-        Table selectedColumn = new Table();
-        selectedColumn.top();
-        Label selectedTitle = new Label("Selected", skin, "medium_outline");
-        selectedTitle.setColor(TITLE_COLOR);
-        selectedTitle.setAlignment(Align.center);
-        selectedColumn.add(selectedTitle).width(142f).padBottom(4f).row();
-        selectedColumn.add(selectedSlots).width(146f).top();
-        body.add(selectedColumn).width(150f).height(500f).top().padRight(10f);
+        body.top().center();
 
         Table browser = new Table();
         browser.top();
-        browser.add(detailPanel).width(820f).height(150f).padBottom(6f).row();
+        browser.add(detailPanel).width(820f).height(120f).padBottom(4f).row();
 
         plantGrid.top().left();
-        plantGrid.defaults().pad(4f);
+        plantGrid.padRight(8f);
+        plantGrid.defaults().pad(3f);
         ScrollPane scrollPane = new ScrollPane(plantGrid, skin);
         scrollPane.setFadeScrollBars(false);
         scrollPane.setOverscroll(false, false);
         scrollPane.setScrollingDisabled(true, false);
-        browser.add(scrollPane).width(840f).height(330f);
-        body.add(browser).width(850f).height(500f).top();
+        scrollPane.setScrollbarsOnTop(false);
+        browser.add(scrollPane).width(868f).height(280f);
+        body.add(browser).width(885f).height(410f).top().center();
 
-        panel.add(body).width(1015f).height(500f).row();
+        panel.add(body).width(1015f).height(410f).center().row();
 
         Table actions = new Table();
         actions.add(new BackButton(skin, game.getScreenManager()::showMiniGames))
                 .width(180f).height(46f).padRight(14f);
         actions.add(new MenuButton("LET'S ROCK", skin, "purple", this::startGame))
                 .width(220f).height(52f);
-        panel.add(actions).padTop(6f);
+        panel.add(actions).padTop(4f).padBottom(4f);
 
-        root.add(panel).width(1100f).height(650f);
+        root.add(panel).width(1100f).height(600f);
     }
 
     private void refreshAll() {
@@ -144,7 +137,7 @@ public final class ZombotanyPlantSelectionScreen extends BaseMenuScreen {
     private void rebuildSelectedSlots() {
         selectedSlots.clearChildren();
         selectedSlots.top();
-        selectedSlots.defaults().padBottom(3f);
+        selectedSlots.defaults().padBottom(6f);
         List<String> selected = new ArrayList<>(selectedPlants);
         selectionCount.setText("Selected Plants: " + selected.size() + " / " + MAX_SELECTED_PLANTS);
         for (int index = 0; index < MAX_SELECTED_PLANTS; index++) {
@@ -243,8 +236,7 @@ public final class ZombotanyPlantSelectionScreen extends BaseMenuScreen {
         overlay.setFillParent(true);
         overlay.top().right();
         PlantType type = DefaultPlantRegistry.getInstance().getByName(data.getName());
-        Label cost = new Label(String.valueOf(type == null ? 0 : type.getSunCost()), skin, "secondary");
-        cost.setColor(TEXT_COLOR);
+        Label cost = createSunCostLabel(type == null ? 0 : type.getSunCost());
         overlay.add(cost).padTop(6f).padRight(8f);
         stack.add(overlay);
 
@@ -273,7 +265,7 @@ public final class ZombotanyPlantSelectionScreen extends BaseMenuScreen {
             String plantName, float width, float height, float packetWidth, float packetHeight
     ) {
         Stack stack = new Stack();
-        TextureRegion backgroundRegion = game.getAnimationService().region("IMAGE_UI_PACKETS_SELECTED");
+        TextureRegion backgroundRegion = game.getAnimationService().region(packetBackgroundId(plantName));
         if (backgroundRegion != null) {
             Image background = new Image(backgroundRegion);
             background.setScaling(Scaling.fill);
@@ -305,6 +297,20 @@ public final class ZombotanyPlantSelectionScreen extends BaseMenuScreen {
         return stack;
     }
 
+    private String packetBackgroundId(String plantName) {
+        return plantName != null && !plantName.isBlank() && isSelected(plantName)
+                ? "IMAGE_UI_PACKETS_READY_PREMIUM"
+                : "IMAGE_UI_PACKETS_HOMELESS";
+    }
+
+    private Label createSunCostLabel(int sunCost) {
+        Label.LabelStyle style = new Label.LabelStyle(skin.getFont("FBUSV8C5EI_1_outline"), Color.WHITE);
+        Label label = new Label(String.valueOf(sunCost), style);
+        label.setColor(Color.YELLOW);
+        label.setFontScale(0.42f);
+        return label;
+    }
+
     private void togglePlant(String plantName) {
         String existing = selectedName(plantName);
         if (existing != null) {
@@ -313,7 +319,6 @@ public final class ZombotanyPlantSelectionScreen extends BaseMenuScreen {
             return;
         }
         if (selectedPlants.size() >= MAX_SELECTED_PLANTS) {
-            showControllerMessage("ERROR: You can select at most " + MAX_SELECTED_PLANTS + " plants.");
             return;
         }
         selectedPlants.add(plantName);
@@ -322,17 +327,14 @@ public final class ZombotanyPlantSelectionScreen extends BaseMenuScreen {
 
     private void upgradePlant(String plantName) {
         game.getCollectionController().upgradePlant(plantName);
-        showControllerMessage(game.getCollectionController().getLastMessage());
         refreshAll();
     }
 
     private void startGame() {
         if (selectedPlants.isEmpty()) {
-            showControllerMessage("ERROR: Select at least one plant before starting Zombotany.");
             return;
         }
         controller.enterZombotanyMiniGame(miniGameStage, new ArrayList<>(selectedPlants));
-        showControllerMessage(controller.getLastMessage());
         if (controller.wasSuccessful()) {
             game.getScreenManager().showActiveMiniGame();
         }
@@ -345,12 +347,17 @@ public final class ZombotanyPlantSelectionScreen extends BaseMenuScreen {
             return result;
         }
         for (PlantData data : user.getCollection().getOwnedPlants()) {
-            if (data != null && data.isUnlocked()) {
+            if (data != null && data.isUnlocked() && !isHiddenSelectionPlant(data.getName())) {
                 result.add(data);
             }
         }
         result.sort((first, second) -> first.getName().compareToIgnoreCase(second.getName()));
         return result;
+    }
+
+    private boolean isHiddenSelectionPlant(String plantName) {
+        String normalized = normalize(plantName);
+        return normalized.equals("goo peashooter") || normalized.equals("rotobaga");
     }
 
     private PlantData findPlantData(String plantName) {

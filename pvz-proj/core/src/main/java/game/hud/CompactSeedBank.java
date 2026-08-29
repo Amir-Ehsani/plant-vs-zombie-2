@@ -28,7 +28,7 @@ import java.util.function.Predicate;
 
 public final class CompactSeedBank {
     private static final float BANK_X = 18f;
-    private static final float BANK_TOP = 710f;
+    private static final float BANK_TOP = 654f;
     private static final float SLOT_WIDTH = 122f;
     private static final float CONVEYOR_SLOT_WIDTH = 104f;
     private static final float CONVEYOR_BELT_WIDTH = 122f;

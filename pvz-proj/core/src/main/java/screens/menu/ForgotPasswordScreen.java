@@ -83,7 +83,6 @@ public class ForgotPasswordScreen extends BaseMenuScreen {
         questionLabel.setText(stripPrefix(controller.getLastMessage()));
         answerField.setDisabled(false);
         answerButton.setDisabled(false);
-        NotificationManager.showSuccess("Account found.");
     }
 
     private void verifyAnswer() {
