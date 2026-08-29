@@ -70,7 +70,11 @@ public class ShopScreen extends BaseMenuScreen {
         addResourceBar(root);
         Table panel = createPanel();
         panel.pad(18f, 20f, 16f, 20f);
-        panel.add(createTitle("Shop")).padTop(22f).padBottom(4f).row();
+        Image topFrame = createTopFrame();
+        if (topFrame != null) {
+            panel.add(topFrame).width(420f).height(88f).padTop(4f).padBottom(-16f).row();
+        }
+        panel.add(createTitle("Shop")).padTop(14f).padBottom(4f).row();
         panel.add(createHeaderNote()).padBottom(12f).row();
         Table navigation = new Table();
         navigation.add(new MenuButton("Greenhouse", skin, "green", game.getScreenManager()::showGreenhouse))
@@ -98,6 +102,16 @@ public class ShopScreen extends BaseMenuScreen {
         background.setBounds(0f, 0f, WORLD_WIDTH, WORLD_HEIGHT);
         background.setScaling(Scaling.fill);
         stage.addActor(background);
+    }
+
+    private Image createTopFrame() {
+        TextureRegion region = animations.region("IMAGE_UI_IF_BUNDLE_IF_QUICK_STORE_TOP_FRAME");
+        if (region == null) {
+            return null;
+        }
+        Image image = new Image(region);
+        image.setScaling(Scaling.fit);
+        return image;
     }
 
     private Label createHeaderNote() {
