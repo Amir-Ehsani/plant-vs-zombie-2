@@ -3,6 +3,7 @@ package game.animation.core;
 import models.core.plant.Plant;
 import models.core.plant.PlantType;
 import models.core.zombie.Zombie;
+import models.level.core.SeasonType;
 
 import java.util.LinkedHashMap;
 import java.util.Locale;
@@ -47,16 +48,54 @@ public final class EntityAnimationRegistry {
     }
 
     public EntityAnimationProfile forZombie(Zombie zombie) {
+        return forZombie(zombie, null);
+    }
+
+    public EntityAnimationProfile forZombie(Zombie zombie, SeasonType seasonType) {
         if (zombie == null || zombie.getType() == null) {
             return null;
         }
         String id = zombie.getType().getId();
-        String animationName = zombieAliases.getOrDefault(id, zombie.getName());
+        String animationName = seasonalZombieAnimation(id, seasonType);
+        if (animationName == null) {
+            animationName = zombieAliases.getOrDefault(id, zombie.getName());
+        }
         AnimationDefinition definition = catalog.findByName(animationName, ZOMBIE_PATH);
         if (definition == null) {
             return null;
         }
         return new EntityAnimationProfile(definition, zombieScale(zombie));
+    }
+
+    private String seasonalZombieAnimation(String id, SeasonType seasonType) {
+        if (seasonType == null || id == null) {
+            return null;
+        }
+        if (id.equals("ZombieDefault") || id.equals("ZombieArmor1") || id.equals("ZombieArmor2")) {
+            return switch (seasonType) {
+                case ANCIENT_EGYPT -> "ZOMBIE_EGYPT_BASIC";
+                case FROSTBITE_CAVES -> "ZOMBIE_ICEAGE_BASIC";
+                case BIG_WAVE_BEACH -> "ZOMBIE_BEACH_BASIC";
+                case DARK_AGES -> "ZOMBIE_DARK_BASIC";
+            };
+        }
+        if (id.equals("ZombieGargantuar")) {
+            return switch (seasonType) {
+                case ANCIENT_EGYPT -> "EGYPT_GARGANTUAR";
+                case FROSTBITE_CAVES -> "ZOMBIE_ICEAGE_GARGANTUAR";
+                case BIG_WAVE_BEACH -> "BEACH_GARGANTUAR";
+                case DARK_AGES -> "DARK_GARGANTUAR";
+            };
+        }
+        if (id.equals("ZombieImp")) {
+            return switch (seasonType) {
+                case ANCIENT_EGYPT -> "ZOMBIE_EGYPT_IMP";
+                case FROSTBITE_CAVES -> "ZOMBIE_ICEAGE_IMP";
+                case BIG_WAVE_BEACH -> "ZOMBIE_BEACH_IMP_MERMAID";
+                case DARK_AGES -> "ZOMBIE_DARK_IMP_MONK";
+            };
+        }
+        return null;
     }
 
     private void initializePlantAliases() {
