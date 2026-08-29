@@ -305,7 +305,13 @@ public class AdventurePlantSelectionScreen extends BaseMenuScreen {
         return card;
     }
 
-    private Stack createPacketStack(String plantName, float width, float height, float packetWidth, float packetHeight) {
+    private Stack createPacketStack(
+            String plantName,
+            float width,
+            float height,
+            float packetWidth,
+            float packetHeight
+    ) {
         Stack stack = new Stack();
         TextureRegion backgroundRegion = game.getAnimationService().region(packetBackgroundId(plantName));
         if (backgroundRegion != null) {
@@ -355,7 +361,11 @@ public class AdventurePlantSelectionScreen extends BaseMenuScreen {
         if (lockRegion != null) {
             Image lock = new Image(new TextureRegionDrawable(lockRegion));
             lock.setScaling(Scaling.fit);
-            overlay.add(lock).width(Math.min(width * 0.34f, 44f)).height(Math.min(height * 0.68f, 50f)).padBottom(2f).row();
+            overlay.add(lock)
+                    .width(Math.min(width * 0.34f, 44f))
+                    .height(Math.min(height * 0.68f, 50f))
+                    .padBottom(2f)
+                    .row();
         }
         Label locked = new Label("LOCKED", skin, "secondary");
         locked.setColor(TITLE_COLOR);
@@ -429,7 +439,6 @@ public class AdventurePlantSelectionScreen extends BaseMenuScreen {
         if (user == null || level == null) {
             return result;
         }
-        boolean debugMode = user.getSettings() != null && user.getSettings().isDebugMode();
         for (PlantData data : user.getCollection().getOwnedPlants()) {
             if (data == null || !data.isUnlocked() || isHiddenSelectionPlant(data.getName())
                     || !isPlantVisibleInGrid(level, data.getName())) {
@@ -444,7 +453,7 @@ public class AdventurePlantSelectionScreen extends BaseMenuScreen {
 
     private boolean isHiddenSelectionPlant(String plantName) {
         String normalized = normalize(plantName);
-        return normalized.equals("goo peashooter") || normalized.equals("rotobaga");
+        return normalized.equals("goo peashooter");
     }
 
     private boolean isPlantVisibleInGrid(Level level, String plantName) {
