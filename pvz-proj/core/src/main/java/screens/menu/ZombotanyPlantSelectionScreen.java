@@ -311,10 +311,10 @@ public final class ZombotanyPlantSelectionScreen extends BaseMenuScreen {
     }
 
     private Label createSunCostLabel(int sunCost) {
-        Label.LabelStyle style = new Label.LabelStyle(skin.get("secondary", Label.LabelStyle.class));
-        style.font = skin.getFont("FBUSV8C6EI_3");
+        Label.LabelStyle style = new Label.LabelStyle(skin.getFont("FBUSV8C6EI_3"), Color.WHITE);
         Label label = new Label(String.valueOf(sunCost), style);
         label.setColor(Color.YELLOW);
+        label.setFontScale(1.75f);
         return label;
     }
 
