@@ -20,6 +20,7 @@ import com.badlogic.gdx.scenes.scene2d.ui.Image;
 import com.badlogic.gdx.scenes.scene2d.ui.ImageButton;
 import com.badlogic.gdx.scenes.scene2d.ui.Label;
 import com.badlogic.gdx.scenes.scene2d.ui.ScrollPane;
+import com.badlogic.gdx.scenes.scene2d.ui.Stack;
 import com.badlogic.gdx.scenes.scene2d.ui.Table;
 import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
 import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable;
@@ -81,7 +82,6 @@ public final class GameScreen extends BaseScreen {
     private static final float BOARD_LEFT_RATIO = BOARD_X / WORLD_WIDTH;
     private static final float BOARD_WIDTH_RATIO = BOARD_WIDTH / WORLD_WIDTH;
     private static final float TICK_SECONDS = 0.1f;
-    private static final float DEBUG_WAVE_PROGRESS_OFFSET = 72f;
     private static final String SHOVEL_BUTTON_ID = "IMAGE_UI_HUD_INGAME_SHOVEL_BUTTON";
     private static final String SHOVEL_BUTTON_DOWN_ID = "IMAGE_UI_HUD_INGAME_SHOVEL_BUTTON_DOWN";
 
@@ -100,7 +100,7 @@ public final class GameScreen extends BaseScreen {
     private final Label statusLabel;
     private final ResourceBar resourceBar;
     private Label sunValueLabel;
-    private Label plantFoodValueLabel;
+    private final Image[] plantFoodSlotIcons;
     private final Table plantCardsTable;
     private final Map<String, PlantCard> gameplayPlantCards;
     private final EntityRenderSystem entityRenderSystem;
@@ -124,6 +124,7 @@ public final class GameScreen extends BaseScreen {
     private TextureRegion backgroundLeft;
     private TextureRegion backgroundRight;
     private TextureRegion plantFoodDropRegion;
+    private TextureRegion plantFoodSlotBackgroundRegion;
     private float backgroundCenterX;
     private Position hoveredTile;
     private float hudRefreshAccumulator;
@@ -156,6 +157,8 @@ public final class GameScreen extends BaseScreen {
         boardRenderer = new BoardRenderer(boardGeometry);
         animations = new PvzAnimationService();
         plantFoodDropRegion = animations.region("IMAGE_UI_ALMANAC_ALMANAC_STAT_ICON_PLANTFOOD_LARGE");
+        plantFoodSlotIcons = new Image[3];
+        plantFoodSlotBackgroundRegion = animations.region("IMAGE_UI_POWERUPS_POWERUP_FRAME");
         gameplayClock = new GameplayClock(controller);
         gameplayClock.setGameSpeed(resolveInitialGameSpeed());
         statusLabel = new Label("", game.getSkin());
@@ -428,20 +431,35 @@ public final class GameScreen extends BaseScreen {
         Table plantFoodControls = new Table();
         plantFoodControls.setFillParent(true);
         plantFoodControls.bottom().left().padLeft(225f).padBottom(14f);
-        plantFoodControls.add(createPlantFoodCounter()).width(116f).height(52f);
+        plantFoodControls.add(createPlantFoodCounter()).width(190f).height(57f);
         stage.addActor(plantFoodControls);
     }
 
-    private Table createPlantFoodCounter() {
-        Table counter = new Table();
-        TextureRegion sproutRegion = game.getAnimationService().region("IMAGE_UI_HUD_INGAME_SPROUT_ICON");
-        if (sproutRegion != null) {
-            Image sprout = new Image(sproutRegion);
-            sprout.setScaling(Scaling.fit);
-            counter.add(sprout).size(52f).padRight(5f);
+    private Stack createPlantFoodCounter() {
+        Stack counter = new Stack();
+
+        if (plantFoodSlotBackgroundRegion != null) {
+            Image backgroundImage = new Image(plantFoodSlotBackgroundRegion);
+            backgroundImage.setScaling(Scaling.fill);
+            counter.add(backgroundImage);
         }
-        plantFoodValueLabel = createGameplayResourceLabel("0/3");
-        counter.add(plantFoodValueLabel).width(54f).center();
+
+        TextureRegion plantFoodRegion = game.getAnimationService().region(
+                "IMAGE_UI_ALMANAC_ALMANAC_STAT_ICON_PLANTFOOD_LARGE"
+        );
+        Table slots = new Table();
+        slots.setFillParent(true);
+        slots.top().left();
+        slots.padLeft(14f).padRight(14f).padTop(1f).padBottom(15f);
+        for (int index = 0; index < plantFoodSlotIcons.length; index++) {
+            Image icon = plantFoodRegion == null ? new Image() : new Image(plantFoodRegion);
+            icon.setScaling(Scaling.fit);
+            icon.setVisible(false);
+            plantFoodSlotIcons[index] = icon;
+            slots.add(icon).expandX().size(42f).top();
+        }
+        counter.add(slots);
+
         counter.setTouchable(Touchable.enabled);
         counter.addListener(new ClickListener() {
             @Override
@@ -635,8 +653,11 @@ public final class GameScreen extends BaseScreen {
         if (sunValueLabel != null) {
             sunValueLabel.setText(String.valueOf(session.getTotalSunAmount()));
         }
-        if (plantFoodValueLabel != null) {
-            plantFoodValueLabel.setText(session.getPlantFoodCount() + "/3");
+        int plantFoodCount = Math.max(0, Math.min(plantFoodSlotIcons.length, session.getPlantFoodCount()));
+        for (int index = 0; index < plantFoodSlotIcons.length; index++) {
+            if (plantFoodSlotIcons[index] != null) {
+                plantFoodSlotIcons[index].setVisible(index < plantFoodCount);
+            }
         }
         refreshGameplayPlantCards();
     }
@@ -852,12 +873,11 @@ public final class GameScreen extends BaseScreen {
     }
 
     private void drawWaveProgress() {
-        float waveHudHeight = WORLD_HEIGHT - (isDebugMode() ? DEBUG_WAVE_PROGRESS_OFFSET : 0f);
         batch.begin();
         if (bossHealthHud != null) {
-            bossHealthHud.render(batch, WORLD_WIDTH, waveHudHeight);
+            bossHealthHud.render(batch, WORLD_WIDTH, WORLD_HEIGHT);
         } else {
-            waveProgressHud.render(batch, session, WORLD_WIDTH, waveHudHeight);
+            waveProgressHud.render(batch, session, WORLD_WIDTH, WORLD_HEIGHT);
         }
         batch.end();
     }
