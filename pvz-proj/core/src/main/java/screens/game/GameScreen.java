@@ -5,6 +5,7 @@ import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
 import com.badlogic.gdx.InputAdapter;
 import com.badlogic.gdx.InputMultiplexer;
+import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
@@ -13,13 +14,17 @@ import com.badlogic.gdx.math.Matrix4;
 import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.scenes.scene2d.InputEvent;
+import com.badlogic.gdx.scenes.scene2d.Touchable;
 import com.badlogic.gdx.scenes.scene2d.ui.Button;
+import com.badlogic.gdx.scenes.scene2d.ui.Image;
 import com.badlogic.gdx.scenes.scene2d.ui.ImageButton;
 import com.badlogic.gdx.scenes.scene2d.ui.Label;
 import com.badlogic.gdx.scenes.scene2d.ui.ScrollPane;
 import com.badlogic.gdx.scenes.scene2d.ui.Table;
 import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
 import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable;
+import com.badlogic.gdx.utils.Align;
+import com.badlogic.gdx.utils.Scaling;
 import com.pvz.Main;
 import controllers.core.GameController;
 import controllers.features.SettingsController;
@@ -94,6 +99,8 @@ public final class GameScreen extends BaseScreen {
     private final GameplayClock gameplayClock;
     private final Label statusLabel;
     private final ResourceBar resourceBar;
+    private Label sunValueLabel;
+    private Label plantFoodValueLabel;
     private final Table plantCardsTable;
     private final Map<String, PlantCard> gameplayPlantCards;
     private final EntityRenderSystem entityRenderSystem;
@@ -334,15 +341,59 @@ public final class GameScreen extends BaseScreen {
     }
 
     private void buildHud() {
-        Table hud = new Table();
-        hud.setFillParent(true);
-        hud.top().pad(10f);
-        statusLabel.setWrap(true);
-        statusLabel.setVisible(isDebugMode());
-        hud.add(statusLabel).width(460f).left().top().expandX().fillX();
-        hud.add(createPauseButton()).size(54f).padRight(8f).top();
-        hud.add(resourceBar).right().top();
-        stage.addActor(hud);
+        statusLabel.setVisible(false);
+
+        Table topLeft = new Table();
+        topLeft.setFillParent(true);
+        topLeft.top().left().padTop(10f).padLeft(12f);
+        topLeft.add(createSunCounter()).width(150f).height(50f);
+        stage.addActor(topLeft);
+
+        Table topRight = new Table();
+        topRight.setFillParent(true);
+        topRight.top().right().padTop(10f).padRight(10f);
+        topRight.add(resourceBar).right().top().padRight(8f);
+        topRight.add(createPauseButton()).size(54f).top();
+        stage.addActor(topRight);
+    }
+
+    private Table createSunCounter() {
+        Table counter = new Table();
+        TextureRegion backgroundRegion = game.getAnimationService().region(
+                "IMAGE_UI_GENERIC_BUTTON_GENERIC_CURRENCY_NORMAL"
+        );
+        if (backgroundRegion != null) {
+            counter.setBackground(new TextureRegionDrawable(backgroundRegion));
+        }
+        TextureRegion sunRegion = game.getAnimationService().region("IMAGE_UI_HUD_INGAME_SUN_DOWN");
+        if (sunRegion != null) {
+            Image sunIcon = new Image(sunRegion);
+            sunIcon.setScaling(Scaling.fit);
+            counter.add(sunIcon).size(38f).padLeft(6f).padRight(5f);
+        }
+        sunValueLabel = createGameplayResourceLabel("0");
+        counter.add(sunValueLabel).expandX().center().padRight(10f);
+        counter.setTouchable(Touchable.enabled);
+        counter.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                if (isDebugMode()) {
+                    addDebugSun();
+                }
+            }
+        });
+        return counter;
+    }
+
+    private Label createGameplayResourceLabel(String text) {
+        Label.LabelStyle style = new Label.LabelStyle(
+                game.getSkin().getFont("FBUSV8C5EI_2_outline"), Color.WHITE
+        );
+        Label label = new Label(text, style);
+        label.setColor(Color.WHITE);
+        label.setFontScale(0.72f);
+        label.setAlignment(Align.center);
+        return label;
     }
 
     private Button createPauseButton() {
@@ -367,18 +418,38 @@ public final class GameScreen extends BaseScreen {
     }
 
     private void buildInteractionControls() {
-        Table controls = new Table();
-        controls.setFillParent(true);
-        controls.bottom().right().padRight(14f).padBottom(12f);
+        Table shovelControls = new Table();
+        shovelControls.setFillParent(true);
+        shovelControls.bottom().right().padRight(225f).padBottom(14f);
         shovelButton = createShovelButton();
-        controls.add(shovelButton).width(76f).height(76f).padRight(8f);
-        controls.add(new MenuButton(
-            "Plant Food [F]",
-            game.getSkin(),
-            "purple",
-            this::selectPlantFood
-        )).width(142f).height(36f);
-        stage.addActor(controls);
+        shovelControls.add(shovelButton).width(76f).height(76f);
+        stage.addActor(shovelControls);
+
+        Table plantFoodControls = new Table();
+        plantFoodControls.setFillParent(true);
+        plantFoodControls.bottom().left().padLeft(225f).padBottom(14f);
+        plantFoodControls.add(createPlantFoodCounter()).width(116f).height(52f);
+        stage.addActor(plantFoodControls);
+    }
+
+    private Table createPlantFoodCounter() {
+        Table counter = new Table();
+        TextureRegion sproutRegion = game.getAnimationService().region("IMAGE_UI_HUD_INGAME_SPROUT_ICON");
+        if (sproutRegion != null) {
+            Image sprout = new Image(sproutRegion);
+            sprout.setScaling(Scaling.fit);
+            counter.add(sprout).size(52f).padRight(5f);
+        }
+        plantFoodValueLabel = createGameplayResourceLabel("0/3");
+        counter.add(plantFoodValueLabel).width(54f).center();
+        counter.setTouchable(Touchable.enabled);
+        counter.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                selectPlantFood();
+            }
+        });
+        return counter;
     }
 
     private Button createShovelButton() {
@@ -552,21 +623,21 @@ public final class GameScreen extends BaseScreen {
         User user = game.getAuthController().getLoggedInUser();
         boolean debug = isDebugMode();
         if (!resourceBarConfigured || debugControlsVisible != debug) {
-            resourceBar.setGameDebugControls(
+            resourceBar.setDebugControls(
                 debug,
                 this::addDebugCoins,
-                this::addDebugDiamonds,
-                this::addDebugSun,
-                this::addDebugPlantFood
+                this::addDebugDiamonds
             );
             resourceBarConfigured = true;
             debugControlsVisible = debug;
         }
-        resourceBar.refreshGame(
-            user,
-            session.getTotalSunAmount(),
-            session.getPlantFoodCount()
-        );
+        resourceBar.refresh(user);
+        if (sunValueLabel != null) {
+            sunValueLabel.setText(String.valueOf(session.getTotalSunAmount()));
+        }
+        if (plantFoodValueLabel != null) {
+            plantFoodValueLabel.setText(session.getPlantFoodCount() + "/3");
+        }
         refreshGameplayPlantCards();
     }
 
@@ -1123,7 +1194,11 @@ public final class GameScreen extends BaseScreen {
             return true;
         }
         if (keycode == Input.Keys.F) {
-            selectPlantFood();
+            if (isDebugMode()) {
+                addDebugPlantFood();
+            } else {
+                selectPlantFood();
+            }
             return true;
         }
         if (keycode == Input.Keys.P || keycode == Input.Keys.SPACE) {
@@ -1349,31 +1424,7 @@ public final class GameScreen extends BaseScreen {
         if (message != null) {
             debugMessage = message;
         }
-        statusLabel.setVisible(isDebugMode());
-        if (!isDebugMode()) {
-            return;
-        }
-        String cursor = hoveredTile == null
-            ? "outside board"
-            : "(" + hoveredTile.getX() + ", " + hoveredTile.getY() + ")";
-        String state = gameplayClock.isPaused()
-            ? "PAUSED"
-            : session.isRunning() ? "RUNNING" : "FINISHED";
-        String grid = settings != null && settings.isGridVisible() ? "on" : "off";
-        Board board = session.getBoard();
-        statusLabel.setText(
-            debugMessage
-                + " | tick=" + gameplayClock.getCurrentTick()
-                + " | speed=x" + gameplayClock.getGameSpeed()
-                + " | " + state
-                + " | grid=" + grid
-                + " | cursor=" + cursor
-                + " | input=" + formatModeName(interactions.getMode())
-                + " | plants=" + board.getPlantCount()
-                + " | zombies=" + board.getActiveZombieCount()
-                + "\nS: shovel | F: plant food | RMB/Esc: cancel input"
-                + " | P/Space: pause | 1/2/3: speed | Esc: main menu"
-                + "\n" + animations.getStatusMessage()
-        );
+        statusLabel.setVisible(false);
     }
+
 }
