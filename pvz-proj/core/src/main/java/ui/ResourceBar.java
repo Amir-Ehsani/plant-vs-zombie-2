@@ -15,17 +15,20 @@ public class ResourceBar extends Table {
     public ResourceBar(Skin skin, PvzAnimationService animations) {
         this.skin = skin;
         pad(0f);
-        TextureRegion barBackground = animations == null
+        TextureRegion coinBackground = animations == null
                 ? null
-                : animations.region("IMAGE_UI_GENERIC_PURPLEBUTTON_DOWN");
+                : animations.region("IMAGE_UI_GENERIC_BUTTONS_COIN_BUY_NORMAL");
+        TextureRegion diamondBackground = animations == null
+                ? null
+                : animations.region("IMAGE_UI_GENERIC_BUTTONS_PREMIUM_NORMAL");
         TextureRegion coinIcon = animations == null
                 ? null
                 : animations.region("IMAGE_UI_THYMED_EVENTS_ECS_CONVRT_COIN");
         TextureRegion diamondIcon = animations == null
                 ? null
                 : animations.region("IMAGE_EFFECTS_COIN_DIAMOND_COIN_DIAMOND_141X146");
-        coinsActor = new CurrencyActor(skin, "Coins", barBackground, coinIcon);
-        diamondsActor = new CurrencyActor(skin, "Diamonds", barBackground, diamondIcon);
+        coinsActor = new CurrencyActor(skin, "Coins", coinBackground, coinIcon);
+        diamondsActor = new CurrencyActor(skin, "Diamonds", diamondBackground, diamondIcon);
         sunActor = new CurrencyActor(skin, "Sun");
         plantFoodActor = new CurrencyActor(skin, "Plant Food");
         rebuild(false, false, null, null, null, null);
@@ -84,7 +87,6 @@ public class ResourceBar extends Table {
         rebuild(true, visible, addCoin, addDiamond, addSun, addPlantFood);
     }
 
-
     private void rebuildMiniGame(
             boolean sunVisible,
             boolean debugVisible,
@@ -93,18 +95,15 @@ public class ResourceBar extends Table {
             Runnable addSun
     ) {
         clearChildren();
+        configureCurrencyActions(debugVisible, addCoin, addDiamond);
         Table content = new Table();
-        content.add(coinsActor).width(112f).height(46f).padRight(8f);
-        content.add(diamondsActor).width(112f).height(46f);
+        content.add(coinsActor).width(138f).height(50f).padRight(8f);
+        content.add(diamondsActor).width(138f).height(50f);
         if (sunVisible) {
             content.add(sunActor).padLeft(10f);
         }
-        if (debugVisible) {
-            addDebugButton(content, "+Coin", 92f, addCoin);
-            addDebugButton(content, "+Diamond", 110f, addDiamond);
-            if (sunVisible && addSun != null) {
-                addDebugButton(content, "+Sun", 84f, addSun);
-            }
+        if (debugVisible && sunVisible && addSun != null) {
+            addDebugButton(content, "+Sun", 84f, addSun);
         }
         add(content);
     }
@@ -118,20 +117,24 @@ public class ResourceBar extends Table {
             Runnable addPlantFood
     ) {
         clearChildren();
+        configureCurrencyActions(debugVisible, addCoin, addDiamond);
         Table content = new Table();
-        content.add(coinsActor).width(112f).height(46f).padRight(8f);
-        content.add(diamondsActor).width(112f).height(46f);
+        content.add(coinsActor).width(138f).height(50f).padRight(8f);
+        content.add(diamondsActor).width(138f).height(50f);
         if (gameResourcesVisible) {
             content.add(sunActor).padLeft(10f).padRight(8f);
             content.add(plantFoodActor).padLeft(4f).padRight(8f);
         }
         if (debugVisible) {
-            addDebugButton(content, "+Coin", 92f, addCoin);
-            addDebugButton(content, "+Diamond", 110f, addDiamond);
             addOptionalGameDebugButton(content, "+Sun", 84f, addSun);
             addOptionalGameDebugButton(content, "+Plant Food", 124f, addPlantFood);
         }
         add(content);
+    }
+
+    private void configureCurrencyActions(boolean debugVisible, Runnable addCoin, Runnable addDiamond) {
+        coinsActor.setAction(debugVisible ? addCoin : null);
+        diamondsActor.setAction(debugVisible ? addDiamond : null);
     }
 
     private void addDebugButton(Table content, String text, float width, Runnable action) {
