@@ -55,12 +55,14 @@ public class AdventureLevelSelectionScreen extends BaseMenuScreen {
     private void buildTopLeftNavigation() {
         Table root = createRoot();
         root.top().left();
-        root.padTop(18f);
+        root.padTop(18f).padLeft(18f);
         Table nav = new Table();
-        nav.defaults().width(170f).height(46f).padRight(10f);
-        nav.add(new BackButton(skin, game.getScreenManager()::showAdventure));
-        nav.add(new MenuButton("Collection", skin, "green", game.getScreenManager()::showCollection));
-        nav.add(new MenuButton("Greenhouse", skin, "green", game.getScreenManager()::showGreenhouse));
+        nav.defaults().size(72f).padRight(10f);
+        nav.add(createNavIconButton("IMAGE_UI_ALMANAC_BUTTONS_HUD_BACK_SELECTED",
+                "IMAGE_UI_ALMANAC_BUTTONS_HUD_BACK_SELECTED", game.getScreenManager()::showAdventure));
+        nav.add(createNavSkinButton("almanac", game.getScreenManager()::showCollection));
+        nav.add(createNavIconButton("IMAGE_UI_GENERIC_BUTTONS_HUD_ZG_NORMAL",
+                "IMAGE_UI_GENERIC_BUTTONS_HUD_ZG_SELECTED", game.getScreenManager()::showGreenhouse));
         root.add(nav).left().top();
     }
 
@@ -117,8 +119,8 @@ public class AdventureLevelSelectionScreen extends BaseMenuScreen {
         }
 
         addLevelNode(group, user, 1, 145f, 305f);
-        addLevelNode(group, user, 2, 425f, 370f);
-        addLevelNode(group, user, 3, 700f, 395f);
+        addLevelNode(group, user, 2, 402f, 346f);
+        addLevelNode(group, user, 3, 676f, 370f);
         addLevelNode(group, user, 4, 1015f, 355f);
     }
 
@@ -209,6 +211,46 @@ public class AdventureLevelSelectionScreen extends BaseMenuScreen {
         image.setSize(width, height);
         image.setScaling(Scaling.fit);
         return image;
+    }
+
+    private ImageButton createNavSkinButton(String styleName, Runnable action) {
+        ImageButton button = new ImageButton(skin, styleName);
+        button.addListener(new ClickListener() {
+            
+            public void clicked(InputEvent event, float x, float y) {
+                if (!button.isDisabled()) {
+                    action.run();
+                }
+            }
+        });
+        return button;
+    }
+
+    private ImageButton createNavIconButton(String normalRegionId, String pressedRegionId, Runnable action) {
+        ImageButton.ImageButtonStyle style = new ImageButton.ImageButtonStyle();
+        TextureRegion normal = game.getAnimationService().region(normalRegionId);
+        TextureRegion pressed = pressedRegionId == null ? null : game.getAnimationService().region(pressedRegionId);
+        if (normal != null) {
+            TextureRegionDrawable drawable = new TextureRegionDrawable(normal);
+            style.up = drawable;
+            style.over = drawable;
+            style.checked = drawable;
+        }
+        if (pressed != null) {
+            style.down = new TextureRegionDrawable(pressed);
+        } else if (normal != null) {
+            style.down = new TextureRegionDrawable(normal);
+        }
+        ImageButton button = new ImageButton(style);
+        button.addListener(new ClickListener() {
+            
+            public void clicked(InputEvent event, float x, float y) {
+                if (!button.isDisabled()) {
+                    action.run();
+                }
+            }
+        });
+        return button;
     }
 
     private ImageButton createShopButton() {
