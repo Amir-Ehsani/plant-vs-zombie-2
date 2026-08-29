@@ -144,7 +144,7 @@ public final class ZombotanyPlantSelectionScreen extends BaseMenuScreen {
     private void rebuildSelectedSlots() {
         selectedSlots.clearChildren();
         selectedSlots.top();
-        selectedSlots.defaults().padBottom(3f);
+        selectedSlots.defaults().padBottom(6f);
         List<String> selected = new ArrayList<>(selectedPlants);
         selectionCount.setText("Selected Plants: " + selected.size() + " / " + MAX_SELECTED_PLANTS);
         for (int index = 0; index < MAX_SELECTED_PLANTS; index++) {
@@ -243,8 +243,7 @@ public final class ZombotanyPlantSelectionScreen extends BaseMenuScreen {
         overlay.setFillParent(true);
         overlay.top().right();
         PlantType type = DefaultPlantRegistry.getInstance().getByName(data.getName());
-        Label cost = new Label(String.valueOf(type == null ? 0 : type.getSunCost()), skin, "secondary");
-        cost.setColor(TEXT_COLOR);
+        Label cost = createSunCostLabel(type == null ? 0 : type.getSunCost());
         overlay.add(cost).padTop(6f).padRight(8f);
         stack.add(overlay);
 
@@ -273,7 +272,7 @@ public final class ZombotanyPlantSelectionScreen extends BaseMenuScreen {
             String plantName, float width, float height, float packetWidth, float packetHeight
     ) {
         Stack stack = new Stack();
-        TextureRegion backgroundRegion = game.getAnimationService().region("IMAGE_UI_PACKETS_SELECTED");
+        TextureRegion backgroundRegion = game.getAnimationService().region(packetBackgroundId(plantName));
         if (backgroundRegion != null) {
             Image background = new Image(backgroundRegion);
             background.setScaling(Scaling.fill);
@@ -303,6 +302,20 @@ public final class ZombotanyPlantSelectionScreen extends BaseMenuScreen {
             stack.add(fallback);
         }
         return stack;
+    }
+
+    private String packetBackgroundId(String plantName) {
+        return plantName != null && !plantName.isBlank() && isSelected(plantName)
+                ? "IMAGE_UI_PACKETS_READY_PREMIUM"
+                : "IMAGE_UI_PACKETS_HOMELESS";
+    }
+
+    private Label createSunCostLabel(int sunCost) {
+        Label.LabelStyle style = new Label.LabelStyle(skin.get("secondary", Label.LabelStyle.class));
+        style.font = skin.getFont("FBUSV8C6EI_3");
+        Label label = new Label(String.valueOf(sunCost), style);
+        label.setColor(TEXT_COLOR);
+        return label;
     }
 
     private void togglePlant(String plantName) {

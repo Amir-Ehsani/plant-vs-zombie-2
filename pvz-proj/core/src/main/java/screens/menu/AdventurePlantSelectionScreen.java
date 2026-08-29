@@ -169,7 +169,7 @@ public class AdventurePlantSelectionScreen extends BaseMenuScreen {
     private void rebuildSelectedSlots() {
         selectedSlots.clearChildren();
         selectedSlots.top();
-        selectedSlots.defaults().padBottom(3f);
+        selectedSlots.defaults().padBottom(6f);
         List<String> selected = selectedPlantNames();
         int selectionLimit = controller.getCurrentPlantSelectionLimit();
         int totalSlotCount = totalSelectionSlotCount();
@@ -283,8 +283,7 @@ public class AdventurePlantSelectionScreen extends BaseMenuScreen {
         Table overlay = new Table();
         overlay.setFillParent(true);
         overlay.top().right();
-        Label cost = new Label(String.valueOf(resolveSunCost(data.getName())), skin, "secondary");
-        cost.setColor(TEXT_COLOR);
+        Label cost = createSunCostLabel(resolveSunCost(data.getName()));
         overlay.add(cost).padTop(6f).padRight(8f);
         stack.add(overlay);
 
@@ -318,7 +317,7 @@ public class AdventurePlantSelectionScreen extends BaseMenuScreen {
 
     private Stack createPacketStack(String plantName, float width, float height, float packetWidth, float packetHeight) {
         Stack stack = new Stack();
-        TextureRegion backgroundRegion = game.getAnimationService().region("IMAGE_UI_PACKETS_SELECTED");
+        TextureRegion backgroundRegion = game.getAnimationService().region(packetBackgroundId(plantName));
         if (backgroundRegion != null) {
             Image background = new Image(backgroundRegion);
             background.setScaling(Scaling.fill);
@@ -351,7 +350,7 @@ public class AdventurePlantSelectionScreen extends BaseMenuScreen {
 
 
     private void addLockedOverlay(Stack stack, float width, float height) {
-        TextureRegion backgroundRegion = game.getAnimationService().region("IMAGE_UI_PACKETS_SELECTED");
+        TextureRegion backgroundRegion = game.getAnimationService().region("IMAGE_UI_PACKETS_HOMELESS");
         if (backgroundRegion != null) {
             Image dim = new Image(new TextureRegionDrawable(backgroundRegion));
             dim.setColor(LOCKED_DIM_COLOR);
@@ -373,6 +372,20 @@ public class AdventurePlantSelectionScreen extends BaseMenuScreen {
         locked.setAlignment(Align.center);
         overlay.add(locked).padBottom(2f);
         stack.add(overlay);
+    }
+
+    private String packetBackgroundId(String plantName) {
+        return plantName != null && !plantName.isBlank() && isSelected(plantName)
+                ? "IMAGE_UI_PACKETS_READY_PREMIUM"
+                : "IMAGE_UI_PACKETS_HOMELESS";
+    }
+
+    private Label createSunCostLabel(int sunCost) {
+        Label.LabelStyle style = new Label.LabelStyle(skin.get("secondary", Label.LabelStyle.class));
+        style.font = skin.getFont("FBUSV8C6EI_3");
+        Label label = new Label(String.valueOf(sunCost), style);
+        label.setColor(TEXT_COLOR);
+        return label;
     }
 
     private void togglePlant(String plantName) {
