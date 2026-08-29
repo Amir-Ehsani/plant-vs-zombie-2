@@ -18,14 +18,13 @@ import com.badlogic.gdx.utils.Scaling;
 import com.pvz.Main;
 import models.account.User;
 import models.level.core.AdventureLevelCatalog;
-import ui.BackButton;
-import ui.MenuButton;
 import ui.ResourceBar;
 
 public class AdventureScreen extends BaseMenuScreen {
     private static final Color TITLE_COLOR = Color.WHITE;
-    private static final float CARD_WIDTH = 260f;
-    private static final float CARD_HEIGHT = 455f;
+    private static final float CARD_WIDTH = 285f;
+    private static final float CARD_HEIGHT = 490f;
+    private static final float NAV_BUTTON_SIZE = 72f;
 
     private final Table chapterTable;
 
@@ -55,12 +54,20 @@ public class AdventureScreen extends BaseMenuScreen {
     private void buildTopLeftNavigation() {
         Table root = createRoot();
         root.top().left();
-        root.padTop(18f);
+        root.padTop(18f).padLeft(18f);
         Table nav = new Table();
-        nav.defaults().width(170f).height(46f).padRight(10f);
-        nav.add(new BackButton(skin, game.getScreenManager()::showMainMenu));
-        nav.add(new MenuButton("Collection", skin, "green", game.getScreenManager()::showCollection));
-        nav.add(new MenuButton("Greenhouse", skin, "green", game.getScreenManager()::showGreenhouse));
+        nav.defaults().size(NAV_BUTTON_SIZE).padRight(10f);
+        nav.add(createNavIconButton(
+                "IMAGE_UI_ALMANAC_BUTTONS_HUD_BACK_SELECTED",
+                "IMAGE_UI_ALMANAC_BUTTONS_HUD_BACK_SELECTED",
+                game.getScreenManager()::showMainMenu
+        ));
+        nav.add(createNavSkinButton("almanac", game.getScreenManager()::showCollection));
+        nav.add(createNavIconButton(
+                "IMAGE_UI_GENERIC_BUTTONS_HUD_ZG_NORMAL",
+                "IMAGE_UI_GENERIC_BUTTONS_HUD_ZG_SELECTED",
+                game.getScreenManager()::showGreenhouse
+        ));
         root.add(nav).left().top();
     }
 
@@ -86,7 +93,7 @@ public class AdventureScreen extends BaseMenuScreen {
         panel.add(title).padBottom(-28f).row();
 
         chapterTable.defaults().width(CARD_WIDTH).height(CARD_HEIGHT).padLeft(8f).padRight(8f);
-        panel.add(chapterTable).width(1180f).height(500f);
+        panel.add(chapterTable).width(1240f).height(540f);
         root.add(panel).center();
     }
 
@@ -106,22 +113,22 @@ public class AdventureScreen extends BaseMenuScreen {
         boolean unlocked = user.isChapterUnlocked(chapterName);
 
         card.add(createWorldImage(chapterName, unlocked))
-                .width(235f).height(320f).padTop(48f).padBottom(-10f).row();
+                .width(255f).height(350f).padTop(62f).padBottom(-6f).row();
 
         Label name = new Label(worldDisplayName(chapterName), skin, "big_outline");
         name.setColor(TITLE_COLOR);
         name.setFontScale(0.9f);
         name.setAlignment(Align.center);
         name.setWrap(true);
-        card.add(name).width(225f).height(62f).padBottom(0f).row();
+        card.add(name).width(240f).height(62f).padBottom(2f).row();
 
         Label progress = chapterStatusLabel(
                 completedLevelCount(user, chapterName) + "/" + AdventureLevelCatalog.BOSS_LEVEL
         );
-        card.add(progress).padBottom(4f).row();
+        card.add(progress).padBottom(6f).row();
 
         Label status = chapterStatusLabel(unlocked ? "UNLOCKED" : "LOCKED");
-        card.add(status).padBottom(12f).row();
+        card.add(status).padBottom(8f).row();
         return card;
     }
 
@@ -158,19 +165,41 @@ public class AdventureScreen extends BaseMenuScreen {
         Label.LabelStyle style = new Label.LabelStyle(skin.getFont("FBUSV8C6EI_3"), Color.WHITE);
         Label label = new Label(text, style);
         label.setColor(Color.WHITE);
-        label.setFontScale(0.65f);
+        label.setFontScale(0.95f);
         label.setAlignment(Align.center);
         return label;
     }
 
     private ImageButton createShopButton() {
+        return createNavIconButton(
+                "IMAGE_UI_HUD_WORLDMAP_BUTTONS_HUD_STORE_NORMAL",
+                "IMAGE_UI_HUD_WORLDMAP_BUTTONS_HUD_STORE_SELECTED",
+                game.getScreenManager()::showShop
+        );
+    }
+
+    private ImageButton createNavSkinButton(String styleName, Runnable action) {
+        ImageButton button = new ImageButton(skin, styleName);
+        button.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                if (!button.isDisabled()) {
+                    action.run();
+                }
+            }
+        });
+        return button;
+    }
+
+    private ImageButton createNavIconButton(String normalRegionId, String pressedRegionId, Runnable action) {
         ImageButton.ImageButtonStyle style = new ImageButton.ImageButtonStyle();
-        TextureRegion normal = game.getAnimationService().region("IMAGE_UI_HUD_WORLDMAP_BUTTONS_HUD_STORE_NORMAL");
-        TextureRegion pressed = game.getAnimationService().region("IMAGE_UI_HUD_WORLDMAP_BUTTONS_HUD_STORE_SELECTED");
+        TextureRegion normal = game.getAnimationService().region(normalRegionId);
+        TextureRegion pressed = pressedRegionId == null ? null : game.getAnimationService().region(pressedRegionId);
         if (normal != null) {
-            style.up = new TextureRegionDrawable(normal);
-            style.over = new TextureRegionDrawable(normal);
-            style.checked = new TextureRegionDrawable(normal);
+            TextureRegionDrawable drawable = new TextureRegionDrawable(normal);
+            style.up = drawable;
+            style.over = drawable;
+            style.checked = drawable;
         }
         if (pressed != null) {
             style.down = new TextureRegionDrawable(pressed);
@@ -182,7 +211,7 @@ public class AdventureScreen extends BaseMenuScreen {
             @Override
             public void clicked(InputEvent event, float x, float y) {
                 if (!button.isDisabled()) {
-                    game.getScreenManager().showShop();
+                    action.run();
                 }
             }
         });
