@@ -33,6 +33,7 @@ import game.animation.core.PvzAnimationService;
 import game.chapter.ChapterVisualRenderer;
 import game.effects.CombatFeedbackSystem;
 import game.effects.ScreenShakeController;
+import game.dialogue.LevelDialogueController;
 import game.hud.CompactSeedBank;
 import game.hud.BossHealthHud;
 import game.hud.GameplayWaveBanner;
@@ -42,6 +43,7 @@ import game.input.GameplayInteractionSystem;
 import game.input.InteractionOverlayRenderer;
 import game.modes.AdventureLevelModeAdapter;
 import game.modes.LevelModeAdapter;
+import game.notification.GameplayAnnouncementOverlay;
 import game.render.BoardBackgroundCatalog;
 import game.render.BoardGeometry;
 import game.render.BoardRenderer;
@@ -64,8 +66,11 @@ import models.engine.session.GameState;
 import models.engine.session.GroundRewardDrop;
 import models.engine.session.PlantFoodDrop;
 import models.engine.session.PlantRechargeStatus;
+import models.engine.events.GameEvent;
+import models.engine.events.GameEventType;
 import models.engine.sun.Sun;
 import models.level.core.AdventureLevelCatalog;
+import models.level.wave.WaveManager;
 import screens.BaseScreen;
 import ui.*;
 
@@ -117,6 +122,8 @@ public final class GameScreen extends BaseScreen {
     private final GameplayInteractionSystem interactions;
     private final InteractionOverlayRenderer interactionOverlay;
     private final LevelModeAdapter levelModeAdapter;
+    private final GameplayAnnouncementOverlay announcementOverlay;
+    private final LevelDialogueController dialogueController;
     private final Vector2 cursorWorld;
     private Button shovelButton;
 
@@ -136,7 +143,11 @@ public final class GameScreen extends BaseScreen {
     private PauseDialog pauseDialog;
     private GameOverDialog gameOverDialog;
     private boolean gameOverShown;
-    private String draggedConveyorPlantName;
+    private boolean introDialogueStarted;
+    private boolean pausedForIntro;
+    private boolean bossOutroStarted;
+    private int announcedWaveNumber;
+    private int announcedUpcomingWave;
 
     public GameScreen(Main game) {
         this(game, prepareController(game));
@@ -221,6 +232,8 @@ public final class GameScreen extends BaseScreen {
             stage,
             game.getSkin()
         );
+        announcementOverlay = new GameplayAnnouncementOverlay(stage, game.getSkin());
+        dialogueController = new LevelDialogueController(stage, game.getSkin(), animations);
         buildHud();
         buildInteractionControls();
         levelModeAdapter.setup();
@@ -229,6 +242,11 @@ public final class GameScreen extends BaseScreen {
         pauseDialog = null;
         gameOverDialog = null;
         gameOverShown = false;
+        introDialogueStarted = false;
+        pausedForIntro = false;
+        bossOutroStarted = false;
+        announcedWaveNumber = 0;
+        announcedUpcomingWave = 0;
         refreshGameHud();
         refreshStatus(debugMessage);
     }
@@ -239,6 +257,7 @@ public final class GameScreen extends BaseScreen {
         applyStoredGameSpeed();
         refreshGameHud();
         Gdx.input.setInputProcessor(new InputMultiplexer(stage, createInput()));
+        showLevelIntroIfNeeded();
     }
 
     @Override
@@ -602,6 +621,7 @@ public final class GameScreen extends BaseScreen {
             interactions.cancel();
         }
         refreshHud(delta);
+        drainGameplayAnnouncements();
         showGameOverIfNeeded();
     }
 
@@ -978,7 +998,6 @@ public final class GameScreen extends BaseScreen {
             public boolean touchDown(int screenX, int screenY, int pointer, int button) {
                 updatePointer(screenX, screenY);
                 if (button == Input.Buttons.RIGHT && interactions.isActive()) {
-                    draggedConveyorPlantName = null;
                     cancelInteraction();
                     return true;
                 }
@@ -989,37 +1008,6 @@ public final class GameScreen extends BaseScreen {
                     return true;
                 }
                 return handleBoardClick(button);
-            }
-
-            @Override
-            public boolean touchDragged(int screenX, int screenY, int pointer) {
-                if (draggedConveyorPlantName == null) {
-                    return false;
-                }
-                updatePointer(screenX, screenY);
-                return true;
-            }
-
-            @Override
-            public boolean touchUp(int screenX, int screenY, int pointer, int button) {
-                if (button != Input.Buttons.LEFT || draggedConveyorPlantName == null) {
-                    return false;
-                }
-                updatePointer(screenX, screenY);
-                draggedConveyorPlantName = null;
-                if (hoveredTile == null || gameplayClock.isPaused() || !session.isRunning()) {
-                    interactions.cancel();
-                    refreshGameHud();
-                    return true;
-                }
-                interactions.handleTileClick(hoveredTile);
-                boolean successful = interactions.wasSuccessful();
-                showInteractionResult();
-                if (!successful) {
-                    interactions.cancel();
-                }
-                refreshGameHud();
-                return true;
             }
 
             @Override
@@ -1197,10 +1185,6 @@ public final class GameScreen extends BaseScreen {
             interactions.cancel();
         }
         boolean selected = interactions.selectPlant(plantName);
-        if (selected && isConveyorLevel()
-                && interactions.getMode() == GameplayInputMode.PLANTING) {
-            draggedConveyorPlantName = plantName;
-        }
         showInteractionResult();
         return true;
     }
@@ -1326,16 +1310,119 @@ public final class GameScreen extends BaseScreen {
         game.getScreenManager().showAdventure();
     }
 
+    private void showLevelIntroIfNeeded() {
+        if (introDialogueStarted) {
+            return;
+        }
+        introDialogueStarted = true;
+        User user = game.getAuthController().getLoggedInUser();
+        if (user == null) {
+            announcementOverlay.push("READY... SET... PLANT!");
+            return;
+        }
+        if (session.isRunning() && !gameplayClock.isPaused()) {
+            gameplayClock.togglePause();
+            pausedForIntro = true;
+        }
+        boolean shown = dialogueController.showIntro(
+                user.getCurrentChapterName(),
+                user.getCurrentChapterLevel(),
+                this::finishLevelIntro
+        );
+        if (!shown) {
+            finishLevelIntro();
+        }
+    }
+
+    private void finishLevelIntro() {
+        if (pausedForIntro && session.isRunning() && gameplayClock.isPaused()) {
+            gameplayClock.togglePause();
+        }
+        pausedForIntro = false;
+        announcementOverlay.push("READY... SET... PLANT!");
+    }
+
+    private void drainGameplayAnnouncements() {
+        if (session.getCurrentLevel() == null) {
+            return;
+        }
+        WaveManager waveManager = session.getCurrentLevel().getWaveManager();
+        int currentWave = waveManager.getCurrentWaveNumber();
+        int currentTick = session.getTickManager().getCurrentTick();
+        int ticksUntilNext = waveManager.getTicksUntilNextWave(currentTick);
+        if (ticksUntilNext >= 0 && ticksUntilNext <= 10 && waveManager.getNextWave() != null) {
+            int upcoming = waveManager.getNextWave().getWaveNumber();
+            if (upcoming > announcedUpcomingWave) {
+                announcedUpcomingWave = upcoming;
+                if (upcoming == waveManager.getTotalWaves()) {
+                    announcementOverlay.push("A HUGE WAVE OF ZOMBIES IS APPROACHING!");
+                } else if (upcoming == 1) {
+                    announcementOverlay.push("ZOMBIES ARE COMING!");
+                } else {
+                    announcementOverlay.push("WAVE " + upcoming + " INCOMING!");
+                }
+            }
+        }
+        if (currentWave > announcedWaveNumber) {
+            announcedWaveNumber = currentWave;
+            if (currentWave > announcedUpcomingWave) {
+                announcedUpcomingWave = currentWave;
+                if (currentWave == waveManager.getTotalWaves()) {
+                    announcementOverlay.push("A HUGE WAVE OF ZOMBIES IS APPROACHING!");
+                } else if (currentWave == 1) {
+                    announcementOverlay.push("ZOMBIES ARE COMING!");
+                } else {
+                    announcementOverlay.push("WAVE " + currentWave + "!");
+                }
+            }
+        }
+        for (GameEvent event : session.getCurrentLevel().drainChapterEvents()) {
+            if (event.getType() != GameEventType.CHAPTER_EFFECT) {
+                continue;
+            }
+            String message = event.getEntityName();
+            if (message == null) {
+                continue;
+            }
+            String normalized = message.toLowerCase(java.util.Locale.ROOT);
+            if (normalized.contains("necromancy")) {
+                announcementOverlay.push("NECROMANCY!");
+            } else if (normalized.contains("low-tide zombies") || normalized.contains("surfacing")) {
+                announcementOverlay.push("ZOMBIES ARE RISING FROM THE SHALLOWS!");
+            } else if (normalized.contains("tide receded")) {
+                announcementOverlay.push("LOW TIDE!");
+            } else if (normalized.contains("tide rose")) {
+                announcementOverlay.push("HIGH TIDE!");
+            } else if (normalized.contains("sandstorm")) {
+                announcementOverlay.push("SANDSTORM!");
+            } else if (normalized.contains("icy wind")) {
+                announcementOverlay.push("ICE WIND!");
+            } else if (normalized.contains("new grave") || normalized.contains("graves rose")) {
+                announcementOverlay.push("GRAVES ARE RISING!");
+            }
+        }
+    }
+
     private void showGameOverIfNeeded() {
-        if (gameOverShown || session.getState() == null || !session.getState().isFinished()) {
+        if (gameOverShown || bossOutroStarted
+                || session.getState() == null || !session.getState().isFinished()) {
             return;
         }
         if (pauseDialog != null) {
             pauseDialog.close();
             pauseDialog = null;
         }
-        gameOverShown = true;
         boolean victory = session.getState().getStatus() == GameState.Status.WON;
+        if (session.getCurrentLevel() != null && session.getCurrentLevel().getBossRuntime() != null) {
+            bossOutroStarted = true;
+            dialogueController.showBossOutro(victory, () -> showGameOverDialog(victory));
+            return;
+        }
+        showGameOverDialog(victory);
+    }
+
+    private void showGameOverDialog(boolean victory) {
+        gameOverShown = true;
         String message = victory
                 ? "The lawn is safe. Continue your Adventure."
                 : "The zombies broke through. Try the level again.";
