@@ -107,6 +107,7 @@ public class AdventurePlantSelectionScreen extends BaseMenuScreen {
         browser.add(detailPanel).width(820f).height(120f).padBottom(4f).row();
 
         plantGrid.top().left();
+        plantGrid.padRight(18f);
         plantGrid.defaults().pad(3f);
         ScrollPane scrollPane = new ScrollPane(plantGrid, skin);
         scrollPane.setFadeScrollBars(false);
@@ -373,7 +374,7 @@ public class AdventurePlantSelectionScreen extends BaseMenuScreen {
         Label.LabelStyle style = new Label.LabelStyle(skin.getFont("FBUSV8C5EI_1_outline"), Color.WHITE);
         Label label = new Label(String.valueOf(sunCost), style);
         label.setColor(Color.YELLOW);
-        label.setFontScale(0.55f);
+        label.setFontScale(0.42f);
         return label;
     }
 
@@ -430,7 +431,8 @@ public class AdventurePlantSelectionScreen extends BaseMenuScreen {
         }
         boolean debugMode = user.getSettings() != null && user.getSettings().isDebugMode();
         for (PlantData data : user.getCollection().getOwnedPlants()) {
-            if (data == null || !data.isUnlocked() || !isPlantVisibleInGrid(level, data.getName())) {
+            if (data == null || !data.isUnlocked() || isHiddenSelectionPlant(data.getName())
+                    || !isPlantVisibleInGrid(level, data.getName())) {
                 continue;
             }
             result.add(data);
@@ -439,6 +441,11 @@ public class AdventurePlantSelectionScreen extends BaseMenuScreen {
         return result;
     }
 
+
+    private boolean isHiddenSelectionPlant(String plantName) {
+        String normalized = normalize(plantName);
+        return normalized.equals("goo peashooter") || normalized.equals("rotobaga");
+    }
 
     private boolean isPlantVisibleInGrid(Level level, String plantName) {
         if (level == null || plantName == null || plantName.isBlank()) {
