@@ -72,6 +72,10 @@ public final class ZombieView extends EntityView<Zombie> {
     private float electricStrikeTime;
     private boolean electricStrikeActive;
     private boolean electricCloudPreloaded;
+    private int visualActionRevision;
+    private String visualActionClip;
+    private float visualActionTime;
+    private boolean visualActionActive;
 
     public ZombieView(Zombie zombie, EntityAnimationProfile profile) {
         super(zombie, profile);
@@ -86,6 +90,7 @@ public final class ZombieView extends EntityView<Zombie> {
         updateHitFlash(delta, totalVisualHealth());
         super.update(delta, board);
         updateMovementState(delta);
+        updateVisualAction(delta);
         updateVisualPosition(delta);
         updateElectricStrike(delta, board);
         updateArmorTracking();
@@ -112,7 +117,9 @@ public final class ZombieView extends EntityView<Zombie> {
         float direction = reversed ? -1f : 1f;
         float renderX = position.x + eatingOffset(geometry, clip) * direction;
 
-        float clipTime = timeForClip(clip);
+        float clipTime = visualActionActive && clip.equals(visualActionClip)
+                ? visualActionTime : timeForClip(clip);
+        boolean loop = !(visualActionActive && clip.equals(visualActionClip));
         Map<String, Boolean> visibility = resolveVisibility(animations, effects);
         batch.setColor(resolveTint(effects));
         animations.draw(
@@ -124,7 +131,7 @@ public final class ZombieView extends EntityView<Zombie> {
             position.y,
             profile.getScale() * direction,
             profile.getScale(),
-            true,
+            loop,
             visibility
         );
         batch.setColor(Color.WHITE);
@@ -138,7 +145,7 @@ public final class ZombieView extends EntityView<Zombie> {
                 position.y,
                 profile.getScale() * direction,
                 profile.getScale(),
-                true,
+                loop,
                 visibility
             );
             endHitFlash(batch);
@@ -502,6 +509,28 @@ public final class ZombieView extends EntityView<Zombie> {
         lastY = entity.getY();
     }
 
+    private void updateVisualAction(float delta) {
+        if (entity.getVisualActionRevision() != visualActionRevision) {
+            visualActionRevision = entity.getVisualActionRevision();
+            String requested = entity.getVisualActionClip();
+            if (requested != null && profile.getDefinition().hasClip(requested)) {
+                visualActionClip = requested;
+                visualActionTime = 0f;
+                visualActionActive = true;
+            }
+        }
+        if (!visualActionActive) {
+            return;
+        }
+        visualActionTime += Math.max(0f, delta);
+        float duration = profile.getDefinition().getClipDuration(visualActionClip);
+        if (duration <= 0f || visualActionTime >= duration) {
+            visualActionActive = false;
+            visualActionClip = null;
+            visualActionTime = 0f;
+        }
+    }
+
     private void updateVisualPosition(float delta) {
         float targetX = (float) entity.getX();
         float targetY = (float) entity.getY();
@@ -520,6 +549,9 @@ public final class ZombieView extends EntityView<Zombie> {
     }
 
     private String resolveClip(List<String> effects, Board board) {
+        if (visualActionActive && visualActionClip != null) {
+            return visualActionClip;
+        }
         if (hasNewspaperArmor()) {
             return resolveNewspaperClip(effects);
         }
