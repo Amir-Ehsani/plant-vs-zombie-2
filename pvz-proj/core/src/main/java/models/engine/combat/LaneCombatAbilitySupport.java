@@ -227,17 +227,32 @@ abstract class LaneCombatAbilitySupport extends LaneCombatTargetSupport {
         if (target == null) {
             return;
         }
+        zombie.triggerVisualAction("cast");
+        scheduleCombatAction(9, () -> resolveFishermanHook(lane, zombie, target));
+    }
+
+    private void resolveFishermanHook(Lane lane, Zombie zombie, Plant target) {
+        if (board == null || zombie == null || !zombie.isAlive()
+                || target == null || !target.isAlive()) {
+            return;
+        }
         if (Math.abs(zombie.getX() - target.getX()) <= 1.0) {
+            zombie.triggerVisualAction("toss");
             target.kill();
             return;
         }
-        int targetX = Math.min(lane.getWidth(), (int) Math.round(target.getX()) + 1);
+        int sourceX = (int) Math.round(target.getX());
+        int targetX = Math.min(lane.getWidth(), sourceX + 1);
         Tile destination = lane.getTileAt(targetX);
-        if (destination != null && !destination.hasPlant() && board != null) {
-            Position source = new Position((int) Math.round(target.getX()), lane.getLaneId());
-            Position destinationPosition = new Position(targetX, lane.getLaneId());
-            board.movePlant(source, destinationPosition, target);
+        if (destination == null || destination.hasPlant()) {
+            return;
         }
+        zombie.triggerVisualAction("reel");
+        board.movePlant(
+                new Position(sourceX, lane.getLaneId()),
+                new Position(targetX, lane.getLaneId()),
+                target
+        );
     }
 
     protected void handleOctopus(Lane lane, Zombie zombie, ZombieRuntimeState state) {
