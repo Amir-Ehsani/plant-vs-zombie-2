@@ -87,7 +87,7 @@ public class AdventurePlantSelectionScreen extends BaseMenuScreen {
         addResourceBar(root);
 
         Table panel = createPanel();
-        panel.pad(14f, 18f, 14f, 18f);
+        panel.pad(24f, 24f, 22f, 24f);
 
         Label screenTitle = createTitle("Choose Your Plants");
         screenTitle.setColor(TITLE_COLOR);
@@ -100,20 +100,11 @@ public class AdventurePlantSelectionScreen extends BaseMenuScreen {
         panel.add(selectionCount).padBottom(4f).row();
 
         Table body = new Table();
-        body.top();
-
-        Table selectedColumn = new Table();
-        selectedColumn.top();
-        Label selectedTitle = new Label("Selected", skin, "medium_outline");
-        selectedTitle.setColor(TITLE_COLOR);
-        selectedTitle.setAlignment(Align.center);
-        selectedColumn.add(selectedTitle).width(142f).padBottom(4f).row();
-        selectedColumn.add(selectedSlots).width(146f).top();
-        body.add(selectedColumn).width(150f).height(500f).top().padRight(10f);
+        body.top().center();
 
         Table browser = new Table();
         browser.top();
-        browser.add(detailPanel).width(820f).height(150f).padBottom(6f).row();
+        browser.add(detailPanel).width(820f).height(120f).padBottom(4f).row();
 
         plantGrid.top().left();
         plantGrid.defaults().pad(4f);
@@ -121,19 +112,19 @@ public class AdventurePlantSelectionScreen extends BaseMenuScreen {
         scrollPane.setFadeScrollBars(false);
         scrollPane.setOverscroll(false, false);
         scrollPane.setScrollingDisabled(true, false);
-        browser.add(scrollPane).width(840f).height(330f);
-        body.add(browser).width(850f).height(500f).top();
+        browser.add(scrollPane).width(840f).height(280f);
+        body.add(browser).width(850f).height(410f).top().center();
 
-        panel.add(body).width(1015f).height(500f).row();
+        panel.add(body).width(1015f).height(410f).center().row();
 
         Table actions = new Table();
         actions.add(new BackButton(skin, () -> game.getScreenManager().showAdventureMission(chapterName, levelNumber)))
                 .width(180f).height(46f).padRight(14f);
         actions.add(new MenuButton("LET'S ROCK", skin, "purple", this::startLevel))
                 .width(220f).height(52f);
-        panel.add(actions).padTop(6f);
+        panel.add(actions).padTop(4f).padBottom(4f);
 
-        root.add(panel).width(1100f).height(650f);
+        root.add(panel).width(1100f).height(600f);
     }
 
     private boolean ensurePreparedLevel() {
@@ -381,10 +372,9 @@ public class AdventurePlantSelectionScreen extends BaseMenuScreen {
     }
 
     private Label createSunCostLabel(int sunCost) {
-        Label.LabelStyle style = new Label.LabelStyle(skin.getFont("FBUSV8C6EI_3"), Color.WHITE);
+        Label.LabelStyle style = new Label.LabelStyle(skin.getFont("FBUSV8C5EI_1_outline"), Color.WHITE);
         Label label = new Label(String.valueOf(sunCost), style);
         label.setColor(Color.YELLOW);
-        label.setFontScale(1.75f);
         return label;
     }
 
