@@ -38,6 +38,10 @@ public final class AdventureLevelModeAdapter implements LevelModeAdapter {
 
     private Table hud;
     private Label modeLabel;
+    private Label timeLabel;
+    private Label zombiesLabel;
+    private Label sunLabel;
+    private Label progressLabel;
     private MenuButton startButton;
 
     public AdventureLevelModeAdapter(
@@ -63,14 +67,17 @@ public final class AdventureLevelModeAdapter implements LevelModeAdapter {
             return;
         }
         hud = new Table();
-        hud.setFillParent(true);
-        hud.top().center().padTop(118f);
-        modeLabel = new Label("", skin, "medium_outline");
-        modeLabel.setColor(Color.WHITE);
-        hud.add(modeLabel).center();
-        if (type == SpecialLevelType.PLANT_WHAT_YOU_GET) {
-            startButton = new MenuButton("START", skin, "green", this::startZombieWaves);
-            hud.add(startButton).width(150f).height(44f).padLeft(14f);
+        if (type == SpecialLevelType.TIMED_WAR) {
+            setupTimedWarHud();
+        } else {
+            hud.setFillParent(true);
+            hud.top().center().padTop(92f);
+            modeLabel = createHudLabel();
+            hud.add(modeLabel).center();
+            if (type == SpecialLevelType.PLANT_WHAT_YOU_GET) {
+                startButton = new MenuButton("START", skin, "green", this::startZombieWaves);
+                hud.add(startButton).width(150f).height(44f).padLeft(14f);
+            }
         }
         stage.addActor(hud);
         update();
@@ -78,10 +85,11 @@ public final class AdventureLevelModeAdapter implements LevelModeAdapter {
 
     @Override
     public void update() {
-        if (modeLabel == null) {
-            return;
+        if (type == SpecialLevelType.TIMED_WAR) {
+            updateTimedWarHud((TimedWarRule) level.getLevelRule());
+        } else if (modeLabel != null) {
+            modeLabel.setText(modeText());
         }
-        modeLabel.setText(modeText());
         if (startButton != null) {
             startButton.setVisible(!level.areZombieWavesStarted());
         }
@@ -105,13 +113,40 @@ public final class AdventureLevelModeAdapter implements LevelModeAdapter {
 
     private String modeText() {
         return switch (type) {
-            case TIMED_WAR -> timedWarText((TimedWarRule) level.getLevelRule());
             case LOVE_YOUR_PLANTS -> loveYourPlantsText((LoveYourPlantsRule) level.getLevelRule());
             default -> "";
         };
     }
 
-    private String timedWarText(TimedWarRule rule) {
+    private void setupTimedWarHud() {
+        hud.setBounds(220f, 610f, 840f, 38f);
+        timeLabel = createHudLabel();
+        zombiesLabel = createHudLabel();
+        sunLabel = createHudLabel();
+        progressLabel = createHudLabel();
+        hud.add(timeLabel).width(190f).center();
+        hud.add(separator()).width(18f).center();
+        hud.add(zombiesLabel).width(185f).center();
+        hud.add(separator()).width(18f).center();
+        hud.add(sunLabel).width(170f).center();
+        hud.add(separator()).width(18f).center();
+        hud.add(progressLabel).width(180f).center();
+    }
+
+    private Label createHudLabel() {
+        Label label = new Label("", skin, "medium_outline");
+        label.setColor(Color.WHITE);
+        label.setAlignment(com.badlogic.gdx.utils.Align.center);
+        return label;
+    }
+
+    private Label separator() {
+        Label label = createHudLabel();
+        label.setText("|");
+        return label;
+    }
+
+    private void updateTimedWarHud(TimedWarRule rule) {
         LevelRuntimeContext context = createContext();
         float seconds = rule.getRemainingTicks(context) / TICKS_PER_SECOND;
         int kills = rule.getKillProgress(context);
@@ -121,16 +156,10 @@ public final class AdventureLevelModeAdapter implements LevelModeAdapter {
         int killPercent = killTarget <= 0 ? 100 : Math.min(100, kills * 100 / killTarget);
         int sunPercent = sunTarget <= 0 ? 100 : Math.min(100, suns * 100 / sunTarget);
         int percent = Math.min(killPercent, sunPercent);
-        return String.format(
-                Locale.ROOT,
-                "Time Left: %.1fs | Zombies: %d/%d | Sun: %d/%d | Progress: %d%%",
-                seconds,
-                kills,
-                killTarget,
-                suns,
-                sunTarget,
-                percent
-        );
+        timeLabel.setText(String.format(Locale.ROOT, "Time Left: %.1fs", seconds));
+        zombiesLabel.setText("Zombies: " + kills + "/" + killTarget);
+        sunLabel.setText("Sun: " + suns + "/" + sunTarget);
+        progressLabel.setText("Progress: " + percent + "%");
     }
 
     private String loveYourPlantsText(LoveYourPlantsRule rule) {
