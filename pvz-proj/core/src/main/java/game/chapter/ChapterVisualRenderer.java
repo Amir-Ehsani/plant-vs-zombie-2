@@ -39,6 +39,10 @@ public final class ChapterVisualRenderer {
             "768/FULL/BACKGROUNDS/WATER_TIDE_LINE/WATER_TIDE_LINE.PAM";
     private static final String NECROMANCY_DIRT_PAM =
             "768/INITIAL/EFFECTS/GRAVEBUSTER_DIRT/GRAVEBUSTER_DIRT.PAM";
+    private static final String GRAVE_RISE_DIRT_PAM =
+            "768/INITIAL/EFFECTS/DIRT_SPAWN_DIRT/DIRT_SPAWN_DIRT.PAM";
+    private static final String LOW_BEACH_RIPPLE_PAM =
+            "768/FULL/BACKGROUNDS/WATER_GARGANTUAR_RIPPLE/WATER_GARGANTUAR_RIPPLE.PAM";
 
     private static final Color WATER_COLOR = new Color(0.12f, 0.48f, 0.72f, 0.34f);
     private static final Color WATER_SHINE_COLOR = new Color(0.60f, 0.92f, 1f, 0.24f);
@@ -54,6 +58,8 @@ public final class ChapterVisualRenderer {
     private final Camera camera;
     private final SeasonType season;
     private final Map<Position, Float> necromancySpawnTimes = new LinkedHashMap<>();
+    private final Map<Position, Float> graveRiseTimes = new LinkedHashMap<>();
+    private final Map<Position, Float> lowBeachSpawnTimes = new LinkedHashMap<>();
     private final Map<Zombie, Boolean> seenSandstormZombies = new IdentityHashMap<>();
     private final List<SandBurstVisual> sandBursts = new ArrayList<>();
 
@@ -123,9 +129,11 @@ public final class ChapterVisualRenderer {
         this.observedWave = 0;
         if (season == SeasonType.BIG_WAVE_BEACH) {
             animations.preload(WATER_TIDE_LINE_PAM);
+            animations.preload(LOW_BEACH_RIPPLE_PAM);
             displayedTideX = targetTideX();
         } else if (season == SeasonType.DARK_AGES) {
             animations.preload(NECROMANCY_DIRT_PAM);
+            animations.preload(GRAVE_RISE_DIRT_PAM);
         }
     }
 
@@ -136,6 +144,8 @@ public final class ChapterVisualRenderer {
         necromancyTime = Math.max(0f, necromancyTime - safeDelta);
         detectWaveChange();
         updateNecromancySpawns(safeDelta);
+        updateGraveRiseEffects(safeDelta);
+        updateLowBeachSpawnEffects(safeDelta);
         updateSandstormBursts(safeDelta);
         updateDisplayedTideLine(safeDelta);
     }
@@ -148,6 +158,9 @@ public final class ChapterVisualRenderer {
         drawTerrainSprites(batch);
         if (season == SeasonType.ANCIENT_EGYPT) {
             drawSandstormRear(batch);
+        }
+        if (season == SeasonType.BIG_WAVE_BEACH) {
+            drawLowBeachSpawnRipples(batch);
         }
     }
 
@@ -165,6 +178,7 @@ public final class ChapterVisualRenderer {
             drawSandstormFront(batch);
         }
         if (season == SeasonType.DARK_AGES) {
+            drawGraveRiseDirt(batch);
             drawNecromancyDirt(batch);
             drawNecromancyPulse(shapes);
         }
@@ -222,6 +236,28 @@ public final class ChapterVisualRenderer {
             );
         }
         necromancySpawnTimes.keySet().removeIf(position -> !pending.contains(position));
+    }
+
+    private void updateGraveRiseEffects(float delta) {
+        if (season != SeasonType.DARK_AGES) {
+            return;
+        }
+        Set<Position> pending = level.getPendingGraveRisePositions();
+        for (Position position : pending) {
+            graveRiseTimes.put(position, graveRiseTimes.getOrDefault(position, 0f) + delta);
+        }
+        graveRiseTimes.keySet().removeIf(position -> !pending.contains(position));
+    }
+
+    private void updateLowBeachSpawnEffects(float delta) {
+        if (season != SeasonType.BIG_WAVE_BEACH) {
+            return;
+        }
+        Set<Position> pending = level.getPendingLowBeachPositions();
+        for (Position position : pending) {
+            lowBeachSpawnTimes.put(position, lowBeachSpawnTimes.getOrDefault(position, 0f) + delta);
+        }
+        lowBeachSpawnTimes.keySet().removeIf(position -> !pending.contains(position));
     }
 
     private void drawTerrain(ShapeRenderer shapes) {
@@ -413,7 +449,7 @@ public final class ChapterVisualRenderer {
             displayedTideX = target;
             return;
         }
-        float follow = 1f - (float) Math.exp(-4.0f * Math.max(0f, delta));
+        float follow = 1f - (float) Math.exp(-2.6f * Math.max(0f, delta));
         displayedTideX += (target - displayedTideX) * follow;
         if (Math.abs(target - displayedTideX) < 0.35f) {
             displayedTideX = target;
@@ -449,8 +485,9 @@ public final class ChapterVisualRenderer {
         if (!ScissorStack.pushScissors(scissor)) {
             return;
         }
+        float lineX = displayedTideX + geometry.getTileWidth() * 2.70f;
         animations.draw(
-                batch, WATER_TIDE_LINE_PAM, "idle", elapsed, displayedTideX,
+                batch, WATER_TIDE_LINE_PAM, "idle", elapsed, lineX,
                 boardBounds.y + boardBounds.height / 2f, 1f, true
         );
         batch.flush();
@@ -579,6 +616,48 @@ public final class ChapterVisualRenderer {
             }
         }
         batch.setColor(Color.WHITE);
+    }
+
+    private void drawGraveRiseDirt(Batch batch) {
+        if (graveRiseTimes.isEmpty()) {
+            return;
+        }
+        batch.begin();
+        for (Map.Entry<Position, Float> entry : graveRiseTimes.entrySet()) {
+            Rectangle tile = geometry.getTileBounds(entry.getKey().getY(), entry.getKey().getX());
+            animations.draw(
+                    batch,
+                    GRAVE_RISE_DIRT_PAM,
+                    "tomb_dirt_anim",
+                    entry.getValue(),
+                    tile.x + tile.width / 2f,
+                    tile.y + tile.height * 0.38f,
+                    0.52f,
+                    false
+            );
+        }
+        batch.end();
+    }
+
+    private void drawLowBeachSpawnRipples(Batch batch) {
+        if (lowBeachSpawnTimes.isEmpty()) {
+            return;
+        }
+        batch.begin();
+        for (Map.Entry<Position, Float> entry : lowBeachSpawnTimes.entrySet()) {
+            Rectangle tile = geometry.getTileBounds(entry.getKey().getY(), entry.getKey().getX());
+            animations.draw(
+                    batch,
+                    LOW_BEACH_RIPPLE_PAM,
+                    "ripple",
+                    entry.getValue(),
+                    tile.x + tile.width / 2f,
+                    tile.y + tile.height * 0.42f,
+                    0.46f,
+                    false
+            );
+        }
+        batch.end();
     }
 
     private void drawNecromancyDirt(Batch batch) {
