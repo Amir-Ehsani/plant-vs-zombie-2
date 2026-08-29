@@ -273,8 +273,10 @@ public class MainMenuScreen extends BaseMenuScreen {
                 action.run();
             }
         });
-        Label label = new Label(title, skin, "secondary");
-        label.setColor(SHORTCUT_TEXT_COLOR);
+        Label.LabelStyle shortcutStyle = new Label.LabelStyle(skin.getFont("FBUSV8C6EI_3"), Color.WHITE);
+        Label label = new Label(title, shortcutStyle);
+        label.setColor(Color.WHITE);
+        label.setFontScale(0.72f);
         label.setAlignment(Align.center);
         shortcut.add(button).size(iconSize).center().row();
         shortcut.add(label).width(106f).padTop(3f).center();
