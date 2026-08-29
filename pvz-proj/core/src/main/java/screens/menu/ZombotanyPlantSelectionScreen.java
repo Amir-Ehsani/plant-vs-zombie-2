@@ -96,12 +96,13 @@ public final class ZombotanyPlantSelectionScreen extends BaseMenuScreen {
         browser.add(detailPanel).width(820f).height(120f).padBottom(4f).row();
 
         plantGrid.top().left();
-        plantGrid.defaults().pad(4f);
+        plantGrid.defaults().pad(3f);
         ScrollPane scrollPane = new ScrollPane(plantGrid, skin);
         scrollPane.setFadeScrollBars(false);
         scrollPane.setOverscroll(false, false);
         scrollPane.setScrollingDisabled(true, false);
-        browser.add(scrollPane).width(840f).height(280f);
+        scrollPane.setScrollbarsOnTop(false);
+        browser.add(scrollPane).width(832f).height(280f).padRight(8f);
         body.add(browser).width(850f).height(410f).top().center();
 
         panel.add(body).width(1015f).height(410f).center().row();
@@ -305,6 +306,7 @@ public final class ZombotanyPlantSelectionScreen extends BaseMenuScreen {
         Label.LabelStyle style = new Label.LabelStyle(skin.getFont("FBUSV8C5EI_1_outline"), Color.WHITE);
         Label label = new Label(String.valueOf(sunCost), style);
         label.setColor(Color.YELLOW);
+        label.setFontScale(0.55f);
         return label;
     }
 
@@ -316,7 +318,6 @@ public final class ZombotanyPlantSelectionScreen extends BaseMenuScreen {
             return;
         }
         if (selectedPlants.size() >= MAX_SELECTED_PLANTS) {
-            showControllerMessage("ERROR: You can select at most " + MAX_SELECTED_PLANTS + " plants.");
             return;
         }
         selectedPlants.add(plantName);
@@ -325,17 +326,14 @@ public final class ZombotanyPlantSelectionScreen extends BaseMenuScreen {
 
     private void upgradePlant(String plantName) {
         game.getCollectionController().upgradePlant(plantName);
-        showControllerMessage(game.getCollectionController().getLastMessage());
         refreshAll();
     }
 
     private void startGame() {
         if (selectedPlants.isEmpty()) {
-            showControllerMessage("ERROR: Select at least one plant before starting Zombotany.");
             return;
         }
         controller.enterZombotanyMiniGame(miniGameStage, new ArrayList<>(selectedPlants));
-        showControllerMessage(controller.getLastMessage());
         if (controller.wasSuccessful()) {
             game.getScreenManager().showActiveMiniGame();
         }

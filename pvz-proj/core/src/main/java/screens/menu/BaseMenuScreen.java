@@ -97,13 +97,11 @@ public abstract class BaseMenuScreen extends BaseScreen {
 
     private void addDebugCoins() {
         game.getSettingsController().addDebugCoins(1000);
-        showControllerMessage(game.getSettingsController().getLastMessage());
         refreshResourceBar();
     }
 
     private void addDebugDiamonds() {
         game.getSettingsController().addDebugDiamonds(10);
-        showControllerMessage(game.getSettingsController().getLastMessage());
         refreshResourceBar();
     }
 
@@ -121,11 +119,22 @@ public abstract class BaseMenuScreen extends BaseScreen {
             NotificationManager.showError(stripPrefix(message));
             return;
         }
-        if (message.startsWith("OK:")) {
+        if (message.startsWith("OK:") && isEssentialSuccess(message)) {
             NotificationManager.showSuccess(stripPrefix(message));
-            return;
         }
-        NotificationManager.showInfo(message);
+    }
+
+    private boolean isEssentialSuccess(String message) {
+        String normalized = stripPrefix(message).toLowerCase();
+        return normalized.contains("purchase")
+                || normalized.contains("bought")
+                || normalized.contains("upgrade")
+                || normalized.contains("reward")
+                || normalized.contains("collect")
+                || normalized.contains("password")
+                || normalized.contains("account")
+                || normalized.contains("register")
+                || normalized.contains("saved");
     }
 
     protected String stripPrefix(String message) {

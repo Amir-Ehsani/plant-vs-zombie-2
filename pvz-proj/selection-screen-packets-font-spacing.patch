@@ -1,0 +1,111 @@
+--- a/core/src/main/java/screens/menu/AdventurePlantSelectionScreen.java
++++ b/core/src/main/java/screens/menu/AdventurePlantSelectionScreen.java
+@@ -169,7 +169,7 @@
+     private void rebuildSelectedSlots() {
+         selectedSlots.clearChildren();
+         selectedSlots.top();
+-        selectedSlots.defaults().padBottom(3f);
++        selectedSlots.defaults().padBottom(6f);
+         List<String> selected = selectedPlantNames();
+         int selectionLimit = controller.getCurrentPlantSelectionLimit();
+         int totalSlotCount = totalSelectionSlotCount();
+@@ -283,8 +283,7 @@
+         Table overlay = new Table();
+         overlay.setFillParent(true);
+         overlay.top().right();
+-        Label cost = new Label(String.valueOf(resolveSunCost(data.getName())), skin, "secondary");
+-        cost.setColor(TEXT_COLOR);
++        Label cost = createSunCostLabel(resolveSunCost(data.getName()));
+         overlay.add(cost).padTop(6f).padRight(8f);
+         stack.add(overlay);
+ 
+@@ -318,7 +317,7 @@
+ 
+     private Stack createPacketStack(String plantName, float width, float height, float packetWidth, float packetHeight) {
+         Stack stack = new Stack();
+-        TextureRegion backgroundRegion = game.getAnimationService().region("IMAGE_UI_PACKETS_SELECTED");
++        TextureRegion backgroundRegion = game.getAnimationService().region(packetBackgroundId(plantName));
+         if (backgroundRegion != null) {
+             Image background = new Image(backgroundRegion);
+             background.setScaling(Scaling.fill);
+@@ -351,7 +350,7 @@
+ 
+ 
+     private void addLockedOverlay(Stack stack, float width, float height) {
+-        TextureRegion backgroundRegion = game.getAnimationService().region("IMAGE_UI_PACKETS_SELECTED");
++        TextureRegion backgroundRegion = game.getAnimationService().region("IMAGE_UI_PACKETS_HOMELESS");
+         if (backgroundRegion != null) {
+             Image dim = new Image(new TextureRegionDrawable(backgroundRegion));
+             dim.setColor(LOCKED_DIM_COLOR);
+@@ -375,6 +374,20 @@
+         stack.add(overlay);
+     }
+ 
++    private String packetBackgroundId(String plantName) {
++        return plantName != null && !plantName.isBlank() && isSelected(plantName)
++                ? "IMAGE_UI_PACKETS_READY_PREMIUM"
++                : "IMAGE_UI_PACKETS_HOMELESS";
++    }
++
++    private Label createSunCostLabel(int sunCost) {
++        Label.LabelStyle style = new Label.LabelStyle(skin.get("secondary", Label.LabelStyle.class));
++        style.font = skin.getFont("FBUSV8C6EI_3");
++        Label label = new Label(String.valueOf(sunCost), style);
++        label.setColor(TEXT_COLOR);
++        return label;
++    }
++
+     private void togglePlant(String plantName) {
+         if (isSelected(plantName)) {
+             removePlant(plantName);
+--- a/core/src/main/java/screens/menu/ZombotanyPlantSelectionScreen.java
++++ b/core/src/main/java/screens/menu/ZombotanyPlantSelectionScreen.java
+@@ -144,7 +144,7 @@
+     private void rebuildSelectedSlots() {
+         selectedSlots.clearChildren();
+         selectedSlots.top();
+-        selectedSlots.defaults().padBottom(3f);
++        selectedSlots.defaults().padBottom(6f);
+         List<String> selected = new ArrayList<>(selectedPlants);
+         selectionCount.setText("Selected Plants: " + selected.size() + " / " + MAX_SELECTED_PLANTS);
+         for (int index = 0; index < MAX_SELECTED_PLANTS; index++) {
+@@ -243,8 +243,7 @@
+         overlay.setFillParent(true);
+         overlay.top().right();
+         PlantType type = DefaultPlantRegistry.getInstance().getByName(data.getName());
+-        Label cost = new Label(String.valueOf(type == null ? 0 : type.getSunCost()), skin, "secondary");
+-        cost.setColor(TEXT_COLOR);
++        Label cost = createSunCostLabel(type == null ? 0 : type.getSunCost());
+         overlay.add(cost).padTop(6f).padRight(8f);
+         stack.add(overlay);
+ 
+@@ -273,7 +272,7 @@
+             String plantName, float width, float height, float packetWidth, float packetHeight
+     ) {
+         Stack stack = new Stack();
+-        TextureRegion backgroundRegion = game.getAnimationService().region("IMAGE_UI_PACKETS_SELECTED");
++        TextureRegion backgroundRegion = game.getAnimationService().region(packetBackgroundId(plantName));
+         if (backgroundRegion != null) {
+             Image background = new Image(backgroundRegion);
+             background.setScaling(Scaling.fill);
+@@ -305,6 +304,20 @@
+         return stack;
+     }
+ 
++    private String packetBackgroundId(String plantName) {
++        return plantName != null && !plantName.isBlank() && isSelected(plantName)
++                ? "IMAGE_UI_PACKETS_READY_PREMIUM"
++                : "IMAGE_UI_PACKETS_HOMELESS";
++    }
++
++    private Label createSunCostLabel(int sunCost) {
++        Label.LabelStyle style = new Label.LabelStyle(skin.get("secondary", Label.LabelStyle.class));
++        style.font = skin.getFont("FBUSV8C6EI_3");
++        Label label = new Label(String.valueOf(sunCost), style);
++        label.setColor(TEXT_COLOR);
++        return label;
++    }
++
+     private void togglePlant(String plantName) {
+         String existing = selectedName(plantName);
+         if (existing != null) {

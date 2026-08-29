@@ -2,7 +2,11 @@ package screens.menu;
 
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
+import com.badlogic.gdx.math.Interpolation;
+import com.badlogic.gdx.scenes.scene2d.Actor;
 import com.badlogic.gdx.scenes.scene2d.InputEvent;
+import com.badlogic.gdx.scenes.scene2d.Touchable;
+import com.badlogic.gdx.scenes.scene2d.actions.Actions;
 import com.badlogic.gdx.scenes.scene2d.ui.Image;
 import com.badlogic.gdx.scenes.scene2d.ui.ImageButton;
 import com.badlogic.gdx.scenes.scene2d.ui.Label;
@@ -20,8 +24,6 @@ import ui.ResourceBar;
 
 public class AdventureScreen extends BaseMenuScreen {
     private static final Color TITLE_COLOR = Color.WHITE;
-    private static final Color TEXT_COLOR = Color.valueOf("F6F0CF");
-    private static final Color LOCKED_COLOR = Color.valueOf("FFD35A");
     private static final float CARD_WIDTH = 260f;
     private static final float CARD_HEIGHT = 455f;
 
@@ -103,7 +105,8 @@ public class AdventureScreen extends BaseMenuScreen {
         Table card = new Table();
         boolean unlocked = user.isChapterUnlocked(chapterName);
 
-        card.add(createWorldImage(chapterName)).width(235f).height(320f).padTop(24f).padBottom(-10f).row();
+        card.add(createWorldImage(chapterName, unlocked))
+                .width(235f).height(320f).padTop(48f).padBottom(-10f).row();
 
         Label name = new Label(worldDisplayName(chapterName), skin, "big_outline");
         name.setColor(TITLE_COLOR);
@@ -112,32 +115,52 @@ public class AdventureScreen extends BaseMenuScreen {
         name.setWrap(true);
         card.add(name).width(225f).height(62f).padBottom(0f).row();
 
-        Label progress = createSecondaryLabel(completedLevelCount(user, chapterName) + "/" + AdventureLevelCatalog.BOSS_LEVEL);
-        progress.setColor(TEXT_COLOR);
-        progress.setAlignment(Align.center);
+        Label progress = chapterStatusLabel(
+                completedLevelCount(user, chapterName) + "/" + AdventureLevelCatalog.BOSS_LEVEL
+        );
         card.add(progress).padBottom(4f).row();
 
-        Label status = createSecondaryLabel(unlocked ? "UNLOCKED" : "LOCKED");
-        status.setColor(unlocked ? TEXT_COLOR : LOCKED_COLOR);
-        status.setAlignment(Align.center);
+        Label status = chapterStatusLabel(unlocked ? "UNLOCKED" : "LOCKED");
         card.add(status).padBottom(12f).row();
-
-        MenuButton button = new MenuButton(
-                unlocked ? "Review" : "Locked",
-                skin,
-                unlocked ? "green" : "brown",
-                unlocked ? () -> game.getScreenManager().showAdventureLevels(chapterName) : null
-        );
-        button.setDisabled(!unlocked);
-        card.add(button).width(170f).height(46f);
         return card;
     }
 
-    private Image createWorldImage(String chapterName) {
+    private Image createWorldImage(String chapterName, boolean unlocked) {
         TextureRegion region = game.getAnimationService().region(worldRegionId(chapterName));
         Image image = region == null ? new Image() : new Image(region);
         image.setScaling(Scaling.fit);
+        image.setTouchable(Touchable.enabled);
+        image.setOrigin(Align.center);
+        image.addListener(new ClickListener() {
+            @Override
+            public void enter(InputEvent event, float x, float y, int pointer, Actor fromActor) {
+                image.clearActions();
+                image.addAction(Actions.scaleTo(1.07f, 1.07f, 0.16f, Interpolation.sineOut));
+            }
+
+            @Override
+            public void exit(InputEvent event, float x, float y, int pointer, Actor toActor) {
+                image.clearActions();
+                image.addAction(Actions.scaleTo(1f, 1f, 0.16f, Interpolation.sineOut));
+            }
+
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                if (unlocked) {
+                    game.getScreenManager().showAdventureLevels(chapterName);
+                }
+            }
+        });
         return image;
+    }
+
+    private Label chapterStatusLabel(String text) {
+        Label.LabelStyle style = new Label.LabelStyle(skin.getFont("FBUSV8C6EI_3"), Color.WHITE);
+        Label label = new Label(text, style);
+        label.setColor(Color.WHITE);
+        label.setFontScale(0.65f);
+        label.setAlignment(Align.center);
+        return label;
     }
 
     private ImageButton createShopButton() {

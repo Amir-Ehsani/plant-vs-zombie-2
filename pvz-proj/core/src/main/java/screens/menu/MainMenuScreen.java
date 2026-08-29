@@ -25,7 +25,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class MainMenuScreen extends BaseMenuScreen {
-    private static final Color SHORTCUT_TEXT_COLOR = Color.valueOf("FFFBEA");
+    private static final Color SHORTCUT_TEXT_COLOR = Color.WHITE;
     private final MainMenuController controller;
     private final PvzAnimationService animations;
     private Texture backgroundTexture;

@@ -107,12 +107,13 @@ public class AdventurePlantSelectionScreen extends BaseMenuScreen {
         browser.add(detailPanel).width(820f).height(120f).padBottom(4f).row();
 
         plantGrid.top().left();
-        plantGrid.defaults().pad(4f);
+        plantGrid.defaults().pad(3f);
         ScrollPane scrollPane = new ScrollPane(plantGrid, skin);
         scrollPane.setFadeScrollBars(false);
         scrollPane.setOverscroll(false, false);
         scrollPane.setScrollingDisabled(true, false);
-        browser.add(scrollPane).width(840f).height(280f);
+        scrollPane.setScrollbarsOnTop(false);
+        browser.add(scrollPane).width(832f).height(280f).padRight(8f);
         body.add(browser).width(850f).height(410f).top().center();
 
         panel.add(body).width(1015f).height(410f).center().row();
@@ -134,7 +135,6 @@ public class AdventurePlantSelectionScreen extends BaseMenuScreen {
         }
         controller.prepareChapterLevel(chapterName, levelNumber);
         if (!controller.wasSuccessful()) {
-            showControllerMessage(controller.getLastMessage());
             game.getScreenManager().showAdventure();
             return false;
         }
@@ -232,7 +232,6 @@ public class AdventurePlantSelectionScreen extends BaseMenuScreen {
                 selected ? "brown" : "green_small",
                 () -> {
                     if (locked) {
-                        showControllerMessage("This seed packet is locked for this level.");
                         refreshAll();
                         return;
                     }
@@ -296,7 +295,6 @@ public class AdventurePlantSelectionScreen extends BaseMenuScreen {
             public void clicked(InputEvent event, float x, float y) {
                 focusedPlantName = data.getName();
                 if (locked) {
-                    showControllerMessage("This seed packet is locked for this level.");
                     refreshAll();
                     return;
                 }
@@ -375,6 +373,7 @@ public class AdventurePlantSelectionScreen extends BaseMenuScreen {
         Label.LabelStyle style = new Label.LabelStyle(skin.getFont("FBUSV8C5EI_1_outline"), Color.WHITE);
         Label label = new Label(String.valueOf(sunCost), style);
         label.setColor(Color.YELLOW);
+        label.setFontScale(0.55f);
         return label;
     }
 
@@ -385,24 +384,20 @@ public class AdventurePlantSelectionScreen extends BaseMenuScreen {
         }
         int selectionLimit = controller.getCurrentPlantSelectionLimit();
         if (selectedPlantNames().size() >= selectionLimit) {
-            showControllerMessage("ERROR: You can select at most " + selectionLimit + " plants.");
             return;
         }
         controller.addPlantToSelection(plantName);
-        showControllerMessage(controller.getLastMessage());
         refreshAll();
     }
 
     private void removePlant(String plantName) {
         controller.removePlantFromSelection(plantName);
-        showControllerMessage(controller.getLastMessage());
         paidBoostNames.remove(normalize(plantName));
         refreshAll();
     }
 
     private void boostPlant(String plantName) {
         controller.boostPlant(plantName);
-        showControllerMessage(controller.getLastMessage());
         if (controller.wasSuccessful()) {
             paidBoostNames.add(normalize(plantName));
         }
@@ -411,18 +406,15 @@ public class AdventurePlantSelectionScreen extends BaseMenuScreen {
 
     private void upgradePlant(String plantName) {
         game.getCollectionController().upgradePlant(plantName);
-        showControllerMessage(game.getCollectionController().getLastMessage());
         refreshAll();
     }
 
     private void startLevel() {
         if (selectedPlantNames().isEmpty()) {
-            showControllerMessage("ERROR: Select at least one plant before starting the level.");
             return;
         }
         controller.startGame();
         if (!controller.wasSuccessful()) {
-            showControllerMessage(controller.getLastMessage());
             return;
         }
         game.getScreenManager().showPreparedGame();

@@ -28,16 +28,7 @@ public final class GameplayEventFeedback {
     }
 
     public void showSunCollection(String controllerMessage) {
-        if (controllerMessage == null || controllerMessage.isBlank()) {
-            return;
-        }
-        for (String line : controllerMessage.split("\\R")) {
-            String clean = cleanSingleLine(line);
-            if (clean.startsWith("Sun collected at")
-                || clean.startsWith("Radioactive sun exploded at")) {
-                notifications.push(clean, NotificationType.INFO);
-            }
-        }
+        // Sun collection happens constantly during gameplay and does not need a toast.
     }
 
     private List<String> feedbackLines(String message) {
@@ -57,7 +48,6 @@ public final class GameplayEventFeedback {
     private boolean isDropFeedback(String line) {
         return line.startsWith("A zombie dropped a plant food")
             || line.startsWith("A reward grave released")
-            || line.startsWith("A zombie dropped 50 coins")
             || line.startsWith("A zombie dropped 1 diamond")
             || line.startsWith("A zombie dropped a greenhouse pot");
     }

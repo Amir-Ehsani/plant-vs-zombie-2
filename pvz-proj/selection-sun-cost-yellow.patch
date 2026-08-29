@@ -1,0 +1,22 @@
+--- a/core/src/main/java/screens/menu/AdventurePlantSelectionScreen.java
++++ b/core/src/main/java/screens/menu/AdventurePlantSelectionScreen.java
+@@ -384,7 +384,7 @@
+         Label.LabelStyle style = new Label.LabelStyle(skin.get("secondary", Label.LabelStyle.class));
+         style.font = skin.getFont("FBUSV8C6EI_3");
+         Label label = new Label(String.valueOf(sunCost), style);
+-        label.setColor(TEXT_COLOR);
++        label.setColor(Color.YELLOW);
+         return label;
+     }
+ 
+--- a/core/src/main/java/screens/menu/ZombotanyPlantSelectionScreen.java
++++ b/core/src/main/java/screens/menu/ZombotanyPlantSelectionScreen.java
+@@ -314,7 +314,7 @@
+         Label.LabelStyle style = new Label.LabelStyle(skin.get("secondary", Label.LabelStyle.class));
+         style.font = skin.getFont("FBUSV8C6EI_3");
+         Label label = new Label(String.valueOf(sunCost), style);
+-        label.setColor(TEXT_COLOR);
++        label.setColor(Color.YELLOW);
+         return label;
+     }
+ 

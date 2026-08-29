@@ -33,9 +33,13 @@ public class CurrencyActor extends Table {
             Label nameLabel = new Label(this.name + ":", skin, "secondary");
             add(nameLabel).padRight(6f);
         }
-        valueLabel = new Label("0", skin, backgroundRegion == null ? "medium_outline" : "secondary");
         if (backgroundRegion != null) {
+            Label.LabelStyle style = new Label.LabelStyle(skin.getFont("FBUSV8C5EI_2_outline"), Color.WHITE);
+            valueLabel = new Label("0", style);
             valueLabel.setColor(RESOURCE_TEXT_COLOR);
+            valueLabel.setFontScale(0.55f);
+        } else {
+            valueLabel = new Label("0", skin, "medium_outline");
         }
         valueLabel.setAlignment(Align.center);
         add(valueLabel);
