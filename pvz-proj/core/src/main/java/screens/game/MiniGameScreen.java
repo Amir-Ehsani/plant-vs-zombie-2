@@ -82,8 +82,6 @@ public final class MiniGameScreen extends BaseScreen {
     private Position hoveredTile;
     private Position selectedMatchTile;
     private Integer selectedPacketId;
-    private Integer draggedPacketId;
-    private String draggedNutType;
     private String selectedNutType;
     private String selectedZombieName;
     private String selectedPlantName;
@@ -167,25 +165,6 @@ public final class MiniGameScreen extends BaseScreen {
         if (session instanceof ZombotanyGame gameSession && compactSeedBank != null) {
             compactSeedBank.renderZombotany(
                     shapes, batch, gameSession, visualStateTime, selectedPlantName
-            );
-        }
-        if (draggedPacketId != null && session instanceof VasebreakerGame gameSession) {
-            visualRenderer.renderDraggedPacket(
-                    batch,
-                    gameSession,
-                    draggedPacketId,
-                    cursorWorld.x,
-                    cursorWorld.y,
-                    visualStateTime
-            );
-        }
-        if (draggedNutType != null && session instanceof WallNutBowlingGame) {
-            visualRenderer.renderDraggedNut(
-                    batch,
-                    draggedNutType,
-                    cursorWorld.x,
-                    cursorWorld.y,
-                    visualStateTime
             );
         }
         disableBlending();
@@ -513,6 +492,7 @@ public final class MiniGameScreen extends BaseScreen {
         visualRenderer.setSelectedNutType(selectedNutType);
         visualRenderer.setSelectedMatchTile(selectedMatchTile);
         visualRenderer.update(visualDelta);
+        collectIZombieSunUnderPointer();
         collectZombotanySunUnderPointer();
         if (session instanceof ZombotanyGame gameSession && zombotanyWaveHud != null) {
             zombotanyWaveHud.updateZombotany(gameSession);
@@ -736,7 +716,7 @@ public final class MiniGameScreen extends BaseScreen {
             @Override
             public boolean touchDragged(int screenX, int screenY, int pointer) {
                 updatePointer(screenX, screenY);
-                return draggedPacketId != null || draggedNutType != null;
+                return false;
             }
 
             @Override
@@ -749,8 +729,8 @@ public final class MiniGameScreen extends BaseScreen {
                 if (session instanceof VasebreakerGame) {
                     Integer packetId = visualRenderer.findPacketAt(cursorWorld.x, cursorWorld.y);
                     if (packetId != null) {
-                        draggedPacketId = packetId;
-                        selectedPacketId = packetId;
+                        selectedPacketId = selectedPacketId != null && selectedPacketId.equals(packetId)
+                                ? null : packetId;
                         return true;
                     }
                 }
@@ -758,8 +738,7 @@ public final class MiniGameScreen extends BaseScreen {
                 if (session instanceof WallNutBowlingGame) {
                     String nutType = visualRenderer.findWallNutAt(cursorWorld.x, cursorWorld.y);
                     if (nutType != null) {
-                        draggedNutType = nutType;
-                        selectedNutType = nutType;
+                        selectedNutType = nutType.equals(selectedNutType) ? null : nutType;
                         visualRenderer.setSelectedNutType(selectedNutType);
                         return true;
                     }
@@ -798,35 +777,6 @@ public final class MiniGameScreen extends BaseScreen {
                 return handleBoardClick();
             }
 
-            @Override
-            public boolean touchUp(int screenX, int screenY, int pointer, int button) {
-                if (button != Input.Buttons.LEFT) {
-                    return false;
-                }
-                updatePointer(screenX, screenY);
-                if (draggedPacketId != null) {
-                    selectedPacketId = draggedPacketId;
-                    draggedPacketId = null;
-                    if (hoveredTile != null) {
-                        boolean planted = controller.plantVasebreakerPacket(selectedPacketId, hoveredTile);
-                        if (planted) {
-                            selectedPacketId = null;
-                        }
-                        showActionMessage();
-                    }
-                    return true;
-                }
-                if (draggedNutType != null) {
-                    String nutType = draggedNutType;
-                    draggedNutType = null;
-                    boolean launched = hoveredTile != null && controller.launchNut(nutType, hoveredTile);
-                    showActionMessage();
-                    selectedNutType = null;
-                    visualRenderer.setSelectedNutType(null);
-                    return launched || hoveredTile != null;
-                }
-                return false;
-            }
         };
     }
 
@@ -865,7 +815,16 @@ public final class MiniGameScreen extends BaseScreen {
     }
 
     private boolean handleBowlingClick() {
-        return false;
+        if (selectedNutType == null) {
+            return false;
+        }
+        boolean launched = controller.launchNut(selectedNutType, hoveredTile);
+        showActionMessage();
+        if (launched) {
+            selectedNutType = null;
+            visualRenderer.setSelectedNutType(null);
+        }
+        return true;
     }
 
     private boolean handleIZombieClick() {
@@ -971,7 +930,6 @@ public final class MiniGameScreen extends BaseScreen {
             }
         }
         selectedPacketId = null;
-        draggedPacketId = null;
     }
 
     private String firstZombieOption() {
@@ -986,6 +944,18 @@ public final class MiniGameScreen extends BaseScreen {
             return null;
         }
         return gameSession.getSeedOptions().get(0).plantName();
+    }
+
+    private void collectIZombieSunUnderPointer() {
+        if (paused || !(session instanceof IZombieGame) || !session.isRunning()) {
+            return;
+        }
+        Integer sunDropId = visualRenderer.findSunDropAt(cursorWorld.x, cursorWorld.y);
+        if (sunDropId == null) {
+            return;
+        }
+        controller.collectIZombieSun(sunDropId);
+        refreshHud();
     }
 
     private void collectZombotanySunUnderPointer() {
