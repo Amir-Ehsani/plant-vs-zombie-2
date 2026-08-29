@@ -117,7 +117,11 @@ public final class AdventureContentCatalog {
             int levelNumber,
             PlantRegistry registry
     ) {
-        List<String> requested = switch (AdventureLevelCatalog.normalizeChapterName(chapterName)) {
+        String chapter = AdventureLevelCatalog.normalizeChapterName(chapterName);
+        if (levelNumber != AdventureLevelCatalog.BOSS_LEVEL) {
+            return broadChapterPlantPool(chapter, levelNumber, registry);
+        }
+        List<String> requested = switch (chapter) {
             case "ancient-egypt" -> ancientEgyptPlants(levelNumber);
             case "ice-cave" -> frostbitePlants(levelNumber);
             case "wave-beach" -> bigWaveBeachPlants(levelNumber);
@@ -179,145 +183,163 @@ public final class AdventureContentCatalog {
     }
 
     private static List<String> ancientEgyptPlants(int levelNumber) {
-        return switch (levelNumber) {
-            case 1 -> List.of(
-                    "Sunflower", "Peashooter", "Wall-nut", "Potato Mine",
-                    "Cabbage-pult", "Iceberg Lettuce"
-            );
-            case 2 -> List.of(
-                    "Cabbage-pult", "Potato Mine", "Wall-nut", "Iceberg Lettuce"
-            );
-            case 3 -> List.of(
-                    "Sunflower", "Peashooter", "Wall-nut", "Potato Mine",
-                    "Cabbage-pult", "Iceberg Lettuce", "Grave Buster",
-                    "Bonk Choy", "Repeater", "Twin Sunflower"
-            );
-            default -> List.of(
+        if (levelNumber == AdventureLevelCatalog.BOSS_LEVEL) {
+            return List.of(
                     "Repeater", "Bonk Choy", "Iceberg Lettuce", "Grave Buster",
-                    "Wall-nut", "Potato Mine", "Cabbage-pult"
+                    "Wall-nut", "Potato Mine", "Cabbage-pult", "Kernel-pult"
             );
-        };
+        }
+        return List.of(
+                "Sunflower", "Twin Sunflower", "Peashooter", "Repeater", "Threepeater",
+                "Snow Pea", "Wall-nut", "Tall-nut", "Potato Mine", "Cherry Bomb",
+                "Cabbage-pult", "Kernel-pult", "Bonk Choy", "Iceberg Lettuce",
+                "Grave Buster", "Squash", "Jalapeno", "Torchwood", "Chomper",
+                "Starfruit", "Split Pea", "Pea Pod", "Citron", "Endurian"
+        );
     }
 
     private static List<String> frostbitePlants(int levelNumber) {
-        return switch (levelNumber) {
-            case 1 -> List.of(
-                    "Sunflower", "Peashooter", "Wall-nut", "Potato Mine",
-                    "Cabbage-pult", "Hot Potato", "Pepper-pult"
+        if (levelNumber == AdventureLevelCatalog.BOSS_LEVEL) {
+            return List.of(
+                    "Hot Potato", "Pepper-pult", "Fire Peashooter", "Rotobaga",
+                    "Threepeater", "Wall-nut", "Primal Potato Mine", "Winter Melon"
             );
-            case 2 -> List.of(
-                    "Sunflower", "Peashooter", "Wall-nut", "Hot Potato",
-                    "Pepper-pult", "Rotobaga", "Threepeater"
-            );
-            case 3 -> List.of(
-                    "Sunflower", "Twin Sunflower", "Wall-nut", "Hot Potato",
-                    "Pepper-pult", "Rotobaga", "Threepeater", "Fire Peashooter"
-            );
-            default -> List.of(
-                    "Threepeater", "Hot Potato", "Pepper-pult",
-                    "Rotobaga", "Fire Peashooter"
-            );
-        };
+        }
+        return List.of(
+                "Sunflower", "Twin Sunflower", "Primal Sunflower", "Peashooter",
+                "Repeater", "Threepeater", "Snow Pea", "Wall-nut", "Tall-nut",
+                "Potato Mine", "Primal Potato Mine", "Cherry Bomb", "Cabbage-pult",
+                "Kernel-pult", "Melon-pult", "Winter Melon", "Hot Potato",
+                "Pepper-pult", "Fire Peashooter", "Rotobaga", "Iceberg Lettuce",
+                "Ice-shroom", "Bonk Choy", "Wasabi Whip", "Endurian", "Squash"
+        );
     }
 
     private static List<String> bigWaveBeachPlants(int levelNumber) {
-        return switch (levelNumber) {
-            case 1 -> List.of(
-                    "Sunflower", "Peashooter", "Wall-nut", "Lily Pad", "Tangle Kelp"
+        if (levelNumber == AdventureLevelCatalog.BOSS_LEVEL) {
+            return List.of(
+                    "Lily Pad", "Banana Launcher", "Homing Thistle", "Guacodile",
+                    "Tangle Kelp", "Bowling Bulb"
             );
-            case 2 -> List.of(
-                    "Sunflower", "Peashooter", "Wall-nut", "Lily Pad",
-                    "Tangle Kelp", "Bowling Bulb", "Guacodile"
-            );
-            case 3 -> List.of(
-                    "Sunflower", "Twin Sunflower", "Wall-nut", "Lily Pad",
-                    "Tangle Kelp", "Bowling Bulb", "Guacodile", "Banana Launcher"
-            );
-            default -> List.of(
-                    "Lily Pad", "Banana Launcher", "Homing Thistle",
-                    "Guacodile", "Tangle Kelp", "Bowling Bulb"
-            );
-        };
+        }
+        return List.of(
+                "Sunflower", "Twin Sunflower", "Peashooter", "Repeater", "Threepeater",
+                "Wall-nut", "Tall-nut", "Potato Mine", "Cherry Bomb", "Cabbage-pult",
+                "Kernel-pult", "Melon-pult", "Lily Pad", "Tangle Kelp", "Sea-shroom",
+                "Bowling Bulb", "Guacodile", "Banana Launcher", "Homing Thistle",
+                "Cat-tail", "Rotobaga", "Citron", "Chomper", "Squash", "Jalapeno"
+        );
     }
 
     private static List<String> darkAgesPlants(int levelNumber) {
-        return switch (levelNumber) {
-            case 1 -> List.of(
-                    "Sun-shroom", "Puff-shroom", "Fume-shroom", "Wall-nut", "Grave Buster"
+        if (levelNumber == AdventureLevelCatalog.BOSS_LEVEL) {
+            return List.of(
+                    "Puff-shroom", "Fume-shroom", "Pea-nut", "Kernel-pult",
+                    "Magnet-shroom"
             );
-            case 2 -> List.of(
-                    "Sun-shroom", "Puff-shroom", "Fume-shroom", "Sun Bean",
-                    "Wall-nut", "Grave Buster"
-            );
-            case 3 -> List.of(
-                    "Puff-shroom", "Fume-shroom", "Sun Bean",
-                    "Magnet-shroom", "Wall-nut", "Grave Buster"
-            );
-            default -> List.of(
-                    "Puff-shroom", "Fume-shroom", "Pea-nut",
-                    "Kernel-pult", "Magnet-shroom"
-            );
-        };
+        }
+        return List.of(
+                "Sun-shroom", "Sunflower", "Twin Sunflower", "Puff-shroom",
+                "Fume-shroom", "Sun Bean", "Magnet-shroom", "Hypno-shroom",
+                "Grave Buster", "Pea-nut", "Peashooter", "Repeater", "Threepeater",
+                "Wall-nut", "Tall-nut", "Potato Mine", "Cherry Bomb", "Kernel-pult",
+                "Cabbage-pult", "Melon-pult", "Bonk Choy", "Squash", "Jalapeno",
+                "Torchwood", "Starfruit"
+        );
     }
 
     private static List<String> ancientEgyptZombies(int levelNumber) {
-        return switch (levelNumber) {
-            case 1 -> List.of("Default", "cone head", "Ra");
-            case 2 -> List.of("Default", "cone head", "bucket head", "Explorer", "Gargantuar");
-            case 3 -> List.of("Default", "cone head", "bucket head", "Explorer", "Tomb raiser");
-            default -> List.of(
-                    "Default", "cone head", "bucket head", "Ra", "Explorer",
-                    "Tomb raiser", "Gargantuar", "Imp"
-            );
-        };
+        return List.of(
+                "Default", "cone head", "bucket head", "Ra", "Explorer",
+                "Tomb raiser", "Gargantuar", "Imp"
+        );
     }
 
     private static List<String> frostbiteZombies(int levelNumber) {
-        return switch (levelNumber) {
-            case 1 -> List.of("Default", "cone head", "bucket head", "Dodo");
-            case 2 -> List.of(
-                    "Default", "cone head", "bucket head", "brick head", "Dodo", "Hunter"
-            );
-            case 3 -> List.of(
-                    "Default", "cone head", "bucket head", "brick head",
-                    "Dodo", "Hunter", "Troglobite"
-            );
-            default -> List.of(
-                    "Default", "cone head", "bucket head", "brick head", "Dodo",
-                    "Hunter", "Troglobite", "Gargantuar", "Imp"
-            );
-        };
+        return List.of(
+                "Default", "cone head", "bucket head", "brick head", "Dodo",
+                "Hunter", "Troglobite", "Gargantuar", "Imp"
+        );
     }
 
     private static List<String> bigWaveBeachZombies(int levelNumber) {
-        return switch (levelNumber) {
-            case 1 -> List.of("Default", "cone head", "bucket head", "Snorkel");
-            case 2 -> List.of("Default", "cone head", "bucket head", "Snorkel", "Fisherman");
-            case 3 -> List.of(
-                    "Default", "cone head", "bucket head", "Snorkel", "Fisherman", "Octopus"
-            );
-            default -> List.of(
-                    "Default", "cone head", "bucket head", "Snorkel",
-                    "Octopus", "Gargantuar", "Imp"
-            );
-        };
+        return List.of(
+                "Default", "cone head", "bucket head", "Snorkel", "Fisherman",
+                "Octopus", "Gargantuar", "Imp"
+        );
     }
 
     private static List<String> darkAgesZombies(int levelNumber) {
-        return switch (levelNumber) {
-            case 1 -> List.of("Default", "cone head", "bucket head", "Juggler");
-            case 2 -> List.of(
-                    "Default", "cone head", "bucket head", "knight", "Juggler", "Wizard"
-            );
-            case 3 -> List.of(
-                    "Default", "cone head", "bucket head", "knight",
-                    "Juggler", "Wizard", "King"
-            );
-            default -> List.of(
-                    "Default", "cone head", "bucket head", "knight", "Juggler",
-                    "Wizard", "Imp Dragon", "Gargantuar", "Imp"
-            );
-        };
+        return List.of(
+                "Default", "cone head", "bucket head", "knight", "Juggler",
+                "Wizard", "King", "Imp Dragon", "Gargantuar", "Imp"
+        );
+    }
+
+    private static List<String> broadChapterPlantPool(
+            String chapter,
+            int levelNumber,
+            PlantRegistry registry
+    ) {
+        List<String> result = new ArrayList<>();
+        if (registry == null) {
+            return result;
+        }
+        List<String> unlocked = plantNamesUnlockedThrough(chapter, levelNumber, registry);
+        for (String plantName : unlocked) {
+            if (!isChapterIncompatiblePlant(chapter, plantName)) {
+                result.add(plantName);
+            }
+        }
+        return result;
+    }
+
+    private static boolean isChapterIncompatiblePlant(String chapter, String plantName) {
+        String plant = normalize(plantName);
+        if (!chapter.equals("wave-beach") && isWaterOnlyPlant(plant)) {
+            return true;
+        }
+        if (chapter.equals("ancient-egypt")) {
+            return isFrostbitePlant(plant) || isBeachPlant(plant) || isDarkAgesPlant(plant);
+        }
+        if (chapter.equals("ice-cave")) {
+            return isBeachPlant(plant) || isDarkAgesPlant(plant);
+        }
+        if (chapter.equals("wave-beach")) {
+            return isDarkAgesPlant(plant);
+        }
+        return chapter.equals("wild-west") && plant.equals("hot potato");
+    }
+
+    private static boolean isWaterOnlyPlant(String plant) {
+        return plant.equals("sea shroom")
+                || plant.equals("tangle kelp")
+                || plant.equals("cat tail")
+                || plant.equals("lily pad");
+    }
+
+    private static boolean isFrostbitePlant(String plant) {
+        return plant.equals("hot potato")
+                || plant.equals("pepper pult")
+                || plant.equals("fire peashooter")
+                || plant.equals("rotobaga");
+    }
+
+    private static boolean isBeachPlant(String plant) {
+        return isWaterOnlyPlant(plant)
+                || plant.equals("bowling bulb")
+                || plant.equals("guacodile")
+                || plant.equals("banana launcher")
+                || plant.equals("homing thistle");
+    }
+
+    private static boolean isDarkAgesPlant(String plant) {
+        return plant.equals("sun shroom")
+                || plant.equals("puff shroom")
+                || plant.equals("fume shroom")
+                || plant.equals("sun bean")
+                || plant.equals("magnet shroom")
+                || plant.equals("hypno shroom");
     }
 
     private static List<String> existingPlantNames(List<String> requested, PlantRegistry registry) {
