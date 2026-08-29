@@ -59,6 +59,8 @@ public final class MiniGameVisualRenderer {
 
     private static final String WALLNUT_PAM = "768/INITIAL/PLANT/WALLNUT/WALLNUT.PAM";
     private static final String EXPLODE_O_NUT_PAM = "768/INITIAL/PLANT/EXPLODEONUT/EXPLODEONUT.PAM";
+    private static final String EXPLODE_O_NUT_EXPLOSION_PAM =
+            "768/INITIAL/EFFECTS/GRAVEBUSTER_EXPLOSION_POTATOMINE/GRAVEBUSTER_EXPLOSION_POTATOMINE.PAM";
     private static final String UPGRADE_EFFECT_PAM =
             "768/INITIAL/EFFECTS/COLLECTED_UPGRADE_EFFECT/COLLECTED_UPGRADE_EFFECT.PAM";
     private static final String JALAPENO_FIRE_PAM =
@@ -198,6 +200,7 @@ public final class MiniGameVisualRenderer {
         matchUpgradeEffectTime = 0f;
         animations.preload(WALLNUT_PAM);
         animations.preload(EXPLODE_O_NUT_PAM);
+        animations.preload(EXPLODE_O_NUT_EXPLOSION_PAM);
         animations.preload(UPGRADE_EFFECT_PAM);
         animations.preload(JALAPENO_FIRE_PAM);
         updateBackgroundLayout();
@@ -416,6 +419,7 @@ public final class MiniGameVisualRenderer {
         }
         if (session instanceof WallNutBowlingGame game) {
             drawBowlingNuts(batch, shapes, game, stateTime);
+            drawBowlingExplosions(batch, game);
             drawNutConveyorCards(batch, shapes, stateTime);
             return;
         }
@@ -762,6 +766,29 @@ public final class MiniGameVisualRenderer {
         if (missingAny) {
             drawMissingNutFallbacks(shapes, game);
         }
+    }
+
+
+    private void drawBowlingExplosions(Batch batch, WallNutBowlingGame game) {
+        if (game.getExplosions().isEmpty()) {
+            return;
+        }
+        batch.begin();
+        for (WallNutBowlingGame.BowlingExplosionView explosion : game.getExplosions()) {
+            Vector2 position = geometry.entityToScreen(explosion.x(), explosion.y());
+            float stateTime = explosion.ageTicks() * 0.1f;
+            animations.draw(
+                    batch,
+                    EXPLODE_O_NUT_EXPLOSION_PAM,
+                    "animation",
+                    stateTime,
+                    position.x,
+                    position.y,
+                    0.72f,
+                    false
+            );
+        }
+        batch.end();
     }
 
     private boolean drawNut(Batch batch, WallNutBowlingGame.BowlingNutView nut, float stateTime) {
