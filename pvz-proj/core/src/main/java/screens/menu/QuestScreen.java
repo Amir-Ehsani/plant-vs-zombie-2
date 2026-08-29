@@ -1,19 +1,15 @@
 package screens.menu;
 
 import com.badlogic.gdx.graphics.Color;
-import com.badlogic.gdx.graphics.g2d.TextureRegion;
-import com.badlogic.gdx.scenes.scene2d.ui.Image;
 import com.badlogic.gdx.scenes.scene2d.ui.Label;
 import com.badlogic.gdx.scenes.scene2d.ui.ScrollPane;
 import com.badlogic.gdx.scenes.scene2d.ui.Table;
 import com.badlogic.gdx.utils.Align;
-import com.badlogic.gdx.utils.Scaling;
 import com.pvz.Main;
 import controllers.features.TravelLogController;
 import models.account.Quest;
 import ui.BackButton;
 import ui.MenuButton;
-import ui.PvzAnimationService;
 import ui.QuestCard;
 
 import java.util.List;
@@ -21,7 +17,6 @@ import java.util.List;
 public class QuestScreen extends BaseMenuScreen {
     private static final Color TEXT_COLOR = Color.valueOf("4A3A1F");
     private final TravelLogController controller;
-    private final PvzAnimationService animations;
     private final Table questList;
     private final Table filters;
     private String pageName;
@@ -29,7 +24,6 @@ public class QuestScreen extends BaseMenuScreen {
     public QuestScreen(Main game) {
         super(game);
         controller = game.getTravelLogController();
-        animations = game.getAnimationService();
         questList = new Table();
         filters = new Table();
         pageName = "all";
@@ -47,7 +41,7 @@ public class QuestScreen extends BaseMenuScreen {
     }
 
     private void buildUi() {
-        addQuestBackground();
+        addMenuBackground();
         Table root = createRoot();
         addResourceBar(root);
         Table panel = createPanel();
@@ -70,18 +64,6 @@ public class QuestScreen extends BaseMenuScreen {
                 .width(180f).height(44f);
         panel.add(actions).padTop(10f);
         root.add(panel).width(880f).height(660f);
-    }
-
-    private void addQuestBackground() {
-        TextureRegion region = animations == null ? null : animations.region("IMAGE_UI_QUESTS_TRAVEL_LOG_FINAL");
-        if (region == null) {
-            addMenuBackground();
-            return;
-        }
-        Image background = new Image(region);
-        background.setBounds(0f, 0f, WORLD_WIDTH, WORLD_HEIGHT);
-        background.setScaling(Scaling.fill);
-        stage.addActor(background);
     }
 
     private void rebuildFilters() {
