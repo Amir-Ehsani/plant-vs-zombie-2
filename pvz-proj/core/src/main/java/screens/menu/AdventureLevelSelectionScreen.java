@@ -58,11 +58,12 @@ public class AdventureLevelSelectionScreen extends BaseMenuScreen {
         root.padTop(18f).padLeft(18f);
         Table nav = new Table();
         nav.defaults().size(72f).padRight(10f);
-        nav.add(createNavIconButton("IMAGE_UI_ALMANAC_BUTTONS_HUD_BACK_SELECTED",
+        nav.add(createNavIconButton("IMAGE_UI_ALMANAC_BUTTONS_HUD_BACK_NORMAL",
                 "IMAGE_UI_ALMANAC_BUTTONS_HUD_BACK_SELECTED", game.getScreenManager()::showAdventure));
         nav.add(createNavSkinButton("almanac", game.getScreenManager()::showCollection));
         nav.add(createNavIconButton("IMAGE_UI_GENERIC_BUTTONS_HUD_ZG_NORMAL",
                 "IMAGE_UI_GENERIC_BUTTONS_HUD_ZG_SELECTED", game.getScreenManager()::showGreenhouse));
+        nav.add(createShopButton());
         root.add(nav).left().top();
     }
 
@@ -70,12 +71,9 @@ public class AdventureLevelSelectionScreen extends BaseMenuScreen {
         Table root = createRoot();
         root.top().right();
         root.padTop(8f).padRight(10f);
-        Table cluster = new Table();
         resourceBar = new ResourceBar(skin, game.getAnimationService());
         refreshResourceBar();
-        cluster.add(resourceBar).right().padRight(12f);
-        cluster.add(createShopButton()).size(84f);
-        root.add(cluster).top().right();
+        root.add(resourceBar).top().right();
     }
 
     private void buildChapterMap() {
@@ -235,6 +233,11 @@ public class AdventureLevelSelectionScreen extends BaseMenuScreen {
             style.up = drawable;
             style.over = drawable;
             style.checked = drawable;
+        } else if (pressed != null) {
+            TextureRegionDrawable selectedDrawable = new TextureRegionDrawable(pressed);
+            style.up = selectedDrawable.tint(new Color(0.72f, 0.72f, 0.72f, 1f));
+            style.over = selectedDrawable.tint(new Color(0.88f, 0.88f, 0.88f, 1f));
+            style.checked = style.up;
         }
         if (pressed != null) {
             style.down = new TextureRegionDrawable(pressed);
