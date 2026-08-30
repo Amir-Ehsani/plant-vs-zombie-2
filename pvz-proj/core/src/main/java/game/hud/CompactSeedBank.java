@@ -131,7 +131,7 @@ public final class CompactSeedBank {
             if (profile != null) {
                 String clip = profile.firstClip("idle", "play", "walk");
                 animations.draw(
-                    batch, profile.getPath(), clip, 0f,
+                    batch, profile.getPath(), clip, previewTime(option.plantName(), profile, clip),
                     BANK_X + SLOT_WIDTH * 0.50f,
                     staticSlotY(index) + PLANT_Y_OFFSET,
                     profile.getScale() * COMPACT_SCALE_MULTIPLIER, false
@@ -370,12 +370,20 @@ public final class CompactSeedBank {
             batch,
             profile.getPath(),
             clip,
-            0f,
+            previewTime(plant.name(), profile, clip),
             slotX(session) + slotWidth(session) * 0.50f,
             slotY(session, plant) + PLANT_Y_OFFSET,
             profile.getScale() * COMPACT_SCALE_MULTIPLIER,
             false
         );
+    }
+
+    private float previewTime(String plantName, EntityAnimationProfile profile, String clip) {
+        if (profile == null || clip == null || !normalizeKey(plantName).equals("gravebuster")) {
+            return 0f;
+        }
+        float duration = profile.getDefinition().getClipDuration(clip);
+        return Math.max(0f, duration - 0.001f);
     }
 
     private EntityAnimationProfile profileFor(GameSession session, String plantName) {
