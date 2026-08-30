@@ -34,6 +34,8 @@ public class Level extends LevelState {
     private static final int LOW_BEACH_EMERGE_TICKS = 12;
     private static final int GRAVE_RISE_TICKS = 8;
     private static final int TIDE_COLUMN_STEP_TICKS = 3;
+    private static final int FROST_WIND_IMPACT_DELAY_TICKS = 8;
+    private static final int FROST_WIND_CHANCE_PERCENT = 70;
 
     private BossRuntime bossRuntime;
     private final Map<Position, Integer> pendingNecromancyTicks = new LinkedHashMap<>();
@@ -44,6 +46,7 @@ public class Level extends LevelState {
     private final Map<Position, TileType> pendingGraveRiseTypes = new LinkedHashMap<>();
     private final Map<Integer, Integer> pendingTideWaterColumns = new LinkedHashMap<>();
     private int tideTargetWaterColumns;
+    private int pendingFrostWindImpactTick = -1;
 
     public Level(
             int levelId,
@@ -95,6 +98,7 @@ public class Level extends LevelState {
         pendingGraveRiseTypes.clear();
         pendingTideWaterColumns.clear();
         lastFrostWindLanes.clear();
+        pendingFrostWindImpactTick = -1;
         tideTargetWaterColumns = currentWaterColumns;
         appliedTerrainTicks.clear();
         appliedTerrainWaves.clear();
@@ -157,6 +161,7 @@ public class Level extends LevelState {
 
         applyTerrainChangesForTick(context.getCurrentTick());
         resolvePendingTideChanges(context.getCurrentTick());
+        resolvePendingFrostWind(context.getCurrentTick());
         resolvePendingGraveRises(context.getCurrentTick());
         resolvePendingNecromancySpawns(context.getCurrentTick());
         resolvePendingLowBeachSpawns(context.getCurrentTick());
@@ -582,7 +587,7 @@ public class Level extends LevelState {
                 && waveNumber == waveManager.getTotalWaves()) {
             applyFinalWaveSandstorm(wave);
         } else if (seasonType == SeasonType.FROSTBITE_CAVES) {
-            applyFrostWind(waveNumber);
+            prepareFrostWind(waveNumber, currentTick);
         } else if (seasonType == SeasonType.BIG_WAVE_BEACH) {
             applyAutomaticTideForWave(waveNumber, currentTick);
         } else if (seasonType == SeasonType.DARK_AGES) {
@@ -643,21 +648,45 @@ public class Level extends LevelState {
         return rightmost;
     }
 
-    private void applyFrostWind(int waveNumber) {
+    private void prepareFrostWind(int waveNumber, int currentTick) {
         lastFrostWindLanes.clear();
+        pendingFrostWindImpactTick = -1;
+        boolean finalWave = waveNumber == waveManager.getTotalWaves();
+        if (!finalWave && chapterRandom.nextInt(100) >= FROST_WIND_CHANCE_PERCENT) {
+            return;
+        }
         int firstLane = chapterRandom.nextInt(board.getHeight()) + 1;
-        int secondLane = chapterRandom.nextInt(board.getHeight()) + 1;
-        freezePlantsInLane(firstLane);
         lastFrostWindLanes.add(firstLane);
-        if (waveNumber == waveManager.getTotalWaves() && secondLane != firstLane) {
-            freezePlantsInLane(secondLane);
+        int secondLane = firstLane;
+        if (finalWave || chapterRandom.nextBoolean()) {
+            while (board.getHeight() > 1 && secondLane == firstLane) {
+                secondLane = chapterRandom.nextInt(board.getHeight()) + 1;
+            }
+        }
+        if (secondLane != firstLane) {
             lastFrostWindLanes.add(secondLane);
         }
+        pendingFrostWindImpactTick = currentTick + FROST_WIND_IMPACT_DELAY_TICKS;
         String lanes = lastFrostWindLanes.size() == 1
                 ? Integer.toString(firstLane) : firstLane + " and " + secondLane;
         chapterEvents.add(GameEvent.chapterEffect(
-                "Icy wind incoming! Freeze level increased in lane(s) " + lanes + "."
+                "Icy wind incoming in lane(s) " + lanes + "."
         ));
+    }
+
+    private void resolvePendingFrostWind(int currentTick) {
+        if (pendingFrostWindImpactTick < 0 || currentTick < pendingFrostWindImpactTick) {
+            return;
+        }
+        for (int lane : lastFrostWindLanes) {
+            freezePlantsInLane(lane);
+        }
+        pendingFrostWindImpactTick = -1;
+        if (!lastFrostWindLanes.isEmpty()) {
+            chapterEvents.add(GameEvent.chapterEffect(
+                    "Icy wind hit; affected plants gained one frostbite level."
+            ));
+        }
     }
 
     private void freezePlantsInLane(int laneNumber) {
