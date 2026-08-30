@@ -22,6 +22,10 @@ public final class PlantView extends EntityView<Plant> {
         "768/FULL/EFFECTS/FROSTBITE_ICE_BLOCK_PLANT/FROSTBITE_ICE_BLOCK_PLANT.PAM";
     private static final String OCTOPUS_PATH =
         "768/FULL/EFFECTS/ZOMBIE_OCTOPUS_PROJECTILE/ZOMBIE_OCTOPUS_PROJECTILE.PAM";
+    private static final String WIZARD_SHEEP_PATH =
+        "768/FULL/EFFECTS/DARK_WIZARD_SHEEPENING/DARK_WIZARD_SHEEPENING.PAM";
+    private static final float SHEEP_TRANSFORM_SECONDS = 1.70f;
+    private static final float SHEEP_RESTORE_SECONDS = 1.10f;
     private static final float BONK_CHOY_PLANT_FOOD_LOOPS = 3f;
     private static final float CHOMPER_DIGEST_VISUAL_SECONDS = 40f;
     private static final Color NUT_ARMOR_TINT = new Color(0.72f, 0.78f, 0.86f, 0.92f);
@@ -72,6 +76,10 @@ public final class PlantView extends EntityView<Plant> {
     private float plantFoodEffectTime = -1f;
     private float armorExplosionTime = -1f;
     private int squashLandingDirection;
+    private boolean previousSheepState;
+    private float sheepTransformTime = -1f;
+    private float sheepRestoreTime = -1f;
+    private float sheepIdleTime;
     private final boolean showDamageAppearance;
     private final boolean smoothMovement;
     private double visualX;
@@ -99,6 +107,7 @@ public final class PlantView extends EntityView<Plant> {
         previousAttackSerial = plant.getVisualAttackSerial();
         previousPlantFoodSerial = plant.getVisualPlantFoodSerial();
         previousSpecialSerial = plant.getVisualSpecialSerial();
+        previousSheepState = plant.isTransformedToSheep();
     }
 
     @Override
@@ -106,6 +115,7 @@ public final class PlantView extends EntityView<Plant> {
         updateVisualPosition(delta);
         updateHitFlash(delta, entity.getHp() + entity.getArmorHp());
         detectVisualActions();
+        updateWizardSheepState(delta);
         updateSpecialAnimation(delta);
         if (plantFoodEffectTime >= 0f && delta > 0f) {
             plantFoodEffectTime += delta;
@@ -135,7 +145,12 @@ public final class PlantView extends EntityView<Plant> {
             return;
         }
         Vector2 position = geometry.entityToScreen(visualX, visualY);
-        position.x += squashVisualOffset(geometry);
+        Vector2 squashOffset = squashVisualOffset(geometry);
+        position.x += squashOffset.x;
+        position.y += squashOffset.y;
+        if (drawWizardSheep(batch, animations, position)) {
+            return;
+        }
         drawFrozenBehind(batch, animations, position);
         drawPlantFoodGlow(batch, animations, position);
         drawArmorExplosion(batch, animations, position, false);
@@ -256,6 +271,16 @@ public final class PlantView extends EntityView<Plant> {
         if (name.equals("chomper") && normalize(clip).equals("bite")) {
             startSequence(clip, findClip("bite_end"));
             return;
+        }
+        if (name.equals("bowlingbulb")) {
+            String normalizedClip = normalize(clip);
+            String reload = normalizedClip.equals("special3") ? findClip("reload3")
+                    : normalizedClip.equals("special2") ? findClip("reload2")
+                    : normalizedClip.equals("special") ? findClip("reload") : null;
+            if (reload != null) {
+                startSequence(clip, reload);
+                return;
+            }
         }
         startSequence(clip);
     }
@@ -419,27 +444,86 @@ public final class PlantView extends EntityView<Plant> {
         return specialSequence.get(specialIndex);
     }
 
-    private float squashVisualOffset(BoardGeometry geometry) {
+    private Vector2 squashVisualOffset(BoardGeometry geometry) {
         if (!normalize(entity.getName()).equals("squash") || squashLandingDirection == 0) {
-            return 0f;
+            return new Vector2();
         }
         String clip = currentSpecialClip();
         if (clip == null) {
-            return geometry.getTileWidth() * squashLandingDirection;
+            return new Vector2(geometry.getTileWidth() * squashLandingDirection, 0f);
         }
         String normalized = normalize(clip);
         if (normalized.equals("sizeup") || normalized.equals("turn")) {
-            return 0f;
+            return new Vector2();
         }
+        float duration = Math.max(0.05f, profile.getDefinition().getClipDuration(clip));
+        float progress = Math.min(1f, Math.max(0f, specialTime / duration));
         if (normalized.startsWith("jumpup")) {
-            float duration = Math.max(0.05f, profile.getDefinition().getClipDuration(clip));
-            float progress = Math.min(1f, Math.max(0f, specialTime / duration));
-            return geometry.getTileWidth() * squashLandingDirection * progress;
+            float eased = progress * progress * (3f - 2f * progress);
+            float x = geometry.getTileWidth() * squashLandingDirection * eased;
+            float y = geometry.getTileHeight() * 0.72f
+                * (float) Math.sin(Math.PI * progress);
+            return new Vector2(x, y);
         }
         if (normalized.startsWith("jumpdown") || normalized.startsWith("plantfoodjumpdown")) {
-            return geometry.getTileWidth() * squashLandingDirection;
+            float remaining = 1f - progress;
+            float y = geometry.getTileHeight() * 0.50f * remaining * remaining;
+            return new Vector2(geometry.getTileWidth() * squashLandingDirection, y);
         }
-        return 0f;
+        return new Vector2();
+    }
+
+    private void updateWizardSheepState(float delta) {
+        boolean sheep = entity.isTransformedToSheep();
+        if (sheep && !previousSheepState) {
+            sheepTransformTime = 0f;
+            sheepRestoreTime = -1f;
+            sheepIdleTime = 0f;
+        } else if (!sheep && previousSheepState) {
+            sheepRestoreTime = 0f;
+            sheepTransformTime = -1f;
+            sheepIdleTime = 0f;
+        }
+        if (delta > 0f && sheepTransformTime >= 0f) {
+            sheepTransformTime += delta;
+        }
+        if (delta > 0f && sheep) {
+            sheepIdleTime += delta;
+        }
+        if (delta > 0f && sheepRestoreTime >= 0f) {
+            sheepRestoreTime += delta;
+            if (sheepRestoreTime > SHEEP_RESTORE_SECONDS) {
+                sheepRestoreTime = -1f;
+            }
+        }
+        previousSheepState = sheep;
+    }
+
+    private boolean drawWizardSheep(
+            Batch batch, PvzAnimationService animations, Vector2 position
+    ) {
+        if (sheepRestoreTime >= 0f) {
+            animations.draw(
+                batch, WIZARD_SHEEP_PATH, "animation2", sheepRestoreTime,
+                position.x, position.y, 0.50f, false
+            );
+            return true;
+        }
+        if (!entity.isTransformedToSheep()) {
+            return false;
+        }
+        if (sheepTransformTime >= 0f && sheepTransformTime < SHEEP_TRANSFORM_SECONDS) {
+            animations.draw(
+                batch, WIZARD_SHEEP_PATH, "animation", sheepTransformTime,
+                position.x, position.y, 0.50f, false
+            );
+            return true;
+        }
+        animations.draw(
+            batch, WIZARD_SHEEP_PATH, "idle", sheepIdleTime,
+            position.x, position.y, 0.50f, true
+        );
+        return true;
     }
 
     private void drawPlant(
@@ -873,9 +957,6 @@ public final class PlantView extends EntityView<Plant> {
         }
         if (entity.getIceHits() == 2) {
             return new Color(0.68f, 0.84f, 1f, 1f);
-        }
-        if (entity.isTransformedToCat()) {
-            return new Color(0.70f, 0.60f, 0.85f, 1f);
         }
         return Color.WHITE;
     }
