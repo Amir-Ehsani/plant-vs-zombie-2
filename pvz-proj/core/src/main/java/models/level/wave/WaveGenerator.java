@@ -83,7 +83,7 @@ public class WaveGenerator {
             if (type == null) {
                 throw new IllegalArgumentException("Unknown zombie type: " + name);
             }
-            if (type.getWaveCost() > 0) {
+            if (type.getWaveCost() > 0 && !isAutomaticSpawnDisabled(type)) {
                 types.add(type);
             }
         }
@@ -92,6 +92,16 @@ public class WaveGenerator {
             throw new IllegalArgumentException("No usable zombie type is available.");
         }
         return types;
+    }
+
+    private boolean isAutomaticSpawnDisabled(ZombieType type) {
+        if (type == null) {
+            return true;
+        }
+        String name = type.getName() == null ? "" : type.getName().trim();
+        String id = type.getId() == null ? "" : type.getId().trim();
+        return name.equalsIgnoreCase("Fisherman")
+                || id.equalsIgnoreCase("ZombieBeachFisherman");
     }
 
     private List<Zombie> createExactCostZombies(int targetCost, List<ZombieType> types) {
