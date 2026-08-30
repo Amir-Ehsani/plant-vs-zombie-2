@@ -224,7 +224,7 @@ abstract class GameControllerLevelSupport extends GameControllerStatusSupport {
         List<String> bossPlants = new ArrayList<>(allowedPlants);
         ConveyorBeltRule conveyor = new ConveyorBeltRule(
                 bossPlants,
-                20,
+                25,
                 new java.util.Random(AdventureLevelCatalog.levelId(chapterName, 4) * 7919L)
         );
         Level level = new Level(
@@ -261,7 +261,7 @@ abstract class GameControllerLevelSupport extends GameControllerStatusSupport {
                     AdventureContentCatalog.conveyorPlantNamesForLevel(
                             chapterName, levelNumber, plantRegistry
                     ),
-                    20,
+                    50,
                     new java.util.Random(
                             AdventureLevelCatalog.levelId(chapterName, levelNumber) * 7919L
                     )
