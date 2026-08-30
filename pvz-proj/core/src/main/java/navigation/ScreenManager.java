@@ -1,7 +1,9 @@
 package navigation;
 
+import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Screen;
 import com.pvz.Main;
+import screens.menu.BaseMenuScreen;
 import screens.menu.CollectionScreen;
 import screens.menu.QuestScreen;
 import screens.menu.MiniGameHubScreen;
@@ -108,9 +110,6 @@ public class ScreenManager {
     }
 
     public void showActiveMiniGame() {
-        if (game.getAudioManager() != null) {
-            game.getAudioManager().playMiniGameMusic();
-        }
         show(new MiniGameScreen(game));
     }
 
@@ -127,11 +126,6 @@ public class ScreenManager {
     }
 
     public void showPreparedGame() {
-        if (game.getAudioManager() != null && game.getGameController().getGameSession() != null) {
-            game.getAudioManager().playGameplayMusic(
-                    game.getGameController().getGameSession().getCurrentLevel()
-            );
-        }
         show(new GameScreen(game, game.getGameController()));
     }
 
@@ -141,9 +135,42 @@ public class ScreenManager {
 
     private void show(Screen nextScreen) {
         Screen currentScreen = game.getScreen();
+        if (currentScreen instanceof BaseMenuScreen menuScreen) {
+            boolean started = menuScreen.transitionOut(() ->
+                    Gdx.app.postRunnable(() -> swapScreens(currentScreen, nextScreen))
+            );
+            if (!started) {
+                nextScreen.dispose();
+            }
+            return;
+        }
+        swapScreens(currentScreen, nextScreen);
+    }
+
+    private void swapScreens(Screen expectedCurrent, Screen nextScreen) {
+        if (game.getScreen() != expectedCurrent && expectedCurrent != null) {
+            nextScreen.dispose();
+            return;
+        }
         game.setScreen(nextScreen);
-        if (currentScreen != null) {
-            currentScreen.dispose();
+        switchMusic(nextScreen);
+        if (expectedCurrent != null) {
+            expectedCurrent.dispose();
+        }
+    }
+
+    private void switchMusic(Screen nextScreen) {
+        if (game.getAudioManager() == null) {
+            return;
+        }
+        if (nextScreen instanceof GameScreen && game.getGameController().getGameSession() != null) {
+            game.getAudioManager().playGameplayMusic(
+                    game.getGameController().getGameSession().getCurrentLevel()
+            );
+            return;
+        }
+        if (nextScreen instanceof MiniGameScreen) {
+            game.getAudioManager().playMiniGameMusic();
         }
     }
 }
