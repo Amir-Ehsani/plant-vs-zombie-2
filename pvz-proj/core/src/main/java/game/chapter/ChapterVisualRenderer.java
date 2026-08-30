@@ -353,10 +353,8 @@ public final class ChapterVisualRenderer {
 
     private void drawTerrainSprites(Batch batch) {
         batch.begin();
-        if (season == SeasonType.BIG_WAVE_BEACH && level.getLevelType() == LevelType.BOSS) {
-            drawBossOceanExtension(batch);
-        }
         if (season == SeasonType.BIG_WAVE_BEACH) {
+            drawOceanExtension(batch);
             drawContinuousWaterTiles(batch);
         }
         for (int row = 1; row <= board.getHeight(); row++) {
@@ -444,24 +442,24 @@ public final class ChapterVisualRenderer {
 
     private void drawWaveLayer(
             Batch batch, TextureRegion region, float boundaryX, Rectangle boardBounds,
-            float alpha, float bobScale
+            float alpha, float horizontalScale
     ) {
         if (region == null) {
             return;
         }
-        float height = boardBounds.height * 1.03f;
+        float height = boardBounds.height;
         float width = height * region.getRegionWidth() / Math.max(1f, region.getRegionHeight());
-        float bob = MathUtils.sin(elapsed * 1.5f + boundaryX * 0.01f)
-                * geometry.getTileHeight() * bobScale;
+        float horizontal = MathUtils.sin(elapsed * 1.5f + boundaryX * 0.01f)
+                * geometry.getTileWidth() * horizontalScale;
         batch.setColor(1f, 1f, 1f, alpha);
         batch.draw(
-                region, boundaryX - width * 0.10f,
-                boardBounds.y + (boardBounds.height - height) * 0.50f + bob,
+                region, boundaryX - width * 0.10f + horizontal,
+                boardBounds.y,
                 width, height
         );
     }
 
-    private void drawBossOceanExtension(Batch batch) {
+    private void drawOceanExtension(Batch batch) {
         if (waterTile == null) {
             return;
         }
