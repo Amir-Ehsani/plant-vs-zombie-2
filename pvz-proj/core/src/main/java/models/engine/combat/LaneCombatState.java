@@ -74,6 +74,10 @@ abstract class LaneCombatState {
         protected boolean frontObjectBrokenHandled;
         protected boolean deathHandled;
         protected int initialIceHealth;
+        protected int octopusNextThrowTick = 5 * TICKS_PER_SECOND;
+        protected boolean octopusThrowPending;
+        protected int wizardNextCastTick = 35;
+        protected boolean wizardCastPending;
     }
 
     protected static final class PlantRuntimeState {
@@ -87,6 +91,7 @@ abstract class LaneCombatState {
         protected boolean hasAttacked;
         protected boolean actionPending;
         protected boolean deathEffectHandled;
+        protected int octopusBreakTicks;
     }
 
     protected final Board board;
@@ -95,6 +100,7 @@ abstract class LaneCombatState {
     protected final Map<Plant, PlantRuntimeState> plantStates;
     protected final Map<String, Integer> familyBoostTicks;
     protected final Set<Zombie> processedZombiesThisBoardTick;
+    protected final Set<Plant> pendingWizardTargets;
     private final List<PendingCombatAction> pendingCombatActions;
     private int combatTick;
 
@@ -114,6 +120,7 @@ abstract class LaneCombatState {
         this.plantStates = new IdentityHashMap<>();
         this.familyBoostTicks = new LinkedHashMap<>();
         this.processedZombiesThisBoardTick = Collections.newSetFromMap(new IdentityHashMap<>());
+        this.pendingWizardTargets = Collections.newSetFromMap(new IdentityHashMap<>());
         this.pendingCombatActions = new ArrayList<>();
         this.combatTick = 0;
     }
@@ -153,6 +160,7 @@ abstract class LaneCombatState {
         }
         zombieStates.keySet().removeIf(zombie -> zombie == null || !zombie.isAlive());
         plantStates.keySet().removeIf(plant -> plant == null || !plant.isAlive());
+        pendingWizardTargets.removeIf(plant -> plant == null || !plant.isAlive() || plant.isTransformedToSheep());
     }
 
 
