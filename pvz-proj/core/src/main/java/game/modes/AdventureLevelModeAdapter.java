@@ -174,6 +174,7 @@ public final class AdventureLevelModeAdapter implements LevelModeAdapter {
                 session.getTickManager().getCurrentTick(),
                 session.getTotalSunAmount(),
                 session.getTotalSunProduced(),
+                session.getTotalSunCollected(),
                 session.getTotalZombiesKilled(),
                 session.getTotalPlantsDestroyed()
         );
