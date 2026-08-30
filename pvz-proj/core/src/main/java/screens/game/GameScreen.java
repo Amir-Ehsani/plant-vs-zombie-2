@@ -1,7 +1,6 @@
 package screens.game;
 
 
-import audio.AudioCue;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
 import com.badlogic.gdx.InputAdapter;
@@ -149,8 +148,6 @@ public final class GameScreen extends BaseScreen {
     private boolean bossOutroStarted;
     private int announcedWaveNumber;
     private int announcedUpcomingWave;
-    private int lastAudioTick;
-    private int previousAudioZombieCount;
 
     public GameScreen(Main game) {
         this(game, prepareController(game));
@@ -175,8 +172,6 @@ public final class GameScreen extends BaseScreen {
         plantFoodSlotBackgroundRegion = animations.region("IMAGE_UI_POWERUPS_POWERUP_FRAME");
         gameplayClock = new GameplayClock(controller);
         gameplayClock.setGameSpeed(resolveInitialGameSpeed());
-        lastAudioTick = gameplayClock.getCurrentTick();
-        previousAudioZombieCount = session.getBoard().getActiveZombieCount();
         statusLabel = new Label("", game.getSkin());
         cursorWorld = new Vector2();
         resourceBar = new ResourceBar(game.getSkin(), game.getAnimationService());
@@ -259,9 +254,6 @@ public final class GameScreen extends BaseScreen {
     @Override
     public void show() {
         super.show();
-        if (game.getAudioManager() != null) {
-            game.getAudioManager().playGameplayMusic(session.getCurrentLevel());
-        }
         applyStoredGameSpeed();
         refreshGameHud();
         Gdx.input.setInputProcessor(new InputMultiplexer(stage, createInput()));
@@ -615,7 +607,6 @@ public final class GameScreen extends BaseScreen {
         animations.update();
         updateCursorWorld();
         gameplayClock.update(delta);
-        updateGameplayAudioEvents();
         levelModeAdapter.update();
         int currentTick = gameplayClock.getCurrentTick();
         float visualDelta = gameplayClock.isPaused() ? 0f : delta * gameplayClock.getGameSpeed();
@@ -944,12 +935,8 @@ public final class GameScreen extends BaseScreen {
         if (sun == null) {
             return;
         }
-        boolean radioactive = sun.isRadioactiveAndFalling();
         controller.collectSun(sun.getPosition());
         if (controller.wasSuccessful()) {
-            if (game.getAudioManager() != null) {
-                game.getAudioManager().play(radioactive ? AudioCue.EXPLOSION : AudioCue.SUN_PICKUP);
-            }
             refreshGameHud();
         }
     }
@@ -1065,9 +1052,6 @@ public final class GameScreen extends BaseScreen {
         String selectedPlantName = interactions.getSelectedPlantName();
         Position targetPosition = hoveredTile;
         if (interactions.handleTileClick(targetPosition)) {
-            if (inputMode == GameplayInputMode.PLANTING && game.getAudioManager() != null) {
-                game.getAudioManager().playExplosionForPlant(selectedPlantName);
-            }
             playImmediatePlantVisual(inputMode, selectedPlantName, targetPosition);
             showInteractionResult();
             refreshGameHud();
@@ -1372,10 +1356,8 @@ public final class GameScreen extends BaseScreen {
                 announcedUpcomingWave = upcoming;
                 if (upcoming == waveManager.getTotalWaves()) {
                     announcementOverlay.push("A HUGE WAVE OF ZOMBIES IS APPROACHING!");
-                    playZombiesComingSound();
                 } else if (upcoming == 1) {
                     announcementOverlay.push("ZOMBIES ARE COMING!");
-                    playZombiesComingSound();
                 } else {
                     announcementOverlay.push("WAVE " + upcoming + " INCOMING!");
                 }
@@ -1387,10 +1369,8 @@ public final class GameScreen extends BaseScreen {
                 announcedUpcomingWave = currentWave;
                 if (currentWave == waveManager.getTotalWaves()) {
                     announcementOverlay.push("A HUGE WAVE OF ZOMBIES IS APPROACHING!");
-                    playZombiesComingSound();
                 } else if (currentWave == 1) {
                     announcementOverlay.push("ZOMBIES ARE COMING!");
-                    playZombiesComingSound();
                 } else {
                     announcementOverlay.push("WAVE " + currentWave + "!");
                 }
@@ -1415,42 +1395,11 @@ public final class GameScreen extends BaseScreen {
                 announcementOverlay.push("HIGH TIDE!");
             } else if (normalized.contains("sandstorm")) {
                 announcementOverlay.push("SANDSTORM!");
-                if (game.getAudioManager() != null) {
-                    game.getAudioManager().play(AudioCue.SANDSTORM);
-                }
             } else if (normalized.contains("icy wind")) {
                 announcementOverlay.push("ICE WIND!");
             } else if (normalized.contains("new grave") || normalized.contains("graves rose")) {
                 announcementOverlay.push("GRAVES ARE RISING!");
             }
-        }
-    }
-
-    private void playZombiesComingSound() {
-        if (game.getAudioManager() != null) {
-            game.getAudioManager().play(AudioCue.ZOMBIES_COMING);
-        }
-    }
-
-    private void updateGameplayAudioEvents() {
-        if (game.getAudioManager() == null) {
-            return;
-        }
-        int tick = gameplayClock.getCurrentTick();
-        if (tick == lastAudioTick) {
-            return;
-        }
-        lastAudioTick = tick;
-
-        int zombieCount = session.getBoard().getActiveZombieCount();
-        if (zombieCount > previousAudioZombieCount) {
-            game.getAudioManager().play(AudioCue.ZOMBIE);
-        }
-        previousAudioZombieCount = zombieCount;
-
-        if (session.getBoard().getLastTickResult() != null
-                && session.getBoard().getLastTickResult().getLawnMowersTriggered() > 0) {
-            game.getAudioManager().play(AudioCue.LAWN_MOWER);
         }
     }
 
@@ -1474,9 +1423,6 @@ public final class GameScreen extends BaseScreen {
 
     private void showGameOverDialog(boolean victory) {
         gameOverShown = true;
-        if (game.getAudioManager() != null) {
-            game.getAudioManager().play(victory ? AudioCue.WIN : AudioCue.LOSE);
-        }
         String message = victory
                 ? "The lawn is safe. Continue your Adventure."
                 : "The zombies broke through. Try the level again.";
