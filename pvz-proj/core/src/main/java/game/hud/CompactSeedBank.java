@@ -131,10 +131,10 @@ public final class CompactSeedBank {
             if (profile != null) {
                 String clip = profile.firstClip("idle", "play", "walk");
                 animations.draw(
-                    batch, profile.getPath(), clip, stateTime,
+                    batch, profile.getPath(), clip, 0f,
                     BANK_X + SLOT_WIDTH * 0.50f,
                     staticSlotY(index) + PLANT_Y_OFFSET,
-                    profile.getScale() * COMPACT_SCALE_MULTIPLIER, true
+                    profile.getScale() * COMPACT_SCALE_MULTIPLIER, false
                 );
             }
         }
@@ -370,11 +370,11 @@ public final class CompactSeedBank {
             batch,
             profile.getPath(),
             clip,
-            stateTime,
+            0f,
             slotX(session) + slotWidth(session) * 0.50f,
             slotY(session, plant) + PLANT_Y_OFFSET,
             profile.getScale() * COMPACT_SCALE_MULTIPLIER,
-            true
+            false
         );
     }
 
