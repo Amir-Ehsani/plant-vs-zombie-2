@@ -48,6 +48,10 @@ public class MiniGameHubScreen extends BaseMenuScreen {
         gameList.clearChildren();
         gameList.defaults().pad(6f);
         int column = 0;
+
+        gameList.add(createOnlineIZombieCard()).width(250f).height(245f);
+        column++;
+
         for (TravelLogController.MiniGameInfo gameInfo : controller.getMiniGames()) {
             gameList.add(createMiniGameCard(gameInfo)).width(250f).height(245f);
             column++;
@@ -56,6 +60,32 @@ public class MiniGameHubScreen extends BaseMenuScreen {
                 column = 0;
             }
         }
+    }
+
+    private Table createOnlineIZombieCard() {
+        Table card = createPanel();
+        card.pad(14f);
+        Label name = new Label("I, Zombie Online", skin, "medium_outline");
+        name.setColor(Color.WHITE);
+        name.setAlignment(Align.center);
+        card.add(name).width(210f).padBottom(12f).row();
+
+        Label mode = panelLabel("2 Players • Online");
+        mode.setAlignment(Align.center);
+        card.add(mode).width(210f).padTop(6f).row();
+
+        Label detail = panelLabel("Plant side vs Zombie side");
+        detail.setAlignment(Align.center);
+        detail.setWrap(true);
+        card.add(detail).width(210f).height(44f).padTop(6f).row();
+
+        card.add(new MenuButton(
+                "Play Online",
+                skin,
+                "green",
+                game.getScreenManager()::showNetworkLobby
+        )).width(180f).height(42f).padTop(14f);
+        return card;
     }
 
     private Table createMiniGameCard(TravelLogController.MiniGameInfo gameInfo) {
@@ -83,10 +113,6 @@ public class MiniGameHubScreen extends BaseMenuScreen {
     }
 
     private void openMiniGame(String gameName, int stage) {
-        if (MiniGameType.fromText(gameName) == MiniGameType.I_ZOMBIE) {
-            game.getScreenManager().showNetworkLobby(stage);
-            return;
-        }
         if (MiniGameType.fromText(gameName) == MiniGameType.PLANT_ZOMBIES) {
             game.getScreenManager().showZombotanyPlantSelection(stage);
             return;
