@@ -34,7 +34,7 @@ public final class ZombotanyGame extends MiniGameSession {
     private static final int SUN_DROP_LIFE_TICKS = 160;
     private static final int SUNFLOWER_INTERVAL = 100;
     private static final int JALAPENO_FUSE_TICKS = 100;
-    private static final int JALAPENO_FIRE_VISUAL_TICKS = 14;
+    private static final int JALAPENO_FIRE_VISUAL_TICKS = 18;
     private static final int PEA_ATTACK_INTERVAL = 15;
     private static final int PEA_DAMAGE = 20;
     private static final double PEA_TILES_PER_TICK = 0.85;
@@ -68,6 +68,7 @@ public final class ZombotanyGame extends MiniGameSession {
     private int sunAmount;
     private int plantFoodAmount;
     private int spawnedZombies;
+    private int defeatedZombies;
     private int nextSpawnTick;
     private int currentWave;
     private int spawnedInCurrentWave;
@@ -101,6 +102,7 @@ public final class ZombotanyGame extends MiniGameSession {
         sunAmount = INITIAL_SUN;
         plantFoodAmount = 0;
         spawnedZombies = 0;
+        defeatedZombies = 0;
         nextSpawnTick = 25;
         currentWave = 0;
         spawnedInCurrentWave = 0;
@@ -352,6 +354,10 @@ public final class ZombotanyGame extends MiniGameSession {
         return Collections.unmodifiableSet(new LinkedHashSet<>(burningLaneTicks.keySet()));
     }
 
+    public int getBurningLaneRemainingTicks(int lane) {
+        return Math.max(0, burningLaneTicks.getOrDefault(lane, 0));
+    }
+
     public int getCurrentWaveNumber() {
         return currentWave;
     }
@@ -364,7 +370,11 @@ public final class ZombotanyGame extends MiniGameSession {
         if (isWon()) {
             return 1f;
         }
-        return Math.min(1f, spawnedZombies / (float) Math.max(1, totalZombieCount));
+        return Math.min(1f, defeatedZombies / (float) Math.max(1, totalZombieCount));
+    }
+
+    public int getDefeatedZombies() {
+        return defeatedZombies;
     }
 
     public List<String> consumeAnnouncements() {
@@ -493,7 +503,15 @@ public final class ZombotanyGame extends MiniGameSession {
         if (spawnedZombies >= totalZombieCount || getCurrentTick() < nextSpawnTick) {
             return;
         }
-        if (spawnedInCurrentWave >= currentWaveTarget) {
+
+        // A new wave may only begin after every zombie from the previous wave is gone.
+        // This mirrors the normal adventure HUD semantics instead of filling progress on spawn.
+        if (currentWave == 0) {
+            startNextWave();
+        } else if (spawnedInCurrentWave >= currentWaveTarget) {
+            if (board.getActiveZombieCount() > 0) {
+                return;
+            }
             startNextWave();
         }
 
@@ -702,7 +720,16 @@ public final class ZombotanyGame extends MiniGameSession {
     }
 
     private void cleanupZombieStates() {
-        plantZombies.keySet().removeIf(zombie -> !zombie.isAlive());
+        Iterator<Map.Entry<Zombie, PlantZombieState>> iterator = plantZombies.entrySet().iterator();
+        while (iterator.hasNext()) {
+            Map.Entry<Zombie, PlantZombieState> entry = iterator.next();
+            Zombie zombie = entry.getKey();
+            if (zombie != null && zombie.isAlive()) {
+                continue;
+            }
+            defeatedZombies++;
+            iterator.remove();
+        }
     }
 
     private void announce(String message) {
