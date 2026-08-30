@@ -53,6 +53,9 @@ public class Main extends Game {
         travelLogController = new TravelLogController(authController);
         screenManager = new ScreenManager(this);
         screenManager.showInitialScreen();
+        if (audioManager != null) {
+            audioManager.playMenuMusic();
+        }
     }
 
     @Override
