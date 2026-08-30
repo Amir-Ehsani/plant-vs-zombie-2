@@ -1,6 +1,7 @@
 package game.render.entity;
 
-
+import audio.AudioCue;
+import audio.AudioManager;
 import com.badlogic.gdx.graphics.g2d.Batch;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.math.Rectangle;
@@ -542,6 +543,7 @@ public final class EntityRenderSystem {
             return null;
         }
         animations.preload(profile.getPath());
+        AudioManager.playGlobal(AudioCue.ZOMBIE);
         return new ZombieView(zombie, profile);
     }
 
