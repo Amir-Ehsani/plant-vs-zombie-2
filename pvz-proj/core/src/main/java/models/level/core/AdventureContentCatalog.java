@@ -139,8 +139,9 @@ public final class AdventureContentCatalog {
         String chapter = AdventureLevelCatalog.normalizeChapterName(chapterName);
         if (chapter.equals("ancient-egypt") && levelNumber == 2) {
             return existingPlantNames(List.of(
-                    "Cabbage-pult", "Wall-nut", "Bonk Choy",
-                    "Iceberg Lettuce", "Grave Buster"
+                    "Repeater", "Cabbage-pult", "Kernel-pult", "Bonk Choy",
+                    "Wall-nut", "Potato Mine", "Iceberg Lettuce",
+                    "Grave Buster", "Squash"
             ), registry);
         }
         return plantNamesForLevel(chapterName, levelNumber, registry);
@@ -264,7 +265,7 @@ public final class AdventureContentCatalog {
 
     private static List<String> bigWaveBeachZombies(int levelNumber) {
         return List.of(
-                "Default", "cone head", "bucket head", "Snorkel", "Fisherman",
+                "Default", "cone head", "bucket head", "Snorkel",
                 "Octopus", "Gargantuar", "Imp"
         );
     }
@@ -272,7 +273,7 @@ public final class AdventureContentCatalog {
     private static List<String> darkAgesZombies(int levelNumber) {
         return List.of(
                 "Default", "cone head", "bucket head", "knight", "Juggler",
-                "Wizard", "King", "Imp Dragon", "Gargantuar", "Imp"
+                "Wizard", "Imp Dragon", "Gargantuar", "Imp"
         );
     }
 
@@ -516,10 +517,10 @@ public final class AdventureContentCatalog {
         assign(stages, 3, "Dodo", "Hunter");
         assign(stages, 4, "Troglobite", "Imp");
         assign(stages, 5, "Gargantuar", "knight");
-        assign(stages, 6, "Fisherman", "Snorkel");
+        assign(stages, 6, "Snorkel");
         assign(stages, 7, "Octopus", "Octo");
         assign(stages, 9, "Juggler", "Jester", "Wizard", "Imp Dragon");
-        assign(stages, 10, "King", "Prospector", "Piano");
+        assign(stages, 10, "Prospector", "Piano");
         assign(stages, 11, "Allstar", "All-Star", "News Paper", "Newspaper", "Barrel Roller");
         assign(stages, 11, "Arcade", "Umbrella", "Turquoise");
         return stages;
