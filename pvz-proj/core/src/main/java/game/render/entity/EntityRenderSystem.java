@@ -372,9 +372,11 @@ public final class EntityRenderSystem {
                         position.x, position.y, ARCADE_CABINET_SCALE, true
                     );
                 } else {
+                    // A detached barrel is a stationary obstacle; keep a clean barrel pose
+                    // instead of making the abandoned object roll forever.
                     animations.draw(
-                        batch, BARREL_PATH, "roll", terrainObjectTime,
-                        position.x, position.y, BARREL_SCALE, true
+                        batch, BARREL_PATH, "roll", 0f,
+                        position.x, position.y, BARREL_SCALE, false
                     );
                 }
             }
