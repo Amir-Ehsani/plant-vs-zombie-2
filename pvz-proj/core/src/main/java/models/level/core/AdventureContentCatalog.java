@@ -6,6 +6,7 @@ import models.core.zombie.ZombieRegistry;
 import models.core.zombie.ZombieType;
 
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -108,6 +109,275 @@ public final class AdventureContentCatalog {
             }
         }
         return names;
+    }
+
+
+    public static List<String> plantNamesForLevel(
+            String chapterName,
+            int levelNumber,
+            PlantRegistry registry
+    ) {
+        String chapter = AdventureLevelCatalog.normalizeChapterName(chapterName);
+        if (levelNumber != AdventureLevelCatalog.BOSS_LEVEL) {
+            return broadChapterPlantPool(chapter, levelNumber, registry);
+        }
+        List<String> requested = switch (chapter) {
+            case "ancient-egypt" -> ancientEgyptPlants(levelNumber);
+            case "ice-cave" -> frostbitePlants(levelNumber);
+            case "wave-beach" -> bigWaveBeachPlants(levelNumber);
+            case "wild-west" -> darkAgesPlants(levelNumber);
+            default -> List.of();
+        };
+        return existingPlantNames(requested, registry);
+    }
+
+    public static List<String> conveyorPlantNamesForLevel(
+            String chapterName,
+            int levelNumber,
+            PlantRegistry registry
+    ) {
+        String chapter = AdventureLevelCatalog.normalizeChapterName(chapterName);
+        if (chapter.equals("ancient-egypt") && levelNumber == 2) {
+            return existingPlantNames(List.of(
+                    "Cabbage-pult", "Wall-nut", "Bonk Choy",
+                    "Iceberg Lettuce", "Grave Buster"
+            ), registry);
+        }
+        return plantNamesForLevel(chapterName, levelNumber, registry);
+    }
+
+    public static List<String> zombieNamesForLevel(
+            String chapterName,
+            int levelNumber,
+            ZombieRegistry registry
+    ) {
+        List<String> requested = switch (AdventureLevelCatalog.normalizeChapterName(chapterName)) {
+            case "ancient-egypt" -> ancientEgyptZombies(levelNumber);
+            case "ice-cave" -> frostbiteZombies(levelNumber);
+            case "wave-beach" -> bigWaveBeachZombies(levelNumber);
+            case "wild-west" -> darkAgesZombies(levelNumber);
+            default -> List.of();
+        };
+        return existingZombieNames(requested, registry);
+    }
+
+    public static List<String> zombieNamesIntroducedAt(
+            String chapterName,
+            int levelNumber,
+            ZombieRegistry registry
+    ) {
+        List<String> current = zombieNamesForLevel(chapterName, levelNumber, registry);
+        if (levelNumber <= 1) {
+            return current;
+        }
+        LinkedHashSet<String> previous = new LinkedHashSet<>(
+                zombieNamesForLevel(chapterName, levelNumber - 1, registry)
+        );
+        List<String> result = new ArrayList<>();
+        for (String name : current) {
+            if (!containsIgnoreCase(previous, name)) {
+                result.add(name);
+            }
+        }
+        return result;
+    }
+
+    private static List<String> ancientEgyptPlants(int levelNumber) {
+        if (levelNumber == AdventureLevelCatalog.BOSS_LEVEL) {
+            return List.of(
+                    "Repeater", "Bonk Choy", "Iceberg Lettuce", "Grave Buster",
+                    "Wall-nut", "Potato Mine", "Cabbage-pult", "Kernel-pult"
+            );
+        }
+        return List.of(
+                "Sunflower", "Twin Sunflower", "Peashooter", "Repeater", "Threepeater",
+                "Snow Pea", "Wall-nut", "Tall-nut", "Potato Mine", "Cherry Bomb",
+                "Cabbage-pult", "Kernel-pult", "Bonk Choy", "Iceberg Lettuce",
+                "Grave Buster", "Squash", "Jalapeno", "Torchwood", "Chomper",
+                "Starfruit", "Split Pea", "Pea Pod", "Citron", "Endurian"
+        );
+    }
+
+    private static List<String> frostbitePlants(int levelNumber) {
+        if (levelNumber == AdventureLevelCatalog.BOSS_LEVEL) {
+            return List.of(
+                    "Hot Potato", "Pepper-pult", "Fire Peashooter", "Rotobaga",
+                    "Threepeater", "Wall-nut", "Primal Potato Mine", "Winter Melon"
+            );
+        }
+        return List.of(
+                "Sunflower", "Twin Sunflower", "Primal Sunflower", "Peashooter",
+                "Repeater", "Threepeater", "Snow Pea", "Wall-nut", "Tall-nut",
+                "Potato Mine", "Primal Potato Mine", "Cherry Bomb", "Cabbage-pult",
+                "Kernel-pult", "Melon-pult", "Winter Melon", "Hot Potato",
+                "Pepper-pult", "Fire Peashooter", "Rotobaga", "Iceberg Lettuce",
+                "Ice-shroom", "Bonk Choy", "Wasabi Whip", "Endurian", "Squash"
+        );
+    }
+
+    private static List<String> bigWaveBeachPlants(int levelNumber) {
+        if (levelNumber == AdventureLevelCatalog.BOSS_LEVEL) {
+            return List.of(
+                    "Lily Pad", "Banana Launcher", "Homing Thistle", "Guacodile",
+                    "Tangle Kelp", "Bowling Bulb"
+            );
+        }
+        return List.of(
+                "Sunflower", "Twin Sunflower", "Peashooter", "Repeater", "Threepeater",
+                "Wall-nut", "Tall-nut", "Potato Mine", "Cherry Bomb", "Cabbage-pult",
+                "Kernel-pult", "Melon-pult", "Lily Pad", "Tangle Kelp", "Sea-shroom",
+                "Bowling Bulb", "Guacodile", "Banana Launcher", "Homing Thistle",
+                "Cat-tail", "Rotobaga", "Citron", "Chomper", "Squash", "Jalapeno"
+        );
+    }
+
+    private static List<String> darkAgesPlants(int levelNumber) {
+        if (levelNumber == AdventureLevelCatalog.BOSS_LEVEL) {
+            return List.of(
+                    "Puff-shroom", "Fume-shroom", "Pea-nut", "Kernel-pult",
+                    "Magnet-shroom"
+            );
+        }
+        return List.of(
+                "Sun-shroom", "Sunflower", "Twin Sunflower", "Puff-shroom",
+                "Fume-shroom", "Sun Bean", "Magnet-shroom", "Hypno-shroom",
+                "Grave Buster", "Pea-nut", "Peashooter", "Repeater", "Threepeater",
+                "Wall-nut", "Tall-nut", "Potato Mine", "Cherry Bomb", "Kernel-pult",
+                "Cabbage-pult", "Melon-pult", "Bonk Choy", "Squash", "Jalapeno",
+                "Torchwood", "Starfruit"
+        );
+    }
+
+    private static List<String> ancientEgyptZombies(int levelNumber) {
+        return List.of(
+                "Default", "cone head", "bucket head", "Ra", "Explorer",
+                "Tomb raiser", "Gargantuar", "Imp"
+        );
+    }
+
+    private static List<String> frostbiteZombies(int levelNumber) {
+        return List.of(
+                "Default", "cone head", "bucket head", "brick head", "Dodo",
+                "Hunter", "Troglobite", "Gargantuar", "Imp"
+        );
+    }
+
+    private static List<String> bigWaveBeachZombies(int levelNumber) {
+        return List.of(
+                "Default", "cone head", "bucket head", "Snorkel", "Fisherman",
+                "Octopus", "Gargantuar", "Imp"
+        );
+    }
+
+    private static List<String> darkAgesZombies(int levelNumber) {
+        return List.of(
+                "Default", "cone head", "bucket head", "knight", "Juggler",
+                "Wizard", "King", "Imp Dragon", "Gargantuar", "Imp"
+        );
+    }
+
+    private static List<String> broadChapterPlantPool(
+            String chapter,
+            int levelNumber,
+            PlantRegistry registry
+    ) {
+        List<String> result = new ArrayList<>();
+        if (registry == null) {
+            return result;
+        }
+        List<String> unlocked = plantNamesUnlockedThrough(chapter, levelNumber, registry);
+        for (String plantName : unlocked) {
+            if (!isChapterIncompatiblePlant(chapter, plantName)) {
+                result.add(plantName);
+            }
+        }
+        return result;
+    }
+
+    private static boolean isChapterIncompatiblePlant(String chapter, String plantName) {
+        String plant = normalize(plantName);
+        if (!chapter.equals("wave-beach") && isWaterOnlyPlant(plant)) {
+            return true;
+        }
+        if (chapter.equals("ancient-egypt")) {
+            return isFrostbitePlant(plant) || isBeachPlant(plant) || isDarkAgesPlant(plant);
+        }
+        if (chapter.equals("ice-cave")) {
+            return isBeachPlant(plant) || isDarkAgesPlant(plant);
+        }
+        if (chapter.equals("wave-beach")) {
+            return isDarkAgesPlant(plant);
+        }
+        return chapter.equals("wild-west") && plant.equals("hot potato");
+    }
+
+    private static boolean isWaterOnlyPlant(String plant) {
+        return plant.equals("sea shroom")
+                || plant.equals("tangle kelp")
+                || plant.equals("cat tail")
+                || plant.equals("lily pad");
+    }
+
+    private static boolean isFrostbitePlant(String plant) {
+        return plant.equals("hot potato")
+                || plant.equals("pepper pult")
+                || plant.equals("fire peashooter")
+                || plant.equals("rotobaga");
+    }
+
+    private static boolean isBeachPlant(String plant) {
+        return isWaterOnlyPlant(plant)
+                || plant.equals("bowling bulb")
+                || plant.equals("guacodile")
+                || plant.equals("banana launcher")
+                || plant.equals("homing thistle");
+    }
+
+    private static boolean isDarkAgesPlant(String plant) {
+        return plant.equals("sun shroom")
+                || plant.equals("puff shroom")
+                || plant.equals("fume shroom")
+                || plant.equals("sun bean")
+                || plant.equals("magnet shroom")
+                || plant.equals("hypno shroom");
+    }
+
+    private static List<String> existingPlantNames(List<String> requested, PlantRegistry registry) {
+        List<String> result = new ArrayList<>();
+        if (registry == null) {
+            return result;
+        }
+        for (String name : requested) {
+            PlantType type = registry.getByName(name);
+            if (type != null) {
+                result.add(type.getName());
+            }
+        }
+        return result;
+    }
+
+    private static List<String> existingZombieNames(List<String> requested, ZombieRegistry registry) {
+        List<String> result = new ArrayList<>();
+        if (registry == null) {
+            return result;
+        }
+        for (String name : requested) {
+            ZombieType type = registry.getZombieTypeByName(name);
+            if (type != null) {
+                result.add(type.getName());
+            }
+        }
+        return result;
+    }
+
+    private static boolean containsIgnoreCase(Iterable<String> values, String target) {
+        String normalizedTarget = normalize(target);
+        for (String value : values) {
+            if (normalize(value).equals(normalizedTarget)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static SeasonType seasonTypeForChapter(String chapterName) {

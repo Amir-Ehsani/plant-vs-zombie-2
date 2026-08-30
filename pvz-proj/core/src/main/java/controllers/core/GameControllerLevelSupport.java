@@ -42,7 +42,6 @@ import models.level.rules.LevelRule;
 import models.level.rules.LevelRuntimeContext;
 import models.level.rules.NoSpecialRule;
 import models.level.rules.SpecialLevelType;
-import models.level.rules.TimedWarObjective;
 import models.level.rules.impl.ConveyorBeltRule;
 import models.level.rules.impl.DeadLineRule;
 import models.level.rules.impl.LockedPlantsRule;
@@ -108,8 +107,15 @@ abstract class GameControllerLevelSupport extends GameControllerStatusSupport {
             int levelNumber
     ) {
         boolean changed = false;
-        for (String name : AdventureContentCatalog.plantNamesUnlockedThrough(
-                chapterName, levelNumber, plantRegistry)) {
+        LinkedHashSet<String> names = new LinkedHashSet<>(
+                AdventureContentCatalog.plantNamesUnlockedThrough(
+                        chapterName, levelNumber, plantRegistry
+                )
+        );
+        names.addAll(AdventureContentCatalog.plantNamesForLevel(
+                chapterName, levelNumber, plantRegistry
+        ));
+        for (String name : names) {
             if (collection.hasOwnedPlant(name) || !collection.unlockPlant(name)) continue;
             summary.plantNames.add(name);
             user.addNews(News.plantUnlocked(name));
@@ -161,35 +167,19 @@ abstract class GameControllerLevelSupport extends GameControllerStatusSupport {
     protected Level createAdventureLevel(String chapterName, int levelNumber) {
         int difficulty = currentDifficultyLevel();
         ZombieRegistry zombieRegistry = DefaultZombieRegistry.getInstance();
-        User user = authController == null ? null : authController.getLoggedInUser();
-        boolean debugMode = isDebugModeEnabled(user);
-        List<String> allowedPlants = debugMode
-                ? new ArrayList<>(plantRegistry.getAllPlantNames())
-                : AdventureContentCatalog.plantNamesUnlockedThrough(
-                        chapterName,
-                        levelNumber,
-                        plantRegistry
-                );
-        List<String> allowedZombies = chapterZombiePool(
-                chapterName,
-                AdventureContentCatalog.zombieNamesUnlockedThrough(
-                        chapterName,
-                        levelNumber,
-                        zombieRegistry
-                )
+        List<String> allowedPlants = AdventureContentCatalog.plantNamesForLevel(
+                chapterName, levelNumber, plantRegistry
+        );
+        List<String> allowedZombies = AdventureContentCatalog.zombieNamesForLevel(
+                chapterName, levelNumber, zombieRegistry
         );
 
         if (levelNumber == AdventureLevelCatalog.BOSS_LEVEL) {
-            return createBossLevel(chapterName, allowedPlants);
+            return createBossLevel(chapterName, allowedPlants, allowedZombies);
         }
 
-        List<String> newlyUnlockedZombies = chapterZombiePool(
-                chapterName,
-                AdventureContentCatalog.zombieNamesUnlockedAt(
-                        chapterName,
-                        levelNumber,
-                        zombieRegistry
-                )
+        List<String> newlyUnlockedZombies = AdventureContentCatalog.zombieNamesIntroducedAt(
+                chapterName, levelNumber, zombieRegistry
         );
         List<Wave> waves = createDifficultyWaves(
                 difficulty,
@@ -202,7 +192,7 @@ abstract class GameControllerLevelSupport extends GameControllerStatusSupport {
 
         LevelRule rule = levelNumber == 1
                 ? new NoSpecialRule()
-                : createSpecialRule(chapterName, levelNumber, allowedPlants, difficulty, debugMode);
+                : createSpecialRule(chapterName, levelNumber, allowedPlants, difficulty);
         LevelType levelType = levelNumber == 1 ? LevelType.NORMAL : LevelType.SPECIAL;
 
         Level level = new Level(
@@ -218,29 +208,10 @@ abstract class GameControllerLevelSupport extends GameControllerStatusSupport {
         return level;
     }
 
-    private List<String> chapterZombiePool(String chapterName, List<String> unlockedNames) {
-        SeasonType season = switch (AdventureLevelCatalog.normalizeChapterName(chapterName)) {
-            case "ancient-egypt" -> SeasonType.ANCIENT_EGYPT;
-            case "ice-cave" -> SeasonType.FROSTBITE_CAVES;
-            case "wave-beach" -> SeasonType.BIG_WAVE_BEACH;
-            case "wild-west" -> SeasonType.DARK_AGES;
-            default -> null;
-        };
-        if (season == null || unlockedNames == null) {
-            return unlockedNames == null ? new ArrayList<>() : new ArrayList<>(unlockedNames);
-        }
-        List<String> result = new ArrayList<>();
-        for (String zombieName : unlockedNames) {
-            if (season.isZombieAllowed(zombieName)) {
-                result.add(zombieName);
-            }
-        }
-        return result;
-    }
-
     private Level createBossLevel(
             String chapterName,
-            List<String> allowedPlants
+            List<String> allowedPlants,
+            List<String> allowedZombies
     ) {
         if (!BossCatalog.supportsChapter(chapterName)) {
             throw new IllegalArgumentException(
@@ -250,7 +221,7 @@ abstract class GameControllerLevelSupport extends GameControllerStatusSupport {
         WaveManager waveManager = new WaveManager(
                 new ArrayList<>(), null, AttackPattern.ROUND_ROBIN
         );
-        List<String> bossPlants = bossPlantPool(chapterName, allowedPlants);
+        List<String> bossPlants = new ArrayList<>(allowedPlants);
         ConveyorBeltRule conveyor = new ConveyorBeltRule(
                 bossPlants,
                 20,
@@ -261,71 +232,51 @@ abstract class GameControllerLevelSupport extends GameControllerStatusSupport {
                 waveManager,
                 LevelType.BOSS,
                 bossPlants,
-                bossZombiePool(chapterName),
+                allowedZombies,
                 conveyor,
                 0
         );
-        AdventureChapterConfigurator.configure(level, chapterName, AdventureLevelCatalog.BOSS_LEVEL);
+        AdventureChapterConfigurator.configure(
+                level, chapterName, AdventureLevelCatalog.BOSS_LEVEL
+        );
         level.bindBossRuntime(new BossRuntime(
                 BossCatalog.create(chapterName),
-                AdventureLevelCatalog.levelId(chapterName, AdventureLevelCatalog.BOSS_LEVEL) * 104729L
+                AdventureLevelCatalog.levelId(
+                        chapterName, AdventureLevelCatalog.BOSS_LEVEL
+                ) * 104729L
         ));
         return level;
-    }
-
-    private List<String> bossZombiePool(String chapterName) {
-        return switch (AdventureLevelCatalog.normalizeChapterName(chapterName)) {
-            case "ancient-egypt" -> new ArrayList<>(Arrays.asList(
-                    "Ra", "Explorer", "Tomb raiser"
-            ));
-            case "ice-cave" -> new ArrayList<>(Arrays.asList(
-                    "Dodo", "Hunter", "Troglobite"
-            ));
-            case "wave-beach" -> new ArrayList<>(Arrays.asList(
-                    "Fisherman", "Octopus", "Snorkel"
-            ));
-            case "wild-west" -> new ArrayList<>(Arrays.asList(
-                    "Juggler", "Wizard", "Imp Dragon"
-            ));
-            default -> new ArrayList<>();
-        };
-    }
-
-    private List<String> bossPlantPool(String chapterName, List<String> fallback) {
-        return switch (AdventureLevelCatalog.normalizeChapterName(chapterName)) {
-            case "wild-west" -> new ArrayList<>(Arrays.asList(
-                    "Puff-shroom", "Fume-shroom", "Pea-nut", "Kernel-pult", "Magnet-shroom"
-            ));
-            case "wave-beach" -> new ArrayList<>(Arrays.asList(
-                    "Lily Pad", "Banana Launcher", "Homing Thistle",
-                    "Guacodile", "Tangle Kelp", "Bowling Bulb"
-            ));
-            default -> ownedAllowedPlants(fallback);
-        };
     }
 
     protected LevelRule createSpecialRule(
             String chapterName,
             int levelNumber,
             List<String> allowedPlants,
-            int difficulty,
-            boolean debugMode
+            int difficulty
     ) {
         SpecialLevelType type = AdventureLevelCatalog.specialTypeFor(chapterName, levelNumber);
 
         return switch (type) {
-            case CONVEYOR_BELT -> new ConveyorBeltRule(ownedAllowedPlants(allowedPlants));
+            case CONVEYOR_BELT -> new ConveyorBeltRule(
+                    AdventureContentCatalog.conveyorPlantNamesForLevel(
+                            chapterName, levelNumber, plantRegistry
+                    ),
+                    20,
+                    new java.util.Random(
+                            AdventureLevelCatalog.levelId(chapterName, levelNumber) * 7919L
+                    )
+            );
             case LOCKED_PLANTS -> new LockedPlantsRule(
                     8,
                     3,
-                    debugMode ? new ArrayList<>() : Arrays.asList("Cherry Bomb", "Potato Mine"),
-                    debugMode ? new LinkedHashMap<>() : lockedPlantFamilies()
+                    Arrays.asList("Bonk Choy", "Repeater", "Twin Sunflower"),
+                    lockedPlantFamilies()
             );
             case SAVE_OUR_SEEDS -> new SaveOurSeedsRule(protectedSeedPositions());
             case TIMED_WAR -> new TimedWarRule(
-                    TimedWarObjective.ZOMBIE_KILLS,
                     3600,
-                    8 + difficulty
+                    8 + difficulty,
+                    350 + difficulty * 50
             );
             case NIGHT_OPS -> new NightOpsRule();
             case DEAD_LINE -> new DeadLineRule(3.0);

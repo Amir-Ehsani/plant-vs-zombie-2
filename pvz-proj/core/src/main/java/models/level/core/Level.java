@@ -30,7 +30,17 @@ import java.util.Set;
 
 
 public class Level extends LevelState {
+    private static final int NECROMANCY_EMERGE_TICKS = 10;
+    private static final int LOW_BEACH_EMERGE_TICKS = 12;
+    private static final int GRAVE_RISE_TICKS = 8;
+
     private BossRuntime bossRuntime;
+    private final Map<Position, Integer> pendingNecromancyTicks = new LinkedHashMap<>();
+    private final Map<Position, String> pendingNecromancyNames = new LinkedHashMap<>();
+    private final Map<Position, Integer> pendingLowBeachTicks = new LinkedHashMap<>();
+    private final Map<Position, String> pendingLowBeachNames = new LinkedHashMap<>();
+    private final Map<Position, Integer> pendingGraveRiseTicks = new LinkedHashMap<>();
+    private final Map<Position, TileType> pendingGraveRiseTypes = new LinkedHashMap<>();
 
     public Level(
             int levelId,
@@ -74,12 +84,19 @@ public class Level extends LevelState {
         terrainSpawnedZombies.clear();
         chapterEvents.clear();
         activeNecromancyGravePositions.clear();
+        pendingNecromancyTicks.clear();
+        pendingNecromancyNames.clear();
+        pendingLowBeachTicks.clear();
+        pendingLowBeachNames.clear();
+        pendingGraveRiseTicks.clear();
+        pendingGraveRiseTypes.clear();
         appliedTerrainTicks.clear();
         appliedTerrainWaves.clear();
         applyTerrainLayout(board);
         applyTerrainChangesForTick(0);
         placeBossStartingPlants();
         captureLowTidePositions();
+        rebuildActiveNecromancyGraves();
         waveManager.bindBoard(board);
         spawnInitialTerrainZombies();
         levelRule.onLevelStart(context);
@@ -132,6 +149,9 @@ public class Level extends LevelState {
         }
 
         applyTerrainChangesForTick(context.getCurrentTick());
+        resolvePendingGraveRises(context.getCurrentTick());
+        resolvePendingNecromancySpawns(context.getCurrentTick());
+        resolvePendingLowBeachSpawns(context.getCurrentTick());
         levelRule.onTick(context);
         if (bossRuntime != null) {
             bossRuntime.update(context.getCurrentTick());
@@ -146,7 +166,7 @@ public class Level extends LevelState {
         if (spawnedWave != null) {
             int waveNumber = spawnedWave.getWaveNumber();
             applySeasonalZombieTraits(spawnedWave);
-            applyChapterFeaturesForWave(waveNumber, spawnedWave);
+            applyChapterFeaturesForWave(waveNumber, spawnedWave, context.getCurrentTick());
             applyTerrainChangesForWave(waveNumber);
         }
         return spawnedWave;
@@ -164,20 +184,23 @@ public class Level extends LevelState {
         }
 
         if (bossRuntime != null) {
-            if (bossRuntime.isDefeated()) {
+            if (bossRuntime.isDefeated() && !hasLivingTerrainZombie() && !hasPendingZombieSpawn()) {
                 status = LevelStatus.WON;
             }
             return;
         }
 
         if (levelRule.usesCustomWinCondition()) {
-            if (levelRule.isWinConditionMet(context)) {
+            if (levelRule.isWinConditionMet(context)
+                    && waveManager.areAllWavesCleared()
+                    && !hasLivingTerrainZombie()
+                    && !hasPendingZombieSpawn()) {
                 status = LevelStatus.WON;
             }
             return;
         }
 
-        if (waveManager.areAllWavesCleared() && !hasLivingTerrainZombie()) {
+        if (waveManager.areAllWavesCleared() && !hasLivingTerrainZombie() && !hasPendingZombieSpawn()) {
             status = LevelStatus.WON;
         }
     }
@@ -362,6 +385,18 @@ public class Level extends LevelState {
         return Collections.unmodifiableSet(new LinkedHashSet<>(activeNecromancyGravePositions));
     }
 
+    public Set<Position> getPendingNecromancyPositions() {
+        return Collections.unmodifiableSet(new LinkedHashSet<>(pendingNecromancyTicks.keySet()));
+    }
+
+    public Set<Position> getPendingLowBeachPositions() {
+        return Collections.unmodifiableSet(new LinkedHashSet<>(pendingLowBeachTicks.keySet()));
+    }
+
+    public Set<Position> getPendingGraveRisePositions() {
+        return Collections.unmodifiableSet(new LinkedHashSet<>(pendingGraveRiseTicks.keySet()));
+    }
+
     public Set<Position> getLowTidePositions() {
         return Collections.unmodifiableSet(new LinkedHashSet<>(lowTidePositions));
     }
@@ -504,18 +539,18 @@ public class Level extends LevelState {
         }
     }
 
-    private void applyChapterFeaturesForWave(int waveNumber, Wave wave) {
+    private void applyChapterFeaturesForWave(int waveNumber, Wave wave, int currentTick) {
         if (seasonType == SeasonType.ANCIENT_EGYPT
                 && waveNumber == waveManager.getTotalWaves()) {
             applyFinalWaveSandstorm(wave);
         } else if (seasonType == SeasonType.FROSTBITE_CAVES) {
             applyFrostWind(waveNumber);
         } else if (seasonType == SeasonType.BIG_WAVE_BEACH) {
-            applyAutomaticTideForWave(waveNumber);
+            applyAutomaticTideForWave(waveNumber, currentTick);
         } else if (seasonType == SeasonType.DARK_AGES) {
-            growDarkAgesGraves(waveNumber);
+            growDarkAgesGraves(waveNumber, currentTick);
         }
-        spawnNecromancyZombies(waveNumber);
+        spawnNecromancyZombies(waveNumber, currentTick);
     }
 
     private void applySeasonalZombieTraits(Wave wave) {
@@ -594,44 +629,47 @@ public class Level extends LevelState {
         }
     }
 
-    private void applyAutomaticTideForWave(int waveNumber) {
+    private void applyAutomaticTideForWave(int waveNumber, int currentTick) {
         if (lowTidePositions.isEmpty()) {
             return;
         }
         boolean highTide = waveNumber % 2 == 1;
-        int firstFloodedColumn = board.getWidth() - 1 - highTideWaterColumns;
         for (Position position : lowTidePositions) {
-            TileType type = highTide && position.getX() >= firstFloodedColumn
-                    ? TileType.WATER : TileType.LOW_TIDE;
-            board.setTileType(position, type);
+            board.setTileType(position, highTide ? TileType.WATER : TileType.LOW_TIDE);
         }
         chapterEvents.add(GameEvent.chapterEffect(highTide
-                ? "The tide rose and flooded the marked beach columns."
-                : "The tide receded and exposed the low-tide tiles."));
+                ? "The tide rose and flooded the marked beach column."
+                : "The tide receded and exposed the low-tide column."));
         if (highTide) {
-            spawnLowBeachZombie();
+            queueLowBeachZombies(currentTick);
         }
     }
 
-    private void spawnLowBeachZombie() {
+    private void queueLowBeachZombies(int currentTick) {
         List<Position> flooded = new ArrayList<>();
         for (Position position : lowTidePositions) {
             Tile tile = board.getTileAt(position);
-            if (tile != null && tile.getTileType() == TileType.WATER && !tile.hasZombies()) {
+            if (tile != null && tile.getTileType() == TileType.WATER
+                    && !tile.hasZombies() && !pendingLowBeachTicks.containsKey(position)) {
                 flooded.add(position);
             }
         }
-        if (flooded.isEmpty() || chapterRandom.nextInt(100) >= 35) {
+        if (flooded.isEmpty()) {
             return;
         }
-        Position position = flooded.get(chapterRandom.nextInt(flooded.size()));
-        spawnTerrainZombie(position, resolveDefaultTerrainZombie());
+        Collections.shuffle(flooded, chapterRandom);
+        int count = Math.min(flooded.size(), 2 + chapterRandom.nextInt(2));
+        for (int index = 0; index < count; index++) {
+            Position position = flooded.get(index);
+            pendingLowBeachTicks.put(position, currentTick + LOW_BEACH_EMERGE_TICKS + index * 3);
+            pendingLowBeachNames.put(position, resolveRandomTerrainZombie());
+        }
         chapterEvents.add(GameEvent.chapterEffect(
-                "A zombie emerged from the flooded low beach at " + position + "."
+                "Low-tide zombies are surfacing from the flooded beach tiles."
         ));
     }
 
-    private void growDarkAgesGraves(int waveNumber) {
+    private void growDarkAgesGraves(int waveNumber, int currentTick) {
         int remainingCapacity = GraveSpawnRules.remainingCapacity(board);
         if (remainingCapacity <= 0) {
             return;
@@ -642,7 +680,8 @@ public class Level extends LevelState {
             for (int x = 2; x < board.getWidth(); x++) {
                 Tile tile = board.getTileAt(new Position(x, y));
                 if (tile != null && tile.getTileType() == TileType.NORMAL
-                        && !tile.hasPlant() && !tile.hasZombies()) {
+                        && !tile.hasPlant() && !tile.hasZombies()
+                        && !pendingGraveRiseTicks.containsKey(tile.getPosition())) {
                     candidates.add(tile);
                 }
             }
@@ -650,9 +689,9 @@ public class Level extends LevelState {
         Collections.shuffle(candidates, chapterRandom);
         int count = Math.min(candidates.size(), 2 + chapterRandom.nextInt(2));
         for (int index = 0; index < count; index++) {
-            candidates.get(index).setTileType(randomDarkAgesGraveType());
+            Tile tile = candidates.get(index);
+            queueGraveRise(tile.getPosition(), randomDarkAgesGraveType(), currentTick + index * 2);
         }
-        rebuildActiveNecromancyGraves();
         if (count > 0) {
             chapterEvents.add(GameEvent.chapterEffect(
                     count + " new grave(s) rose from the dark ground."
@@ -671,36 +710,104 @@ public class Level extends LevelState {
         return TileType.GRAVE;
     }
 
-    private void spawnNecromancyZombies(int waveNumber) {
+    private void spawnNecromancyZombies(int waveNumber, int currentTick) {
         Map<Position, String> configured = necromancySpawnsByWave.get(waveNumber);
         if (configured != null) {
             for (Map.Entry<Position, String> entry : configured.entrySet()) {
-                spawnTerrainZombie(entry.getKey(), entry.getValue());
+                queueNecromancySpawn(entry.getKey(), entry.getValue(), currentTick);
             }
             return;
         }
 
-        if (seasonType != SeasonType.DARK_AGES || board == null) {
+        if (seasonType != SeasonType.DARK_AGES || board == null
+                || activeNecromancyGravePositions.isEmpty()) {
             return;
         }
-        if (activeNecromancyGravePositions.isEmpty()) {
-            return;
-        }
-        String zombieName = resolveDefaultTerrainZombie();
-        int spawned = 0;
+        int queued = 0;
         for (Position position : new ArrayList<>(activeNecromancyGravePositions)) {
             Tile tile = board.getTileAt(position);
             if (tile == null || tile.getTileType() != TileType.GRAVE) {
                 activeNecromancyGravePositions.remove(position);
                 continue;
             }
-            spawnTerrainZombie(position, zombieName);
-            spawned++;
+            queueNecromancySpawn(position, resolveRandomTerrainZombie(), currentTick);
+            queued++;
         }
-        if (spawned > 0) {
+        if (queued > 0) {
             chapterEvents.add(GameEvent.chapterEffect(
-                    "Necromancy raised zombies from the cursed graves."
+                    "Necromancy stirs beneath the cursed graves."
             ));
+        }
+    }
+
+    private void queueNecromancySpawn(Position position, String zombieName, int currentTick) {
+        if (position == null || zombieName == null || pendingNecromancyTicks.containsKey(position)) {
+            return;
+        }
+        pendingNecromancyTicks.put(position, currentTick + NECROMANCY_EMERGE_TICKS);
+        pendingNecromancyNames.put(position, zombieName);
+    }
+
+    private void resolvePendingNecromancySpawns(int currentTick) {
+        if (pendingNecromancyTicks.isEmpty()) {
+            return;
+        }
+        List<Position> ready = new ArrayList<>();
+        for (Map.Entry<Position, Integer> entry : pendingNecromancyTicks.entrySet()) {
+            if (currentTick >= entry.getValue()) {
+                ready.add(entry.getKey());
+            }
+        }
+        for (Position position : ready) {
+            String zombieName = pendingNecromancyNames.remove(position);
+            pendingNecromancyTicks.remove(position);
+            spawnTerrainZombie(position, zombieName);
+        }
+    }
+
+    private void queueGraveRise(Position position, TileType type, int currentTick) {
+        if (position == null || type == null || pendingGraveRiseTicks.containsKey(position)) {
+            return;
+        }
+        pendingGraveRiseTicks.put(position, currentTick + GRAVE_RISE_TICKS);
+        pendingGraveRiseTypes.put(position, type);
+    }
+
+    private void resolvePendingGraveRises(int currentTick) {
+        List<Position> ready = new ArrayList<>();
+        for (Map.Entry<Position, Integer> entry : pendingGraveRiseTicks.entrySet()) {
+            if (currentTick >= entry.getValue()) {
+                ready.add(entry.getKey());
+            }
+        }
+        for (Position position : ready) {
+            TileType type = pendingGraveRiseTypes.remove(position);
+            pendingGraveRiseTicks.remove(position);
+            Tile tile = board == null ? null : board.getTileAt(position);
+            if (tile == null || type == null || tile.hasPlant() || tile.hasZombies()) {
+                continue;
+            }
+            tile.setTileType(type);
+            if (type == TileType.GRAVE) {
+                activeNecromancyGravePositions.add(position);
+            }
+        }
+    }
+
+    private void resolvePendingLowBeachSpawns(int currentTick) {
+        List<Position> ready = new ArrayList<>();
+        for (Map.Entry<Position, Integer> entry : pendingLowBeachTicks.entrySet()) {
+            if (currentTick >= entry.getValue()) {
+                ready.add(entry.getKey());
+            }
+        }
+        for (Position position : ready) {
+            String zombieName = pendingLowBeachNames.remove(position);
+            pendingLowBeachTicks.remove(position);
+            Tile tile = board == null ? null : board.getTileAt(position);
+            if (tile != null && tile.getTileType() == TileType.WATER && !tile.hasZombies()) {
+                spawnTerrainZombie(position, zombieName);
+            }
         }
     }
 
@@ -713,7 +820,7 @@ public class Level extends LevelState {
             for (int x = 2; x < board.getWidth(); x++) {
                 Position position = new Position(x, y);
                 Tile tile = board.getTileAt(position);
-                if (tile != null && tile.getTileType() == TileType.GRAVE && chapterRandom.nextInt(10) == 0) {
+                if (tile != null && tile.getTileType() == TileType.GRAVE) {
                     activeNecromancyGravePositions.add(position);
                 }
             }
@@ -758,6 +865,25 @@ public class Level extends LevelState {
         }
     }
 
+    private String resolveRandomTerrainZombie() {
+        List<String> candidates = new ArrayList<>();
+        for (String name : allowedZombieNames) {
+            String normalized = normalize(name);
+            if (normalized.contains("gargantuar") || normalized.contains("king")) {
+                continue;
+            }
+            try {
+                zombieFactory.createZombie(name, 1, 1);
+                candidates.add(name);
+            } catch (IllegalArgumentException ignored) {
+            }
+        }
+        if (candidates.isEmpty()) {
+            return resolveDefaultTerrainZombie();
+        }
+        return candidates.get(chapterRandom.nextInt(candidates.size()));
+    }
+
     private String resolveDefaultTerrainZombie() {
         for (String name : allowedZombieNames) {
             String normalized = normalize(name);
@@ -771,6 +897,10 @@ public class Level extends LevelState {
             }
         }
         return "Default";
+    }
+
+    private boolean hasPendingZombieSpawn() {
+        return !pendingNecromancyTicks.isEmpty() || !pendingLowBeachTicks.isEmpty();
     }
 
     private boolean hasLivingTerrainZombie() {

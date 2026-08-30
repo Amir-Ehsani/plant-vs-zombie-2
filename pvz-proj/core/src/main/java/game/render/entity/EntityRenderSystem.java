@@ -85,7 +85,13 @@ public final class EntityRenderSystem {
             PvzAnimationService animations,
             SeasonType seasonType
     ) {
-        this(geometry, animations, true, seasonType, false);
+        this(
+                geometry,
+                animations,
+                true,
+                seasonType,
+                seasonType == SeasonType.BIG_WAVE_BEACH
+        );
     }
 
     public EntityRenderSystem(
@@ -531,7 +537,7 @@ public final class EntityRenderSystem {
     }
 
     private ZombieView createZombieView(Zombie zombie) {
-        EntityAnimationProfile profile = registry.forZombie(zombie);
+        EntityAnimationProfile profile = registry.forZombie(zombie, seasonType);
         if (profile == null) {
             return null;
         }

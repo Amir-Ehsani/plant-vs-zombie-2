@@ -13,7 +13,7 @@ public enum SeasonType {
     ),
     FROSTBITE_CAVES(
             "Frostbite Caves",
-            Arrays.asList("Dodo", "Hunter", "Troglobite")
+            Arrays.asList("brick head", "Dodo", "Hunter", "Troglobite")
     ),
     BIG_WAVE_BEACH(
             "Big Wave Beach",
@@ -21,7 +21,7 @@ public enum SeasonType {
     ),
     DARK_AGES(
             "Dark Ages",
-            Arrays.asList("Juggler", "Wizard", "King", "Imp Dragon")
+            Arrays.asList("knight", "Juggler", "Wizard", "King", "Imp Dragon")
     );
 
     private static List<String> commonZombies() {
@@ -29,18 +29,8 @@ public enum SeasonType {
                 "Default",
                 "cone head",
                 "bucket head",
-                "brick head",
-                "knight",
                 "Gargantuar",
-                "Imp",
-                "Allstar",
-                "Arcade",
-                "Umbrella",
-                "Turquoise",
-                "Prospector",
-                "Piano",
-                "News Paper",
-                "Barrel Roller"
+                "Imp"
         );
     }
 

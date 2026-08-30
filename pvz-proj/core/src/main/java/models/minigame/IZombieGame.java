@@ -77,6 +77,7 @@ public class IZombieGame extends MiniGameSession {
     private int sunAmount;
     private int spentSun;
     private int spawnedZombies;
+    private boolean sunProductionStarted;
 
     public IZombieGame(int stage) {
         super(MiniGameType.I_ZOMBIE, stage);
@@ -91,6 +92,7 @@ public class IZombieGame extends MiniGameSession {
         sunAmount = INITIAL_SUN;
         spentSun = 0;
         spawnedZombies = 0;
+        sunProductionStarted = false;
         disableMowers();
         enableContinuedLaneCombat();
         initializeZombieOptions();
@@ -139,6 +141,7 @@ public class IZombieGame extends MiniGameSession {
         sunAmount -= option.sunCost;
         spentSun += option.sunCost;
         spawnedZombies++;
+        startSunProductionIfNeeded();
         success(zombie.getName() + " placed at " + position + ". Remaining sun: " + sunAmount + ".");
         return true;
     }
@@ -365,7 +368,19 @@ public class IZombieGame extends MiniGameSession {
             };
             Zombie producer = new Zombie(producerType, board.getWidth(), lane, null, stationary, null);
             board.getTileAt(new Position(board.getWidth(), lane)).addZombie(producer);
-            producers.add(new ProducerState(producer, FIRST_MINUTE_INTERVAL));
+            producers.add(new ProducerState(producer, Integer.MAX_VALUE));
+        }
+    }
+
+    private void startSunProductionIfNeeded() {
+        if (sunProductionStarted) {
+            return;
+        }
+        sunProductionStarted = true;
+        int laneOffset = 0;
+        for (ProducerState state : producers) {
+            state.nextProductionTick = getCurrentTick() + 35 + laneOffset;
+            laneOffset += 17;
         }
     }
 
@@ -381,6 +396,9 @@ public class IZombieGame extends MiniGameSession {
     }
 
     private void updateSunProducers() {
+        if (!sunProductionStarted) {
+            return;
+        }
         for (ProducerState state : producers) {
             if (!state.zombie.isAlive()) {
                 continue;

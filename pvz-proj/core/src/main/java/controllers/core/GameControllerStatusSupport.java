@@ -225,10 +225,11 @@ abstract class GameControllerStatusSupport extends GameControllerMapRenderSuppor
         if (rule instanceof TimedWarRule timedRule) {
             int remainingTicks = timedRule.getRemainingTicks(context);
             builder.append("\ntimed-war: time-left=").append(remainingTicks).append(" ticks (")
-                    .append(formatSeconds(remainingTicks)).append("s) | objective=")
-                    .append(timedRule.getObjective()).append(" | progress=")
-                    .append(timedRule.getProgress(context)).append("/")
-                    .append(timedRule.getTargetAmount());
+                    .append(formatSeconds(remainingTicks)).append("s) | zombies=")
+                    .append(timedRule.getKillProgress(context)).append("/")
+                    .append(timedRule.getKillTarget()).append(" | sun=")
+                    .append(timedRule.getSunProgress(context)).append("/")
+                    .append(timedRule.getSunTarget());
             return true;
         }
         if (rule instanceof ConveyorBeltRule) {

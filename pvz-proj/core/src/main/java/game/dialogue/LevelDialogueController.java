@@ -181,7 +181,7 @@ public final class LevelDialogueController {
                 result.add(new DialogueLine(
                         "Penny",
                         "Vasebreaker stage " + stage
-                                + ". Plant packets can be dragged onto open lawn tiles.",
+                                + ". Click a plant packet, then click an open lawn tile.",
                         PENNY_IMAGE
                 ));
             }
@@ -190,7 +190,7 @@ public final class LevelDialogueController {
                 result.add(new DialogueLine(
                         "Penny",
                         "Wall-nut Bowling stage " + stage
-                                + ". Drag a nut from the conveyor into a lane.",
+                                + ". Click a nut on the conveyor, then click a lane tile.",
                         PENNY_IMAGE
                 ));
             }
@@ -262,7 +262,7 @@ public final class LevelDialogueController {
         return switch (level) {
             case 1 -> "Frost winds can raise a plant's freeze level. "
                     + "Frozen plants stop working until their ice breaks.";
-            case 2 -> "Protect the marked plants and account for slippery ice tiles.";
+            case 2 -> "Protect the marked plants while frozen enemies pressure the lanes.";
             case 3 -> "Complete the objective before time expires while managing frost winds.";
             default -> "Frostbite conditions detected.";
         };

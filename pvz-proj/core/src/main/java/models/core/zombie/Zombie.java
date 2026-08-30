@@ -27,6 +27,8 @@ public class Zombie extends GameEntity {
     private int stolenSun;
     private boolean seasonalIceImmune;
     private double visualVerticalOffset;
+    private String visualActionClip;
+    private int visualActionRevision;
 
     public Zombie() {
         this(new ZombieType(), 9, 1, null, null, null);
@@ -69,6 +71,8 @@ public class Zombie extends GameEntity {
         this.stolenSun = 0;
         this.seasonalIceImmune = false;
         this.visualVerticalOffset = 0;
+        this.visualActionClip = "";
+        this.visualActionRevision = 0;
         this.id = buildId();
     }
 
@@ -323,6 +327,22 @@ public class Zombie extends GameEntity {
 
     public void setVisualVerticalOffset(double visualVerticalOffset) {
         this.visualVerticalOffset = Math.max(0, visualVerticalOffset);
+    }
+
+    public void triggerVisualAction(String clip) {
+        if (clip == null || clip.isBlank()) {
+            return;
+        }
+        visualActionClip = clip.trim();
+        visualActionRevision++;
+    }
+
+    public String getVisualActionClip() {
+        return visualActionClip;
+    }
+
+    public int getVisualActionRevision() {
+        return visualActionRevision;
     }
 
     public int getStolenSun() {

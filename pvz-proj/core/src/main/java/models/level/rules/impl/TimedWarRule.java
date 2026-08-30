@@ -6,23 +6,41 @@ import models.level.rules.SpecialLevelType;
 import models.level.rules.TimedWarObjective;
 
 public class TimedWarRule extends AbstractLevelRule {
-    private final TimedWarObjective objective;
     private final int durationTicks;
-    private final int targetAmount;
+    private final int killTarget;
+    private final int sunTarget;
+    private final TimedWarObjective legacyObjective;
     private int startTick;
-    private int initialAmount;
+    private int initialKills;
+    private int initialSunProduced;
+
+    public TimedWarRule(int durationTicks, int killTarget, int sunTarget) {
+        this(durationTicks, killTarget, sunTarget, null);
+    }
 
     public TimedWarRule(TimedWarObjective objective, int durationTicks, int targetAmount) {
-        if (objective == null) {
-            throw new IllegalArgumentException("Timed war objective cannot be null.");
-        }
-        if (durationTicks <= 0 || targetAmount <= 0) {
-            throw new IllegalArgumentException("Timed war values must be positive.");
-        }
+        this(
+                durationTicks,
+                objective == TimedWarObjective.ZOMBIE_KILLS ? targetAmount : 0,
+                objective == TimedWarObjective.SUN_PRODUCED ? targetAmount : 0,
+                objective
+        );
+    }
 
-        this.objective = objective;
+    private TimedWarRule(
+            int durationTicks,
+            int killTarget,
+            int sunTarget,
+            TimedWarObjective legacyObjective
+    ) {
+        if (durationTicks <= 0 || killTarget < 0 || sunTarget < 0
+                || (killTarget == 0 && sunTarget == 0)) {
+            throw new IllegalArgumentException("Timed war values are invalid.");
+        }
         this.durationTicks = durationTicks;
-        this.targetAmount = targetAmount;
+        this.killTarget = killTarget;
+        this.sunTarget = sunTarget;
+        this.legacyObjective = legacyObjective;
     }
 
     @Override
@@ -34,16 +52,16 @@ public class TimedWarRule extends AbstractLevelRule {
     public void onLevelStart(LevelRuntimeContext context) {
         resetResult();
         startTick = context.getCurrentTick();
-        initialAmount = getCurrentAmount(context);
+        initialKills = context.getTotalZombiesKilled();
+        initialSunProduced = context.getTotalSunProduced();
     }
 
     @Override
     public void onTick(LevelRuntimeContext context) {
-        if (getProgress(context) >= targetAmount) {
+        if (killObjectiveComplete(context) && sunObjectiveComplete(context)) {
             markWon();
             return;
         }
-
         if (context.getCurrentTick() - startTick >= durationTicks) {
             markLost();
         }
@@ -54,8 +72,20 @@ public class TimedWarRule extends AbstractLevelRule {
         return true;
     }
 
-    public int getProgress(LevelRuntimeContext context) {
-        return Math.max(0, getCurrentAmount(context) - initialAmount);
+    public int getKillProgress(LevelRuntimeContext context) {
+        return Math.max(0, context.getTotalZombiesKilled() - initialKills);
+    }
+
+    public int getSunProgress(LevelRuntimeContext context) {
+        return Math.max(0, context.getTotalSunProduced() - initialSunProduced);
+    }
+
+    public int getKillTarget() {
+        return killTarget;
+    }
+
+    public int getSunTarget() {
+        return sunTarget;
     }
 
     public int getRemainingTicks(LevelRuntimeContext context) {
@@ -64,17 +94,36 @@ public class TimedWarRule extends AbstractLevelRule {
     }
 
     public TimedWarObjective getObjective() {
-        return objective;
+        return legacyObjective == null ? TimedWarObjective.ZOMBIE_KILLS : legacyObjective;
+    }
+
+    public int getProgress(LevelRuntimeContext context) {
+        if (legacyObjective == TimedWarObjective.SUN_PRODUCED) {
+            return getSunProgress(context);
+        }
+        if (legacyObjective == TimedWarObjective.ZOMBIE_KILLS) {
+            return getKillProgress(context);
+        }
+        int killPercent = killTarget <= 0 ? 100 : getKillProgress(context) * 100 / killTarget;
+        int sunPercent = sunTarget <= 0 ? 100 : getSunProgress(context) * 100 / sunTarget;
+        return Math.min(killPercent, sunPercent);
     }
 
     public int getTargetAmount() {
-        return targetAmount;
+        if (legacyObjective == TimedWarObjective.SUN_PRODUCED) {
+            return sunTarget;
+        }
+        if (legacyObjective == TimedWarObjective.ZOMBIE_KILLS) {
+            return killTarget;
+        }
+        return 100;
     }
 
-    private int getCurrentAmount(LevelRuntimeContext context) {
-        if (objective == TimedWarObjective.ZOMBIE_KILLS) {
-            return context.getTotalZombiesKilled();
-        }
-        return context.getTotalSunProduced();
+    private boolean killObjectiveComplete(LevelRuntimeContext context) {
+        return killTarget <= 0 || getKillProgress(context) >= killTarget;
+    }
+
+    private boolean sunObjectiveComplete(LevelRuntimeContext context) {
+        return sunTarget <= 0 || getSunProgress(context) >= sunTarget;
     }
 }

@@ -232,11 +232,17 @@ abstract class GameControllerState {
             List<ZombieType> available, int waveNumber, int difficulty, int stageOrdinal
     ) {
         int maximumCost = 250 + Math.max(0, stageOrdinal) * 80 + waveNumber * 120 + difficulty * 70;
+        int minimumVariety = Math.min(available.size(), Math.max(4, available.size() - 2));
         List<ZombieType> eligible = new ArrayList<>();
-        for (ZombieType type : available) {
-            if (type.getWaveCost() <= maximumCost) eligible.add(type);
+        for (int index = 0; index < available.size(); index++) {
+            ZombieType type = available.get(index);
+            if (index < minimumVariety || type.getWaveCost() <= maximumCost) {
+                eligible.add(type);
+            }
         }
-        if (eligible.isEmpty() && !available.isEmpty()) eligible.add(available.get(0));
+        if (eligible.isEmpty() && !available.isEmpty()) {
+            eligible.add(available.get(0));
+        }
         return eligible;
     }
 
@@ -271,9 +277,7 @@ abstract class GameControllerState {
     ) {
         if (eligible.isEmpty()) return;
         int count = Math.max(requestedCount, zombies.size());
-        int accessible = Math.max(1,
-                (int) Math.ceil(eligible.size() * waveNumber / (double) totalWaves));
-        accessible = Math.min(accessible, eligible.size());
+        int accessible = eligible.size();
         for (int index = zombies.size(); index < count; index++) {
             int typeIndex = Math.floorMod(
                     index * 2 + waveNumber + difficulty + Math.max(0, stageOrdinal), accessible

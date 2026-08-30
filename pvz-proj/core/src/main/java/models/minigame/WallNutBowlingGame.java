@@ -37,7 +37,9 @@ public class WallNutBowlingGame extends MiniGameSession {
             if (normalized.equals("bowling") || normalized.equals("wallnut") || normalized.equals("bowling wallnut")) {
                 return BOWLING;
             }
-            if (normalized.equals("explosive") || normalized.equals("explode o nut") || normalized.equals("exploding")) {
+            if (normalized.equals("explosive")
+                    || normalized.equals("explode o nut")
+                    || normalized.equals("exploding")) {
                 return EXPLOSIVE;
             }
             if (normalized.equals("giant") || normalized.equals("big")) {
@@ -71,6 +73,21 @@ public class WallNutBowlingGame extends MiniGameSession {
         }
     }
 
+    private static final class BowlingExplosion {
+        private static final int LIFETIME_TICKS = 12;
+        private final int id;
+        private final double x;
+        private final double y;
+        private int ageTicks;
+
+        private BowlingExplosion(int id, double x, double y) {
+            this.id = id;
+            this.x = x;
+            this.y = y;
+            this.ageTicks = 0;
+        }
+    }
+
     private static final class SpawnEntry {
         private final int tick;
         private final int lane;
@@ -88,10 +105,12 @@ public class WallNutBowlingGame extends MiniGameSession {
     private final Random random;
     private final List<BowlingNut> activeNuts;
     private final List<SpawnEntry> spawnSchedule;
+    private final List<BowlingExplosion> explosions;
     private final Map<NutType, Integer> inventory;
     private final int redLineColumn;
     private int nextSpawnIndex;
     private int nextNutId;
+    private int nextExplosionId;
     private int launchedNuts;
     private int crushedZombies;
 
@@ -102,10 +121,12 @@ public class WallNutBowlingGame extends MiniGameSession {
         random = new Random(9_200L + stage);
         activeNuts = new ArrayList<>();
         spawnSchedule = new ArrayList<>();
+        explosions = new ArrayList<>();
         inventory = new LinkedHashMap<>();
         redLineColumn = 3;
         nextSpawnIndex = 0;
         nextNutId = 1;
+        nextExplosionId = 1;
         launchedNuts = 0;
         crushedZombies = 0;
         initializeInventory();
@@ -160,6 +181,7 @@ public class WallNutBowlingGame extends MiniGameSession {
         spawnReadyZombies();
         moveNuts();
         handleNutCollisions();
+        updateExplosions();
         board.removeDeadEntities();
         board.updateTicks();
     }
@@ -249,6 +271,23 @@ public class WallNutBowlingGame extends MiniGameSession {
     public record BowlingNutView(int id, String type, double x, double y) {
     }
 
+    public List<BowlingExplosionView> getExplosions() {
+        List<BowlingExplosionView> result = new ArrayList<>();
+        for (BowlingExplosion explosion : explosions) {
+            result.add(new BowlingExplosionView(
+                    explosion.id,
+                    explosion.x,
+                    explosion.y,
+                    explosion.ageTicks,
+                    BowlingExplosion.LIFETIME_TICKS
+            ));
+        }
+        return Collections.unmodifiableList(result);
+    }
+
+    public record BowlingExplosionView(int id, double x, double y, int ageTicks, int lifetimeTicks) {
+    }
+
     private void moveNuts() {
         Iterator<BowlingNut> iterator = activeNuts.iterator();
         while (iterator.hasNext()) {
@@ -301,6 +340,7 @@ public class WallNutBowlingGame extends MiniGameSession {
             return;
         }
         if (nut.type == NutType.EXPLOSIVE) {
+            explosions.add(new BowlingExplosion(nextExplosionId++, nut.x, nut.y));
             explodeAt(nut.x, nut.y);
             nut.active = false;
             return;
@@ -314,6 +354,13 @@ public class WallNutBowlingGame extends MiniGameSession {
         } else {
             nut.dy = nut.dy == 0 ? nut.dx : -nut.dy;
         }
+    }
+
+    private void updateExplosions() {
+        for (BowlingExplosion explosion : explosions) {
+            explosion.ageTicks++;
+        }
+        explosions.removeIf(explosion -> explosion.ageTicks >= BowlingExplosion.LIFETIME_TICKS);
     }
 
     private void explodeAt(double centerX, double centerY) {
