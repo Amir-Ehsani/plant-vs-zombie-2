@@ -108,6 +108,9 @@ public class ScreenManager {
     }
 
     public void showActiveMiniGame() {
+        if (game.getAudioManager() != null) {
+            game.getAudioManager().playMiniGameMusic();
+        }
         show(new MiniGameScreen(game));
     }
 
@@ -124,6 +127,11 @@ public class ScreenManager {
     }
 
     public void showPreparedGame() {
+        if (game.getAudioManager() != null && game.getGameController().getGameSession() != null) {
+            game.getAudioManager().playGameplayMusic(
+                    game.getGameController().getGameSession().getCurrentLevel()
+            );
+        }
         show(new GameScreen(game, game.getGameController()));
     }
 
