@@ -63,9 +63,6 @@ public class Main extends Game {
         if (animationService != null) {
             animationService.update();
         }
-        if (audioManager != null) {
-            audioManager.update();
-        }
         super.render();
     }
 
