@@ -26,6 +26,7 @@ import models.engine.board.Position;
 import models.level.core.SeasonType;
 import models.minigame.IZombieGame;
 import models.minigame.MatchThreeGame;
+import models.minigame.NetworkIZombieGame;
 import models.minigame.MiniGameSession;
 import models.minigame.MiniGameType;
 import models.minigame.VasebreakerGame;
@@ -151,10 +152,19 @@ public final class MiniGameVisualRenderer {
         this.projectileRenderer = new ProjectileRenderSystem(geometry, animations);
         this.mowerRenderer = new LawnMowerRenderSystem(geometry, animations, SeasonType.ANCIENT_EGYPT);
         this.worldHeight = worldHeight;
-        String backgroundId = backgroundId(session.getType());
-        background = animations.region(backgroundId);
-        backgroundLeft = animations.region(backgroundId + "_LEFT");
-        backgroundRight = animations.region(backgroundId + "_RIGHT");
+        String backgroundId = backgroundId(session);
+        TextureRegion resolvedBackground = animations.region(backgroundId);
+        TextureRegion resolvedBackgroundLeft = animations.region(backgroundId + "_LEFT");
+        TextureRegion resolvedBackgroundRight = animations.region(backgroundId + "_RIGHT");
+        if (resolvedBackground == null && session instanceof NetworkIZombieGame) {
+            backgroundId = "IMAGE_BACKGROUNDS_EGYPT_TEXTURE";
+            resolvedBackground = animations.region(backgroundId);
+            resolvedBackgroundLeft = animations.region(backgroundId + "_LEFT");
+            resolvedBackgroundRight = animations.region(backgroundId + "_RIGHT");
+        }
+        background = resolvedBackground;
+        backgroundLeft = resolvedBackgroundLeft;
+        backgroundRight = resolvedBackgroundRight;
         brainImage = animations.region("IMAGE_UI_CALENDAR_TIMER_DECO_BIGBRAINZ");
         sunImage = animations.region("IMAGE_EFFECTS_SUN_SUN_110X110");
         conveyorBelt = animations.region("IMAGE_UI_CONVEYOR_CONVEYOR_BELT");
@@ -426,6 +436,9 @@ public final class MiniGameVisualRenderer {
         if (session instanceof IZombieGame game) {
             drawBrains(batch, shapes, game);
             drawSunDrops(batch, game, stateTime);
+            if (game instanceof NetworkIZombieGame networkGame) {
+                drawNetworkProjectiles(batch, networkGame);
+            }
             return;
         }
         if (session instanceof ZombotanyGame game) {
@@ -947,6 +960,20 @@ public final class MiniGameVisualRenderer {
         }
     }
 
+    private void drawNetworkProjectiles(Batch batch, NetworkIZombieGame game) {
+        if (peaImage == null || game == null) {
+            return;
+        }
+        batch.begin();
+        for (NetworkIZombieGame.NetworkProjectileView projectile : game.getNetworkProjectiles()) {
+            Vector2 position = geometry.entityToScreen(projectile.x(), projectile.row());
+            float height = 28f;
+            float width = height * peaImage.getRegionWidth() / (float) peaImage.getRegionHeight();
+            batch.draw(peaImage, position.x - width * 0.5f, position.y - height * 0.5f, width, height);
+        }
+        batch.end();
+    }
+
     private void updateSmoothNuts(float delta, WallNutBowlingGame game) {
         Set<Integer> activeIds = new HashSet<>();
         float alpha = 1f - (float) Math.exp(-15f * Math.max(0f, delta));
@@ -1173,7 +1200,11 @@ public final class MiniGameVisualRenderer {
         return ((ZombotanyGame) session).getBoard();
     }
 
-    private String backgroundId(MiniGameType type) {
+    private String backgroundId(MiniGameSession currentSession) {
+        if (currentSession instanceof NetworkIZombieGame) {
+            return "IMAGE_BACKGROUNDS_LUNAR_TEXTURE";
+        }
+        MiniGameType type = currentSession.getType();
         if (type == MiniGameType.VASEBREAKER) {
             return "IMAGE_BACKGROUNDS_BACKGROUND_LOD_BIRTHDAY_TEXTURE";
         }
