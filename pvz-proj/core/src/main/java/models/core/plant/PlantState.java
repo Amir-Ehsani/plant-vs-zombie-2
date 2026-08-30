@@ -277,8 +277,8 @@ abstract class PlantState extends GameEntity {
         return isTransformedToSheep();
     }
     public boolean isDisabled() {
-        // Octopus is visual/attackable cover in this build, but it must not disable plants.
-        return isFrozenByZombie() || isTransformedToSheep();
+        // An octopus cover disables the plant until the cover loses all of its durability.
+        return isFrozenByZombie() || isCoveredByOctopus() || isTransformedToSheep();
     }
     public int getIceVisualLevel() {
         if (iceHits <= 0) {
