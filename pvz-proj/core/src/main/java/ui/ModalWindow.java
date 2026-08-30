@@ -1,5 +1,6 @@
 package ui;
 
+import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.math.Interpolation;
 import com.badlogic.gdx.scenes.scene2d.InputEvent;
 import com.badlogic.gdx.scenes.scene2d.Stage;
@@ -36,6 +37,16 @@ public class ModalWindow extends Table {
 
     public Table getContentTable() {
         return content;
+    }
+
+    @Override
+    public void act(float delta) {
+        // GameScreen intentionally calls Stage.act(0) while gameplay is paused for the intro/pause
+        // dialog. Modal UI must still animate and receive a usable visible state in that case.
+        float uiDelta = delta > 0f
+                ? delta
+                : Math.min(Math.max(Gdx.graphics.getDeltaTime(), 0f), 1f / 15f);
+        super.act(uiDelta);
     }
 
     public void show(Stage stage) {
