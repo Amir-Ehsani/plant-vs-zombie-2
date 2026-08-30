@@ -260,6 +260,14 @@ public final class NetworkManager implements AutoCloseable {
         if (pending >= 0) submitScoredGameAsync(user, pending);
     }
 
+    public NetworkOperationResult challenge(String targetUsername) {
+        return challenge(targetUsername, 1);
+    }
+
+    public CompletableFuture<NetworkOperationResult> challengeAsync(String targetUsername) {
+        return CompletableFuture.supplyAsync(() -> challenge(targetUsername), io);
+    }
+
     public NetworkOperationResult challenge(String targetUsername, int stage) {
         return toResult(call(NetworkMessage.of(MessageType.DIRECT_CHALLENGE)
                 .put("targetUsername", targetUsername)
@@ -278,6 +286,14 @@ public final class NetworkManager implements AutoCloseable {
 
     public CompletableFuture<NetworkOperationResult> respondToChallengeAsync(String challengeId, boolean accepted) {
         return CompletableFuture.supplyAsync(() -> respondToChallenge(challengeId, accepted), io);
+    }
+
+    public NetworkOperationResult joinRandomQueue() {
+        return joinRandomQueue(1);
+    }
+
+    public CompletableFuture<NetworkOperationResult> joinRandomQueueAsync() {
+        return CompletableFuture.supplyAsync(this::joinRandomQueue, io);
     }
 
     public NetworkOperationResult joinRandomQueue(int stage) {
