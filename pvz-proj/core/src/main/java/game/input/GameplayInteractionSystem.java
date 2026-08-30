@@ -1,5 +1,7 @@
 package game.input;
 
+import audio.AudioCue;
+import audio.AudioManager;
 import controllers.core.GameController;
 import models.account.User;
 import models.engine.board.Position;
@@ -140,6 +142,13 @@ public final class GameplayInteractionSystem {
         }
         controller.plant(selectedPlantName, position);
         copyControllerResult();
+        if (lastSuccessful) {
+            AudioManager.playGlobal(AudioCue.PLANT);
+            AudioManager manager = AudioManager.getActive();
+            if (manager != null) {
+                manager.playExplosionForPlant(selectedPlantName);
+            }
+        }
         cancelAfterSuccess();
     }
 
