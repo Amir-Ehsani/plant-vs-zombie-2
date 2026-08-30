@@ -86,7 +86,8 @@ public class Board extends BoardSupport {
         events.addAll(drainTerrainEvents());
 
         List<GameEvent> unsupportedPlantEvents = new ArrayList<>();
-        int unsupportedPlants = removeUnsupportedWaterPlants(unsupportedPlantEvents);
+        int unsupportedPlants = removeUnsupportedWaterPlants(unsupportedPlantEvents)
+                + removeUnsupportedLandPlants(unsupportedPlantEvents);
         plantsDestroyed += unsupportedPlants;
         events.addAll(unsupportedPlantEvents);
 
@@ -150,7 +151,9 @@ public class Board extends BoardSupport {
 
     private BoardTickResult removeDeadEntitiesInternal(boolean updateTotals) {
         List<GameEvent> events = new ArrayList<>();
-        int plantsDestroyed = removeDeadPlants(events) + removeUnsupportedWaterPlants(events);
+        int plantsDestroyed = removeDeadPlants(events)
+                + removeUnsupportedWaterPlants(events)
+                + removeUnsupportedLandPlants(events);
         int zombiesKilled = removeDeadZombies(events);
         if (updateTotals) {
             totalZombiesKilled += zombiesKilled;
@@ -454,7 +457,7 @@ public class Board extends BoardSupport {
 
     public BoardTickResult stabilizeTerrain() {
         List<GameEvent> events = new ArrayList<>();
-        int removed = removeUnsupportedWaterPlants(events);
+        int removed = removeUnsupportedWaterPlants(events) + removeUnsupportedLandPlants(events);
         events.addAll(drainTerrainEvents());
         if (removed > 0) {
             totalPlantsDestroyed += removed;
