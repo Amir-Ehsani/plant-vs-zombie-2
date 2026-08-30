@@ -12,6 +12,7 @@ import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.scenes.scene2d.Actor;
 import com.badlogic.gdx.scenes.scene2d.InputEvent;
+import com.badlogic.gdx.scenes.scene2d.Touchable;
 import com.badlogic.gdx.scenes.scene2d.ui.Button;
 import com.badlogic.gdx.scenes.scene2d.ui.Image;
 import com.badlogic.gdx.scenes.scene2d.ui.ImageButton;
@@ -86,6 +87,7 @@ public final class MiniGameScreen extends BaseScreen {
     private String selectedNutType;
     private String selectedZombieName;
     private String selectedPlantName;
+    private Label sunValueLabel;
     private Label matchProgressLabel;
     private ProgressBarActor matchProgressBar;
     private Table matchUpgradeTable;
@@ -201,18 +203,22 @@ public final class MiniGameScreen extends BaseScreen {
     }
 
     private void buildHud() {
-        Table hud = new Table();
-        hud.setFillParent(true);
-        hud.top().pad(10f);
-        hud.add().expandX();
-        hud.add(createPauseButton()).size(54f).padRight(8f).top();
         if (usesSunResourceBar()) {
-            resourceBar.showMiniGameResources();
-        } else {
-            resourceBar.showMiniGameCurrencies();
+            Table topLeft = new Table();
+            topLeft.setFillParent(true);
+            topLeft.top().left().padTop(10f).padLeft(12f);
+            topLeft.add(createSunCounter()).width(150f).height(50f);
+            stage.addActor(topLeft);
         }
-        hud.add(resourceBar).right().top();
-        stage.addActor(hud);
+
+        // Match the Adventure HUD: currencies on the top-right, then pause.
+        Table topRight = new Table();
+        topRight.setFillParent(true);
+        topRight.top().right().padTop(10f).padRight(10f);
+        resourceBar.showMiniGameCurrencies();
+        topRight.add(resourceBar).right().top().padRight(8f);
+        topRight.add(createPauseButton()).size(54f).top();
+        stage.addActor(topRight);
 
         if (session instanceof IZombieGame gameSession) {
             buildIZombieBar(gameSession);
@@ -221,6 +227,45 @@ public final class MiniGameScreen extends BaseScreen {
         } else if (session instanceof ZombotanyGame) {
             buildZombotanyInteractionControls();
         }
+    }
+
+    private Table createSunCounter() {
+        Table counter = new Table();
+        TextureRegion backgroundRegion = game.getAnimationService().region(
+                "IMAGE_UI_GENERIC_BUTTON_GENERIC_CURRENCY_NORMAL"
+        );
+        if (backgroundRegion != null) {
+            counter.setBackground(new TextureRegionDrawable(backgroundRegion));
+        }
+        TextureRegion sunRegion = game.getAnimationService().region("IMAGE_UI_HUD_INGAME_SUN_DOWN");
+        if (sunRegion != null) {
+            Image sunIcon = new Image(sunRegion);
+            sunIcon.setScaling(Scaling.fit);
+            counter.add(sunIcon).size(38f).padLeft(6f).padRight(5f);
+        }
+        sunValueLabel = createGameplayResourceLabel("0");
+        counter.add(sunValueLabel).expandX().center().padRight(10f);
+        counter.setTouchable(Touchable.enabled);
+        counter.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                if (isDebugMode()) {
+                    addDebugSun();
+                }
+            }
+        });
+        return counter;
+    }
+
+    private Label createGameplayResourceLabel(String text) {
+        Label.LabelStyle style = new Label.LabelStyle(
+                game.getSkin().getFont("FBUSV8C5EI_2_outline"), Color.WHITE
+        );
+        Label label = new Label(text, style);
+        label.setColor(Color.WHITE);
+        label.setFontScale(0.72f);
+        label.setAlignment(Align.center);
+        return label;
     }
 
     private boolean usesSunResourceBar() {
@@ -534,9 +579,9 @@ public final class MiniGameScreen extends BaseScreen {
         configureMiniGameResourceBar();
         resourceBar.refresh(game.getAuthController().getLoggedInUser());
         if (session instanceof IZombieGame gameSession) {
-            resourceBar.refreshMiniGame(game.getAuthController().getLoggedInUser(), gameSession.getSunAmount());
+            refreshMiniGameSun(gameSession.getSunAmount());
         } else if (session instanceof MatchThreeGame gameSession) {
-            resourceBar.refreshMiniGame(game.getAuthController().getLoggedInUser(), gameSession.getSunAmount());
+            refreshMiniGameSun(gameSession.getSunAmount());
             if (matchProgressBar != null) {
                 matchProgressBar.setValue(gameSession.getCompletedMatches());
             }
@@ -553,14 +598,16 @@ public final class MiniGameScreen extends BaseScreen {
                 refreshMatchUpgradeButtonState(gameSession);
             }
         } else if (session instanceof ZombotanyGame gameSession) {
-            resourceBar.refreshGame(
-                    game.getAuthController().getLoggedInUser(),
-                    gameSession.getSunAmount(),
-                    gameSession.getPlantFoodAmount()
-            );
+            refreshMiniGameSun(gameSession.getSunAmount());
             if (zombotanyPlantFoodButton != null) {
                 zombotanyPlantFoodButton.setDisabled(gameSession.getPlantFoodAmount() <= 0);
             }
+        }
+    }
+
+    private void refreshMiniGameSun(int amount) {
+        if (sunValueLabel != null) {
+            sunValueLabel.setText(Integer.toString(Math.max(0, amount)));
         }
     }
 
@@ -588,23 +635,13 @@ public final class MiniGameScreen extends BaseScreen {
         if (resourceBarConfigured && debugControlsVisible == debug) {
             return;
         }
-        if (session instanceof ZombotanyGame) {
-            resourceBar.setGameDebugControls(
-                    debug,
-                    this::addDebugCoins,
-                    this::addDebugDiamonds,
-                    this::addDebugSun,
-                    this::addDebugPlantFood
-            );
-        } else {
-            resourceBar.setMiniGameDebugControls(
-                    usesSunResourceBar(),
-                    debug,
-                    this::addDebugCoins,
-                    this::addDebugDiamonds,
-                    usesSunResourceBar() ? this::addDebugSun : null
-            );
-        }
+        resourceBar.setMiniGameDebugControls(
+                false,
+                debug,
+                this::addDebugCoins,
+                this::addDebugDiamonds,
+                null
+        );
         resourceBarConfigured = true;
         debugControlsVisible = debug;
     }
