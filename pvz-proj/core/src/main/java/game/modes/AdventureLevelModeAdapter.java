@@ -41,7 +41,6 @@ public final class AdventureLevelModeAdapter implements LevelModeAdapter {
     private Label timeLabel;
     private Label zombiesLabel;
     private Label sunLabel;
-    private Label progressLabel;
     private MenuButton startButton;
 
     public AdventureLevelModeAdapter(
@@ -123,14 +122,11 @@ public final class AdventureLevelModeAdapter implements LevelModeAdapter {
         timeLabel = createHudLabel();
         zombiesLabel = createHudLabel();
         sunLabel = createHudLabel();
-        progressLabel = createHudLabel();
-        hud.add(timeLabel).width(190f).center();
+        hud.add(timeLabel).width(230f).center();
         hud.add(separator()).width(18f).center();
-        hud.add(zombiesLabel).width(185f).center();
+        hud.add(zombiesLabel).width(220f).center();
         hud.add(separator()).width(18f).center();
-        hud.add(sunLabel).width(170f).center();
-        hud.add(separator()).width(18f).center();
-        hud.add(progressLabel).width(180f).center();
+        hud.add(sunLabel).width(210f).center();
     }
 
     private Label createHudLabel() {
@@ -153,13 +149,9 @@ public final class AdventureLevelModeAdapter implements LevelModeAdapter {
         int suns = rule.getSunProgress(context);
         int killTarget = rule.getKillTarget();
         int sunTarget = rule.getSunTarget();
-        int killPercent = killTarget <= 0 ? 100 : Math.min(100, kills * 100 / killTarget);
-        int sunPercent = sunTarget <= 0 ? 100 : Math.min(100, suns * 100 / sunTarget);
-        int percent = Math.min(killPercent, sunPercent);
         timeLabel.setText(String.format(Locale.ROOT, "Time Left: %.1fs", seconds));
         zombiesLabel.setText("Zombies: " + kills + "/" + killTarget);
         sunLabel.setText("Sun: " + suns + "/" + sunTarget);
-        progressLabel.setText("Progress: " + percent + "%");
     }
 
     private String loveYourPlantsText(LoveYourPlantsRule rule) {
