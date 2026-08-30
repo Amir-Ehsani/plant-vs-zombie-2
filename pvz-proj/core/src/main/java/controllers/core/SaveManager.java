@@ -56,4 +56,22 @@ public class SaveManager extends SaveManagerWriter {
             return new ArrayList<>();
         }
     }
+    /** Serializes one complete user profile for server-side phase-three synchronization. */
+    public String exportUser(User user) {
+        return user == null ? "" : userToJson(user);
+    }
+
+    /** Restores one complete user profile received from the phase-three server. */
+    public User importUser(String json) {
+        if (json == null || json.isBlank()) {
+            return null;
+        }
+        try {
+            Object parsed = new JsonParser(json).parse();
+            return mapToUser(parsed);
+        } catch (RuntimeException exception) {
+            return null;
+        }
+    }
+
 }
