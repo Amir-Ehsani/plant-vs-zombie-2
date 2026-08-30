@@ -67,6 +67,7 @@ abstract class LaneCombatState {
         protected boolean prospectorDynamiteExtinguished;
         protected boolean torchLit = true;
         protected int turquoiseChannelTicks;
+        protected boolean raStealActive;
         protected int jugglerSpinTicks;
         protected int tombRaiserGravesCreated;
         protected int tombRaiserNextThrowTick;
@@ -76,7 +77,7 @@ abstract class LaneCombatState {
         protected int initialIceHealth;
         protected int octopusNextThrowTick = 5 * TICKS_PER_SECOND;
         protected boolean octopusThrowPending;
-        protected int wizardNextCastTick = 35;
+        protected int wizardNextCastTick = 25;
         protected boolean wizardCastPending;
     }
 
