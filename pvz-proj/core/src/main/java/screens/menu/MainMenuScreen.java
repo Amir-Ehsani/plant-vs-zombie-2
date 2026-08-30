@@ -141,9 +141,9 @@ public class MainMenuScreen extends BaseMenuScreen {
             fallback.add(createTitle("Adventure")).padBottom(10f).row();
             fallback.add(createSecondaryLabel("Start your journey")).padBottom(12f).row();
             fallback.add(new MenuButton(
-                    "Enter Online Match",
+                    "Adventure",
                     skin,
-                    () -> game.getScreenManager().showNetworkLobby(1)
+                    game.getScreenManager()::showAdventure
             )).width(220f).height(52f);
             return fallback;
         }
@@ -153,7 +153,7 @@ public class MainMenuScreen extends BaseMenuScreen {
         banner.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
-                game.getScreenManager().showNetworkLobby(1);
+                game.getScreenManager().showAdventure();
             }
         });
 
