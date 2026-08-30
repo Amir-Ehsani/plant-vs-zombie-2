@@ -2,8 +2,6 @@ package screens;
 
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Screen;
-import com.badlogic.gdx.math.Interpolation;
-import com.badlogic.gdx.scenes.scene2d.actions.Actions;
 import com.badlogic.gdx.scenes.scene2d.Stage;
 import com.badlogic.gdx.utils.ScreenUtils;
 import com.badlogic.gdx.utils.viewport.FitViewport;
@@ -27,11 +25,6 @@ public abstract class BaseScreen implements Screen {
     public void show() {
         Gdx.input.setInputProcessor(stage);
         notificationManager.activate();
-        // Safe screen transition: only animate the newly shown Stage. We never delay or
-        // asynchronously dispose the previous screen.
-        stage.getRoot().clearActions();
-        stage.getRoot().getColor().a = 0f;
-        stage.getRoot().addAction(Actions.fadeIn(0.16f, Interpolation.fade));
     }
 
     @Override
