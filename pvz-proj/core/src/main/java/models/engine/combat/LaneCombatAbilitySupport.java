@@ -36,7 +36,7 @@ abstract class LaneCombatAbilitySupport extends LaneCombatTargetSupport {
     private static final int HUNTER_THROW_IMPACT_DELAY_TICKS = 6;
     private static final int OCTOPUS_THROW_INTERVAL_TICKS = 5 * TICKS_PER_SECOND;
     private static final int OCTOPUS_THROW_IMPACT_DELAY_TICKS = 9;
-    private static final int WIZARD_CAST_INTERVAL_TICKS = 35;
+    private static final int WIZARD_CAST_INTERVAL_TICKS = 25;
     private static final int WIZARD_CAST_IMPACT_DELAY_TICKS = 8;
     protected LaneCombatAbilitySupport(Board board) {
         super(board);
@@ -86,16 +86,29 @@ abstract class LaneCombatAbilitySupport extends LaneCombatTargetSupport {
             return;
         }
         state.gargantuarImpThrown = true;
-        spawnZombie("Imp", 3, lane.getLaneId());
+        zombie.triggerVisualAction("fire", 3, lane.getLaneId());
+        scheduleCombatAction(7, () -> {
+            if (zombie.isAlive()) {
+                spawnZombie("Imp", 3, lane.getLaneId());
+            }
+        });
     }
 
     protected void handleTurquoise(Lane lane, Zombie zombie, ZombieRuntimeState state) {
         Plant target = nearestPlantInLane(lane, zombie.getX(), 4.0, false);
         if (target == null) {
+            if (state.turquoiseChannelTicks > 0) {
+                zombie.triggerVisualAction("power_down");
+            }
             state.turquoiseChannelTicks = 0;
             return;
         }
         state.turquoiseChannelTicks++;
+        if (state.turquoiseChannelTicks == 1) {
+            zombie.triggerVisualAction("power_up", target.getX(), target.getY());
+        } else if (state.turquoiseChannelTicks == 16 || state.turquoiseChannelTicks == 32) {
+            zombie.triggerVisualAction("power", target.getX(), target.getY());
+        }
         if (state.turquoiseChannelTicks % TICKS_PER_SECOND == 0 && board != null) {
             int stolen = board.stealStoredSun(25);
             zombie.addStolenSun(stolen);
@@ -103,6 +116,7 @@ abstract class LaneCombatAbilitySupport extends LaneCombatTargetSupport {
         if (state.turquoiseChannelTicks < 5 * TICKS_PER_SECOND) {
             return;
         }
+        zombie.triggerVisualAction("attack", target.getX(), target.getY());
         double left = zombie.getX() - 4.0;
         for (Tile tile : lane.getTiles()) {
             if (tile.getPosition().getX() >= left
@@ -139,7 +153,15 @@ abstract class LaneCombatAbilitySupport extends LaneCombatTargetSupport {
         if (board == null || state.ageTicks % TICKS_PER_SECOND != 0) {
             return;
         }
-        zombie.addStolenSun(board.stealLooseSuns());
+        int stolen = board.stealLooseSuns();
+        if (stolen > 0) {
+            zombie.triggerVisualAction(state.raStealActive ? "power" : "power_up");
+            state.raStealActive = true;
+            zombie.addStolenSun(stolen);
+        } else if (state.raStealActive) {
+            zombie.triggerVisualAction("power_down");
+            state.raStealActive = false;
+        }
     }
 
     protected void handleTombRaiser(Lane lane, Zombie zombie, ZombieRuntimeState state) {
@@ -184,13 +206,23 @@ abstract class LaneCombatAbilitySupport extends LaneCombatTargetSupport {
         int created = Math.min(spawnCount, available.size());
         for (int index = 0; index < created; index++) {
             Tile targetTile = available.get(index);
-            int delayTicks = 2 + index * 3;
-            scheduleCombatAction(delayTicks, () -> {
-                if (!targetTile.hasPlant() && !targetTile.hasZombies()
-                        && targetTile.getTileType() == TileType.NORMAL
-                        && GraveSpawnRules.remainingCapacity(board) > 0) {
-                    targetTile.setTileType(TileType.GRAVE);
+            int throwDelayTicks = index * 4;
+            scheduleCombatAction(throwDelayTicks, () -> {
+                if (!zombie.isAlive()) {
+                    return;
                 }
+                zombie.triggerVisualAction(
+                        "power", targetTile.getPosition().getX(), targetTile.getPosition().getY()
+                );
+                // Each of the two document-specified bones gets its own visible throw and
+                // only turns into a grave after the projectile/impact animation has time to play.
+                scheduleCombatAction(12, () -> {
+                    if (!targetTile.hasPlant() && !targetTile.hasZombies()
+                            && targetTile.getTileType() == TileType.NORMAL
+                            && GraveSpawnRules.remainingCapacity(board) > 0) {
+                        targetTile.setTileType(TileType.GRAVE);
+                    }
+                });
             });
         }
         state.tombRaiserGravesCreated += created;
@@ -442,6 +474,7 @@ abstract class LaneCombatAbilitySupport extends LaneCombatTargetSupport {
                 || zombieName.equals("explorer") && state.torchLit) {
             plant.kill();
         } else if (zombieName.equals("allstar") && state.allstarCharging) {
+            zombie.triggerVisualAction("kick", plant.getX(), plant.getY());
             plant.kill();
             state.allstarCharging = false;
             zombie.setCurrentSpeed(scaledBaseSpeed(zombie) * 0.25);
@@ -507,6 +540,7 @@ abstract class LaneCombatAbilitySupport extends LaneCombatTargetSupport {
         for (Zombie other : lane.getAllZombies()) {
             if (other != zombie && other.isAlive() && isHypnotized(other)
                     && Math.abs(other.getX() - zombie.getX()) <= MELEE_RANGE) {
+                zombie.triggerVisualAction("kick", other.getX(), other.getY());
                 other.kill();
                 state.allstarCharging = false;
                 zombie.setCurrentSpeed(scaledBaseSpeed(zombie) * 0.25);
