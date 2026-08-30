@@ -52,6 +52,10 @@ public final class ZombieView extends EntityView<Zombie> {
         "768/FULL/EFFECTS/ZOMBIE_BIGHEAD_GARGANTUAR_ASH/ZOMBIE_BIGHEAD_GARGANTUAR_ASH.PAM";
     private static final String IMP_ASH_PATH =
         "768/FULL/EFFECTS/ZOMBIE_BIGHEAD_IMP_ASH/ZOMBIE_BIGHEAD_IMP_ASH.PAM";
+    private static final String OCTOPUS_PROJECTILE_PATH =
+        "768/FULL/EFFECTS/ZOMBIE_OCTOPUS_PROJECTILE/ZOMBIE_OCTOPUS_PROJECTILE.PAM";
+    private static final String WIZARD_LIGHTNING_PATH =
+        "768/FULL/EFFECTS/DARK_WIZARD_LIGHTNINGBOLT/DARK_WIZARD_LIGHTNINGBOLT.PAM";
 
     private double lastX;
     private double lastY;
@@ -76,6 +80,8 @@ public final class ZombieView extends EntityView<Zombie> {
     private String visualActionClip;
     private float visualActionTime;
     private boolean visualActionActive;
+    private double visualActionTargetX = Double.NaN;
+    private double visualActionTargetY = Double.NaN;
 
     public ZombieView(Zombie zombie, EntityAnimationProfile profile) {
         super(zombie, profile);
@@ -151,6 +157,44 @@ public final class ZombieView extends EntityView<Zombie> {
             endHitFlash(batch);
         }
         drawElectricStrike(batch, geometry, animations, position);
+        drawTargetedAbilityEffect(batch, geometry, animations, position);
+    }
+
+    private void drawTargetedAbilityEffect(
+        Batch batch, BoardGeometry geometry, PvzAnimationService animations, Vector2 source
+    ) {
+        if (!visualActionActive || !Double.isFinite(visualActionTargetX)
+                || !Double.isFinite(visualActionTargetY)) {
+            return;
+        }
+        String name = normalize(entity.getName());
+        float duration = Math.max(0.1f, profile.getDefinition().getClipDuration(visualActionClip));
+        float progress = Math.max(0f, Math.min(1f, visualActionTime / duration));
+        Vector2 target = geometry.entityToScreen(visualActionTargetX, visualActionTargetY);
+        if (name.equals("octopus") && visualActionClip.equals("toss")) {
+            float flight = Math.max(0f, Math.min(1f, (progress - 0.20f) / 0.62f));
+            if (flight <= 0f || flight >= 1f) {
+                return;
+            }
+            float x = source.x + (target.x - source.x) * flight;
+            float y = source.y + (target.y - source.y) * flight
+                    + (float) Math.sin(Math.PI * flight) * geometry.getTileHeight() * 0.55f;
+            animations.draw(
+                batch, OCTOPUS_PROJECTILE_PATH, "animation", visualActionTime,
+                x, y, 0.48f, true
+            );
+        } else if (name.equals("wizard") && visualActionClip.equals("sheep")) {
+            float flight = Math.max(0f, Math.min(1f, (progress - 0.18f) / 0.55f));
+            if (flight <= 0f || flight >= 1f) {
+                return;
+            }
+            float x = source.x + (target.x - source.x) * flight;
+            float y = source.y + (target.y - source.y) * flight;
+            animations.draw(
+                batch, WIZARD_LIGHTNING_PATH, "animation", visualActionTime,
+                x, y, 0.46f, true
+            );
+        }
     }
 
     private int totalVisualHealth() {
@@ -517,6 +561,10 @@ public final class ZombieView extends EntityView<Zombie> {
                 visualActionClip = requested;
                 visualActionTime = 0f;
                 visualActionActive = true;
+                visualActionTargetX = entity.hasVisualActionTarget()
+                    ? entity.getVisualActionTargetX() : Double.NaN;
+                visualActionTargetY = entity.hasVisualActionTarget()
+                    ? entity.getVisualActionTargetY() : Double.NaN;
             }
         }
         if (!visualActionActive) {
@@ -528,6 +576,8 @@ public final class ZombieView extends EntityView<Zombie> {
             visualActionActive = false;
             visualActionClip = null;
             visualActionTime = 0f;
+            visualActionTargetX = Double.NaN;
+            visualActionTargetY = Double.NaN;
         }
     }
 
