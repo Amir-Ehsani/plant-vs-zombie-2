@@ -1,6 +1,7 @@
 package com.pvz;
 
 import com.badlogic.gdx.Game;
+import audio.AudioManager;
 import com.badlogic.gdx.Screen;
 import com.badlogic.gdx.scenes.scene2d.ui.Skin;
 import controllers.auth.AuthController;
@@ -32,12 +33,14 @@ public class Main extends Game {
     private SettingsController settingsController;
     private TravelLogController travelLogController;
     private PvzAnimationService animationService;
+    private AudioManager audioManager;
     private ScreenManager screenManager;
 
     @Override
     public void create() {
         skin = PvzSkin.get();
         authController = new AuthController();
+        audioManager = new AudioManager(authController);
         mainMenuController = new MainMenuController(authController);
         gameController = new GameController(authController);
         profileController = new ProfileController(authController);
@@ -57,6 +60,9 @@ public class Main extends Game {
         if (animationService != null) {
             animationService.update();
         }
+        if (audioManager != null) {
+            audioManager.update();
+        }
         super.render();
     }
 
@@ -71,6 +77,9 @@ public class Main extends Game {
         }
         if (animationService != null) {
             animationService.dispose();
+        }
+        if (audioManager != null) {
+            audioManager.dispose();
         }
         if (skin != null) {
             skin.dispose();
@@ -130,6 +139,10 @@ public class Main extends Game {
             animationService = new PvzAnimationService();
         }
         return animationService;
+    }
+
+    public AudioManager getAudioManager() {
+        return audioManager;
     }
 
     public ScreenManager getScreenManager() {
