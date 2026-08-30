@@ -1,5 +1,7 @@
 package screens.menu;
 
+import audio.AudioCue;
+import audio.AudioManager;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.scenes.scene2d.ui.Label;
 import com.badlogic.gdx.scenes.scene2d.ui.ScrollPane;
@@ -224,6 +226,9 @@ public class CollectionPlantPanel extends Table {
 
     private void purchase(String plantName) {
         controller.purchasePlant(plantName);
+        if (controller.wasSuccessful()) {
+            AudioManager.playGlobal(AudioCue.PURCHASE);
+        }
         messageHandler.accept(controller.getLastMessage());
         resourceRefresh.run();
         selectedPlantName = plantName;
