@@ -124,6 +124,7 @@ public final class GameScreen extends BaseScreen {
     private final LevelModeAdapter levelModeAdapter;
     private final GameplayAnnouncementOverlay announcementOverlay;
     private final LevelDialogueController dialogueController;
+    private final BossPresentationOverlay bossPresentationOverlay;
     private final Vector2 cursorWorld;
     private Button shovelButton;
 
@@ -141,13 +142,15 @@ public final class GameScreen extends BaseScreen {
     private boolean debugControlsVisible;
     private float visualStateTime;
     private PauseDialog pauseDialog;
-    private GameOverDialog gameOverDialog;
+    private ModalWindow gameOverDialog;
     private boolean gameOverShown;
     private boolean introDialogueStarted;
     private boolean pausedForIntro;
     private boolean bossOutroStarted;
     private int announcedWaveNumber;
     private int announcedUpcomingWave;
+    private final int scoreAtLevelStart;
+    private boolean mioPointAnnounced;
 
     public GameScreen(Main game) {
         this(game, prepareController(game));
@@ -236,6 +239,15 @@ public final class GameScreen extends BaseScreen {
         dialogueController = new LevelDialogueController(stage, game.getSkin(), animations);
         buildHud();
         buildInteractionControls();
+        bossPresentationOverlay = session.getCurrentLevel() != null
+                && session.getCurrentLevel().getBossRuntime() != null
+                ? new BossPresentationOverlay(
+                        stage,
+                        game.getSkin(),
+                        animations,
+                        session.getCurrentLevel().getBossRuntime()
+                )
+                : null;
         levelModeAdapter.setup();
         loadStageAssets();
         debugMessage = "Adventure session connected";
@@ -247,6 +259,9 @@ public final class GameScreen extends BaseScreen {
         bossOutroStarted = false;
         announcedWaveNumber = 0;
         announcedUpcomingWave = 0;
+        User scoreUser = game.getAuthController().getLoggedInUser();
+        scoreAtLevelStart = scoreUser == null ? 0 : scoreUser.getScore();
+        mioPointAnnounced = false;
         refreshGameHud();
         refreshStatus(debugMessage);
     }
@@ -287,6 +302,7 @@ public final class GameScreen extends BaseScreen {
         drawInteractionCursor();
         drawWaveNotification();
         syncInteractionControlState();
+        UiHoverAnimator.attach(stage);
         float stageDelta = gameplayClock.isPaused() ? 0f : Math.min(delta, 1f / 15f);
         stage.act(stageDelta);
         stage.draw();
@@ -614,6 +630,9 @@ public final class GameScreen extends BaseScreen {
         waveProgressHud.update(session);
         gameplayWaveBanner.update(visualDelta, session);
         updateRenderSystems(visualDelta, currentTick);
+        if (bossPresentationOverlay != null) {
+            bossPresentationOverlay.update();
+        }
         combatFeedback.update(visualDelta, session.getBoard());
         collectSunUnderPointer();
         collectGroundRewardUnderPointer();
@@ -1335,6 +1354,18 @@ public final class GameScreen extends BaseScreen {
     }
 
     private void finishLevelIntro() {
+        if (bossPresentationOverlay != null) {
+            bossPresentationOverlay.showIntro(this::startBossBattleAfterIntro);
+            return;
+        }
+        resumeAfterLevelIntro();
+    }
+
+    private void startBossBattleAfterIntro() {
+        resumeAfterLevelIntro();
+    }
+
+    private void resumeAfterLevelIntro() {
         if (pausedForIntro && session.isRunning() && gameplayClock.isPaused()) {
             gameplayClock.togglePause();
         }
@@ -1413,6 +1444,7 @@ public final class GameScreen extends BaseScreen {
             pauseDialog = null;
         }
         boolean victory = session.getState().getStatus() == GameState.Status.WON;
+        announceMioPointIfNeeded();
         if (session.getCurrentLevel() != null && session.getCurrentLevel().getBossRuntime() != null) {
             bossOutroStarted = true;
             dialogueController.showBossOutro(victory, () -> showGameOverDialog(victory));
@@ -1423,17 +1455,44 @@ public final class GameScreen extends BaseScreen {
 
     private void showGameOverDialog(boolean victory) {
         gameOverShown = true;
-        String message = victory
-                ? "The lawn is safe. Continue your Adventure."
-                : "The zombies broke through. Try the level again.";
-        gameOverDialog = new GameOverDialog(
-                game.getSkin(),
-                victory,
-                message,
-                victory ? this::continueAfterVictory : this::retryAfterDefeat,
-                game.getScreenManager()::showAdventure
-        );
+        if (session.getCurrentLevel() != null && session.getCurrentLevel().getBossRuntime() != null) {
+            boss.core.Boss boss = session.getCurrentLevel().getBossRuntime().getBoss();
+            gameOverDialog = new BossGameOverDialog(
+                    game.getSkin(),
+                    victory,
+                    boss.getDisplayName(),
+                    animations.region("IMAGE_UI_PENNY_PURSUITS_ZPS_ZOMBOSS_METER_ICON"),
+                    victory ? this::continueAfterVictory : this::retryAfterDefeat,
+                    game.getScreenManager()::showAdventure
+            );
+        } else {
+            String message = victory
+                    ? "The lawn is safe. Continue your Adventure."
+                    : "The zombies broke through. Try the level again.";
+            gameOverDialog = new GameOverDialog(
+                    game.getSkin(),
+                    victory,
+                    message,
+                    victory ? this::continueAfterVictory : this::retryAfterDefeat,
+                    game.getScreenManager()::showAdventure
+            );
+        }
         gameOverDialog.show(stage);
+    }
+
+    private void announceMioPointIfNeeded() {
+        if (mioPointAnnounced) {
+            return;
+        }
+        mioPointAnnounced = true;
+        User user = game.getAuthController().getLoggedInUser();
+        if (user == null) {
+            return;
+        }
+        int gained = Math.max(0, user.getScore() - scoreAtLevelStart);
+        if (gained > 0) {
+            announcementOverlay.pushMioPoint(gained);
+        }
     }
 
     private void retryAfterDefeat() {

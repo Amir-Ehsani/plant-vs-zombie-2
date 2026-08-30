@@ -2,11 +2,8 @@ package screens.menu;
 
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
-import com.badlogic.gdx.math.Interpolation;
-import com.badlogic.gdx.scenes.scene2d.Actor;
 import com.badlogic.gdx.scenes.scene2d.InputEvent;
 import com.badlogic.gdx.scenes.scene2d.Touchable;
-import com.badlogic.gdx.scenes.scene2d.actions.Actions;
 import com.badlogic.gdx.scenes.scene2d.ui.Image;
 import com.badlogic.gdx.scenes.scene2d.ui.ImageButton;
 import com.badlogic.gdx.scenes.scene2d.ui.Label;
@@ -135,20 +132,7 @@ public class AdventureScreen extends BaseMenuScreen {
         Image image = region == null ? new Image() : new Image(region);
         image.setScaling(Scaling.fit);
         image.setTouchable(Touchable.enabled);
-        image.setOrigin(Align.center);
         image.addListener(new ClickListener() {
-            @Override
-            public void enter(InputEvent event, float x, float y, int pointer, Actor fromActor) {
-                image.clearActions();
-                image.addAction(Actions.scaleTo(1.07f, 1.07f, 0.16f, Interpolation.sineOut));
-            }
-
-            @Override
-            public void exit(InputEvent event, float x, float y, int pointer, Actor toActor) {
-                image.clearActions();
-                image.addAction(Actions.scaleTo(1f, 1f, 0.16f, Interpolation.sineOut));
-            }
-
             @Override
             public void clicked(InputEvent event, float x, float y) {
                 if (unlocked) {

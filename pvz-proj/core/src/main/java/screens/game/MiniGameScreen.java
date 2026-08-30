@@ -49,6 +49,7 @@ import ui.MenuButton;
 import ui.PauseDialog;
 import ui.ProgressBarActor;
 import ui.ResourceBar;
+import ui.UiHoverAnimator;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -168,6 +169,7 @@ public final class MiniGameScreen extends BaseScreen {
             );
         }
         disableBlending();
+        UiHoverAnimator.attach(stage);
         stage.act(Math.min(delta, 1f / 15f));
         stage.draw();
         if (session instanceof ZombotanyGame gameSession && zombotanyWaveHud != null) {
