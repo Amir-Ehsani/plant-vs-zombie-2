@@ -1,5 +1,6 @@
 package screens.menu;
 
+import audio.AudioCue;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.scenes.scene2d.ui.Image;
 import com.badlogic.gdx.scenes.scene2d.ui.Label;
@@ -232,6 +233,9 @@ public class ShopScreen extends BaseMenuScreen {
 
     private void purchase(ShopController.ShopItem item, String plantName) {
         controller.buy(item.getId(), 1, plantName);
+        if (controller.wasSuccessful() && game.getAudioManager() != null) {
+            game.getAudioManager().play(AudioCue.PURCHASE);
+        }
         showControllerMessage(controller.getLastMessage());
         refreshAll();
     }

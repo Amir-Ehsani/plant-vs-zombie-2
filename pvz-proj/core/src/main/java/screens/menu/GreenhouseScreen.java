@@ -1,5 +1,6 @@
 package screens.menu;
 
+import audio.AudioCue;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.scenes.scene2d.Actor;
@@ -318,6 +319,9 @@ public class GreenhouseScreen extends BaseMenuScreen {
 
     private void buyPot(Greenhouse.Pot pot) {
         controller.buyPot(pot.getX(), pot.getY());
+        if (controller.wasSuccessful() && game.getAudioManager() != null) {
+            game.getAudioManager().play(AudioCue.PURCHASE);
+        }
         showControllerMessage(controller.getLastMessage());
         refreshAll();
     }

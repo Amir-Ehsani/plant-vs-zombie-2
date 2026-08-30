@@ -1,5 +1,7 @@
 package game.chapter;
 
+import audio.AudioCue;
+import audio.AudioManager;
 import com.badlogic.gdx.graphics.Camera;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.g2d.Batch;
@@ -222,6 +224,7 @@ public final class ChapterVisualRenderer {
             }
             seenSandstormZombies.put(zombie, Boolean.TRUE);
             sandBursts.add(new SandBurstVisual((float) zombie.getX(), (float) zombie.getY()));
+            AudioManager.playGlobal(AudioCue.SANDSTORM);
         }
     }
 

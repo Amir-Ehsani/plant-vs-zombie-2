@@ -1,5 +1,7 @@
 package game.render.mower;
 
+import audio.AudioCue;
+import audio.AudioManager;
 import com.badlogic.gdx.graphics.g2d.Batch;
 import com.badlogic.gdx.math.Vector2;
 import game.animation.core.AnimationDefinition;
@@ -22,6 +24,7 @@ public final class LawnMowerRenderSystem {
     private final PvzAnimationService animations;
     private final Map<Integer, Float> laneAnimationTimes = new HashMap<>();
     private final Map<Integer, Float> laneVisualPositions = new HashMap<>();
+    private final Map<Integer, Boolean> laneTriggeredState = new HashMap<>();
     private final String animationPath;
     private final String idleClip;
     private final String attackClip;
@@ -57,6 +60,11 @@ public final class LawnMowerRenderSystem {
         float safeDelta = Math.max(0f, delta);
         for (int row = 1; row <= board.getHeight(); row++) {
             LawnMower mower = board.getLaneAt(row).getLawnMower();
+            boolean wasTriggered = laneTriggeredState.getOrDefault(row, false);
+            if (!wasTriggered && mower.isTriggered()) {
+                AudioManager.playGlobal(AudioCue.LAWN_MOWER);
+            }
+            laneTriggeredState.put(row, mower.isTriggered());
             updateVisualPosition(row, mower, safeDelta);
             updateAnimationTime(row, mower, safeDelta);
         }
@@ -117,6 +125,7 @@ public final class LawnMowerRenderSystem {
     private void clearRuntimeState() {
         laneAnimationTimes.clear();
         laneVisualPositions.clear();
+        laneTriggeredState.clear();
     }
 
     private void drawAt(Batch batch, float boardX, int row, String clip, float stateTime) {

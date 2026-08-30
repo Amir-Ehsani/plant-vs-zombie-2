@@ -1,5 +1,7 @@
 package ui;
 
+import audio.AudioCue;
+import audio.AudioManager;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.scenes.scene2d.ui.Label;
 import com.badlogic.gdx.scenes.scene2d.ui.Skin;
@@ -15,6 +17,7 @@ public class GameOverDialog extends ModalWindow {
             Runnable exitAction
     ) {
         super(victory ? "Victory" : "Defeat", skin);
+        AudioManager.playGlobal(victory ? AudioCue.WIN : AudioCue.LOSE);
         Table content = getContentTable();
         Label result = new Label(message == null ? "" : message, skin, "medium");
         result.setColor(Color.valueOf("4A3A1F"));

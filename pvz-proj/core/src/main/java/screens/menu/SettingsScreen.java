@@ -145,7 +145,10 @@ public class SettingsScreen extends BaseMenuScreen {
     private void bindListeners() {
         gridBox.addListener(changeListener(() -> controller.setGridVisible(gridBox.isChecked())));
         debugBox.addListener(changeListener(() -> changeDebugMode(debugBox.isChecked())));
-        musicEnabledBox.addListener(changeListener(() -> controller.setMusicEnabled(musicEnabledBox.isChecked())));
+        musicEnabledBox.addListener(changeListener(() -> {
+            controller.setMusicEnabled(musicEnabledBox.isChecked());
+            refreshAudioSettings();
+        }));
         musicVolumeSlider.addListener(changeListener(this::changeMusicVolume));
         soundVolumeSlider.addListener(changeListener(this::changeSoundVolume));
     }
@@ -195,12 +198,21 @@ public class SettingsScreen extends BaseMenuScreen {
         float value = musicVolumeSlider.getValue();
         controller.setMusicVolume(value);
         musicVolumeValue.setText(volumeText(value));
+        refreshAudioSettings();
     }
 
     private void changeSoundVolume() {
         float value = soundVolumeSlider.getValue();
         controller.setSoundVolume(value);
         soundVolumeValue.setText(volumeText(value));
+        refreshAudioSettings();
+    }
+
+
+    private void refreshAudioSettings() {
+        if (game.getAudioManager() != null) {
+            game.getAudioManager().refreshSettings();
+        }
     }
 
     private void refreshValues() {

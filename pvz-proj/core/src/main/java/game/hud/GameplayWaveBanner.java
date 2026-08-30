@@ -1,5 +1,7 @@
 package game.hud;
 
+import audio.AudioCue;
+import audio.AudioManager;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.g2d.Batch;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
@@ -62,6 +64,7 @@ public final class GameplayWaveBanner {
         if (!hugeWaveShown && shouldWarnAboutFinalWave(session)) {
             hugeWaveShown = true;
             hugeWaveRemaining = HUGE_WAVE_DURATION;
+            AudioManager.playGlobal(AudioCue.ZOMBIES_COMING);
         }
     }
 
