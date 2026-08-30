@@ -10,6 +10,7 @@ import com.badlogic.gdx.scenes.scene2d.actions.Actions;
 import com.badlogic.gdx.scenes.scene2d.ui.Image;
 import com.badlogic.gdx.scenes.scene2d.ui.ImageButton;
 import com.badlogic.gdx.scenes.scene2d.ui.Label;
+import com.badlogic.gdx.scenes.scene2d.ui.Stack;
 import com.badlogic.gdx.scenes.scene2d.ui.Table;
 import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
 import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable;
@@ -129,13 +130,19 @@ public class MainMenuScreen extends BaseMenuScreen {
     }
 
     private Actor createBannerActor() {
-        List<TextureRegion> regions = new ArrayList<>();
-        addRegion(regions, "IMAGE_UI_THYMED_EVENTS_LAWNBOWL_EVENT_BG");
-        addRegion(regions, "IMAGE_UI_THYMED_EVENTS_LAWNOFDOOM_EVENT_BG");
-        addRegion(regions, "IMAGE_UI_THYMED_EVENTS_GEM_SPREE_EVENT_BG");
-        addRegion(regions, "IMAGE_UI_THYMED_EVENTS_FOODFIGHT_EVENT_BG");
-        addRegion(regions, "IMAGE_UI_THYMED_EVENTS_VALENBRAINZ2025_EVENT_BG");
-        if (regions.isEmpty()) {
+        List<BannerEntry> entries = new ArrayList<>();
+        addBannerEntry(
+                entries,
+                "IMAGE_BACKGROUNDS_BACKGROUND_LOD_BIGBRAINZ_TEXTURE",
+                "I, ZOMBIE ONLINE",
+                () -> game.getScreenManager().showNetworkLobby(1)
+        );
+        addBannerEntry(entries, "IMAGE_UI_THYMED_EVENTS_LAWNBOWL_EVENT_BG", "Adventure", game.getScreenManager()::showAdventure);
+        addBannerEntry(entries, "IMAGE_UI_THYMED_EVENTS_LAWNOFDOOM_EVENT_BG", "Adventure", game.getScreenManager()::showAdventure);
+        addBannerEntry(entries, "IMAGE_UI_THYMED_EVENTS_GEM_SPREE_EVENT_BG", "Adventure", game.getScreenManager()::showAdventure);
+        addBannerEntry(entries, "IMAGE_UI_THYMED_EVENTS_FOODFIGHT_EVENT_BG", "Adventure", game.getScreenManager()::showAdventure);
+        addBannerEntry(entries, "IMAGE_UI_THYMED_EVENTS_VALENBRAINZ2025_EVENT_BG", "Adventure", game.getScreenManager()::showAdventure);
+        if (entries.isEmpty()) {
             Table fallback = createPanel();
             fallback.pad(22f);
             fallback.add(createTitle("Adventure")).padBottom(10f).row();
@@ -144,29 +151,46 @@ public class MainMenuScreen extends BaseMenuScreen {
                     .width(220f).height(52f);
             return fallback;
         }
-        Image banner = new Image(regions.get(0));
+
+        final int[] index = {0};
+        Image banner = new Image(entries.get(0).region);
         banner.setScaling(Scaling.fill);
-        banner.addListener(new ClickListener() {
+        banner.setTouchable(com.badlogic.gdx.scenes.scene2d.Touchable.disabled);
+
+        Label.LabelStyle captionStyle = new Label.LabelStyle(skin.getFont("FBUSV8C6EI_3"), Color.WHITE);
+        Label caption = new Label(entries.get(0).caption, captionStyle);
+        caption.setFontScale(1.15f);
+        caption.setAlignment(Align.center);
+        caption.setTouchable(com.badlogic.gdx.scenes.scene2d.Touchable.disabled);
+        Table overlay = new Table();
+        overlay.bottom();
+        overlay.add(caption).width(610f).height(42f).padBottom(8f);
+
+        Stack stack = new Stack();
+        stack.add(banner);
+        stack.add(overlay);
+        stack.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
-                game.getScreenManager().showAdventure();
+                entries.get(index[0]).action.run();
             }
         });
-        final int[] index = {0};
-        banner.addAction(Actions.forever(Actions.sequence(
+        stack.addAction(Actions.forever(Actions.sequence(
                 Actions.delay(2.8f),
                 Actions.run(() -> {
-                    index[0] = (index[0] + 1) % regions.size();
-                    banner.setDrawable(new TextureRegionDrawable(regions.get(index[0])));
+                    index[0] = (index[0] + 1) % entries.size();
+                    BannerEntry entry = entries.get(index[0]);
+                    banner.setDrawable(new TextureRegionDrawable(entry.region));
+                    caption.setText(entry.caption);
                 })
         )));
-        return banner;
+        return stack;
     }
 
-    private void addRegion(List<TextureRegion> regions, String regionId) {
+    private void addBannerEntry(List<BannerEntry> entries, String regionId, String caption, Runnable action) {
         TextureRegion region = animations.region(regionId);
         if (region != null) {
-            regions.add(region);
+            entries.add(new BannerEntry(region, caption, action));
         }
     }
 
@@ -325,4 +349,16 @@ public class MainMenuScreen extends BaseMenuScreen {
             backgroundTexture.dispose();
         }
     }
+    private static final class BannerEntry {
+        private final TextureRegion region;
+        private final String caption;
+        private final Runnable action;
+
+        private BannerEntry(TextureRegion region, String caption, Runnable action) {
+            this.region = region;
+            this.caption = caption;
+            this.action = action;
+        }
+    }
+
 }
