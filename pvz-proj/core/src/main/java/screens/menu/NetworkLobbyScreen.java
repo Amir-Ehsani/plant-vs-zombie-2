@@ -18,7 +18,6 @@ import java.util.concurrent.CompletableFuture;
 /** Matchmaking entry point for the phase-three network I, Zombie mode. */
 public final class NetworkLobbyScreen extends BaseMenuScreen {
     private final NetworkManager network;
-    private final int stageNumber;
     private Label statusLabel;
     private TextField hostField;
     private TextField portField;
@@ -27,10 +26,9 @@ public final class NetworkLobbyScreen extends BaseMenuScreen {
     private boolean waitingRandom;
     private boolean busy;
 
-    public NetworkLobbyScreen(Main game, int stageNumber) {
+    public NetworkLobbyScreen(Main game) {
         super(game);
         this.network = game.getNetworkManager();
-        this.stageNumber = Math.max(1, Math.min(3, stageNumber));
         buildUi();
     }
 
@@ -50,7 +48,7 @@ public final class NetworkLobbyScreen extends BaseMenuScreen {
         Label title = createTitle("I, ZOMBIE - ONLINE");
         title.setColor(Color.WHITE);
         panel.add(title).colspan(2).padBottom(12f).row();
-        panel.add(panelLabel("Stage " + stageNumber + " - server-authoritative two-player match"))
+        panel.add(panelLabel("Server-authoritative two-player match"))
                 .colspan(2).padBottom(14f).row();
 
         NetworkConfig config = network.getConfig();
@@ -86,7 +84,7 @@ public final class NetworkLobbyScreen extends BaseMenuScreen {
         random.add(randomHelp).width(390f).height(56f).row();
         randomButton = new MenuButton("Random Match", skin, "green", this::toggleRandom);
         random.add(randomButton).width(235f).height(46f).padTop(8f).row();
-        random.add(new MenuButton("Couch Play", skin, "brown", () -> game.getScreenManager().showCouchIZombie(stageNumber)))
+        random.add(new MenuButton("Couch Play", skin, "brown", () -> game.getScreenManager().showCouchIZombie(1)))
                 .width(235f).height(46f).padTop(8f);
 
         panel.add(direct).width(440f).height(250f).padRight(12f);
@@ -137,14 +135,14 @@ public final class NetworkLobbyScreen extends BaseMenuScreen {
         if (busy || !requireOnline()) return;
         String target = opponentField.getText() == null ? "" : opponentField.getText().trim();
         if (target.isBlank()) { updateStatus("Enter the opponent username."); return; }
-        run("Sending challenge to " + target + "...", network.challengeAsync(target, stageNumber));
+        run("Sending challenge to " + target + "...", network.challengeAsync(target));
     }
 
     private void toggleRandom() {
         if (busy || !requireOnline()) return;
         boolean joining = !waitingRandom;
         CompletableFuture<NetworkOperationResult> future = joining
-                ? network.joinRandomQueueAsync(stageNumber)
+                ? network.joinRandomQueueAsync()
                 : network.leaveRandomQueueAsync();
         busy = true;
         updateStatus(joining ? "Joining random queue..." : "Leaving random queue...");
