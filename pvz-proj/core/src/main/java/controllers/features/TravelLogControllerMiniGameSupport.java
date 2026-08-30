@@ -10,6 +10,7 @@ import models.core.plant.PlantType;
 import models.engine.board.Position;
 import models.minigame.IZombieGame;
 import models.minigame.MatchThreeGame;
+import models.minigame.NetworkIZombieGame;
 import models.minigame.MiniGameSession;
 import models.minigame.MiniGameType;
 import models.minigame.VasebreakerGame;
@@ -57,6 +58,20 @@ abstract class TravelLogControllerMiniGameSupport extends TravelLogControllerQue
         }
 
         return enterMiniGame(type, stage);
+    }
+
+    public boolean enterNetworkIZombie(NetworkIZombieGame networkGame) {
+        if (getLoggedInUserOrFail() == null) {
+            return false;
+        }
+        if (networkGame == null) {
+            return fail("Online I, Zombie session is unavailable.");
+        }
+        if (activeMiniGame != null && activeMiniGame.isRunning()) {
+            activeMiniGame = null;
+        }
+        activeMiniGame = networkGame;
+        return success("Entered I, Zombie Online.");
     }
 
     public boolean advanceMiniGameTime(int ticks) {
