@@ -60,6 +60,10 @@ public final class AudioManager implements Disposable {
         playMusic(AudioCue.MENU_MUSIC);
     }
 
+    public void playMiniGameMusic() {
+        playMusic(AudioCue.MENU_MUSIC);
+    }
+
     public void playGameplayMusic(Level level) {
         if (level != null && level.getBossRuntime() != null) {
             playMusic(AudioCue.BOSS_MUSIC);
@@ -213,11 +217,27 @@ public final class AudioManager implements Disposable {
 
     private FileHandle resolve(AudioCue cue) {
         for (String path : cue.getCandidates()) {
-            if (path == null || path.isBlank()) {
-                continue;
+            FileHandle file = resolvePath(path);
+            if (file != null) {
+                return file;
             }
-            FileHandle file = Gdx.files.internal(path);
-            if (file.exists()) {
+        }
+        return null;
+    }
+
+    private FileHandle resolvePath(String path) {
+        if (path == null || path.isBlank()) {
+            return null;
+        }
+        String clean = path.replace('\\', '/');
+        FileHandle[] candidates = new FileHandle[] {
+                Gdx.files.internal(clean),
+                Gdx.files.internal("assets/" + clean),
+                Gdx.files.local(clean),
+                Gdx.files.local("assets/" + clean)
+        };
+        for (FileHandle file : candidates) {
+            if (file != null && file.exists() && !file.isDirectory()) {
                 return file;
             }
         }
