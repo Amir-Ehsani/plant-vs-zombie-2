@@ -7,8 +7,8 @@ import network.client.NetworkManager;
 import network.client.NetworkMatchContext;
 import network.protocol.MessageType;
 import network.protocol.NetworkMessage;
-import screens.game.NetworkIZombieScreen;
 import ui.ConfirmDialog;
+import models.minigame.NetworkIZombieGame;
 import ui.NotificationManager;
 
 /** Routes unsolicited server events to the active LibGDX screen. */
@@ -49,17 +49,16 @@ public final class NetworkCoordinator {
     }
 
     private void routeChallenges(Stage stage) {
-        if (stage == null || game.getScreen() instanceof NetworkIZombieScreen) return;
+        if (stage == null || game.getTravelLogController().getActiveMiniGameSession() instanceof NetworkIZombieGame) return;
         NetworkMessage event = network.pollChallengeEvent();
         if (event == null) return;
         String challengeId = event.getOrDefault("challengeId", "");
         if (challengeId.isBlank() || challengeId.equals(visibleChallengeId)) return;
         visibleChallengeId = challengeId;
         String challenger = event.getOrDefault("challenger", "Another player");
-        int requestedStage = Math.max(1, Math.min(3, event.getInt("stage", 1)));
         ConfirmDialog dialog = new ConfirmDialog(
-                "I, Zombie Challenge",
-                challenger + " invited you to an online Stage " + requestedStage + " match.",
+                "I, Zombie Online",
+                challenger + " invited you to an online I, Zombie match.",
                 game.getSkin(),
                 () -> answerChallenge(challengeId, true),
                 () -> answerChallenge(challengeId, false)
