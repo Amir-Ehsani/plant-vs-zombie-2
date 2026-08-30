@@ -231,6 +231,22 @@ public class Tile {
         return removed;
     }
 
+    public List<Plant> removeUnsupportedLandPlants() {
+        if (tileType == TileType.WATER || plants.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        List<Plant> removed = new ArrayList<>();
+        for (Plant plant : new ArrayList<>(plants)) {
+            if (!isDirectWaterPlant(plant)) {
+                continue;
+            }
+            plants.remove(plant);
+            removed.add(plant);
+        }
+        return removed;
+    }
+
     public void removeZombie(Zombie zombie) {
         zombies.remove(zombie);
     }
