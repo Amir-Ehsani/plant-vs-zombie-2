@@ -204,10 +204,9 @@ public class Level extends LevelState {
         }
 
         if (levelRule.usesCustomWinCondition()) {
-            if (levelRule.isWinConditionMet(context)
-                    && waveManager.areAllWavesCleared()
-                    && !hasLivingTerrainZombie()
-                    && !hasPendingZombieSpawn()) {
+            // Special objectives (not the wave list) decide these levels. Timed War must
+            // end immediately once every requested objective is complete.
+            if (levelRule.isWinConditionMet(context)) {
                 status = LevelStatus.WON;
             }
             return;
