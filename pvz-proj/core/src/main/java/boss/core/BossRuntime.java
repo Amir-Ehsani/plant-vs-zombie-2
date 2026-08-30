@@ -48,6 +48,7 @@ public final class BossRuntime {
 
     private static final int DARK_FIREBALL_IMPACT_TICKS = 18;
     private static final int DARK_BREATH_IMPACT_TICKS = 18;
+    private static final int DARK_BREATH_MIN_GAP_TICKS = 180;
     private static final int DARK_FIRE_LIFETIME_TICKS = 40;
     private static final int DARK_ACTION_END_TICKS = 34;
     private static final int DARK_ARRIVAL_FIRE_IMPACT_TICKS = 78;
@@ -103,6 +104,7 @@ public final class BossRuntime {
     private int darkArrivalFireImpactTick;
     private boolean darkArrivalFireResolved;
     private boolean beachTangleStun;
+    private int lastDarkBreathTick = -DARK_BREATH_MIN_GAP_TICKS;
 
     private int frostMissileLaunchTick;
     private int frostMissileImpactTick;
@@ -252,8 +254,15 @@ public final class BossRuntime {
             choices.add(BossAction.ICE_WIND);
             choices.add(BossAction.FREEZE_COLUMN);
         } else if (isDarkBoss()) {
+            // Favor zombie-producing actions.  The two-lane breath is intentionally
+            // rate-limited so it remains a threat instead of being spammed.
+            choices.add(BossAction.SPAWN_ZOMBIES);
+            choices.add(BossAction.SPAWN_ZOMBIES);
             choices.add(BossAction.DARK_FIREBALLS);
-            choices.add(BossAction.DARK_FIRE_BREATH);
+            choices.add(BossAction.DARK_FIREBALLS);
+            if (currentTick - lastDarkBreathTick >= DARK_BREATH_MIN_GAP_TICKS) {
+                choices.add(BossAction.DARK_FIRE_BREATH);
+            }
         } else if (isBeachBoss()) {
             choices.add(BossAction.BEACH_BABY_SHARKS);
             choices.add(BossAction.BEACH_TURBINE);
@@ -373,7 +382,7 @@ public final class BossRuntime {
     private void startDarkFireballs(int currentTick) {
         clearActionState();
         actionStartTick = currentTick;
-        int count = Math.min(3, 1 + boss.getHealth().getSectionBreakSerial());
+        int count = Math.min(3, 2 + boss.getHealth().getSectionBreakSerial());
         chooseDistinctTargets(count, false);
         specialImpactTick = currentTick + DARK_FIREBALL_IMPACT_TICKS;
         stateUntilTick = currentTick + DARK_ACTION_END_TICKS;
@@ -382,6 +391,7 @@ public final class BossRuntime {
 
     private void startDarkFireBreath(int currentTick) {
         clearActionState();
+        lastDarkBreathTick = currentTick;
         actionStartTick = currentTick;
         specialImpactTick = currentTick + DARK_BREATH_IMPACT_TICKS;
         stateUntilTick = currentTick + DARK_ACTION_END_TICKS;
@@ -870,8 +880,10 @@ public final class BossRuntime {
     private void planZombieSummons() {
         summonTargets.clear();
         summonNames.clear();
-        int originalCount = Math.min(6, 4 + boss.getHealth().getSectionBreakSerial());
-        int count = Math.max(1, Math.round(originalCount * 0.6f));
+        int section = boss.getHealth().getSectionBreakSerial();
+        int count = isDarkBoss()
+                ? Math.min(5, 3 + section)
+                : Math.max(1, Math.round(Math.min(6, 4 + section) * 0.6f));
         List<Position> candidates = new ArrayList<>();
         if (isDarkBoss()) {
             for (int lane = 1; lane <= board.getHeight(); lane++) {
