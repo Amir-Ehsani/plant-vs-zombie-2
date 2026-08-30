@@ -4,8 +4,6 @@ import controllers.core.GameController;
 import models.account.Settings;
 import models.engine.session.GameSession;
 
-import java.util.function.Consumer;
-
 public final class GameplayClock {
     private static final float TICK_SECONDS = 0.1f;
     private static final float MAX_FRAME_DELTA = 0.25f;
@@ -15,7 +13,6 @@ public final class GameplayClock {
     private final GameSession session;
     private float accumulator;
     private int gameSpeed;
-    private Consumer<String> tickFeedbackListener;
 
     public GameplayClock(GameController controller) {
         if (controller == null || controller.getGameSession() == null) {
@@ -25,7 +22,6 @@ public final class GameplayClock {
         session = controller.getGameSession();
         accumulator = 0f;
         gameSpeed = Settings.MIN_GAME_SPEED;
-        tickFeedbackListener = null;
     }
 
     public GameplayClock(GameSession session) {
@@ -36,7 +32,6 @@ public final class GameplayClock {
         this.session = session;
         accumulator = 0f;
         gameSpeed = Settings.MIN_GAME_SPEED;
-        tickFeedbackListener = null;
     }
 
     public void update(float delta) {
@@ -87,18 +82,11 @@ public final class GameplayClock {
         return session.getTickManager() == null ? 0 : session.getTickManager().getCurrentTick();
     }
 
-    public void setTickFeedbackListener(Consumer<String> listener) {
-        tickFeedbackListener = listener;
-    }
-
     private boolean advanceGame() {
         if (controller == null) {
             return session.advanceTicks(1);
         }
         controller.advanceTime(1);
-        if (controller.wasSuccessful() && tickFeedbackListener != null) {
-            tickFeedbackListener.accept(controller.getLastMessage());
-        }
         return controller.wasSuccessful();
     }
 }
