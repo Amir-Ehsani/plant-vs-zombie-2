@@ -149,6 +149,8 @@ public final class GameScreen extends BaseScreen {
     private boolean bossOutroStarted;
     private int announcedWaveNumber;
     private int announcedUpcomingWave;
+    private int lastAudioTick;
+    private int previousAudioZombieCount;
 
     public GameScreen(Main game) {
         this(game, prepareController(game));
@@ -173,7 +175,8 @@ public final class GameScreen extends BaseScreen {
         plantFoodSlotBackgroundRegion = animations.region("IMAGE_UI_POWERUPS_POWERUP_FRAME");
         gameplayClock = new GameplayClock(controller);
         gameplayClock.setGameSpeed(resolveInitialGameSpeed());
-        gameplayClock.setTickFeedbackListener(this::handleTickAudio);
+        lastAudioTick = gameplayClock.getCurrentTick();
+        previousAudioZombieCount = session.getBoard().getActiveZombieCount();
         statusLabel = new Label("", game.getSkin());
         cursorWorld = new Vector2();
         resourceBar = new ResourceBar(game.getSkin(), game.getAnimationService());
@@ -612,6 +615,7 @@ public final class GameScreen extends BaseScreen {
         animations.update();
         updateCursorWorld();
         gameplayClock.update(delta);
+        updateGameplayAudioEvents();
         levelModeAdapter.update();
         int currentTick = gameplayClock.getCurrentTick();
         float visualDelta = gameplayClock.isPaused() ? 0f : delta * gameplayClock.getGameSpeed();
@@ -940,10 +944,11 @@ public final class GameScreen extends BaseScreen {
         if (sun == null) {
             return;
         }
+        boolean radioactive = sun.isRadioactiveAndFalling();
         controller.collectSun(sun.getPosition());
         if (controller.wasSuccessful()) {
             if (game.getAudioManager() != null) {
-                game.getAudioManager().play(AudioCue.SUN_PICKUP);
+                game.getAudioManager().play(radioactive ? AudioCue.EXPLOSION : AudioCue.SUN_PICKUP);
             }
             refreshGameHud();
         }
@@ -1427,21 +1432,25 @@ public final class GameScreen extends BaseScreen {
         }
     }
 
-    private void handleTickAudio(String controllerMessage) {
-        if (controllerMessage == null || controllerMessage.isBlank() || game.getAudioManager() == null) {
+    private void updateGameplayAudioEvents() {
+        if (game.getAudioManager() == null) {
             return;
         }
-        for (String line : controllerMessage.split("\\R")) {
-            String normalized = line == null ? "" : line.trim().toLowerCase(java.util.Locale.ROOT);
-            if (normalized.contains("zombie ") && normalized.contains(" spawned at wave ")) {
-                game.getAudioManager().play(AudioCue.ZOMBIE);
-            }
-            if (normalized.contains("lawn mower") && normalized.contains("triggered")) {
-                game.getAudioManager().play(AudioCue.LAWN_MOWER);
-            }
-            if (normalized.contains("radioactive sun exploded")) {
-                game.getAudioManager().play(AudioCue.EXPLOSION);
-            }
+        int tick = gameplayClock.getCurrentTick();
+        if (tick == lastAudioTick) {
+            return;
+        }
+        lastAudioTick = tick;
+
+        int zombieCount = session.getBoard().getActiveZombieCount();
+        if (zombieCount > previousAudioZombieCount) {
+            game.getAudioManager().play(AudioCue.ZOMBIE);
+        }
+        previousAudioZombieCount = zombieCount;
+
+        if (session.getBoard().getLastTickResult() != null
+                && session.getBoard().getLastTickResult().getLawnMowersTriggered() > 0) {
+            game.getAudioManager().play(AudioCue.LAWN_MOWER);
         }
     }
 
