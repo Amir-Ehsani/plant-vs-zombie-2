@@ -361,6 +361,27 @@ public final class CompactSeedBank {
         VisiblePlant plant,
         float stateTime
     ) {
+        if (normalizeKey(plant.name()).equals("gravebuster")) {
+            TextureRegion packet = animations.region("IMAGE_UI_PACKETS_GRAVEBUSTER");
+            if (packet != null) {
+                float maxWidth = slotWidth(session) * 0.62f;
+                float maxHeight = SLOT_HEIGHT * 0.72f;
+                float scale = Math.min(
+                    maxWidth / Math.max(1f, packet.getRegionWidth()),
+                    maxHeight / Math.max(1f, packet.getRegionHeight())
+                );
+                float width = packet.getRegionWidth() * scale;
+                float height = packet.getRegionHeight() * scale;
+                batch.draw(
+                    packet,
+                    slotX(session) + (slotWidth(session) - width) * 0.5f,
+                    slotY(session, plant) + (SLOT_HEIGHT - height) * 0.5f,
+                    width, height
+                );
+                return;
+            }
+        }
+
         EntityAnimationProfile profile = profileFor(session, plant.name());
         if (profile == null) {
             return;
