@@ -28,6 +28,14 @@ public abstract class BaseMenuScreen extends BaseScreen {
         skin = game.getSkin();
     }
 
+    @Override
+    public void show() {
+        super.show();
+        if (game.getAudioManager() != null) {
+            game.getAudioManager().playMenuMusic();
+        }
+    }
+
     protected void addMenuBackground() {
         try {
             menuBackgroundTexture = new Texture(Gdx.files.internal("menu-bg.png"));
