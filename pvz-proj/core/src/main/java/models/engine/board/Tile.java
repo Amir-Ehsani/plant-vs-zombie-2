@@ -106,6 +106,10 @@ public class Tile {
             return false;
         }
 
+        if (isNamedPlant(plant, "lily pad") && tileType != TileType.WATER) {
+            return false;
+        }
+
         if (isGraveTerrain()) {
             return plants.isEmpty() && isNamedPlant(plant, "grave buster");
         }
