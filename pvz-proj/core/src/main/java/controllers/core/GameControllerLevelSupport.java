@@ -274,7 +274,7 @@ abstract class GameControllerLevelSupport extends GameControllerStatusSupport {
             );
             case SAVE_OUR_SEEDS -> new SaveOurSeedsRule(protectedSeedPositions());
             case TIMED_WAR -> new TimedWarRule(
-                    3600,
+                    2600,
                     8 + difficulty,
                     350 + difficulty * 50
             );
