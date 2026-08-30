@@ -1,6 +1,5 @@
 package screens.game;
 
-import audio.AudioCue;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
 import com.badlogic.gdx.InputAdapter;
@@ -149,9 +148,6 @@ public final class MiniGameScreen extends BaseScreen {
     @Override
     public void show() {
         super.show();
-        if (game.getAudioManager() != null) {
-            game.getAudioManager().playMiniGameMusic();
-        }
         Gdx.input.setInputProcessor(new InputMultiplexer(stage, createInput()));
     }
 
@@ -990,9 +986,6 @@ public final class MiniGameScreen extends BaseScreen {
         }
         gameOverShown = true;
         boolean victory = session.isWon();
-        if (game.getAudioManager() != null) {
-            game.getAudioManager().play(victory ? AudioCue.WIN : AudioCue.LOSE);
-        }
         GameOverDialog dialog = new GameOverDialog(
                 game.getSkin(),
                 victory,
