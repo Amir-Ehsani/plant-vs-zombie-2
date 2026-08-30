@@ -167,10 +167,10 @@ public final class IZombieBoardActor extends Group {
     private void drawLawn(Batch batch, float parentAlpha) {
         batch.setColor(1f, 1f, 1f, parentAlpha);
         if (background != null) {
-            batch.draw(background, getX(), getY(), getWidth(), getHeight());
+            batch.draw(background, 0f, 0f, 1280f, 720f);
         } else {
             batch.setColor(FALLBACK_LAWN.r, FALLBACK_LAWN.g, FALLBACK_LAWN.b, parentAlpha);
-            batch.draw(pixel, getX(), getY(), getWidth(), getHeight());
+            batch.draw(pixel, 0f, 0f, 1280f, 720f);
         }
     }
 
@@ -185,7 +185,7 @@ public final class IZombieBoardActor extends Group {
                 float height = Math.min(58f, cellHeight * 0.62f);
                 float width = height * brainImage.getRegionWidth() / (float) brainImage.getRegionHeight();
                 batch.setColor(1f, 1f, 1f, parentAlpha);
-                batch.draw(brainImage, getX() + 6f, centerY - height / 2f, width, height);
+                batch.draw(brainImage, getX() - width * 0.88f, centerY - height / 2f, width, height);
             } else {
                 batch.setColor(0.94f, 0.35f, 0.66f, parentAlpha);
                 batch.draw(pixel, getX() + 10f, centerY - 13f, 30f, 26f);
@@ -274,7 +274,7 @@ public final class IZombieBoardActor extends Group {
             boolean zombie = "ZOMBIE".equals(entity.getCategory());
             float height = zombie ? cellHeight * 1.18f : cellHeight * 0.92f;
             if ("IMP".equals(entity.getType())) height *= 0.78f;
-            if ("FOOTBALL".equals(entity.getType())) height *= 1.08f;
+            if ("ALLSTAR".equals(entity.getType()) || "GARGANTUAR".equals(entity.getType())) height *= 1.10f;
             float width = zombie ? cellWidth * 0.92f : cellWidth * 0.78f;
             PamAnimationActor actor = entry.getValue();
             actor.setSize(width, height);
@@ -301,6 +301,8 @@ public final class IZombieBoardActor extends Group {
             case "WALL_NUT" -> "Wall-nut";
             case "SNOW_PEA" -> "Snow Pea";
             case "REPEATER" -> "Repeater";
+            case "TALL_NUT" -> "Tall-nut";
+            case "THREEPEATER" -> "Threepeater";
             default -> "Peashooter";
         };
     }
@@ -308,9 +310,14 @@ public final class IZombieBoardActor extends Group {
     public static String zombieDisplayName(String type) {
         if (type == null) return "Default";
         return switch (type) {
-            case "CONEHEAD" -> "cone head";
-            case "BUCKETHEAD" -> "bucket head";
-            case "FOOTBALL" -> "Allstar";
+            case "CONE_HEAD" -> "cone head";
+            case "BUCKET_HEAD" -> "bucket head";
+            case "RA" -> "Ra";
+            case "EXPLORER" -> "Explorer";
+            case "ALLSTAR" -> "Allstar";
+            case "WIZARD" -> "Wizard";
+            case "PROSPECTOR" -> "Prospector";
+            case "GARGANTUAR" -> "Gargantuar";
             case "IMP" -> "Imp";
             default -> "Default";
         };
