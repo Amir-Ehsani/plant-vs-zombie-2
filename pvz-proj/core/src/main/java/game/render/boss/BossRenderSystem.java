@@ -51,9 +51,6 @@ public final class BossRenderSystem {
             "768/INITIAL/EFFECTS/FIREPEASHOOTER_FIRE/FIREPEASHOOTER_FIRE.PAM";
     private static final String SNAPDRAGON_FIRE_PATH =
             "768/FULL/EFFECTS/SNAPDRAGON_FIRE/SNAPDRAGON_FIRE.PAM";
-    private static final String DARK_ARRIVAL_SHADOW_PATH =
-            "768/FULL/EFFECTS/ZOMBOSS_LOSTCITY_AIR_STRIKE_SHADOW/"
-                    + "ZOMBOSS_LOSTCITY_AIR_STRIKE_SHADOW.PAM";
     private static final String SHARK_PATH =
             "768/FULL/EFFECTS/ZOMBOSS_SHARK_PROJECTILE/ZOMBOSS_SHARK_PROJECTILE.PAM";
     private static final String WATER_RIPPLE_PATH =
@@ -118,7 +115,6 @@ public final class BossRenderSystem {
             animations.preload(DARK_DIRT_PATH);
             animations.preload(FIRE_PEA_PATH);
             animations.preload(SNAPDRAGON_FIRE_PATH);
-            animations.preload(DARK_ARRIVAL_SHADOW_PATH);
         }
         if (isBeachBoss(boss)) {
             animations.preload(SHARK_PATH);
@@ -190,7 +186,6 @@ public final class BossRenderSystem {
         Vector2 position = bossRenderPosition(boss);
         batch.begin();
         renderBeachSharks(batch, boss);
-        renderDarkArrivalShadow(batch, boss);
         animations.draw(batch, boss.getAnimationPath(), visualClip(boss), visualClipTime(boss),
                 position.x, position.y, boss.getRenderScale(), loopsBossClip(boss));
         renderEgyptMissileEffect(batch, boss);
@@ -219,24 +214,6 @@ public final class BossRenderSystem {
             position.x += geometry.getTileWidth() * 0.34f;
         }
         return position;
-    }
-
-    private void renderDarkArrivalShadow(Batch batch, Boss boss) {
-        if (!isDarkBoss(boss) || boss.getState() != BossState.INTRO
-                || stateTime >= DARK_ARRIVAL_FIRE_IMPACT_TIME) {
-            return;
-        }
-        float progress = MathUtils.clamp(stateTime / DARK_ARRIVAL_FIRE_IMPACT_TIME, 0f, 1f);
-        float eased = progress * progress * (3f - 2f * progress);
-        Vector2 shadow = geometry.entityToScreen(8.1, boss.getCenterLane());
-        shadow.x -= geometry.getTileWidth() * (1.15f - eased * 0.55f);
-        float scale = 0.22f + eased * 0.42f;
-        batch.setColor(1f, 1f, 1f, 0.25f + eased * 0.55f);
-        animations.draw(
-                batch, DARK_ARRIVAL_SHADOW_PATH, "animation", stateTime,
-                shadow.x, shadow.y, scale, true
-        );
-        batch.setColor(1f, 1f, 1f, 1f);
     }
 
     private double visualBossLane(Boss boss) {
