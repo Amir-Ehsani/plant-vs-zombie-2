@@ -11,6 +11,7 @@ import com.badlogic.gdx.scenes.scene2d.Stage;
 import com.badlogic.gdx.scenes.scene2d.Touchable;
 import com.badlogic.gdx.scenes.scene2d.actions.Actions;
 import com.badlogic.gdx.scenes.scene2d.ui.Image;
+import com.badlogic.gdx.scenes.scene2d.ui.Stack;
 import com.badlogic.gdx.scenes.scene2d.ui.Label;
 import com.badlogic.gdx.scenes.scene2d.ui.Skin;
 import com.badlogic.gdx.scenes.scene2d.ui.Table;
@@ -21,6 +22,10 @@ import game.animation.core.PvzAnimationService;
 /** Presentation-only UI for boss identity, phases, intro and stunned feedback. */
 public final class BossPresentationOverlay {
     private static final String PORTRAIT_ID = "IMAGE_UI_PENNY_PURSUITS_ZPS_ZOMBOSS_METER_ICON";
+    private static final String ZOMBOSS_HEAD_ID = "IMAGE_NPC_NARRATIONICONS_ZOMBOSS_NARRATIONICONS_ZOMBOSS_204X215";
+    private static final String ZOMBOSS_MOUTH_ID = "IMAGE_NPC_NARRATIONICONS_ZOMBOSS_NARRATIONICONS_ZOMBOSS_105X89";
+    private static final String ZOMBOSS_BACKGROUND_ID = "IMAGE_NPC_NARRATIONICONS_ZOMBOSS_NARRATIONICONS_ZOMBOSS_295X295";
+    private static final String ZOMBOSS_BORDER_ID = "IMAGE_NPC_NARRATIONICONS_ZOMBOSS_NARRATIONICONS_ZOMBOSS_319X319";
     private static final Color TITLE_COLOR = Color.valueOf("FFE45A");
     private static final Color STUN_COLOR = Color.valueOf("FFB329");
 
@@ -28,6 +33,10 @@ public final class BossPresentationOverlay {
     private final Skin skin;
     private final BossRuntime runtime;
     private final TextureRegion portraitRegion;
+    private final TextureRegion zombossHeadRegion;
+    private final TextureRegion zombossMouthRegion;
+    private final TextureRegion zombossBackgroundRegion;
+    private final TextureRegion zombossBorderRegion;
     private final Table identityRoot;
     private final Label phaseLabel;
     private final Label stateLabel;
@@ -47,6 +56,10 @@ public final class BossPresentationOverlay {
         this.skin = skin;
         this.runtime = runtime;
         portraitRegion = animations.region(PORTRAIT_ID);
+        zombossHeadRegion = animations.region(ZOMBOSS_HEAD_ID);
+        zombossMouthRegion = animations.region(ZOMBOSS_MOUTH_ID);
+        zombossBackgroundRegion = animations.region(ZOMBOSS_BACKGROUND_ID);
+        zombossBorderRegion = animations.region(ZOMBOSS_BORDER_ID);
 
         Boss boss = runtime.getBoss();
         identityRoot = new Table();
@@ -106,14 +119,20 @@ public final class BossPresentationOverlay {
         lastSectionBreakSerial = sectionSerial;
     }
 
-    public void showIntro() {
+    public void showIntro(Runnable onStart) {
         Boss boss = runtime.getBoss();
         RealtimeTable banner = createBanner();
-        if (portraitRegion != null) {
+        banner.setTouchable(Touchable.enabled);
+
+        Stack portraitStack = createZombossNarrationPortrait();
+        if (portraitStack != null) {
+            banner.add(portraitStack).size(236f).padRight(24f);
+        } else if (portraitRegion != null) {
             Image portrait = new Image(portraitRegion);
             portrait.setScaling(Scaling.fit);
-            banner.add(portrait).size(138f).padRight(18f);
+            banner.add(portrait).size(154f).padRight(18f);
         }
+
         Table words = new Table();
         Label title = new Label("BOSS BATTLE", skin, "big_outline");
         title.setColor(TITLE_COLOR);
@@ -128,9 +147,70 @@ public final class BossPresentationOverlay {
         line.setFontScale(0.64f);
         line.setAlignment(Align.center);
         line.setWrap(true);
-        words.add(line).width(430f).center().padTop(8f);
+        words.add(line).width(430f).center().padTop(8f).row();
+
+        MenuButton start = new MenuButton("START", skin, "green", () -> {
+            banner.clearActions();
+            banner.addAction(Actions.sequence(
+                    Actions.parallel(
+                            Actions.fadeOut(0.16f, Interpolation.fade),
+                            Actions.scaleTo(1.04f, 1.04f, 0.16f, Interpolation.sineIn)
+                    ),
+                    Actions.run(() -> {
+                        banner.remove();
+                        if (onStart != null) {
+                            onStart.run();
+                        }
+                    })
+            ));
+        });
+        words.add(start).width(180f).height(52f).center().padTop(16f);
         banner.add(words);
-        showTransient(banner, 2.1f);
+
+        banner.getColor().a = 0f;
+        banner.setScale(0.88f);
+        stage.addActor(banner);
+        banner.toFront();
+        banner.addAction(Actions.parallel(
+                Actions.fadeIn(0.16f, Interpolation.fade),
+                Actions.scaleTo(1f, 1f, 0.18f, Interpolation.swingOut)
+        ));
+    }
+
+    private Stack createZombossNarrationPortrait() {
+        if (zombossHeadRegion == null && zombossBackgroundRegion == null && zombossBorderRegion == null) {
+            return null;
+        }
+        Stack stack = new Stack();
+        if (zombossBackgroundRegion != null) {
+            Image background = new Image(zombossBackgroundRegion);
+            background.setScaling(Scaling.fit);
+            stack.add(background);
+        }
+
+        Table faceLayer = new Table();
+        faceLayer.setFillParent(true);
+        faceLayer.center();
+        Table face = new Table();
+        if (zombossHeadRegion != null) {
+            Image head = new Image(zombossHeadRegion);
+            head.setScaling(Scaling.fit);
+            face.add(head).size(155f, 163f).row();
+        }
+        if (zombossMouthRegion != null) {
+            Image mouth = new Image(zombossMouthRegion);
+            mouth.setScaling(Scaling.fit);
+            face.add(mouth).size(80f, 68f).padTop(-15f);
+        }
+        faceLayer.add(face).center().padTop(4f);
+        stack.add(faceLayer);
+
+        if (zombossBorderRegion != null) {
+            Image border = new Image(zombossBorderRegion);
+            border.setScaling(Scaling.fit);
+            stack.add(border);
+        }
+        return stack;
     }
 
     private void updatePhase() {
