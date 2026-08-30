@@ -1,5 +1,6 @@
 package network.game;
 
+import models.minigame.IZombieGame;
 import network.protocol.EntityState;
 import network.protocol.GameRole;
 import network.protocol.GameSnapshot;
@@ -25,7 +26,7 @@ import java.util.UUID;
 public final class AuthoritativeIZombieGame {
     public static final int ROWS = 5;
     public static final int COLUMNS = 9;
-    public static final int LAST_PLANT_COLUMN = 6;
+    public static final int LAST_PLANT_COLUMN = IZombieGame.RED_LINE_COLUMN - 1;
     public static final long DEFAULT_MATCH_DURATION_MILLIS = 120_000L;
 
     private static final double ZOMBIE_SPAWN_X = COLUMNS - 0.35;
@@ -42,19 +43,21 @@ public final class AuthoritativeIZombieGame {
 
     static {
         LinkedHashMap<String, Integer> plantCosts = new LinkedHashMap<>();
-        plantCosts.put("PEASHOOTER", 100);
         plantCosts.put("SUNFLOWER", 50);
+        plantCosts.put("PEASHOOTER", 100);
         plantCosts.put("WALL_NUT", 50);
-        plantCosts.put("SNOW_PEA", 175);
         plantCosts.put("REPEATER", 200);
+        plantCosts.put("SNOW_PEA", 175);
+        plantCosts.put("TALL_NUT", 125);
+        plantCosts.put("THREEPEATER", 325);
         PLANT_COSTS = Collections.unmodifiableMap(plantCosts);
 
         LinkedHashMap<String, Integer> zombieCosts = new LinkedHashMap<>();
-        zombieCosts.put("REGULAR", 50);
-        zombieCosts.put("CONEHEAD", 75);
-        zombieCosts.put("BUCKETHEAD", 125);
-        zombieCosts.put("FOOTBALL", 175);
-        zombieCosts.put("IMP", 50);
+        for (int stage = 1; stage <= 3; stage++) {
+            for (IZombieGame.ZombieOptionView option : IZombieGame.zombieOptionsForStage(stage)) {
+                zombieCosts.putIfAbsent(normalize(option.zombieName()), option.sunCost());
+            }
+        }
         ZOMBIE_COSTS = Collections.unmodifiableMap(zombieCosts);
 
         LinkedHashMap<String, PlantDefinition> plants = new LinkedHashMap<>();
@@ -63,14 +66,21 @@ public final class AuthoritativeIZombieGame {
         plants.put("WALL_NUT", new PlantDefinition(1_800, 0, 0L, 0, false, 0, 0L, 6_000L));
         plants.put("SNOW_PEA", new PlantDefinition(300, 90, 1_350L, 1, true, 0, 0L, 4_000L));
         plants.put("REPEATER", new PlantDefinition(350, 85, 950L, 2, false, 0, 0L, 3_500L));
+        plants.put("TALL_NUT", new PlantDefinition(3_200, 0, 0L, 0, false, 0, 0L, 7_000L));
+        plants.put("THREEPEATER", new PlantDefinition(300, 80, 1_200L, 3, false, 0, 0L, 4_500L));
         PLANT_DEFINITIONS = Collections.unmodifiableMap(plants);
 
         LinkedHashMap<String, ZombieDefinition> zombies = new LinkedHashMap<>();
-        zombies.put("REGULAR", new ZombieDefinition(300, 0.48, 80, 900L, 2_000L));
-        zombies.put("CONEHEAD", new ZombieDefinition(620, 0.45, 82, 900L, 2_400L));
-        zombies.put("BUCKETHEAD", new ZombieDefinition(1_050, 0.38, 90, 850L, 3_200L));
-        zombies.put("FOOTBALL", new ZombieDefinition(760, 0.78, 115, 700L, 4_000L));
+        zombies.put("DEFAULT", new ZombieDefinition(300, 0.48, 80, 900L, 2_000L));
+        zombies.put("CONE_HEAD", new ZombieDefinition(620, 0.45, 82, 900L, 2_400L));
         zombies.put("IMP", new ZombieDefinition(190, 0.64, 55, 650L, 1_500L));
+        zombies.put("BUCKET_HEAD", new ZombieDefinition(1_050, 0.38, 90, 850L, 3_200L));
+        zombies.put("RA", new ZombieDefinition(430, 0.44, 84, 900L, 2_700L));
+        zombies.put("EXPLORER", new ZombieDefinition(520, 0.56, 100, 820L, 3_000L));
+        zombies.put("ALLSTAR", new ZombieDefinition(850, 0.78, 120, 700L, 4_000L));
+        zombies.put("WIZARD", new ZombieDefinition(620, 0.40, 96, 860L, 3_800L));
+        zombies.put("PROSPECTOR", new ZombieDefinition(560, 0.66, 92, 780L, 2_800L));
+        zombies.put("GARGANTUAR", new ZombieDefinition(3_000, 0.24, 240, 950L, 6_500L));
         ZOMBIE_DEFINITIONS = Collections.unmodifiableMap(zombies);
     }
 
@@ -110,14 +120,33 @@ public final class AuthoritativeIZombieGame {
         }
         this.stage = Math.max(1, Math.min(3, stage));
         this.matchDurationMillis = Math.max(1_000L, durationMillis);
-        int stageBonus = (this.stage - 1) * 50;
-        this.plantSun = 500 + stageBonus;
-        this.zombieSun = 500 + stageBonus;
-        seedStartingDefense();
+        this.plantSun = IZombieGame.INITIAL_SUN;
+        this.zombieSun = IZombieGame.INITIAL_SUN;
+        seedOriginalStageDefense();
     }
 
     public static Map<String, Integer> plantCosts() { return PLANT_COSTS; }
     public static Map<String, Integer> zombieCosts() { return ZOMBIE_COSTS; }
+
+    public static Map<String, Integer> plantCostsForStage(int requestedStage) {
+        LinkedHashMap<String, Integer> result = new LinkedHashMap<>();
+        for (String[] row : IZombieGame.plantLayoutForStage(requestedStage)) {
+            for (String plantName : row) {
+                String key = normalize(plantName);
+                Integer cost = PLANT_COSTS.get(key);
+                if (cost != null) result.putIfAbsent(key, cost);
+            }
+        }
+        return Collections.unmodifiableMap(result);
+    }
+
+    public static Map<String, Integer> zombieCostsForStage(int requestedStage) {
+        LinkedHashMap<String, Integer> result = new LinkedHashMap<>();
+        for (IZombieGame.ZombieOptionView option : IZombieGame.zombieOptionsForStage(requestedStage)) {
+            result.put(normalize(option.zombieName()), option.sunCost());
+        }
+        return Collections.unmodifiableMap(result);
+    }
 
     public synchronized ActionResult placePlant(String actorUsername, String type, int row, int column) {
         if (isFinished()) return ActionResult.failure("match is already finished", snapshot());
@@ -126,6 +155,9 @@ public final class AuthoritativeIZombieGame {
         Integer cost = PLANT_COSTS.get(normalized);
         PlantDefinition definition = PLANT_DEFINITIONS.get(normalized);
         if (cost == null || definition == null) return ActionResult.failure("unknown plant type: " + type, snapshot());
+        if (!plantCostsForStage(stage).containsKey(normalized)) {
+            return ActionResult.failure("that plant is not used in this I, Zombie stage", snapshot());
+        }
         if (!validRow(row)) return ActionResult.failure("row must be between 0 and " + (ROWS - 1), snapshot());
         if (column < 0 || column > LAST_PLANT_COLUMN) {
             return ActionResult.failure("plants may only be placed in columns 0-" + LAST_PLANT_COLUMN, snapshot());
@@ -153,6 +185,9 @@ public final class AuthoritativeIZombieGame {
         Integer cost = ZOMBIE_COSTS.get(normalized);
         ZombieDefinition definition = ZOMBIE_DEFINITIONS.get(normalized);
         if (cost == null || definition == null) return ActionResult.failure("unknown zombie type: " + type, snapshot());
+        if (!zombieCostsForStage(stage).containsKey(normalized)) {
+            return ActionResult.failure("that zombie is not available in this I, Zombie stage", snapshot());
+        }
         if (!validRow(row)) return ActionResult.failure("row must be between 0 and " + (ROWS - 1), snapshot());
         if (zombieSun < cost) return ActionResult.failure("not enough zombie sun", snapshot());
         long readyAt = zombieReadyAt.getOrDefault(normalized, 0L);
@@ -333,26 +368,13 @@ public final class AuthoritativeIZombieGame {
         zombies.removeIf(zombie -> zombie.health <= 0);
     }
 
-    private void seedStartingDefense() {
-        addSeedPlant("SUNFLOWER", 0, 1);
-        addSeedPlant("PEASHOOTER", 0, 3);
-        addSeedPlant("PEASHOOTER", 1, 2);
-        addSeedPlant("WALL_NUT", 1, 5);
-        addSeedPlant("SUNFLOWER", 2, 1);
-        addSeedPlant("SNOW_PEA", 2, 3);
-        addSeedPlant("REPEATER", 3, 2);
-        addSeedPlant("WALL_NUT", 3, 5);
-        addSeedPlant("SUNFLOWER", 4, 1);
-        addSeedPlant("PEASHOOTER", 4, 4);
-        if (stage >= 2) {
-            addSeedPlant("SUNFLOWER", 1, 0);
-            addSeedPlant("SNOW_PEA", 1, 4);
-            addSeedPlant("REPEATER", 4, 3);
-        }
-        if (stage >= 3) {
-            addSeedPlant("WALL_NUT", 0, 5);
-            addSeedPlant("REPEATER", 2, 4);
-            addSeedPlant("SNOW_PEA", 4, 5);
+    private void seedOriginalStageDefense() {
+        String[][] layout = IZombieGame.plantLayoutForStage(stage);
+        for (int row = 0; row < Math.min(ROWS, layout.length); row++) {
+            String[] lane = layout[row];
+            for (int column = 0; column < Math.min(IZombieGame.RED_LINE_COLUMN, lane.length); column++) {
+                addSeedPlant(normalize(lane[column]), row, column);
+            }
         }
     }
 
