@@ -13,13 +13,21 @@ import models.level.core.Level;
 import models.level.core.SeasonType;
 
 import java.util.EnumMap;
+import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * Small, event-driven audio service for P1-08.
+ *
+ * Important: it does no work from Main.render() and never scans game state.
+ * Short effects are decoded once during startup; music is streamed only when a screen changes.
+ */
 public final class AudioManager implements Disposable {
     private static AudioManager active;
 
     private final AuthController authController;
     private final Map<AudioCue, Sound> sounds;
+    private final Map<String, Sound> soundCache;
     private final Map<AudioCue, Long> lastPlayedAt;
     private final Map<AudioCue, Boolean> missingLogged;
 
@@ -32,13 +40,15 @@ public final class AudioManager implements Disposable {
     public AudioManager(AuthController authController) {
         this.authController = authController;
         sounds = new EnumMap<>(AudioCue.class);
+        soundCache = new HashMap<>();
         lastPlayedAt = new EnumMap<>(AudioCue.class);
         missingLogged = new EnumMap<>(AudioCue.class);
         musicVolume = 1f;
         soundVolume = 1f;
         musicEnabled = true;
         active = this;
-        syncSettings();
+        refreshSettings();
+        preloadEffects();
     }
 
     public static AudioManager getActive() {
@@ -50,10 +60,6 @@ public final class AudioManager implements Disposable {
         if (manager != null) {
             manager.play(cue);
         }
-    }
-
-    public void update() {
-        syncSettings();
     }
 
     public void playMenuMusic() {
@@ -90,24 +96,17 @@ public final class AudioManager implements Disposable {
             playMusic(cue);
             return;
         }
-        syncSettings();
+        refreshSettings();
         if (soundVolume <= 0f || isRateLimited(cue)) {
             return;
         }
         Sound sound = sounds.get(cue);
         if (sound == null) {
-            FileHandle file = resolve(cue);
-            if (file == null) {
-                logMissingOnce(cue);
-                return;
-            }
-            try {
-                sound = Gdx.audio.newSound(file);
-                sounds.put(cue, sound);
-            } catch (RuntimeException exception) {
-                logLoadFailure(cue, exception);
-                return;
-            }
+            // This normally only happens when an asset was missing during startup and appears later.
+            sound = loadEffect(cue);
+        }
+        if (sound == null) {
+            return;
         }
         try {
             sound.play(soundVolume);
@@ -142,17 +141,77 @@ public final class AudioManager implements Disposable {
         }
     }
 
+    /** Apply changed settings immediately without restarting or touching the render loop. */
+    public void refreshSettings() {
+        Settings settings = currentSettings();
+        float nextMusicVolume = settings == null ? 1f : settings.getMusicVolume();
+        float nextSoundVolume = settings == null ? 1f : settings.getSoundVolume();
+        boolean nextMusicEnabled = settings == null || settings.isMusicEnabled();
+
+        musicVolume = clamp(nextMusicVolume);
+        soundVolume = clamp(nextSoundVolume);
+        musicEnabled = nextMusicEnabled;
+
+        if (currentMusic == null) {
+            return;
+        }
+        currentMusic.setVolume(musicVolume);
+        if (musicEnabled && musicVolume > 0f) {
+            if (!currentMusic.isPlaying()) {
+                currentMusic.play();
+            }
+        } else if (currentMusic.isPlaying()) {
+            currentMusic.pause();
+        }
+    }
+
+    private void preloadEffects() {
+        for (AudioCue cue : AudioCue.values()) {
+            if (!cue.isMusic()) {
+                loadEffect(cue);
+            }
+        }
+    }
+
+    private Sound loadEffect(AudioCue cue) {
+        if (cue == null || cue.isMusic()) {
+            return null;
+        }
+        Sound existing = sounds.get(cue);
+        if (existing != null) {
+            return existing;
+        }
+        FileHandle file = resolve(cue);
+        if (file == null) {
+            logMissingOnce(cue);
+            return null;
+        }
+        String cacheKey = file.path();
+        Sound shared = soundCache.get(cacheKey);
+        if (shared != null) {
+            sounds.put(cue, shared);
+            return shared;
+        }
+        try {
+            Sound sound = Gdx.audio.newSound(file);
+            soundCache.put(cacheKey, sound);
+            sounds.put(cue, sound);
+            return sound;
+        } catch (RuntimeException exception) {
+            logLoadFailure(cue, exception);
+            return null;
+        }
+    }
+
     private void playMusic(AudioCue cue) {
         if (cue == null || !cue.isMusic()) {
             return;
         }
-        syncSettings();
+        refreshSettings();
         if (cue == currentMusicCue && currentMusic != null) {
             currentMusic.setVolume(musicVolume);
             if (musicEnabled && musicVolume > 0f && !currentMusic.isPlaying()) {
                 currentMusic.play();
-            } else if ((!musicEnabled || musicVolume <= 0f) && currentMusic.isPlaying()) {
-                currentMusic.pause();
             }
             return;
         }
@@ -163,47 +222,21 @@ public final class AudioManager implements Disposable {
             return;
         }
 
-        disposeCurrentMusic();
-        currentMusicCue = cue;
+        Music nextMusic;
         try {
-            currentMusic = Gdx.audio.newMusic(file);
-            currentMusic.setLooping(true);
-            currentMusic.setVolume(musicVolume);
-            if (musicEnabled && musicVolume > 0f) {
-                currentMusic.play();
-            }
+            nextMusic = Gdx.audio.newMusic(file);
+            nextMusic.setLooping(true);
+            nextMusic.setVolume(musicVolume);
         } catch (RuntimeException exception) {
-            currentMusic = null;
-            currentMusicCue = null;
             logLoadFailure(cue, exception);
+            return;
         }
-    }
 
-    private void syncSettings() {
-        Settings settings = currentSettings();
-        float nextMusicVolume = settings == null ? 1f : settings.getMusicVolume();
-        float nextSoundVolume = settings == null ? 1f : settings.getSoundVolume();
-        boolean nextMusicEnabled = settings == null || settings.isMusicEnabled();
-
-        float previousMusicVolume = musicVolume;
-        boolean enabledChanged = musicEnabled != nextMusicEnabled;
-        musicVolume = clamp(nextMusicVolume);
-        soundVolume = clamp(nextSoundVolume);
-        musicEnabled = nextMusicEnabled;
-
-        if (currentMusic != null) {
-            if (Float.compare(previousMusicVolume, musicVolume) != 0) {
-                currentMusic.setVolume(musicVolume);
-            }
-            if (enabledChanged || musicVolume <= 0f) {
-                if (musicEnabled && musicVolume > 0f) {
-                    if (!currentMusic.isPlaying()) {
-                        currentMusic.play();
-                    }
-                } else if (currentMusic.isPlaying()) {
-                    currentMusic.pause();
-                }
-            }
+        disposeCurrentMusic();
+        currentMusic = nextMusic;
+        currentMusicCue = cue;
+        if (musicEnabled && musicVolume > 0f) {
+            currentMusic.play();
         }
     }
 
@@ -229,17 +262,19 @@ public final class AudioManager implements Disposable {
             if (path == null || path.isBlank()) {
                 continue;
             }
+            // Correct LibGDX path for <project>/assets/pvz audio/...
             FileHandle internal = Gdx.files.internal(path);
             if (internal.exists() && !internal.isDirectory()) {
                 return internal;
             }
-            FileHandle local = Gdx.files.local("assets/" + path);
-            if (local.exists() && !local.isDirectory()) {
-                return local;
+            // Fallbacks make the same build work from IntelliJ and from a different desktop cwd.
+            FileHandle localAssets = Gdx.files.local("assets/" + path);
+            if (localAssets.exists() && !localAssets.isDirectory()) {
+                return localAssets;
             }
-            FileHandle directLocal = Gdx.files.local(path);
-            if (directLocal.exists() && !directLocal.isDirectory()) {
-                return directLocal;
+            FileHandle localDirect = Gdx.files.local(path);
+            if (localDirect.exists() && !localDirect.isDirectory()) {
+                return localDirect;
             }
         }
         return null;
@@ -249,7 +284,8 @@ public final class AudioManager implements Disposable {
         if (Boolean.TRUE.equals(missingLogged.put(cue, true))) {
             return;
         }
-        Gdx.app.log("AudioManager", "Missing audio asset for " + cue + ". Expected under assets/pvz audio/.");
+        Gdx.app.log("AudioManager", "Missing audio asset for " + cue
+                + ". Expected under assets/pvz audio/.");
     }
 
     private void logLoadFailure(AudioCue cue, RuntimeException exception) {
@@ -262,6 +298,7 @@ public final class AudioManager implements Disposable {
             currentMusic.dispose();
             currentMusic = null;
         }
+        currentMusicCue = null;
     }
 
     private float clamp(float value) {
@@ -276,12 +313,12 @@ public final class AudioManager implements Disposable {
     @Override
     public void dispose() {
         disposeCurrentMusic();
-        currentMusicCue = null;
-        for (Sound sound : sounds.values()) {
+        for (Sound sound : soundCache.values()) {
             if (sound != null) {
                 sound.dispose();
             }
         }
+        soundCache.clear();
         sounds.clear();
         lastPlayedAt.clear();
         if (active == this) {
