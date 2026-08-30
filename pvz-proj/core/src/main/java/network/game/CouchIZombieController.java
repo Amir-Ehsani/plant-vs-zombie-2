@@ -31,8 +31,12 @@ public final class CouchIZombieController {
 
     public CouchIZombieController(int stage) {
         game = new AuthoritativeIZombieGame(PLANT_PLAYER, ZOMBIE_PLAYER, stage);
-        plantTypes = Collections.unmodifiableList(new ArrayList<>(AuthoritativeIZombieGame.plantCosts().keySet()));
-        zombieTypes = Collections.unmodifiableList(new ArrayList<>(AuthoritativeIZombieGame.zombieCosts().keySet()));
+        plantTypes = Collections.unmodifiableList(new ArrayList<>(
+                AuthoritativeIZombieGame.plantCostsForStage(stage).keySet()
+        ));
+        zombieTypes = Collections.unmodifiableList(new ArrayList<>(
+                AuthoritativeIZombieGame.zombieCostsForStage(stage).keySet()
+        ));
         selectedPlant = plantTypes.isEmpty() ? "" : plantTypes.get(0);
         selectedZombie = zombieTypes.isEmpty() ? "" : zombieTypes.get(0);
         zombieRow = AuthoritativeIZombieGame.ROWS / 2;
@@ -97,11 +101,11 @@ public final class CouchIZombieController {
     }
 
     public int plantCost(String type) {
-        return cost(AuthoritativeIZombieGame.plantCosts(), type);
+        return cost(AuthoritativeIZombieGame.plantCostsForStage(getStage()), type);
     }
 
     public int zombieCost(String type) {
-        return cost(AuthoritativeIZombieGame.zombieCosts(), type);
+        return cost(AuthoritativeIZombieGame.zombieCostsForStage(getStage()), type);
     }
 
     public boolean canAffordSelectedPlant() {
