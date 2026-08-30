@@ -477,11 +477,11 @@ public final class MiniGameScreen extends BaseScreen {
         networkStatusLabel = new Label("", game.getSkin(), "secondary");
         networkStatusLabel.setColor(Color.WHITE);
         networkStatusLabel.setAlignment(Align.center);
-        networkStatusLabel.setBounds(330f, 18f, 610f, 28f);
+        networkStatusLabel.setBounds(475f, 642f, 330f, 24f);
         stage.addActor(networkStatusLabel);
 
         MenuButton react = new MenuButton("React", game.getSkin(), "purple", this::toggleNetworkReactions);
-        react.setBounds(1140f, 540f, 92f, 30f);
+        react.setBounds(1138f, 18f, 92f, 30f);
         stage.addActor(react);
 
         networkReactionTray = new Table();
@@ -1317,7 +1317,7 @@ public final class MiniGameScreen extends BaseScreen {
         }
         if (networkStatusLabel != null) {
             String side = networkGame.getRole() == GameRole.PLANTS ? "PLANTS" : "ZOMBIES";
-            networkStatusLabel.setText(side + " vs " + networkGame.getOpponent() + "   " + networkGame.getNetworkMessage());
+            networkStatusLabel.setText(side + "  •  vs " + networkGame.getOpponent());
         }
         for (Map.Entry<String, Table> entry : iZombieChoiceCards.entrySet()) {
             Table card = entry.getValue();
