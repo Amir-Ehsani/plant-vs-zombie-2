@@ -2,6 +2,8 @@ package screens.menu;
 
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.Texture;
+import com.badlogic.gdx.math.Interpolation;
+import com.badlogic.gdx.scenes.scene2d.actions.Actions;
 import com.badlogic.gdx.scenes.scene2d.ui.Image;
 import com.badlogic.gdx.scenes.scene2d.ui.Label;
 import com.badlogic.gdx.scenes.scene2d.ui.Skin;
@@ -21,19 +23,49 @@ import ui.ResourceBar;
 public abstract class BaseMenuScreen extends BaseScreen {
     protected final Skin skin;
     protected ResourceBar resourceBar;
+    private static final float MENU_FADE_IN_SECONDS = 0.16f;
+    private static final float MENU_FADE_OUT_SECONDS = 0.12f;
+
     private Texture menuBackgroundTexture;
+    private boolean transitionRunning;
 
     protected BaseMenuScreen(Main game) {
         super(game);
         skin = game.getSkin();
+        transitionRunning = false;
     }
 
     @Override
     public void show() {
         super.show();
+        transitionRunning = false;
+        stage.getRoot().clearActions();
+        stage.getRoot().getColor().a = 0f;
+        stage.getRoot().addAction(Actions.fadeIn(MENU_FADE_IN_SECONDS, Interpolation.fade));
         if (game.getAudioManager() != null) {
             game.getAudioManager().playMenuMusic();
         }
+    }
+
+    /**
+     * Fade this menu out, then run the navigation callback. The callback is posted by
+     * ScreenManager, so the current Stage is never disposed from inside Stage.act().
+     */
+    public boolean transitionOut(Runnable onFinished) {
+        if (transitionRunning) {
+            return false;
+        }
+        transitionRunning = true;
+        stage.getRoot().clearActions();
+        stage.getRoot().addAction(Actions.sequence(
+                Actions.fadeOut(MENU_FADE_OUT_SECONDS, Interpolation.fade),
+                Actions.run(() -> {
+                    if (onFinished != null) {
+                        onFinished.run();
+                    }
+                })
+        ));
+        return true;
     }
 
     protected void addMenuBackground() {
