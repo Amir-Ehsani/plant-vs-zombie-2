@@ -149,6 +149,9 @@ public final class MiniGameScreen extends BaseScreen {
     @Override
     public void show() {
         super.show();
+        if (game.getAudioManager() != null) {
+            game.getAudioManager().playMiniGameMusic();
+        }
         Gdx.input.setInputProcessor(new InputMultiplexer(stage, createInput()));
     }
 
