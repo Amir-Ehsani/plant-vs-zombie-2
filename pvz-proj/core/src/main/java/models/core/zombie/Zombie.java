@@ -148,6 +148,8 @@ public class Zombie extends GameEntity {
         }
 
         int remainingDamage = damage.getAmount();
+        boolean newspaperArmorBefore = armor != null && !armor.isBroken()
+                && normalizeDamageType(armor.getName()).contains("newspaper");
         boolean bypassArmor = damageType.contains("poison")
                 || damageType.contains("toxic")
                 || damageType.contains("true damage")
@@ -155,6 +157,9 @@ public class Zombie extends GameEntity {
 
         if (!bypassArmor && armor != null && !armor.isBroken()) {
             remainingDamage = armor.reduceDamage(remainingDamage);
+            if (newspaperArmorBefore && armor.isBroken()) {
+                triggerVisualAction("newspaper_defeat");
+            }
         }
         if (remainingDamage > 0) {
             if (lastDamageType == null || lastDamageType.isBlank()) {
