@@ -4,7 +4,6 @@ import audio.AudioCue;
 import audio.AudioManager;
 import com.badlogic.gdx.math.Interpolation;
 import com.badlogic.gdx.scenes.scene2d.Actor;
-import com.badlogic.gdx.scenes.scene2d.Group;
 import com.badlogic.gdx.scenes.scene2d.InputEvent;
 import com.badlogic.gdx.scenes.scene2d.actions.Actions;
 import com.badlogic.gdx.scenes.scene2d.ui.Button;
@@ -13,23 +12,9 @@ import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
 public final class UiMotion {
     private static final float HOVER_SCALE = 1.035f;
     private static final float PRESS_SCALE = 0.965f;
-    private static final float ANIMATION_SECONDS = 0.09f;
+    private static final float ANIMATION_SECONDS = 0.08f;
 
     private UiMotion() {
-    }
-
-    public static void enhanceTree(Actor actor) {
-        if (actor == null) {
-            return;
-        }
-        if (actor instanceof Button button) {
-            enhanceButton(button);
-        }
-        if (actor instanceof Group group) {
-            for (Actor child : group.getChildren()) {
-                enhanceTree(child);
-            }
-        }
     }
 
     public static void enhanceButton(Button button) {
@@ -37,7 +22,6 @@ public final class UiMotion {
             return;
         }
         button.setTransform(true);
-        button.setOrigin(button.getWidth() / 2f, button.getHeight() / 2f);
         button.addListener(new MotionListener(button));
     }
 
@@ -52,7 +36,6 @@ public final class UiMotion {
 
     private static void animate(Actor actor, float scale) {
         actor.setOrigin(actor.getWidth() / 2f, actor.getHeight() / 2f);
-        actor.clearActions();
         actor.addAction(Actions.scaleTo(scale, scale, ANIMATION_SECONDS, Interpolation.sineOut));
     }
 
