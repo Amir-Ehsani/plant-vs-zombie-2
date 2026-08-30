@@ -29,6 +29,8 @@ public class Zombie extends GameEntity {
     private double visualVerticalOffset;
     private String visualActionClip;
     private int visualActionRevision;
+    private double visualActionTargetX;
+    private double visualActionTargetY;
 
     public Zombie() {
         this(new ZombieType(), 9, 1, null, null, null);
@@ -73,6 +75,8 @@ public class Zombie extends GameEntity {
         this.visualVerticalOffset = 0;
         this.visualActionClip = "";
         this.visualActionRevision = 0;
+        this.visualActionTargetX = Double.NaN;
+        this.visualActionTargetY = Double.NaN;
         this.id = buildId();
     }
 
@@ -330,10 +334,16 @@ public class Zombie extends GameEntity {
     }
 
     public void triggerVisualAction(String clip) {
+        triggerVisualAction(clip, Double.NaN, Double.NaN);
+    }
+
+    public void triggerVisualAction(String clip, double targetX, double targetY) {
         if (clip == null || clip.isBlank()) {
             return;
         }
         visualActionClip = clip.trim();
+        visualActionTargetX = targetX;
+        visualActionTargetY = targetY;
         visualActionRevision++;
     }
 
@@ -343,6 +353,18 @@ public class Zombie extends GameEntity {
 
     public int getVisualActionRevision() {
         return visualActionRevision;
+    }
+
+    public boolean hasVisualActionTarget() {
+        return Double.isFinite(visualActionTargetX) && Double.isFinite(visualActionTargetY);
+    }
+
+    public double getVisualActionTargetX() {
+        return visualActionTargetX;
+    }
+
+    public double getVisualActionTargetY() {
+        return visualActionTargetY;
     }
 
     public int getStolenSun() {
