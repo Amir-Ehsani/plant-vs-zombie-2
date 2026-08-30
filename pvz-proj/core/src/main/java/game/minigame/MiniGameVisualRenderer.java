@@ -65,12 +65,6 @@ public final class MiniGameVisualRenderer {
             "768/INITIAL/EFFECTS/COLLECTED_UPGRADE_EFFECT/COLLECTED_UPGRADE_EFFECT.PAM";
     private static final String JALAPENO_FIRE_PAM =
             "768/INITIAL/EFFECTS/JALAPENO_FIRE/JALAPENO_FIRE.PAM";
-    private static final String FIRE_PEA_SPLAT_PAM =
-            "768/INITIAL/EFFECTS/T_SPLAT_FIRE_PEA/T_SPLAT_FIRE_PEA.PAM";
-    private static final String POWER_UP_FIRE_PAM =
-            "768/INITIAL/EFFECTS/POWER_UP_FIRE/POWER_UP_FIRE.PAM";
-    private static final String POWER_UP_FIRE_IMPACT_PAM =
-            "768/INITIAL/EFFECTS/POWER_UP_FIRE_IMPACT/POWER_UP_FIRE_IMPACT.PAM";
     private static final float MATCH_UPGRADE_EFFECT_DURATION = 1.15f;
     private static final float CONVEYOR_X = 18f;
     private static final float CONVEYOR_TOP = 710f;
@@ -222,9 +216,6 @@ public final class MiniGameVisualRenderer {
         animations.preload(EXPLODE_O_NUT_EXPLOSION_PAM);
         animations.preload(UPGRADE_EFFECT_PAM);
         animations.preload(JALAPENO_FIRE_PAM);
-        animations.preload(FIRE_PEA_SPLAT_PAM);
-        animations.preload(POWER_UP_FIRE_PAM);
-        animations.preload(POWER_UP_FIRE_IMPACT_PAM);
         updateBackgroundLayout();
     }
 
@@ -522,32 +513,10 @@ public final class MiniGameVisualRenderer {
                 Vector2 center = geometry.boardToScreen(lane, column);
                 float phase = localTime + column * 0.055f;
 
-                // Continuous lane flame: this is the readable base layer.
                 animations.draw(
                         batch, JALAPENO_FIRE_PAM, "idle2", phase,
                         center.x, center.y, 0.46f, true
                 );
-
-                // Fast splats make the flame travel through the row instead of looking
-                // like nine unrelated static fire sprites.
-                animations.draw(
-                        batch, FIRE_PEA_SPLAT_PAM, column % 2 == 0 ? "animation2" : "animation",
-                        phase, center.x, center.y, 0.40f, false
-                );
-
-                // Larger ignition/impact accents are deliberately sparse so the row stays clean.
-                if (column == 1 || column == 5 || column == BoardGeometry.COLUMNS) {
-                    animations.draw(
-                            batch, POWER_UP_FIRE_PAM, "animation", phase,
-                            center.x, center.y, 0.34f, false
-                    );
-                }
-                if ((column + lane) % 3 == 0) {
-                    animations.draw(
-                            batch, POWER_UP_FIRE_IMPACT_PAM, "animation2", phase,
-                            center.x, center.y, 0.34f, false
-                    );
-                }
             }
         }
         batch.end();
