@@ -25,10 +25,10 @@ import screens.menu.ZombotanyPlantSelectionScreen;
 import screens.menu.ShopScreen;
 import screens.game.GameScreen;
 import screens.game.MiniGameScreen;
-import screens.game.NetworkIZombieScreen;
 import screens.game.CouchIZombieScreen;
 import screens.menu.NetworkLobbyScreen;
 import network.client.NetworkMatchContext;
+import models.minigame.NetworkIZombieGame;
 
 public class ScreenManager {
     private final Main game;
@@ -117,14 +117,25 @@ public class ScreenManager {
         show(new MiniGameScreen(game));
     }
 
-    public void showNetworkLobby(int stage) {
-        show(new NetworkLobbyScreen(game, stage));
+    public void showNetworkLobby() {
+        show(new NetworkLobbyScreen(game));
+    }
+
+    /** Backward-compatible route; online I, Zombie no longer exposes stages. */
+    public void showNetworkLobby(int ignoredStage) {
+        showNetworkLobby();
     }
 
     public void showNetworkIZombie(NetworkMatchContext context) {
-        if (context != null) {
-            show(new NetworkIZombieScreen(game, context));
+        if (context == null) {
+            return;
         }
+        NetworkIZombieGame networkGame = new NetworkIZombieGame(game.getNetworkManager(), context);
+        if (!game.getTravelLogController().enterNetworkIZombie(networkGame)) {
+            showNetworkLobby();
+            return;
+        }
+        show(new MiniGameScreen(game));
     }
 
     public void showCouchIZombie(int stage) {
@@ -188,7 +199,6 @@ public class ScreenManager {
             return;
         }
         if (nextScreen instanceof MiniGameScreen
-                || nextScreen instanceof NetworkIZombieScreen
                 || nextScreen instanceof CouchIZombieScreen) {
             game.getAudioManager().playMiniGameMusic();
         }
