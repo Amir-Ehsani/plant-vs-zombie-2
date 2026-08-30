@@ -52,7 +52,6 @@ public class ModalWindow extends Table {
         panel.setScale(0.88f);
         stage.addActor(this);
         toFront();
-        UiMotion.enhanceTree(this);
         clearActions();
         panel.clearActions();
         addAction(Actions.fadeIn(OPEN_SECONDS, Interpolation.fade));
