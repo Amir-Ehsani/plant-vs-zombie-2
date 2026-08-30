@@ -12,6 +12,7 @@ import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.scenes.scene2d.Actor;
 import com.badlogic.gdx.scenes.scene2d.InputEvent;
+import com.badlogic.gdx.scenes.scene2d.actions.Actions;
 import com.badlogic.gdx.scenes.scene2d.ui.Button;
 import com.badlogic.gdx.scenes.scene2d.ui.Image;
 import com.badlogic.gdx.scenes.scene2d.ui.ImageButton;
@@ -38,12 +39,19 @@ import models.account.Settings;
 import models.engine.board.Position;
 import models.minigame.IZombieGame;
 import models.minigame.MatchThreeGame;
+import models.minigame.NetworkIZombieGame;
 import models.minigame.MiniGameSession;
 import models.minigame.MiniGameType;
 import models.minigame.VasebreakerGame;
 import models.minigame.WallNutBowlingGame;
 import models.minigame.ZombotanyGame;
+import network.protocol.GameRole;
+import network.protocol.NetworkMessage;
+import network.protocol.ReactionCatalog;
+import network.protocol.ReactionCategory;
+import network.ui.ReactionGraphicActor;
 import screens.BaseScreen;
+import ui.ConfirmDialog;
 import ui.GameOverDialog;
 import ui.MenuButton;
 import ui.PauseDialog;
@@ -76,6 +84,7 @@ public final class MiniGameScreen extends BaseScreen {
     private final Vector2 cursorWorld;
     private final ResourceBar resourceBar;
     private final Map<String, Image> zombieSelectionFrames;
+    private final Map<String, Table> iZombieChoiceCards;
     private final Map<String, MenuButton> matchUpgradeButtons;
     private final CompactSeedBank compactSeedBank;
     private final WaveProgressHud zombotanyWaveHud;
@@ -104,6 +113,13 @@ public final class MiniGameScreen extends BaseScreen {
     private Button zombotanyShovelButton;
     private MenuButton zombotanyPlantFoodButton;
     private PauseDialog pauseDialog;
+    private Label networkTimerLabel;
+    private Label networkStatusLabel;
+    private Label networkReactionLabel;
+    private Table networkReactionTray;
+    private ReactionGraphicActor networkReactionGraphic;
+    private boolean networkReactionInFlight;
+    private long networkReactionCooldownUntil;
 
     public MiniGameScreen(Main game) {
         super(game);
@@ -123,6 +139,7 @@ public final class MiniGameScreen extends BaseScreen {
         cursorWorld = new Vector2();
         resourceBar = new ResourceBar(game.getSkin(), game.getAnimationService());
         zombieSelectionFrames = new LinkedHashMap<>();
+        iZombieChoiceCards = new LinkedHashMap<>();
         matchUpgradeButtons = new LinkedHashMap<>();
         compactSeedBank = session instanceof ZombotanyGame
                 ? new CompactSeedBank(animations, game.getSkin()) : null;
@@ -154,6 +171,9 @@ public final class MiniGameScreen extends BaseScreen {
 
     @Override
     public void render(float delta) {
+        if (game.getNetworkCoordinator() != null) {
+            game.getNetworkCoordinator().pump(stage);
+        }
         initializeStartupUi();
         update(delta);
         Gdx.gl.glClearColor(0.05f, 0.08f, 0.05f, 1f);
@@ -186,6 +206,9 @@ public final class MiniGameScreen extends BaseScreen {
 
     @Override
     public void dispose() {
+        if (networkReactionGraphic != null) {
+            networkReactionGraphic.dispose();
+        }
         visualRenderer.dispose();
         batch.dispose();
         shapes.dispose();
@@ -216,6 +239,9 @@ public final class MiniGameScreen extends BaseScreen {
 
         if (session instanceof IZombieGame gameSession) {
             buildIZombieBar(gameSession);
+            if (gameSession instanceof NetworkIZombieGame networkGame) {
+                buildNetworkIZombieHud(networkGame);
+            }
         } else if (session instanceof MatchThreeGame gameSession) {
             buildMatchThreeHud(gameSession);
         } else if (session instanceof ZombotanyGame) {
@@ -330,8 +356,16 @@ public final class MiniGameScreen extends BaseScreen {
         Table cards = new Table();
         cards.top().left();
         cards.defaults().padBottom(5f);
-        for (IZombieGame.ZombieOptionView option : gameSession.getAvailableZombieOptions()) {
-            cards.add(createZombieCard(option)).width(132f).height(88f).row();
+
+        if (gameSession instanceof NetworkIZombieGame networkGame
+                && networkGame.getRole() == GameRole.PLANTS) {
+            for (NetworkIZombieGame.PlantOptionView option : networkGame.getAvailablePlantOptions()) {
+                cards.add(createNetworkPlantCard(option)).width(132f).height(88f).row();
+            }
+        } else {
+            for (IZombieGame.ZombieOptionView option : gameSession.getAvailableZombieOptions()) {
+                cards.add(createZombieCard(option)).width(132f).height(88f).row();
+            }
         }
         host.add(cards).top().left();
         stage.addActor(host);
@@ -339,6 +373,7 @@ public final class MiniGameScreen extends BaseScreen {
 
     private Table createZombieCard(IZombieGame.ZombieOptionView option) {
         Table card = new Table();
+        card.setTransform(true);
         Stack stack = new Stack();
         TextureRegion baseRegion = game.getAnimationService().region("IMAGE_UI_PACKETS_SELECTED");
         TextureRegion selectionRegion = game.getAnimationService().region("IMAGE_UI_PACKETS_SELECT");
@@ -377,10 +412,114 @@ public final class MiniGameScreen extends BaseScreen {
             @Override
             public void clicked(InputEvent event, float x, float y) {
                 selectedZombieName = option.zombieName();
-                refreshZombieSelectionVisuals();
+                refreshIZombieSelectionVisuals();
             }
         });
+        iZombieChoiceCards.put(option.zombieName(), card);
         return card;
+    }
+
+    private Table createNetworkPlantCard(NetworkIZombieGame.PlantOptionView option) {
+        Table card = new Table();
+        card.setTransform(true);
+        Stack stack = new Stack();
+        TextureRegion baseRegion = game.getAnimationService().region("IMAGE_UI_PACKETS_SELECTED");
+        TextureRegion selectionRegion = game.getAnimationService().region("IMAGE_UI_PACKETS_SELECT");
+        if (baseRegion != null) {
+            Image base = new Image(new TextureRegionDrawable(baseRegion));
+            base.setScaling(Scaling.fill);
+            stack.add(base);
+        }
+
+        Table content = new Table();
+        content.setFillParent(true);
+        Actor plant = game.getAnimationService().createPlantActor(option.plantName());
+        content.add(plant).width(72f).height(72f).padLeft(2f).padRight(2f);
+        Table info = new Table();
+        Label name = new Label(option.plantName(), game.getSkin(), "secondary");
+        name.setColor(Color.valueOf("4A3A1F"));
+        name.setWrap(true);
+        name.setAlignment(Align.center);
+        info.add(name).width(52f).center().row();
+        Label cost = new Label(String.valueOf(option.sunCost()), game.getSkin(), "secondary");
+        cost.setColor(Color.valueOf("4A3A1F"));
+        info.add(cost).center().padTop(4f);
+        content.add(info).width(54f).expandY().center();
+        stack.add(content);
+
+        if (selectionRegion != null) {
+            Image selection = new Image(new TextureRegionDrawable(selectionRegion));
+            selection.setScaling(Scaling.fill);
+            selection.setVisible(option.plantName().equalsIgnoreCase(selectedPlantName));
+            stack.add(selection);
+            zombieSelectionFrames.put(option.plantName(), selection);
+        }
+
+        card.add(stack).expand().fill();
+        card.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                selectedPlantName = option.plantName();
+                refreshIZombieSelectionVisuals();
+            }
+        });
+        iZombieChoiceCards.put(option.plantName(), card);
+        return card;
+    }
+
+    private void buildNetworkIZombieHud(NetworkIZombieGame networkGame) {
+        networkTimerLabel = new Label("02:00", game.getSkin(), "medium_outline");
+        networkTimerLabel.setColor(Color.WHITE);
+        networkTimerLabel.setAlignment(Align.center);
+        networkTimerLabel.setBounds(570f, 670f, 140f, 38f);
+        stage.addActor(networkTimerLabel);
+
+        networkStatusLabel = new Label("", game.getSkin(), "secondary");
+        networkStatusLabel.setColor(Color.WHITE);
+        networkStatusLabel.setAlignment(Align.center);
+        networkStatusLabel.setBounds(330f, 18f, 610f, 28f);
+        stage.addActor(networkStatusLabel);
+
+        MenuButton react = new MenuButton("React", game.getSkin(), "purple", this::toggleNetworkReactions);
+        react.setBounds(1140f, 540f, 92f, 30f);
+        stage.addActor(react);
+
+        networkReactionTray = new Table();
+        networkReactionTray.setBounds(760f, 58f, 490f, 142f);
+        Table reactionPanel = new Table();
+        for (String text : ReactionCatalog.texts()) {
+            reactionPanel.add(new MenuButton(text.replace("!", ""), game.getSkin(), "green_small",
+                    () -> sendNetworkReaction(ReactionCategory.TEXT, text)))
+                    .width(145f).height(32f).pad(2f);
+        }
+        reactionPanel.row();
+        for (String emoji : ReactionCatalog.emojis()) {
+            reactionPanel.add(new MenuButton(emoji, game.getSkin(), "purple",
+                    () -> sendNetworkReaction(ReactionCategory.EMOJI, emoji)))
+                    .width(145f).height(32f).pad(2f);
+        }
+        reactionPanel.row();
+        for (String sticker : ReactionCatalog.stickers()) {
+            String shortName = sticker.replace("DANCING_", "").replace("DIZZY_", "").replace("BOUNCING_", "");
+            reactionPanel.add(new MenuButton(shortName, game.getSkin(), "brown",
+                    () -> sendNetworkReaction(ReactionCategory.STICKER, sticker)))
+                    .width(145f).height(32f).pad(2f);
+        }
+        networkReactionTray.add(reactionPanel);
+        networkReactionTray.setVisible(false);
+        stage.addActor(networkReactionTray);
+
+        networkReactionLabel = new Label("", game.getSkin(), "medium_outline");
+        networkReactionLabel.setColor(Color.YELLOW);
+        networkReactionLabel.setWrap(true);
+        networkReactionLabel.setAlignment(Align.center);
+        networkReactionLabel.setBounds(900f, 475f, 330f, 70f);
+        networkReactionLabel.setVisible(false);
+        stage.addActor(networkReactionLabel);
+
+        networkReactionGraphic = new ReactionGraphicActor();
+        networkReactionGraphic.setPosition(1060f, 405f);
+        stage.addActor(networkReactionGraphic);
     }
 
     private void buildMatchThreeHud(MatchThreeGame gameSession) {
@@ -481,12 +620,17 @@ public final class MiniGameScreen extends BaseScreen {
 
     private void update(float delta) {
         updatePointer();
-        int gameSpeed = resolveGameSpeed();
+        if (session instanceof NetworkIZombieGame networkGame) {
+            networkGame.pumpNetworkEvents();
+            drainNetworkReactions(networkGame);
+        }
+        int gameSpeed = session instanceof NetworkIZombieGame ? 1 : resolveGameSpeed();
         float gameplayDelta = paused ? 0f : Math.max(0f, delta) * gameSpeed;
         if (matchTransitionTime > 0f) {
             matchTransitionTime = Math.max(0f, matchTransitionTime - gameplayDelta);
         }
-        if (!paused && session.isRunning() && matchTransitionTime <= 0f) {
+        if (!paused && session.isRunning() && matchTransitionTime <= 0f
+                && !(session instanceof NetworkIZombieGame)) {
             advanceGame(gameplayDelta);
         }
         float visualDelta = paused ? 0f : Math.min(delta, 1f / 15f) * gameSpeed;
@@ -535,6 +679,9 @@ public final class MiniGameScreen extends BaseScreen {
         resourceBar.refresh(game.getAuthController().getLoggedInUser());
         if (session instanceof IZombieGame gameSession) {
             resourceBar.refreshMiniGame(game.getAuthController().getLoggedInUser(), gameSession.getSunAmount());
+            if (gameSession instanceof NetworkIZombieGame networkGame) {
+                refreshNetworkIZombieHud(networkGame);
+            }
         } else if (session instanceof MatchThreeGame gameSession) {
             resourceBar.refreshMiniGame(game.getAuthController().getLoggedInUser(), gameSession.getSunAmount());
             if (matchProgressBar != null) {
@@ -679,9 +826,13 @@ public final class MiniGameScreen extends BaseScreen {
         }
     }
 
-    private void refreshZombieSelectionVisuals() {
+    private void refreshIZombieSelectionVisuals() {
+        String selected = selectedZombieName;
+        if (session instanceof NetworkIZombieGame networkGame && networkGame.getRole() == GameRole.PLANTS) {
+            selected = selectedPlantName;
+        }
         for (Map.Entry<String, Image> entry : zombieSelectionFrames.entrySet()) {
-            entry.getValue().setVisible(entry.getKey().equalsIgnoreCase(selectedZombieName));
+            entry.getValue().setVisible(selected != null && entry.getKey().equalsIgnoreCase(selected));
         }
     }
 
@@ -746,7 +897,7 @@ public final class MiniGameScreen extends BaseScreen {
                     }
                 }
 
-                if (session instanceof IZombieGame) {
+                if (session instanceof IZombieGame && !(session instanceof NetworkIZombieGame)) {
                     Integer sunDropId = visualRenderer.findSunDropAt(cursorWorld.x, cursorWorld.y);
                     if (sunDropId != null) {
                         controller.collectIZombieSun(sunDropId);
@@ -830,6 +981,25 @@ public final class MiniGameScreen extends BaseScreen {
     }
 
     private boolean handleIZombieClick() {
+        if (session instanceof NetworkIZombieGame networkGame) {
+            boolean accepted;
+            if (networkGame.getRole() == GameRole.PLANTS) {
+                if (selectedPlantName == null) {
+                    return false;
+                }
+                accepted = networkGame.placePlant(selectedPlantName, hoveredTile);
+            } else {
+                if (selectedZombieName == null) {
+                    return false;
+                }
+                accepted = networkGame.spawnZombie(selectedZombieName, hoveredTile);
+            }
+            if (!accepted && !networkGame.getNetworkMessage().isBlank()) {
+                notificationManager.showError(networkGame.getNetworkMessage());
+            }
+            refreshHud();
+            return true;
+        }
         if (selectedZombieName == null) {
             return false;
         }
@@ -942,6 +1112,11 @@ public final class MiniGameScreen extends BaseScreen {
     }
 
     private String firstPlantOption() {
+        if (session instanceof NetworkIZombieGame networkGame
+                && networkGame.getRole() == GameRole.PLANTS
+                && !networkGame.getAvailablePlantOptions().isEmpty()) {
+            return networkGame.getAvailablePlantOptions().get(0).plantName();
+        }
         if (!(session instanceof ZombotanyGame gameSession) || gameSession.getSeedOptions().isEmpty()) {
             return null;
         }
@@ -949,7 +1124,7 @@ public final class MiniGameScreen extends BaseScreen {
     }
 
     private void collectIZombieSunUnderPointer() {
-        if (paused || !(session instanceof IZombieGame) || !session.isRunning()) {
+        if (paused || !(session instanceof IZombieGame) || session instanceof NetworkIZombieGame || !session.isRunning()) {
             return;
         }
         Integer sunDropId = visualRenderer.findSunDropAt(cursorWorld.x, cursorWorld.y);
@@ -988,6 +1163,18 @@ public final class MiniGameScreen extends BaseScreen {
         }
         gameOverShown = true;
         boolean victory = session.isWon();
+        if (session instanceof NetworkIZombieGame) {
+            GameOverDialog onlineDialog = new GameOverDialog(
+                    game.getSkin(),
+                    victory,
+                    stripPrefix(session.getLastMessage()),
+                    this::returnToNetworkLobby,
+                    this::returnToNetworkLobby
+            );
+            onlineDialog.show(stage);
+            announcementOverlay.push(victory ? "VICTORY!" : "DEFEAT!");
+            return;
+        }
         GameOverDialog dialog = new GameOverDialog(
                 game.getSkin(),
                 victory,
@@ -1012,6 +1199,11 @@ public final class MiniGameScreen extends BaseScreen {
             return;
         }
         introDialogueStarted = true;
+        if (session instanceof NetworkIZombieGame) {
+            paused = false;
+            announcementOverlay.push("I, ZOMBIE ONLINE!");
+            return;
+        }
         paused = true;
         boolean shown = dialogueController.showMiniGameIntro(
                 session.getType(),
@@ -1043,6 +1235,10 @@ public final class MiniGameScreen extends BaseScreen {
     }
 
     private void retryMiniGame() {
+        if (session instanceof NetworkIZombieGame) {
+            returnToNetworkLobby();
+            return;
+        }
         if (pauseDialog != null) {
             pauseDialog.close();
             pauseDialog = null;
@@ -1064,6 +1260,10 @@ public final class MiniGameScreen extends BaseScreen {
     }
 
     private void exitMiniGame() {
+        if (session instanceof NetworkIZombieGame) {
+            returnToNetworkLobby();
+            return;
+        }
         if (pauseDialog != null) {
             pauseDialog.close();
             pauseDialog = null;
@@ -1085,6 +1285,10 @@ public final class MiniGameScreen extends BaseScreen {
     }
 
     private void showPauseDialog() {
+        if (session instanceof NetworkIZombieGame) {
+            confirmLeaveNetworkMatch();
+            return;
+        }
         if (pauseDialog != null || !session.isRunning()) {
             return;
         }
@@ -1104,6 +1308,111 @@ public final class MiniGameScreen extends BaseScreen {
             pauseDialog = null;
         }
         paused = false;
+    }
+
+    private void refreshNetworkIZombieHud(NetworkIZombieGame networkGame) {
+        if (networkTimerLabel != null) {
+            long seconds = (networkGame.getRemainingMillis() + 999L) / 1000L;
+            networkTimerLabel.setText(String.format(java.util.Locale.US, "%02d:%02d", seconds / 60L, seconds % 60L));
+        }
+        if (networkStatusLabel != null) {
+            String side = networkGame.getRole() == GameRole.PLANTS ? "PLANTS" : "ZOMBIES";
+            networkStatusLabel.setText(side + " vs " + networkGame.getOpponent() + "   " + networkGame.getNetworkMessage());
+        }
+        for (Map.Entry<String, Table> entry : iZombieChoiceCards.entrySet()) {
+            Table card = entry.getValue();
+            int cost = networkGame.getChoiceCost(entry.getKey());
+            long cooldown = networkGame.getCooldownMillis(entry.getKey());
+            boolean enabled = session.isRunning() && !networkGame.isActionInFlight()
+                    && networkGame.getSunAmount() >= cost && cooldown <= 0L;
+            card.setColor(1f, 1f, 1f, enabled ? 1f : 0.58f);
+        }
+    }
+
+    private void toggleNetworkReactions() {
+        if (networkReactionTray != null) {
+            networkReactionTray.setVisible(!networkReactionTray.isVisible());
+        }
+    }
+
+    private void sendNetworkReaction(ReactionCategory category, String value) {
+        if (!(session instanceof NetworkIZombieGame networkGame) || networkReactionInFlight) {
+            return;
+        }
+        long now = System.currentTimeMillis();
+        if (now < networkReactionCooldownUntil) {
+            notificationManager.showWarning("Reaction is cooling down.");
+            return;
+        }
+        networkReactionInFlight = true;
+        networkReactionCooldownUntil = now + ReactionCatalog.COOLDOWN_MILLIS;
+        networkGame.sendReactionAsync(category, value).whenComplete((result, error) -> {
+            networkReactionInFlight = false;
+            if (networkReactionTray != null) {
+                Gdx.app.postRunnable(() -> networkReactionTray.setVisible(false));
+            }
+        });
+    }
+
+    private void drainNetworkReactions(NetworkIZombieGame networkGame) {
+        NetworkMessage event;
+        while ((event = networkGame.pollReactionEvent()) != null) {
+            showNetworkReaction(event);
+        }
+    }
+
+    private void showNetworkReaction(NetworkMessage event) {
+        if (event == null || networkReactionLabel == null || networkReactionGraphic == null) {
+            return;
+        }
+        String category = event.getOrDefault("category", "TEXT");
+        String value = event.getOrDefault("value", "");
+        networkReactionLabel.clearActions();
+        networkReactionLabel.setText(event.getOrDefault("sender", "Opponent")
+                + ("TEXT".equals(category) ? ": " + value : " reacted"));
+        networkReactionLabel.getColor().a = 1f;
+        networkReactionLabel.setVisible(true);
+        networkReactionLabel.addAction(Actions.sequence(
+                Actions.delay(2.3f), Actions.fadeOut(0.35f), Actions.visible(false)
+        ));
+
+        networkReactionGraphic.clearActions();
+        networkReactionGraphic.setGraphic(category, value);
+        networkReactionGraphic.getColor().a = 1f;
+        networkReactionGraphic.setScale(1f);
+        networkReactionGraphic.setVisible(true);
+        networkReactionGraphic.addAction(Actions.sequence(
+                Actions.repeat(3, Actions.sequence(
+                        Actions.scaleTo(1.25f, 1.25f, 0.16f),
+                        Actions.scaleTo(1f, 1f, 0.16f)
+                )),
+                Actions.delay(1f), Actions.fadeOut(0.3f), Actions.visible(false)
+        ));
+    }
+
+    private void confirmLeaveNetworkMatch() {
+        if (!(session instanceof NetworkIZombieGame networkGame)) {
+            return;
+        }
+        new ConfirmDialog(
+                "Leave Match",
+                "Leave this online I, Zombie match?",
+                game.getSkin(),
+                () -> {
+                    networkGame.leaveMatchAsync();
+                    returnToNetworkLobby();
+                }
+        ).show(stage);
+    }
+
+    private void returnToNetworkLobby() {
+        if (session instanceof NetworkIZombieGame networkGame) {
+            networkGame.clearNetworkMatch();
+        }
+        if (controller.hasActiveMiniGame()) {
+            controller.abandonMiniGame();
+        }
+        game.getScreenManager().showNetworkLobby();
     }
 
     private String stripPrefix(String message) {
