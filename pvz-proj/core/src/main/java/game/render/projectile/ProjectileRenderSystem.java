@@ -1,4 +1,6 @@
 package game.render.projectile;
+import audio.AudioCue;
+import audio.AudioManager;
 import com.badlogic.gdx.graphics.g2d.Batch;
 import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Vector2;
@@ -508,6 +510,10 @@ public final class ProjectileRenderSystem {
         float distance = Math.max(0.5f, Math.abs((float) target.x - startX));
         float duration = MathUtils.clamp(distance / TILES_PER_SECOND, MIN_TRAVEL_SECONDS, MAX_TRAVEL_SECONDS);
         projectiles.add(new VisualProjectile(type, definition, startX, startY, target, duration, delay));
+        AudioManager manager = AudioManager.getActive();
+        if (manager != null) {
+            manager.playPlantAttack(plant.getName());
+        }
     }
 
     private void updateProjectiles(float delta) {
@@ -520,6 +526,7 @@ public final class ProjectileRenderSystem {
             }
             Vector2 impactPosition = projectile.currentPosition(geometry);
             impacts.add(new ImpactVisual(projectile.type, projectile.definition, impactPosition));
+            AudioManager.playGlobal(AudioCue.PROJECTILE_HIT);
             iterator.remove();
         }
     }
