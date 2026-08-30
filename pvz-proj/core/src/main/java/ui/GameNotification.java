@@ -1,36 +1,46 @@
 package ui;
 
 import com.badlogic.gdx.graphics.Color;
+import com.badlogic.gdx.math.Interpolation;
+import com.badlogic.gdx.scenes.scene2d.actions.Actions;
 import com.badlogic.gdx.scenes.scene2d.ui.Label;
 import com.badlogic.gdx.scenes.scene2d.ui.Skin;
 import com.badlogic.gdx.scenes.scene2d.ui.Table;
 
 public class GameNotification extends Table {
     private static final float DEFAULT_DURATION = 3.5f;
+    private static final float ENTER_SECONDS = 0.15f;
+    private static final float EXIT_SECONDS = 0.18f;
     private final Label messageLabel;
-    private float remainingTime;
 
     public GameNotification(Skin skin, String message, NotificationType type) {
         this(skin, message, type, DEFAULT_DURATION);
     }
 
     public GameNotification(Skin skin, String message, NotificationType type, float duration) {
+        setTransform(true);
         setBackground(safeDrawable(skin));
         pad(10f, 16f, 10f, 16f);
         messageLabel = new Label(message == null ? "" : message, skin, "medium_outline");
         messageLabel.setWrap(true);
         messageLabel.setColor(colorFor(type));
-        remainingTime = Math.max(0.5f, duration);
         add(messageLabel).width(430f).center();
-    }
 
-    @Override
-    public void act(float delta) {
-        super.act(delta);
-        remainingTime -= delta;
-        if (remainingTime <= 0f) {
-            remove();
-        }
+        getColor().a = 0f;
+        setScale(0.94f);
+        float holdSeconds = Math.max(0.5f, duration);
+        addAction(Actions.sequence(
+                Actions.parallel(
+                        Actions.fadeIn(ENTER_SECONDS, Interpolation.fade),
+                        Actions.scaleTo(1f, 1f, ENTER_SECONDS, Interpolation.sineOut)
+                ),
+                Actions.delay(holdSeconds),
+                Actions.parallel(
+                        Actions.fadeOut(EXIT_SECONDS, Interpolation.fade),
+                        Actions.scaleTo(0.96f, 0.96f, EXIT_SECONDS, Interpolation.sineIn)
+                ),
+                Actions.removeActor()
+        ));
     }
 
     public void setMessage(String message) {
