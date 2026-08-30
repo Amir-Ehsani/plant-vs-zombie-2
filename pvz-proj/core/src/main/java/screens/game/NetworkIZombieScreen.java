@@ -3,12 +3,19 @@ package screens.game;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
 import com.badlogic.gdx.graphics.Color;
+import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.scenes.scene2d.Actor;
+import com.badlogic.gdx.scenes.scene2d.InputEvent;
+import com.badlogic.gdx.scenes.scene2d.Touchable;
 import com.badlogic.gdx.scenes.scene2d.actions.Actions;
+import com.badlogic.gdx.scenes.scene2d.ui.Image;
 import com.badlogic.gdx.scenes.scene2d.ui.Label;
+import com.badlogic.gdx.scenes.scene2d.ui.Stack;
 import com.badlogic.gdx.scenes.scene2d.ui.Table;
-import com.badlogic.gdx.scenes.scene2d.ui.TextButton;
+import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
+import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable;
 import com.badlogic.gdx.utils.Align;
+import com.badlogic.gdx.utils.Scaling;
 import com.pvz.Main;
 import models.account.User;
 import network.client.NetworkManager;
@@ -27,23 +34,33 @@ import network.ui.ReactionGraphicActor;
 import screens.BaseScreen;
 import ui.ConfirmDialog;
 import ui.MenuButton;
+import ui.PamAnimationActor;
+import ui.SeedPacketCatalog;
 
 import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
-/** Graphical client for the server-authoritative two-player I, Zombie match. */
+/** PvZ-style graphical client for the server-authoritative two-player I, Zombie match. */
 public final class NetworkIZombieScreen extends BaseScreen {
+    private static final float BOARD_X = 18f;
+    private static final float BOARD_Y = 42f;
+    private static final float BOARD_WIDTH = 1244f;
+    private static final float BOARD_HEIGHT = 565f;
+    private static final float BANK_Y = 607f;
+    private static final float BANK_HEIGHT = 108f;
+
     private final NetworkManager network;
     private final NetworkMatchContext context;
-    private final Map<String, TextButton> choiceButtons = new LinkedHashMap<>();
+    private final Map<String, ChoiceVisual> choiceVisuals = new LinkedHashMap<>();
     private IZombieBoardActor board;
     private ReactionGraphicActor reactionGraphic;
+    private Table reactionTray;
     private Label timerLabel;
-    private Label resourceLabel;
+    private Label sunLabel;
+    private Label brainsLabel;
     private Label statusLabel;
-    private Label selectedLabel;
     private Label reactionLabel;
     private GameSnapshot snapshot;
     private long lastSequence = -1L;
@@ -58,7 +75,7 @@ public final class NetworkIZombieScreen extends BaseScreen {
         this.network = game.getNetworkManager();
         this.context = context;
         Map<String, Integer> choices = choices();
-        this.selectedType = choices.isEmpty() ? "" : choices.keySet().iterator().next();
+        selectedType = choices.isEmpty() ? "" : choices.keySet().iterator().next();
         network.clearMatchEvents();
         buildUi();
     }
@@ -66,94 +83,194 @@ public final class NetworkIZombieScreen extends BaseScreen {
     @Override
     public void show() {
         super.show();
-        statusLabel.setText("Connected to " + context.opponent() + ". Waiting for synchronized server state...");
+        setStatus("Waiting for synchronized server state...");
     }
 
     private void buildUi() {
-        Table root = new Table();
-        root.setFillParent(true);
-        root.pad(12f);
+        board = new IZombieBoardActor(game.getAnimationService(), this::boardSelected);
+        board.setBounds(BOARD_X, BOARD_Y, BOARD_WIDTH, BOARD_HEIGHT);
+        stage.addActor(board);
 
-        Table header = new Table();
-        Label title = new Label("I, ZOMBIE ONLINE - " + context.role(), game.getSkin(), "big_outline");
-        title.setColor(Color.WHITE);
-        timerLabel = new Label("02:00", game.getSkin(), "medium_outline");
-        timerLabel.setColor(Color.WHITE);
-        resourceLabel = new Label("SUN -   BRAINS -", game.getSkin(), "secondary");
-        resourceLabel.setColor(Color.WHITE);
-        header.add(title).left().expandX();
-        header.add(timerLabel).width(120f).center();
-        header.add(resourceLabel).width(290f).right();
-        root.add(header).growX().height(56f).row();
-
-        Table body = new Table();
-        board = new IZombieBoardActor(this::boardSelected);
-        body.add(board).width(890f).height(500f).padRight(10f);
-        body.add(buildControls()).width(340f).height(500f);
-        root.add(body).grow().row();
+        Table seedBank = new Table();
+        seedBank.setBounds(12f, BANK_Y, 1256f, BANK_HEIGHT);
+        seedBank.left().center();
+        seedBank.add(createSunCounter()).width(116f).height(94f).padLeft(4f).padRight(5f);
+        for (Map.Entry<String, Integer> entry : choices().entrySet()) {
+            ChoiceVisual visual = createChoiceCard(entry.getKey(), entry.getValue());
+            choiceVisuals.put(entry.getKey(), visual);
+            seedBank.add(visual.root).width(139f).height(96f).padRight(4f);
+        }
+        seedBank.add(buildMatchInfo()).expandX().right().padRight(5f);
+        stage.addActor(seedBank);
 
         statusLabel = new Label("", game.getSkin(), "secondary");
         statusLabel.setColor(Color.WHITE);
-        statusLabel.setWrap(true);
         statusLabel.setAlignment(Align.center);
-        root.add(statusLabel).growX().height(48f).padTop(4f);
-        stage.addActor(root);
+        statusLabel.setBounds(320f, 7f, 640f, 30f);
+        stage.addActor(statusLabel);
+
+        brainsLabel = new Label("5 BRAINS", game.getSkin(), "medium_outline");
+        brainsLabel.setColor(Color.WHITE);
+        brainsLabel.setAlignment(Align.center);
+        brainsLabel.setBounds(500f, 8f, 280f, 32f);
+        stage.addActor(brainsLabel);
+
+        buildReactionUi();
+        refreshChoices();
+    }
+
+    private Actor createSunCounter() {
+        Stack stack = new Stack();
+        TextureRegion base = game.getAnimationService().region("IMAGE_UI_GENERIC_BUTTON_GENERIC_CURRENCY_NORMAL");
+        if (base != null) {
+            Image background = new Image(new TextureRegionDrawable(base));
+            background.setScaling(Scaling.fill);
+            stack.add(background);
+        }
+        Table content = new Table();
+        TextureRegion sun = game.getAnimationService().region("IMAGE_UI_HUD_INGAME_SUN_DOWN");
+        if (sun == null) sun = game.getAnimationService().region("IMAGE_EFFECTS_SUN_SUN_110X110");
+        if (sun != null) {
+            Image icon = new Image(new TextureRegionDrawable(sun));
+            icon.setScaling(Scaling.fit);
+            content.add(icon).size(50f).padRight(2f);
+        }
+        sunLabel = new Label("0", game.getSkin(), "medium_outline");
+        sunLabel.setColor(Color.WHITE);
+        sunLabel.setAlignment(Align.center);
+        content.add(sunLabel).width(48f);
+        stack.add(content);
+        return stack;
+    }
+
+    private ChoiceVisual createChoiceCard(String type, int cost) {
+        Table card = new Table();
+        card.setTransform(true);
+        Stack stack = new Stack();
+
+        TextureRegion base = game.getAnimationService().region("IMAGE_UI_PACKETS_SELECTED");
+        if (base == null) base = game.getAnimationService().region("IMAGE_UI_PACKETS_HOMELESS");
+        if (base != null) {
+            Image image = new Image(new TextureRegionDrawable(base));
+            image.setScaling(Scaling.fill);
+            stack.add(image);
+        }
+
+        Table content = new Table();
+        content.pad(4f);
+        Actor visual;
+        if (context.role() == GameRole.PLANTS) {
+            TextureRegion packet = SeedPacketCatalog.region(game.getAnimationService(), IZombieBoardActor.plantDisplayName(type));
+            if (packet != null) {
+                Image packetImage = new Image(new TextureRegionDrawable(packet));
+                packetImage.setScaling(Scaling.fit);
+                visual = packetImage;
+            } else {
+                PamAnimationActor plant = game.getAnimationService().createPlantActor(IZombieBoardActor.plantDisplayName(type));
+                visual = plant;
+            }
+        } else {
+            visual = game.getAnimationService().createZombieActor(IZombieBoardActor.zombieDisplayName(type));
+        }
+        visual.setTouchable(Touchable.disabled);
+        content.add(visual).size(78f, 67f).expandY().center().row();
+        Label costLabel = new Label(String.valueOf(cost), game.getSkin(), "secondary");
+        costLabel.setColor(Color.valueOf("4A3A1F"));
+        costLabel.setAlignment(Align.center);
+        content.add(costLabel).width(100f).height(20f).center();
+        stack.add(content);
+
+        Image selection = null;
+        TextureRegion selected = game.getAnimationService().region("IMAGE_UI_PACKETS_SELECT");
+        if (selected != null) {
+            selection = new Image(new TextureRegionDrawable(selected));
+            selection.setScaling(Scaling.fill);
+            selection.setTouchable(Touchable.disabled);
+            stack.add(selection);
+        }
+
+        Label cooldown = new Label("", game.getSkin(), "medium_outline");
+        cooldown.setColor(Color.WHITE);
+        cooldown.setAlignment(Align.center);
+        cooldown.setTouchable(Touchable.disabled);
+        stack.add(cooldown);
+
+        card.add(stack).grow();
+        card.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                selectType(type);
+            }
+        });
+        return new ChoiceVisual(card, selection, cooldown);
+    }
+
+    private Table buildMatchInfo() {
+        Table info = new Table();
+        info.right();
+        timerLabel = new Label("02:00", game.getSkin(), "medium_outline");
+        timerLabel.setColor(Color.WHITE);
+        timerLabel.setAlignment(Align.center);
+        info.add(timerLabel).width(92f).height(34f).right().row();
+
+        Label role = new Label(roleText(), game.getSkin(), "secondary");
+        role.setColor(Color.WHITE);
+        role.setAlignment(Align.right);
+        role.setWrap(true);
+        info.add(role).width(230f).height(36f).right().row();
+
+        Table buttons = new Table();
+        buttons.add(new MenuButton("React", game.getSkin(), "purple", this::toggleReactions))
+                .width(92f).height(30f).padRight(4f);
+        buttons.add(new MenuButton("Leave", game.getSkin(), "brown", this::confirmLeave))
+                .width(92f).height(30f);
+        info.add(buttons).right().padTop(2f);
+        return info;
+    }
+
+    private void buildReactionUi() {
+        reactionTray = new Table();
+        reactionTray.setBounds(768f, 60f, 480f, 142f);
+        reactionTray.bottom().right();
+        Table panel = new Table();
+        for (String text : ReactionCatalog.texts()) {
+            panel.add(new MenuButton(shortText(text), game.getSkin(), "green_small",
+                    () -> sendReaction(ReactionCategory.TEXT, text))).width(145f).height(32f).pad(2f);
+        }
+        panel.row();
+        for (String emoji : ReactionCatalog.emojis()) {
+            panel.add(new MenuButton(emoji, game.getSkin(), "purple",
+                    () -> sendReaction(ReactionCategory.EMOJI, emoji))).width(145f).height(32f).pad(2f);
+        }
+        panel.row();
+        for (String sticker : ReactionCatalog.stickers()) {
+            panel.add(new MenuButton(stickerShort(sticker), game.getSkin(), "brown",
+                    () -> sendReaction(ReactionCategory.STICKER, sticker))).width(145f).height(32f).pad(2f);
+        }
+        reactionTray.add(panel).right().bottom();
+        reactionTray.setVisible(false);
+        stage.addActor(reactionTray);
 
         reactionLabel = new Label("", game.getSkin(), "medium_outline");
         reactionLabel.setColor(Color.YELLOW);
         reactionLabel.setWrap(true);
         reactionLabel.setAlignment(Align.center);
-        reactionLabel.setBounds(930f, 580f, 320f, 70f);
+        reactionLabel.setBounds(900f, 470f, 330f, 70f);
         reactionLabel.setVisible(false);
         stage.addActor(reactionLabel);
+
         reactionGraphic = new ReactionGraphicActor();
-        reactionGraphic.setPosition(1060f, 480f);
+        reactionGraphic.setPosition(1060f, 400f);
         stage.addActor(reactionGraphic);
     }
 
-    private Table buildControls() {
-        Table controls = new Table();
-        controls.top();
-        Label opponent = new Label("vs " + context.opponent() + "  |  Stage " + context.stage(), game.getSkin(), "secondary");
-        opponent.setColor(Color.WHITE);
-        controls.add(opponent).padBottom(8f).row();
+    private String roleText() {
+        String side = context.role() == GameRole.PLANTS ? "PLANTS" : "ZOMBIES";
+        return side + "  vs  " + context.opponent() + "  •  Stage " + context.stage();
+    }
 
-        selectedLabel = new Label("Selected: " + selectedType, game.getSkin(), "secondary");
-        selectedLabel.setColor(Color.WHITE);
-        controls.add(selectedLabel).padBottom(5f).row();
-
-        for (Map.Entry<String, Integer> entry : choices().entrySet()) {
-            String type = entry.getKey();
-            TextButton button = new TextButton(type + "  " + entry.getValue(), game.getSkin(), "brown");
-            button.addListener(new com.badlogic.gdx.scenes.scene2d.utils.ClickListener() {
-                @Override public void clicked(com.badlogic.gdx.scenes.scene2d.InputEvent event, float x, float y) {
-                    selectType(type);
-                }
-            });
-            choiceButtons.put(type, button);
-            controls.add(button).width(285f).height(38f).padBottom(3f).row();
-        }
-
-        controls.add(new Label("REACTIONS", game.getSkin(), "medium_outline")).padTop(8f).padBottom(4f).row();
-        Table reactions = new Table();
-        for (String text : ReactionCatalog.texts()) {
-            reactions.add(new MenuButton(shortText(text), game.getSkin(), "green_small",
-                    () -> sendReaction(ReactionCategory.TEXT, text))).width(93f).height(32f).pad(2f);
-        }
-        reactions.row();
-        for (String emoji : ReactionCatalog.emojis()) {
-            reactions.add(new MenuButton(emoji, game.getSkin(), "purple",
-                    () -> sendReaction(ReactionCategory.EMOJI, emoji))).width(93f).height(32f).pad(2f);
-        }
-        reactions.row();
-        for (String sticker : ReactionCatalog.stickers()) {
-            reactions.add(new MenuButton(stickerShort(sticker), game.getSkin(), "brown",
-                    () -> sendReaction(ReactionCategory.STICKER, sticker))).width(93f).height(32f).pad(2f);
-        }
-        controls.add(reactions).row();
-        controls.add(new MenuButton("Leave Match", game.getSkin(), "brown", this::confirmLeave))
-                .width(210f).height(38f).padTop(10f);
-        return controls;
+    private void toggleReactions() {
+        reactionTray.setVisible(!reactionTray.isVisible());
     }
 
     private Map<String, Integer> choices() {
@@ -164,7 +281,6 @@ public final class NetworkIZombieScreen extends BaseScreen {
 
     private void selectType(String type) {
         selectedType = type;
-        selectedLabel.setText("Selected: " + type);
         refreshChoices();
     }
 
@@ -172,7 +288,7 @@ public final class NetworkIZombieScreen extends BaseScreen {
         if (snapshot == null || snapshot.isFinished() || actionInFlight) return;
         if (!canUseSelected()) return;
         if (context.role() == GameRole.PLANTS && column > AuthoritativeIZombieGame.LAST_PLANT_COLUMN) {
-            setStatus("Plants can only be placed on the defensive side.");
+            setStatus("Plants can only be placed left of the red line.");
             return;
         }
         if (context.role() == GameRole.PLANTS && hasPlantAt(row, column)) {
@@ -188,7 +304,7 @@ public final class NetworkIZombieScreen extends BaseScreen {
             actionInFlight = false;
             refreshChoices();
             if (error != null) setStatus("Network action failed: " + error.getMessage());
-            else setStatus(result == null ? "No server response." : result.message());
+            else setStatus(result == null ? "" : result.message());
         }));
     }
 
@@ -198,7 +314,7 @@ public final class NetworkIZombieScreen extends BaseScreen {
         long cooldown = context.role() == GameRole.PLANTS
                 ? snapshot.getPlantCooldownMillis(selectedType)
                 : snapshot.getZombieCooldownMillis(selectedType);
-        if (sun < cost) { setStatus("Not enough sun for " + selectedType + "."); return false; }
+        if (sun < cost) { setStatus("Not enough sun."); return false; }
         if (cooldown > 0L) { setStatus(selectedType + " is cooling down."); return false; }
         return true;
     }
@@ -223,6 +339,7 @@ public final class NetworkIZombieScreen extends BaseScreen {
         network.sendReactionAsync(context.matchId(), category, value).whenComplete((result, error) ->
                 Gdx.app.postRunnable(() -> {
                     reactionInFlight = false;
+                    reactionTray.setVisible(false);
                     if (error != null) setStatus("Reaction failed: " + error.getMessage());
                     else if (result != null) setStatus(result.message());
                 }));
@@ -250,23 +367,25 @@ public final class NetworkIZombieScreen extends BaseScreen {
         long seconds = (next.getRemainingMillis() + 999L) / 1000L;
         timerLabel.setText(String.format(Locale.US, "%02d:%02d", seconds / 60L, seconds % 60L));
         int sun = context.role() == GameRole.PLANTS ? next.getPlantSun() : next.getZombieSun();
-        resourceLabel.setText("SUN " + sun + "   BRAINS " + next.getBrainsRemaining());
+        sunLabel.setText(String.valueOf(sun));
+        brainsLabel.setText(next.getBrainsRemaining() + " / 5 BRAINS");
         refreshChoices();
         if (next.isFinished()) showEnd(null);
     }
 
     private void refreshChoices() {
         int sun = snapshot == null ? 0 : context.role() == GameRole.PLANTS ? snapshot.getPlantSun() : snapshot.getZombieSun();
-        for (Map.Entry<String, TextButton> entry : choiceButtons.entrySet()) {
+        for (Map.Entry<String, ChoiceVisual> entry : choiceVisuals.entrySet()) {
             String type = entry.getKey();
-            TextButton button = entry.getValue();
+            ChoiceVisual visual = entry.getValue();
             int cost = choices().getOrDefault(type, 0);
             long cooldown = snapshot == null ? 0L : context.role() == GameRole.PLANTS
                     ? snapshot.getPlantCooldownMillis(type) : snapshot.getZombieCooldownMillis(type);
             boolean enabled = snapshot != null && !snapshot.isFinished() && !actionInFlight && sun >= cost && cooldown <= 0L;
-            button.setDisabled(!enabled);
-            button.setText((type.equals(selectedType) ? "> " : "") + type + " " + cost
-                    + (cooldown > 0L ? " [" + String.format(Locale.US, "%.1fs", cooldown / 1000.0) + "]" : ""));
+            visual.root.setTouchable(enabled ? Touchable.enabled : Touchable.disabled);
+            visual.root.getColor().a = enabled || type.equals(selectedType) ? 1f : 0.48f;
+            if (visual.selection != null) visual.selection.setVisible(type.equals(selectedType));
+            visual.cooldown.setText(cooldown > 0L ? String.format(Locale.US, "%.1f", cooldown / 1000.0) : "");
         }
         if (board != null) board.setInteraction(context.role(), snapshot != null && !snapshot.isFinished() && !actionInFlight);
     }
@@ -327,7 +446,16 @@ public final class NetworkIZombieScreen extends BaseScreen {
         game.getScreenManager().showNetworkLobby(context.stage());
     }
 
-    private void setStatus(String text) { if (statusLabel != null) statusLabel.setText(text == null ? "" : text); }
+    private void setStatus(String text) {
+        if (statusLabel == null) return;
+        statusLabel.clearActions();
+        statusLabel.getColor().a = 1f;
+        statusLabel.setText(text == null ? "" : text);
+        if (text != null && !text.isBlank()) {
+            statusLabel.addAction(Actions.sequence(Actions.delay(2.2f), Actions.fadeOut(0.35f)));
+        }
+    }
+
     private static String shortText(String value) { return value == null ? "" : value.replace("!", ""); }
     private static String stickerShort(String value) { return value == null ? "" : value.replace("DANCING_", "").replace("DIZZY_", "").replace("BOUNCING_", ""); }
 
@@ -343,5 +471,17 @@ public final class NetworkIZombieScreen extends BaseScreen {
         if (board != null) board.dispose();
         if (reactionGraphic != null) reactionGraphic.dispose();
         super.dispose();
+    }
+
+    private static final class ChoiceVisual {
+        private final Table root;
+        private final Image selection;
+        private final Label cooldown;
+
+        private ChoiceVisual(Table root, Image selection, Label cooldown) {
+            this.root = root;
+            this.selection = selection;
+            this.cooldown = cooldown;
+        }
     }
 }
