@@ -61,7 +61,7 @@ public final class CouchIZombieScreen extends BaseScreen {
         root.add(header).growX().height(56f).row();
 
         Table body = new Table();
-        board = new IZombieBoardActor(this::plantMouseClick);
+        board = new IZombieBoardActor(game.getAnimationService(), this::plantMouseClick);
         body.add(board).width(890f).height(500f).padRight(10f);
         body.add(buildControls()).width(340f).height(500f);
         root.add(body).grow().row();
