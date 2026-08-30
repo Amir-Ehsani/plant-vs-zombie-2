@@ -177,7 +177,15 @@ abstract class LaneCombatAbilitySupport extends LaneCombatTargetSupport {
         Collections.shuffle(available, random);
         int created = Math.min(spawnCount, available.size());
         for (int index = 0; index < created; index++) {
-            available.get(index).setTileType(TileType.GRAVE);
+            Tile targetTile = available.get(index);
+            int delayTicks = 2 + index * 3;
+            scheduleCombatAction(delayTicks, () -> {
+                if (!targetTile.hasPlant() && !targetTile.hasZombies()
+                        && targetTile.getTileType() == TileType.NORMAL
+                        && GraveSpawnRules.remainingCapacity(board) > 0) {
+                    targetTile.setTileType(TileType.GRAVE);
+                }
+            });
         }
         state.tombRaiserGravesCreated += created;
     }
@@ -271,12 +279,12 @@ abstract class LaneCombatAbilitySupport extends LaneCombatTargetSupport {
         }
         List<Plant> candidates = new ArrayList<>();
         for (Plant plant : board.getAllPlants()) {
-            if (plant.isAlive() && !plant.isTransformedToCat()) {
+            if (plant.isAlive() && !plant.isTransformedToSheep()) {
                 candidates.add(plant);
             }
         }
         if (!candidates.isEmpty()) {
-            candidates.get(random.nextInt(candidates.size())).transformToCat(zombie);
+            candidates.get(random.nextInt(candidates.size())).transformToSheep(zombie);
         }
     }
 
@@ -342,7 +350,7 @@ abstract class LaneCombatAbilitySupport extends LaneCombatTargetSupport {
         if (name.equals("wizard") && board != null) {
             for (Plant plant : board.getAllPlants()) {
                 if (plant.getTransformedByWizard() == zombie) {
-                    plant.restoreFromCat(zombie);
+                    plant.restoreFromSheep(zombie);
                 }
             }
         }
@@ -376,7 +384,7 @@ abstract class LaneCombatAbilitySupport extends LaneCombatTargetSupport {
             state.allstarCharging = false;
             zombie.setCurrentSpeed(scaledBaseSpeed(zombie) * 0.25);
         } else if (zombieName.equals("wizard")) {
-            plant.transformToCat(zombie);
+            plant.transformToSheep(zombie);
         } else {
             double eatMultiplier = (zombieName.equals("news paper")
                     || zombieName.equals("newspaper"))
