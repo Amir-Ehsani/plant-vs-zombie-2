@@ -1354,13 +1354,22 @@ public final class GameScreen extends BaseScreen {
     }
 
     private void finishLevelIntro() {
+        if (bossPresentationOverlay != null) {
+            bossPresentationOverlay.showIntro(this::startBossBattleAfterIntro);
+            return;
+        }
+        resumeAfterLevelIntro();
+    }
+
+    private void startBossBattleAfterIntro() {
+        resumeAfterLevelIntro();
+    }
+
+    private void resumeAfterLevelIntro() {
         if (pausedForIntro && session.isRunning() && gameplayClock.isPaused()) {
             gameplayClock.togglePause();
         }
         pausedForIntro = false;
-        if (bossPresentationOverlay != null) {
-            bossPresentationOverlay.showIntro();
-        }
         announcementOverlay.push("READY... SET... PLANT!");
     }
 
