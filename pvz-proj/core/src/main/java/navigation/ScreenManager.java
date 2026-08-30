@@ -23,6 +23,7 @@ import screens.menu.ZombotanyPlantSelectionScreen;
 import screens.menu.ShopScreen;
 import screens.game.GameScreen;
 import screens.game.MiniGameScreen;
+import screens.BaseScreen;
 
 public class ScreenManager {
     private final Main game;
@@ -133,6 +134,17 @@ public class ScreenManager {
 
     private void show(Screen nextScreen) {
         Screen currentScreen = game.getScreen();
+        if (currentScreen instanceof BaseScreen baseScreen) {
+            boolean accepted = baseScreen.transitionOut(() -> replaceScreen(currentScreen, nextScreen));
+            if (!accepted) {
+                nextScreen.dispose();
+            }
+            return;
+        }
+        replaceScreen(currentScreen, nextScreen);
+    }
+
+    private void replaceScreen(Screen currentScreen, Screen nextScreen) {
         game.setScreen(nextScreen);
         if (currentScreen != null) {
             currentScreen.dispose();
