@@ -1,5 +1,6 @@
 package ui;
 
+import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.math.Interpolation;
 import com.badlogic.gdx.scenes.scene2d.actions.Actions;
@@ -41,6 +42,14 @@ public class GameNotification extends Table {
                 ),
                 Actions.removeActor()
         ));
+    }
+
+    @Override
+    public void act(float delta) {
+        float uiDelta = delta > 0f
+                ? delta
+                : Math.min(Math.max(Gdx.graphics.getDeltaTime(), 0f), 1f / 15f);
+        super.act(uiDelta);
     }
 
     public void setMessage(String message) {
