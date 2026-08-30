@@ -12,7 +12,7 @@ public class TimedWarRule extends AbstractLevelRule {
     private final TimedWarObjective legacyObjective;
     private int startTick;
     private int initialKills;
-    private int initialSunProduced;
+    private int initialSunCollected;
 
     public TimedWarRule(int durationTicks, int killTarget, int sunTarget) {
         this(durationTicks, killTarget, sunTarget, null);
@@ -53,7 +53,7 @@ public class TimedWarRule extends AbstractLevelRule {
         resetResult();
         startTick = context.getCurrentTick();
         initialKills = context.getTotalZombiesKilled();
-        initialSunProduced = context.getTotalSunProduced();
+        initialSunCollected = context.getTotalSunCollected();
     }
 
     @Override
@@ -77,7 +77,7 @@ public class TimedWarRule extends AbstractLevelRule {
     }
 
     public int getSunProgress(LevelRuntimeContext context) {
-        return Math.max(0, context.getTotalSunProduced() - initialSunProduced);
+        return Math.max(0, context.getTotalSunCollected() - initialSunCollected);
     }
 
     public int getKillTarget() {
