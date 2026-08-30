@@ -213,13 +213,8 @@ public final class BossRenderSystem {
         Vector2 position = geometry.entityToScreen(boss.getX(), visualBossLane(boss));
         if (isDarkBoss(boss)) {
             position.x += geometry.getTileWidth() * 0.72f;
-            if (boss.getState() == BossState.INTRO) {
-                float duration = Math.max(0.1f, boss.getIntroTicks() / 10f);
-                float progress = MathUtils.clamp(stateTime / duration, 0f, 1f);
-                float landing = MathUtils.clamp((progress - 0.20f) / 0.55f, 0f, 1f);
-                landing = landing * landing * (3f - 2f * landing);
-                position.y += geometry.getBoardBounds().height * 0.78f * (1f - landing);
-            }
+            // The Dark Dragon PAM already contains its complete sky-entry motion.
+            // Do not add a second artificial vertical translation on top of that clip.
         } else if (isBeachBoss(boss)) {
             position.x += geometry.getTileWidth() * 0.34f;
         }
@@ -270,7 +265,7 @@ public final class BossRenderSystem {
 
     private String visualClip(Boss boss) {
         if (isDarkBoss(boss) && boss.getState() == BossState.INTRO) {
-            return "idle";
+            return "intro";
         }
         if (boss.getState() == BossState.STUNNED) {
             return stunClip(boss);
