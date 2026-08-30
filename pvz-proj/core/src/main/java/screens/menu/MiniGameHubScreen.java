@@ -83,6 +83,10 @@ public class MiniGameHubScreen extends BaseMenuScreen {
     }
 
     private void openMiniGame(String gameName, int stage) {
+        if (MiniGameType.fromText(gameName) == MiniGameType.I_ZOMBIE) {
+            game.getScreenManager().showNetworkLobby(stage);
+            return;
+        }
         if (MiniGameType.fromText(gameName) == MiniGameType.PLANT_ZOMBIES) {
             game.getScreenManager().showZombotanyPlantSelection(stage);
             return;
