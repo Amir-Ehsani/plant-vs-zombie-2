@@ -155,9 +155,6 @@ public final class AuthoritativeIZombieGame {
         Integer cost = PLANT_COSTS.get(normalized);
         PlantDefinition definition = PLANT_DEFINITIONS.get(normalized);
         if (cost == null || definition == null) return ActionResult.failure("unknown plant type: " + type, snapshot());
-        if (!plantCostsForStage(stage).containsKey(normalized)) {
-            return ActionResult.failure("that plant is not used in this I, Zombie stage", snapshot());
-        }
         if (!validRow(row)) return ActionResult.failure("row must be between 0 and " + (ROWS - 1), snapshot());
         if (column < 0 || column > LAST_PLANT_COLUMN) {
             return ActionResult.failure("plants may only be placed in columns 0-" + LAST_PLANT_COLUMN, snapshot());
@@ -185,9 +182,6 @@ public final class AuthoritativeIZombieGame {
         Integer cost = ZOMBIE_COSTS.get(normalized);
         ZombieDefinition definition = ZOMBIE_DEFINITIONS.get(normalized);
         if (cost == null || definition == null) return ActionResult.failure("unknown zombie type: " + type, snapshot());
-        if (!zombieCostsForStage(stage).containsKey(normalized)) {
-            return ActionResult.failure("that zombie is not available in this I, Zombie stage", snapshot());
-        }
         if (!validRow(row)) return ActionResult.failure("row must be between 0 and " + (ROWS - 1), snapshot());
         if (zombieSun < cost) return ActionResult.failure("not enough zombie sun", snapshot());
         long readyAt = zombieReadyAt.getOrDefault(normalized, 0L);
