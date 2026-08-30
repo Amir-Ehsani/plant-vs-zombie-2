@@ -56,6 +56,12 @@ public final class ZombieView extends EntityView<Zombie> {
         "768/FULL/EFFECTS/ZOMBIE_OCTOPUS_PROJECTILE/ZOMBIE_OCTOPUS_PROJECTILE.PAM";
     private static final String WIZARD_LIGHTNING_PATH =
         "768/FULL/EFFECTS/DARK_WIZARD_LIGHTNINGBOLT/DARK_WIZARD_LIGHTNINGBOLT.PAM";
+    private static final String TOMB_RAISER_BONE_HIT_PATH =
+        "768/INITIAL/EFFECTS/ZOMBIE_EGYPT_TOMBRAISER_BONE_HIT/"
+            + "ZOMBIE_EGYPT_TOMBRAISER_BONE_HIT.PAM";
+    private static final String HUNTER_SNOWBALL_SPLAT_PATH =
+        "768/FULL/EFFECTS/ZOMBIE_HUNTER_SNOWBALL_SPLAT/"
+            + "ZOMBIE_HUNTER_SNOWBALL_SPLAT.PAM";
 
     private double lastX;
     private double lastY;
@@ -119,6 +125,9 @@ public final class ZombieView extends EntityView<Zombie> {
         lastClip = clip;
         Vector2 position = geometry.entityToScreen(visualX, visualY);
         position.y += geometry.getTileHeight() * (float) entity.getVisualVerticalOffset();
+        if (entity.isSubmerged()) {
+            position.y -= geometry.getTileHeight() * 0.30f;
+        }
         boolean reversed = isReversed(effects);
         float direction = reversed ? -1f : 1f;
         float renderX = position.x + eatingOffset(geometry, clip) * direction;
@@ -193,6 +202,22 @@ public final class ZombieView extends EntityView<Zombie> {
             animations.draw(
                 batch, WIZARD_LIGHTNING_PATH, "animation", visualActionTime,
                 x, y, 0.46f, true
+            );
+        } else if ((name.equals("tomb raiser") || name.equals("tombraiser"))
+                && visualActionClip.equals("power") && progress >= 0.34f) {
+            animations.preload(TOMB_RAISER_BONE_HIT_PATH);
+            float impactTime = Math.max(0f, visualActionTime - duration * 0.34f);
+            animations.draw(
+                    batch, TOMB_RAISER_BONE_HIT_PATH, "animation", impactTime,
+                    target.x, target.y, 0.50f, false
+            );
+        } else if (name.equals("hunter") && visualActionClip.equals("throw")
+                && progress >= 0.27f && progress <= 0.72f) {
+            animations.preload(HUNTER_SNOWBALL_SPLAT_PATH);
+            float impactTime = Math.max(0f, visualActionTime - duration * 0.27f);
+            animations.draw(
+                    batch, HUNTER_SNOWBALL_SPLAT_PATH, "animation", impactTime,
+                    target.x, target.y, 0.44f, false
             );
         }
     }
@@ -691,6 +716,10 @@ public final class ZombieView extends EntityView<Zombie> {
                 : new Color(1f, 1f, 1f, 1f);
         } else if (hasEffect(effects, "hypnotized")) {
             tint = new Color(0.82f, 0.62f, 1f, 1f);
+        }
+        if (entity.isSubmerged()) {
+            tint = new Color(tint).lerp(new Color(0.45f, 0.78f, 1f, 0.72f), 0.42f);
+            tint.a = 0.72f;
         }
         return applyNearFinishWarning(tint, effects);
     }
