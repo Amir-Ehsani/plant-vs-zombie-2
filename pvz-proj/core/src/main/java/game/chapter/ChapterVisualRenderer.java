@@ -33,12 +33,14 @@ import java.util.Set;
 
 public final class ChapterVisualRenderer {
     private static final float SAND_BURST_DURATION = 1.05f;
-    private static final float FROST_WIND_DURATION = 1.45f;
+    private static final float FROST_WIND_DURATION = 2.5667f;
+    private static final float FROST_THAW_STEP_SECONDS = 0.22f;
+    private static final float TIDE_LINE_SHORE_ANCHOR = 0.28f;
     private static final float NECROMANCY_DURATION = 1.0f;
     private static final float ZOMBIE_ICE_HEALTH = 600f;
     private static final float WORLD_WIDTH = 1280f;
-    private static final String WATER_TIDE_LINE_PAM =
-            "768/FULL/BACKGROUNDS/WATER_TIDE_LINE/WATER_TIDE_LINE.PAM";
+    private static final String FROST_WIND_PAM =
+            "768/FULL/EFFECTS/FROSTBITE_CHILL_WIND/FROSTBITE_CHILL_WIND.PAM";
     private static final String NECROMANCY_DIRT_PAM =
             "768/INITIAL/EFFECTS/GRAVEBUSTER_DIRT/GRAVEBUSTER_DIRT.PAM";
     private static final String GRAVE_RISE_DIRT_PAM =
@@ -63,10 +65,17 @@ public final class ChapterVisualRenderer {
     private final Map<Position, Float> graveRiseTimes = new LinkedHashMap<>();
     private final Map<Position, Float> lowBeachSpawnTimes = new LinkedHashMap<>();
     private final Map<Zombie, Boolean> seenSandstormZombies = new IdentityHashMap<>();
+    private final Map<Plant, Integer> displayedPlantIceLevels = new IdentityHashMap<>();
+    private final Map<Plant, Float> plantIceStepTimes = new IdentityHashMap<>();
     private final List<SandBurstVisual> sandBursts = new ArrayList<>();
 
-    private final TextureRegion frostWind;
     private final TextureRegion waterTile;
+    private final TextureRegion waveBigLeft;
+    private final TextureRegion waveUpperTall;
+    private final TextureRegion waveBigThin;
+    private final TextureRegion waveUpperThin;
+    private final TextureRegion waveUpperWide;
+    private final TextureRegion tideLine;
     private final TextureRegion scorchedTile;
     private final TextureRegion scorchedEdge;
     private final TextureRegion lowBeachMarker;
@@ -102,12 +111,25 @@ public final class ChapterVisualRenderer {
         this.animations = animations;
         this.camera = camera;
         this.season = level.getSeasonType();
-        this.frostWind = animations.region("IMAGE_EFFECTS_FROSTBITE_CHILL_WIND_FROSTBITE_CHILL_WIND_290X163");
         this.waterTile = animations.region("IMAGE_UI_CARDS_BACKGROUNDS_CARD_PLANT_BG_BEACH_WATER");
+        this.waveBigLeft = animations.region("IMAGE_BACKGROUNDS_WAVE_BIG_WAVE_BIG_870X1262");
+        this.waveUpperTall = animations.region(
+                "IMAGE_BACKGROUNDS_WAVE_UPPERLAYER_WAVE_UPPERLAYER_142X1335"
+        );
+        this.waveBigThin = animations.region("IMAGE_BACKGROUNDS_WAVE_BIG_WAVE_BIG_124X1335");
+        this.waveUpperThin = animations.region(
+                "IMAGE_BACKGROUNDS_WAVE_UPPERLAYER_WAVE_UPPERLAYER_124X1335"
+        );
+        this.waveUpperWide = animations.region(
+                "IMAGE_BACKGROUNDS_WAVE_UPPERLAYER_WAVE_UPPERLAYER_484X1390"
+        );
+        this.tideLine = animations.region(
+                "IMAGE_BACKGROUNDS_WATER_TIDE_LINE_WATER_TIDE_LINE_161X397"
+        );
         this.scorchedTile = animations.region("IMAGE_EFFECTS_SCORCHED_EARTH_SCORCHED_EARTH_128X152");
         this.scorchedEdge = animations.region("IMAGE_EFFECTS_SCORCHED_EARTH_EDGE_SCORCHED_EARTH_EDGE_128X152");
         this.lowBeachMarker = animations.region(
-                "IMAGE_EFFECTS_ZOMBIE_OCTOPUS_PROJECTILE_ZOMBIE_OCTOPUS_PROJECTILE_87X61_3"
+                "IMAGE_EFFECTS_ZOMBIE_OCTOPUS_PROJECTILE_ZOMBIE_OCTOPUS_PROJECTILE_87X61_2"
         );
         this.sandRearA = animations.region("IMAGE_EFFECTS_SANDSTORM_REAR_SANDSTORM_BACK1");
         this.sandRearB = animations.region("IMAGE_EFFECTS_SANDSTORM_REAR_SANDSTORM_BACK2");
@@ -130,9 +152,10 @@ public final class ChapterVisualRenderer {
         };
         this.observedWave = 0;
         if (season == SeasonType.BIG_WAVE_BEACH) {
-            animations.preload(WATER_TIDE_LINE_PAM);
             animations.preload(LOW_BEACH_RIPPLE_PAM);
             displayedTideX = targetTideX();
+        } else if (season == SeasonType.FROSTBITE_CAVES) {
+            animations.preload(FROST_WIND_PAM);
         } else if (season == SeasonType.DARK_AGES) {
             animations.preload(NECROMANCY_DIRT_PAM);
             animations.preload(GRAVE_RISE_DIRT_PAM);
@@ -150,6 +173,7 @@ public final class ChapterVisualRenderer {
         updateLowBeachSpawnEffects(safeDelta);
         updateSandstormBursts(safeDelta);
         updateDisplayedTideLine(safeDelta);
+        updatePlantIceVisuals(safeDelta);
     }
 
     public void renderBehindEntities(Batch batch, ShapeRenderer shapes) {
@@ -192,7 +216,8 @@ public final class ChapterVisualRenderer {
             return;
         }
         observedWave = currentWave;
-        if (season == SeasonType.FROSTBITE_CAVES) {
+        if (season == SeasonType.FROSTBITE_CAVES
+                && !level.getLastFrostWindLanes().isEmpty()) {
             frostWindTime = FROST_WIND_DURATION;
         } else if (season == SeasonType.DARK_AGES) {
             necromancyTime = NECROMANCY_DURATION;
@@ -388,25 +413,52 @@ public final class ChapterVisualRenderer {
     }
 
     private void drawContinuousWaterTiles(Batch batch) {
-        if (waterTile == null || Float.isNaN(displayedTideX)) {
+        if (Float.isNaN(displayedTideX)) {
             return;
         }
         Rectangle boardBounds = geometry.getBoardBounds();
         float endX = boardBounds.x + boardBounds.width;
         float tileWidth = geometry.getTileWidth();
         float tileHeight = geometry.getTileHeight();
-        for (float x = displayedTideX; x < endX; x += tileWidth) {
-            float width = Math.min(tileWidth, endX - x);
-            for (int row = 0; row < board.getHeight(); row++) {
-                float y = boardBounds.y + row * tileHeight;
-                float pulse = 0.80f + 0.06f * MathUtils.sin(
-                        elapsed * 1.9f + x * 0.01f + row
-                );
-                batch.setColor(0.82f, 0.96f, 1f, pulse);
-                batch.draw(waterTile, x, y, width, tileHeight);
+        if (waterTile != null) {
+            for (float x = displayedTideX; x < endX; x += tileWidth) {
+                float width = Math.min(tileWidth, endX - x);
+                for (int row = 0; row < board.getHeight(); row++) {
+                    float y = boardBounds.y + row * tileHeight;
+                    float pulse = 0.80f + 0.06f * MathUtils.sin(
+                            elapsed * 1.9f + x * 0.01f + row
+                    );
+                    batch.setColor(0.82f, 0.96f, 1f, pulse);
+                    batch.draw(waterTile, x, y, width, tileHeight);
+                }
             }
         }
         batch.setColor(Color.WHITE);
+        drawWaveLayer(batch, waveBigLeft, displayedTideX, boardBounds, 0.92f, -0.10f);
+        drawWaveLayer(batch, waveUpperTall, displayedTideX, boardBounds, 0.96f, 0.02f);
+        drawWaveLayer(batch, waveBigThin, displayedTideX + tileWidth * 0.32f, boardBounds, 0.90f, 0.04f);
+        drawWaveLayer(batch, waveUpperThin, displayedTideX + tileWidth * 0.55f, boardBounds, 0.96f, 0.06f);
+        drawWaveLayer(batch, waveUpperWide, displayedTideX + tileWidth * 0.88f, boardBounds, 0.82f, 0.08f);
+        batch.setColor(Color.WHITE);
+    }
+
+    private void drawWaveLayer(
+            Batch batch, TextureRegion region, float boundaryX, Rectangle boardBounds,
+            float alpha, float bobScale
+    ) {
+        if (region == null) {
+            return;
+        }
+        float height = boardBounds.height * 1.03f;
+        float width = height * region.getRegionWidth() / Math.max(1f, region.getRegionHeight());
+        float bob = MathUtils.sin(elapsed * 1.5f + boundaryX * 0.01f)
+                * geometry.getTileHeight() * bobScale;
+        batch.setColor(1f, 1f, 1f, alpha);
+        batch.draw(
+                region, boundaryX - width * 0.10f,
+                boardBounds.y + (boardBounds.height - height) * 0.50f + bob,
+                width, height
+        );
     }
 
     private void drawBossOceanExtension(Batch batch) {
@@ -460,53 +512,81 @@ public final class ChapterVisualRenderer {
     }
 
     private float targetTideX() {
-        int firstWaterColumn = Integer.MAX_VALUE;
-        for (int row = 1; row <= board.getHeight(); row++) {
-            for (int column = 1; column <= board.getWidth(); column++) {
-                Tile tile = board.getTileAt(new Position(column, row));
-                if (tile != null && tile.getTileType() == TileType.WATER) {
-                    firstWaterColumn = Math.min(firstWaterColumn, column);
-                }
-            }
-        }
-        if (firstWaterColumn == Integer.MAX_VALUE) {
+        int waterColumns = level.getCurrentWaterColumns();
+        if (waterColumns <= 0) {
             return Float.NaN;
         }
+        int firstWaterColumn = board.getWidth() - waterColumns + 1;
         return geometry.getTileBounds(1, firstWaterColumn).x;
     }
 
     private void drawTideLine(Batch batch) {
-        if (Float.isNaN(displayedTideX)) {
+        if (Float.isNaN(displayedTideX) || tideLine == null) {
             return;
         }
         Rectangle boardBounds = geometry.getBoardBounds();
-        Rectangle scissor = new Rectangle();
-        batch.flush();
-        ScissorStack.calculateScissors(
-                camera, batch.getTransformMatrix(), boardBounds, scissor
+        float height = boardBounds.height;
+        // Preserve the source aspect ratio: scale by height only, never stretch horizontally.
+        float width = height * tideLine.getRegionWidth() / Math.max(1f, tideLine.getRegionHeight());
+        batch.setColor(Color.WHITE);
+        batch.draw(
+                tideLine, displayedTideX - width * TIDE_LINE_SHORE_ANCHOR,
+                boardBounds.y, width, height
         );
-        if (!ScissorStack.pushScissors(scissor)) {
+    }
+
+    private void updatePlantIceVisuals(float delta) {
+        if (season != SeasonType.FROSTBITE_CAVES || board == null) {
             return;
         }
-        float lineX = displayedTideX + geometry.getTileWidth() * 2.70f;
-        animations.draw(
-                batch, WATER_TIDE_LINE_PAM, "idle", elapsed, lineX,
-                boardBounds.y + boardBounds.height / 2f, 1f, true
-        );
-        batch.flush();
-        ScissorStack.popScissors();
+        Set<Plant> activePlants = java.util.Collections.newSetFromMap(new IdentityHashMap<>());
+        for (Plant plant : board.getAllPlants()) {
+            if (plant == null || !plant.isAlive()) {
+                continue;
+            }
+            activePlants.add(plant);
+            int targetLevel = Math.max(0, Math.min(3, plant.getIceVisualLevel()));
+            Integer previous = displayedPlantIceLevels.get(plant);
+            if (previous == null) {
+                displayedPlantIceLevels.put(plant, targetLevel);
+                plantIceStepTimes.put(plant, 0f);
+                continue;
+            }
+            int shownLevel = previous;
+            if (targetLevel >= shownLevel) {
+                displayedPlantIceLevels.put(plant, targetLevel);
+                plantIceStepTimes.put(plant, 0f);
+                continue;
+            }
+
+            float timer = plantIceStepTimes.getOrDefault(plant, 0f) + Math.max(0f, delta);
+            while (shownLevel > targetLevel && timer >= FROST_THAW_STEP_SECONDS) {
+                shownLevel--;
+                timer -= FROST_THAW_STEP_SECONDS;
+            }
+            displayedPlantIceLevels.put(plant, shownLevel);
+            plantIceStepTimes.put(plant, timer);
+        }
+        displayedPlantIceLevels.keySet().removeIf(plant -> !activePlants.contains(plant));
+        plantIceStepTimes.keySet().removeIf(plant -> !activePlants.contains(plant));
     }
 
     private void drawFrozenEntities(Batch batch) {
         batch.begin();
         for (Plant plant : board.getAllPlants()) {
-            if (plant == null || !plant.isAlive() || plant.getIceHits() <= 0) {
+            if (plant == null || !plant.isAlive()) {
+                continue;
+            }
+            int visualLevel = displayedPlantIceLevels.getOrDefault(
+                    plant, plant.getIceVisualLevel()
+            );
+            if (visualLevel <= 0) {
                 continue;
             }
             int row = Math.max(1, Math.min(board.getHeight(), (int) Math.round(plant.getY())));
             int column = Math.max(1, Math.min(board.getWidth(), (int) Math.round(plant.getX())));
             int iceIndex = Math.max(
-                    0, Math.min(plantIceLevels.length - 1, plant.getIceHits() - 1)
+                    0, Math.min(plantIceLevels.length - 1, visualLevel - 1)
             );
             TextureRegion region = plantIceLevels[iceIndex];
             if (region != null) {
@@ -542,21 +622,26 @@ public final class ChapterVisualRenderer {
     }
 
     private void drawFrostWind(Batch batch) {
-        if (frostWind == null) {
+        Set<Integer> lanes = level.getLastFrostWindLanes();
+        if (lanes.isEmpty()) {
             return;
         }
-        float progress = 1f - frostWindTime / FROST_WIND_DURATION;
-        float alpha = effectAlpha(progress);
+        float animationTime = Math.max(0f, FROST_WIND_DURATION - frostWindTime);
+        float progress = MathUtils.clamp(animationTime / FROST_WIND_DURATION, 0f, 1f);
+        float alpha = Math.max(0.30f, effectAlpha(progress));
         Rectangle boardBounds = geometry.getBoardBounds();
-        float height = boardBounds.height * 0.56f;
-        float width = height * frostWind.getRegionWidth() / frostWind.getRegionHeight();
-        float offset = progress * (boardBounds.width + width * 1.4f);
         batch.begin();
-        batch.setColor(0.82f, 0.94f, 1f, alpha * 0.78f);
-        for (int row = 0; row < 3; row++) {
-            float x = boardBounds.x + boardBounds.width + width * 0.2f - offset + row * width * 0.48f;
-            float y = boardBounds.y - height * 0.08f + row * height * 0.36f;
-            batch.draw(frostWind, x, y, width, height);
+        batch.setColor(0.86f, 0.96f, 1f, alpha);
+        for (int lane : lanes) {
+            Rectangle laneTile = geometry.getTileBounds(lane, 1);
+            float y = laneTile.y + laneTile.height * 0.50f;
+            for (int section = 0; section < 3; section++) {
+                float x = boardBounds.x + boardBounds.width * (0.18f + section * 0.34f);
+                animations.draw(
+                        batch, FROST_WIND_PAM, "animation", animationTime,
+                        x, y, 0.56f, false
+                );
+            }
         }
         batch.setColor(Color.WHITE);
         batch.end();
