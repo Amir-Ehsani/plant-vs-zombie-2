@@ -26,3 +26,11 @@ dependencies {
 jar {
   duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }
+
+tasks.register('runServer', JavaExec) {
+  group = 'application'
+  description = 'Run the Phase 3 PvZ server-client backend.'
+  classpath = sourceSets.main.runtimeClasspath
+  mainClass = 'network.server.PvZServer'
+  standardInput = System.in
+}
