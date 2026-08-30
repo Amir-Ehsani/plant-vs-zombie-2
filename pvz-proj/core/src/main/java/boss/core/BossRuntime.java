@@ -50,6 +50,7 @@ public final class BossRuntime {
     private static final int DARK_BREATH_IMPACT_TICKS = 18;
     private static final int DARK_FIRE_LIFETIME_TICKS = 40;
     private static final int DARK_ACTION_END_TICKS = 34;
+    private static final int DARK_ARRIVAL_FIRE_IMPACT_TICKS = 78;
 
     private static final int BEACH_SUBMERGE_TICKS = 17;
     private static final int BEACH_SHARK_IMPACT_TICKS = 20;
@@ -99,6 +100,8 @@ public final class BossRuntime {
     private boolean specialImpactResolved;
     private boolean specialResolveResolved;
     private int arrivalScorchUntilTick;
+    private int darkArrivalFireImpactTick;
+    private boolean darkArrivalFireResolved;
     private boolean beachTangleStun;
 
     private int frostMissileLaunchTick;
@@ -140,6 +143,8 @@ public final class BossRuntime {
         moveStartFirstLane = boss.getFirstLane();
         currentTick = 0;
         arrivalScorchUntilTick = 0;
+        darkArrivalFireImpactTick = 0;
+        darkArrivalFireResolved = false;
         beachTangleStun = false;
         clearActionState();
     }
@@ -182,6 +187,7 @@ public final class BossRuntime {
         if (!started || boss.getState() == BossState.DEFEATED) {
             return;
         }
+        updateDarkArrivalFire(currentTick);
         releaseThawedFrozenZombies();
         observeHealth(currentTick);
         if (deathStarted) {
@@ -910,11 +916,9 @@ public final class BossRuntime {
 
     private void initializeBossArenaVisualState(int tick) {
         if (isDarkBoss()) {
-            arrivalScorchUntilTick = Integer.MAX_VALUE;
-            for (int lane = 1; lane <= board.getHeight(); lane++) {
-                burningTiles.put(new Position(board.getWidth(), lane), arrivalScorchUntilTick);
-                burningTiles.put(new Position(board.getWidth() - 1, lane), arrivalScorchUntilTick);
-            }
+            arrivalScorchUntilTick = 0;
+            darkArrivalFireImpactTick = tick + DARK_ARRIVAL_FIRE_IMPACT_TICKS;
+            darkArrivalFireResolved = false;
         }
         if (isBeachBoss()) {
             sharkPositions.clear();
@@ -922,6 +926,24 @@ public final class BossRuntime {
                 sharkPositions.add(new Position(board.getWidth(), lane));
             }
         }
+    }
+
+    private void updateDarkArrivalFire(int tick) {
+        if (!isDarkBoss() || darkArrivalFireResolved || board == null
+                || tick < darkArrivalFireImpactTick) {
+            return;
+        }
+        darkArrivalFireResolved = true;
+        arrivalScorchUntilTick = Integer.MAX_VALUE;
+        for (int lane = 1; lane <= board.getHeight(); lane++) {
+            for (int column = Math.max(1, board.getWidth() - 1);
+                    column <= board.getWidth(); column++) {
+                Position position = new Position(column, lane);
+                killPlantsAt(position);
+                burningTiles.put(position, arrivalScorchUntilTick);
+            }
+        }
+        board.removeDeadEntities();
     }
 
     private int chooseAnotherLanePair(int oldFirstLane) {
@@ -1169,6 +1191,7 @@ public final class BossRuntime {
     public List<Position> getSummonTargets() { return Collections.unmodifiableList(summonTargets); }
     public List<Position> getSharkPositions() { return Collections.unmodifiableList(sharkPositions); }
     public int getArrivalScorchUntilTick() { return arrivalScorchUntilTick; }
+    public int getDarkArrivalFireImpactTick() { return darkArrivalFireImpactTick; }
     public int getStateUntilTick() { return stateUntilTick; }
     public boolean isBeachTangleStun() { return beachTangleStun; }
     public double getSummonFocusLane() {
