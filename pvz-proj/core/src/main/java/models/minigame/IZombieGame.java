@@ -57,8 +57,8 @@ public class IZombieGame extends MiniGameSession {
         }
     }
 
-    private static final int INITIAL_SUN = 350;
-    private static final int RED_LINE_COLUMN = 6;
+    public static final int INITIAL_SUN = 350;
+    public static final int RED_LINE_COLUMN = 6;
     private static final int PRODUCER_HP = 1290;
     private static final int PRODUCED_SUN = 50;
     private static final int SUN_DROP_LIFE_TICKS = 55;
@@ -296,26 +296,13 @@ public class IZombieGame extends MiniGameSession {
     }
 
     private void initializeZombieOptions() {
-        if (getStage() == 1) {
-            addOption("Default", 50);
-            addOption("cone head", 75);
-            addOption("Imp", 50);
-            return;
+        for (ZombieOptionView option : zombieOptionsForStage(getStage())) {
+            addOption(option.zombieName(), option.sunCost());
         }
-        if (getStage() == 2) {
-            addOption("bucket head", 125);
-            addOption("Ra", 100);
-            addOption("Explorer", 125);
-            return;
-        }
-        addOption("Allstar", 225);
-        addOption("Wizard", 175);
-        addOption("Prospector", 100);
-        addOption("Gargantuar", 350);
     }
 
     private void initializePlantDefense() {
-        String[][] layouts = stagePlantLayouts();
+        String[][] layouts = plantLayoutForStage(getStage());
         for (int lane = 1; lane <= board.getHeight(); lane++) {
             for (int column = 1; column <= RED_LINE_COLUMN; column++) {
                 placePlant(layouts[lane - 1][column - 1], column, lane);
@@ -323,8 +310,37 @@ public class IZombieGame extends MiniGameSession {
         }
     }
 
-    private String[][] stagePlantLayouts() {
-        if (getStage() == 1) {
+    /**
+     * Shared stage catalog used by both the local I, Zombie mode and the
+     * phase-three authoritative online mode.
+     */
+    public static List<ZombieOptionView> zombieOptionsForStage(int requestedStage) {
+        int stage = Math.max(1, Math.min(3, requestedStage));
+        if (stage == 1) {
+            return List.of(
+                    new ZombieOptionView("Default", 50, 0, 0),
+                    new ZombieOptionView("cone head", 75, 0, 0),
+                    new ZombieOptionView("Imp", 50, 0, 0)
+            );
+        }
+        if (stage == 2) {
+            return List.of(
+                    new ZombieOptionView("bucket head", 125, 0, 0),
+                    new ZombieOptionView("Ra", 100, 0, 0),
+                    new ZombieOptionView("Explorer", 125, 0, 0)
+            );
+        }
+        return List.of(
+                new ZombieOptionView("Allstar", 225, 0, 0),
+                new ZombieOptionView("Wizard", 175, 0, 0),
+                new ZombieOptionView("Prospector", 100, 0, 0),
+                new ZombieOptionView("Gargantuar", 350, 0, 0)
+        );
+    }
+
+    public static String[][] plantLayoutForStage(int requestedStage) {
+        int stage = Math.max(1, Math.min(3, requestedStage));
+        if (stage == 1) {
             return new String[][]{
                     {"Sunflower", "Peashooter", "Wall-nut", "Peashooter", "Wall-nut", "Peashooter"},
                     {"Sunflower", "Peashooter", "Peashooter", "Wall-nut", "Peashooter", "Wall-nut"},
@@ -333,7 +349,7 @@ public class IZombieGame extends MiniGameSession {
                     {"Sunflower", "Peashooter", "Wall-nut", "Peashooter", "Wall-nut", "Peashooter"}
             };
         }
-        if (getStage() == 2) {
+        if (stage == 2) {
             return new String[][]{
                     {"Sunflower", "Peashooter", "Repeater", "Snow Pea", "Wall-nut", "Tall-nut"},
                     {"Sunflower", "Repeater", "Wall-nut", "Snow Pea", "Repeater", "Tall-nut"},
