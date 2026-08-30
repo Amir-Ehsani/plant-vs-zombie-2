@@ -3,7 +3,6 @@ package screens;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Screen;
 import com.badlogic.gdx.scenes.scene2d.Stage;
-import com.badlogic.gdx.scenes.scene2d.actions.Actions;
 import com.badlogic.gdx.utils.ScreenUtils;
 import com.badlogic.gdx.utils.viewport.FitViewport;
 import com.pvz.Main;
@@ -12,8 +11,6 @@ import ui.NotificationManager;
 public abstract class BaseScreen implements Screen {
     public static final float WORLD_WIDTH = 1280f;
     public static final float WORLD_HEIGHT = 720f;
-    private static final float FADE_IN_SECONDS = 0.14f;
-
     protected final Main game;
     protected final Stage stage;
     protected final NotificationManager notificationManager;
@@ -28,9 +25,6 @@ public abstract class BaseScreen implements Screen {
     public void show() {
         Gdx.input.setInputProcessor(stage);
         notificationManager.activate();
-        stage.getRoot().getColor().a = 0f;
-        stage.getRoot().clearActions();
-        stage.getRoot().addAction(Actions.fadeIn(FADE_IN_SECONDS));
     }
 
     @Override
