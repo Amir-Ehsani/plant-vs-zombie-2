@@ -12,6 +12,7 @@ public class MenuButton extends TextButton {
 
     public MenuButton(String text, Skin skin, String styleName, Runnable action) {
         super(text == null ? "" : text, skin, styleName == null ? "green" : styleName);
+        UiMotion.enhanceButton(this);
         if (action != null) {
             addListener(new ClickListener() {
                 @Override
