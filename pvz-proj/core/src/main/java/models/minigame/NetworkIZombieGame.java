@@ -9,6 +9,7 @@ import models.engine.board.Board;
 import models.engine.board.Lane;
 import models.engine.board.Position;
 import models.engine.board.Tile;
+import models.engine.board.TileType;
 import network.client.NetworkManager;
 import network.client.NetworkMatchContext;
 import network.client.NetworkOperationResult;
@@ -405,6 +406,10 @@ public final class NetworkIZombieGame extends IZombieGame {
     }
 
     private void prepareMirrorBoard() {
+        // Reuse the exact Ancient Egypt level-one terrain base used by ordinary gameplay.
+        mirrorBoard.setTileType(new Position(5, 1), TileType.GRAVE);
+        mirrorBoard.setTileType(new Position(6, 3), TileType.GRAVE);
+        mirrorBoard.setTileType(new Position(4, 5), TileType.GRAVE);
         for (Lane lane : mirrorBoard.getLanes()) {
             lane.setContinueAfterBrainEaten(true);
             lane.getLawnMower().disable();
