@@ -119,7 +119,15 @@ public final class AdventureContentCatalog {
     ) {
         String chapter = AdventureLevelCatalog.normalizeChapterName(chapterName);
         if (levelNumber != AdventureLevelCatalog.BOSS_LEVEL) {
-            return broadChapterPlantPool(chapter, levelNumber, registry);
+            List<String> plants = broadChapterPlantPool(chapter, levelNumber, registry);
+            if (chapter.equals("ancient-egypt") && levelNumber == 2) {
+                for (String conveyorPlant : conveyorPlantNamesForLevel(chapter, levelNumber, registry)) {
+                    if (!containsIgnoreCase(plants, conveyorPlant)) {
+                        plants.add(conveyorPlant);
+                    }
+                }
+            }
+            return plants;
         }
         List<String> requested = switch (chapter) {
             case "ancient-egypt" -> ancientEgyptPlants(levelNumber);
