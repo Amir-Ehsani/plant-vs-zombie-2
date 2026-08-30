@@ -56,6 +56,10 @@ public final class EntityRenderSystem {
     private static final float ICE_BLOCK_SCALE = 0.47f;
     private static final float ARCADE_CABINET_SCALE = 0.50f;
     private static final float BARREL_SCALE = 0.48f;
+    private static final String OCTOPUS_PROJECTILE_PATH =
+        "768/FULL/EFFECTS/ZOMBIE_OCTOPUS_PROJECTILE/ZOMBIE_OCTOPUS_PROJECTILE.PAM";
+    private static final String WIZARD_LIGHTNING_PATH =
+        "768/FULL/EFFECTS/DARK_WIZARD_LIGHTNINGBOLT/DARK_WIZARD_LIGHTNINGBOLT.PAM";
     private final BoardGeometry geometry;
     private final PvzAnimationService animations;
     private final EntityAnimationRegistry registry;
@@ -128,6 +132,8 @@ public final class EntityRenderSystem {
         registry = new EntityAnimationRegistry(animations.getCatalog());
         preloadGraveAnimations();
         preloadInteractiveTerrainAnimations();
+        animations.preload(OCTOPUS_PROJECTILE_PATH);
+        animations.preload(WIZARD_LIGHTNING_PATH);
     }
 
     public void playPlantAction(PlantType type, Position position, String clip) {
