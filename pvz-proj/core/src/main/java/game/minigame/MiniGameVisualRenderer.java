@@ -141,12 +141,14 @@ public final class MiniGameVisualRenderer {
         this.boardRenderer = new BoardRenderer(geometry);
         this.animations = animations;
         this.uiAnimations = uiAnimations;
-        this.entityRenderer = new EntityRenderSystem(
-                geometry,
-                animations,
-                !(session instanceof IZombieGame),
-                session instanceof MatchThreeGame
-        );
+        this.entityRenderer = session instanceof NetworkIZombieGame
+                ? new EntityRenderSystem(geometry, animations, SeasonType.ANCIENT_EGYPT)
+                : new EntityRenderSystem(
+                        geometry,
+                        animations,
+                        !(session instanceof IZombieGame),
+                        session instanceof MatchThreeGame
+                );
         this.plantAnimationRegistry = new EntityAnimationRegistry(animations.getCatalog());
         this.packetPlantProfiles = new LinkedHashMap<>();
         this.projectileRenderer = new ProjectileRenderSystem(geometry, animations);
@@ -1202,7 +1204,8 @@ public final class MiniGameVisualRenderer {
 
     private String backgroundId(MiniGameSession currentSession) {
         if (currentSession instanceof NetworkIZombieGame) {
-            return "IMAGE_BACKGROUNDS_LUNAR_TEXTURE";
+            // Online mode deliberately uses the same Ancient Egypt level-one presentation base.
+            return "IMAGE_BACKGROUNDS_EGYPT_TEXTURE";
         }
         MiniGameType type = currentSession.getType();
         if (type == MiniGameType.VASEBREAKER) {
