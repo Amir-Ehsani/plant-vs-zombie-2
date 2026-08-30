@@ -25,14 +25,15 @@ import java.util.UUID;
 public final class AuthoritativeIZombieGame {
     public static final int ROWS = 5;
     public static final int COLUMNS = 9;
-    public static final int LAST_PLANT_COLUMN = 5;
+    public static final int LAST_PLANT_COLUMN = 6;
     public static final long DEFAULT_MATCH_DURATION_MILLIS = 120_000L;
 
     private static final double ZOMBIE_SPAWN_X = COLUMNS - 0.35;
     private static final double BRAIN_X = 0.08;
     private static final long PASSIVE_INCOME_INTERVAL_MILLIS = 5_000L;
     private static final int PLANT_PASSIVE_INCOME = 25;
-    private static final int ZOMBIE_PASSIVE_INCOME = 35;
+    private static final int ZOMBIE_PASSIVE_INCOME = 0;
+    private static final int SUNFLOWER_EAT_REWARD = 200;
 
     private static final Map<String, Integer> PLANT_COSTS;
     private static final Map<String, Integer> ZOMBIE_COSTS;
@@ -52,8 +53,8 @@ public final class AuthoritativeIZombieGame {
         zombieCosts.put("REGULAR", 50);
         zombieCosts.put("CONEHEAD", 75);
         zombieCosts.put("BUCKETHEAD", 125);
-        zombieCosts.put("FOOTBALL", 150);
-        zombieCosts.put("IMP", 40);
+        zombieCosts.put("FOOTBALL", 175);
+        zombieCosts.put("IMP", 50);
         ZOMBIE_COSTS = Collections.unmodifiableMap(zombieCosts);
 
         LinkedHashMap<String, PlantDefinition> plants = new LinkedHashMap<>();
@@ -112,6 +113,7 @@ public final class AuthoritativeIZombieGame {
         int stageBonus = (this.stage - 1) * 50;
         this.plantSun = 500 + stageBonus;
         this.zombieSun = 500 + stageBonus;
+        seedStartingDefense();
     }
 
     public static Map<String, Integer> plantCosts() { return PLANT_COSTS; }
@@ -319,8 +321,47 @@ public final class AuthoritativeIZombieGame {
     }
 
     private void removeDeadEntities() {
-        plantsByCell.values().removeIf(plant -> plant.health <= 0);
+        Iterator<Map.Entry<Integer, PlantUnit>> plantIterator = plantsByCell.entrySet().iterator();
+        while (plantIterator.hasNext()) {
+            PlantUnit plant = plantIterator.next().getValue();
+            if (plant.health > 0) continue;
+            if (plant.definition.sunAmount > 0) {
+                zombieSun += SUNFLOWER_EAT_REWARD;
+            }
+            plantIterator.remove();
+        }
         zombies.removeIf(zombie -> zombie.health <= 0);
+    }
+
+    private void seedStartingDefense() {
+        addSeedPlant("SUNFLOWER", 0, 1);
+        addSeedPlant("PEASHOOTER", 0, 3);
+        addSeedPlant("PEASHOOTER", 1, 2);
+        addSeedPlant("WALL_NUT", 1, 5);
+        addSeedPlant("SUNFLOWER", 2, 1);
+        addSeedPlant("SNOW_PEA", 2, 3);
+        addSeedPlant("REPEATER", 3, 2);
+        addSeedPlant("WALL_NUT", 3, 5);
+        addSeedPlant("SUNFLOWER", 4, 1);
+        addSeedPlant("PEASHOOTER", 4, 4);
+        if (stage >= 2) {
+            addSeedPlant("SUNFLOWER", 1, 0);
+            addSeedPlant("SNOW_PEA", 1, 4);
+            addSeedPlant("REPEATER", 4, 3);
+        }
+        if (stage >= 3) {
+            addSeedPlant("WALL_NUT", 0, 5);
+            addSeedPlant("REPEATER", 2, 4);
+            addSeedPlant("SNOW_PEA", 4, 5);
+        }
+    }
+
+    private void addSeedPlant(String type, int row, int column) {
+        PlantDefinition definition = PLANT_DEFINITIONS.get(type);
+        if (definition == null || !validRow(row) || column < 0 || column > LAST_PLANT_COLUMN) return;
+        int key = cellKey(row, column);
+        if (plantsByCell.containsKey(key)) return;
+        plantsByCell.put(key, new PlantUnit(id("p"), type, row, column, definition));
     }
 
     private ZombieUnit nearestZombieAhead(int row, double x) {
