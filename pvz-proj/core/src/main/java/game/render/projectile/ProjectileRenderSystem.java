@@ -1,4 +1,6 @@
 package game.render.projectile;
+import audio.AudioCue;
+import audio.AudioManager;
 import com.badlogic.gdx.graphics.g2d.Batch;
 import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Vector2;
@@ -31,6 +33,7 @@ public final class ProjectileRenderSystem {
     private static final float IMPACT_SECONDS = 0.55f;
     private static final float SHOT_STAGGER_SECONDS = 0.07f;
     private final BoardGeometry geometry;
+    private final AudioManager audioManager;
     private final PvzAnimationService animations;
     private final EntityAnimationRegistry entityAnimations;
     private final Map<Plant, Integer> previousAttackSerials = new IdentityHashMap<>();
@@ -42,11 +45,20 @@ public final class ProjectileRenderSystem {
         ProjectileVisualType.class
     );
     public ProjectileRenderSystem(BoardGeometry geometry, PvzAnimationService animations) {
+        this(geometry, animations, AudioManager.getActive());
+    }
+
+    public ProjectileRenderSystem(
+            BoardGeometry geometry,
+            PvzAnimationService animations,
+            AudioManager audioManager
+    ) {
         if (geometry == null || animations == null || animations.getCatalog() == null) {
             throw new IllegalArgumentException("Projectile renderer requires geometry and animations.");
         }
         this.geometry = geometry;
         this.animations = animations;
+        this.audioManager = audioManager;
         entityAnimations = new EntityAnimationRegistry(animations.getCatalog());
         loadDefinitions();
     }
@@ -189,6 +201,9 @@ public final class ProjectileRenderSystem {
         List<ZombieSnapshot> targets = resolveTargets(plant, visualTargetSnapshots(board));
         if (targets.isEmpty()) {
             return;
+        }
+        if (audioManager != null) {
+            audioManager.playPlantAttack(plant.getName());
         }
         int shots = Math.max(resolveShotCount(board, plant), targets.size());
         int targetIndex = 0;
@@ -520,6 +535,9 @@ public final class ProjectileRenderSystem {
             }
             Vector2 impactPosition = projectile.currentPosition(geometry);
             impacts.add(new ImpactVisual(projectile.type, projectile.definition, impactPosition));
+            if (audioManager != null) {
+                audioManager.play(AudioCue.PROJECTILE_HIT);
+            }
             iterator.remove();
         }
     }
