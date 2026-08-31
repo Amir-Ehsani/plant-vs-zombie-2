@@ -8,8 +8,10 @@ import models.core.plant.DefaultPlantRegistry;
 import models.core.plant.PlantRegistry;
 import models.core.plant.PlantType;
 import models.engine.board.Position;
+import models.minigame.CouchIZombieGame;
 import models.minigame.IZombieGame;
 import models.minigame.MatchThreeGame;
+import models.minigame.NetworkIZombieGame;
 import models.minigame.MiniGameSession;
 import models.minigame.MiniGameType;
 import models.minigame.VasebreakerGame;
@@ -57,6 +59,28 @@ abstract class TravelLogControllerMiniGameSupport extends TravelLogControllerQue
         }
 
         return enterMiniGame(type, stage);
+    }
+
+    public boolean enterNetworkIZombie(NetworkIZombieGame networkGame) {
+        return enterEgyptIZombie(networkGame, "Entered I, Zombie Online.");
+    }
+
+    public boolean enterCouchIZombie(CouchIZombieGame couchGame) {
+        return enterEgyptIZombie(couchGame, "Entered I, Zombie Couch Play.");
+    }
+
+    private boolean enterEgyptIZombie(MiniGameSession session, String message) {
+        if (getLoggedInUserOrFail() == null) {
+            return false;
+        }
+        if (session == null) {
+            return fail("I, Zombie session is unavailable.");
+        }
+        if (activeMiniGame != null && activeMiniGame.isRunning()) {
+            activeMiniGame = null;
+        }
+        activeMiniGame = session;
+        return success(message);
     }
 
     public boolean advanceMiniGameTime(int ticks) {

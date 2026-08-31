@@ -51,6 +51,7 @@ public class SettingsController {
         }
         if (!enabled) {
             user.disableDebugAdventureUnlockOverride();
+            user.disableDebugAllContentUnlocked();
         }
         user.getSettings().setDebugMode(enabled);
         saveAndSucceed("Debug mode updated.");
@@ -103,27 +104,34 @@ public class SettingsController {
         int zombiesUnlocked = 0;
 
         for (PlantType type : DefaultPlantRegistry.getInstance().getAllPlantTypes()) {
+            if (type == null || type.getName() == null || type.getName().isBlank()) {
+                continue;
+            }
             if (!collection.hasPlant(type.getName())) {
                 collection.addPlant(new PlantData(
                         type.getName(),
                         CollectionController.PLANT_PURCHASE_PRICE,
-                        false
+                        true
                 ));
             }
-            if (!collection.hasOwnedPlant(type.getName()) && collection.unlockPlant(type.getName())) {
+            if (collection.unlockPlant(type.getName())) {
                 plantsUnlocked++;
             }
         }
 
         for (ZombieType type : DefaultZombieRegistry.getInstance().getAllZombieTypes()) {
-            if (!collection.hasZombie(type.getName())) {
-                collection.addZombie(type.getName(), false);
+            if (type == null || type.getName() == null || type.getName().isBlank()) {
+                continue;
             }
-            if (!collection.hasOwnedZombie(type.getName()) && collection.unlockZombie(type.getName())) {
+            if (!collection.hasZombie(type.getName())) {
+                collection.addZombie(type.getName(), true);
+                zombiesUnlocked++;
+            } else if (collection.unlockZombie(type.getName())) {
                 zombiesUnlocked++;
             }
         }
 
+        user.enableDebugAllContentUnlocked();
         saveAndSucceed("Unlocked all plants and zombies. Plants: "
                 + plantsUnlocked + ", zombies: " + zombiesUnlocked + ".");
     }

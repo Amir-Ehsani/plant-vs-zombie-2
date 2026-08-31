@@ -170,6 +170,10 @@ abstract class GameControllerLevelSupport extends GameControllerStatusSupport {
         List<String> allowedPlants = AdventureContentCatalog.plantNamesForLevel(
                 chapterName, levelNumber, plantRegistry
         );
+        User user = authController == null ? null : authController.getLoggedInUser();
+        if (user != null && user.isDebugAllContentUnlocked()) {
+            allowedPlants = AdventureContentCatalog.allPlantNames(plantRegistry);
+        }
         List<String> allowedZombies = AdventureContentCatalog.zombieNamesForLevel(
                 chapterName, levelNumber, zombieRegistry
         );

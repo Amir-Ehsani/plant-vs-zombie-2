@@ -100,6 +100,10 @@ public class Lane {
         return brainEaten;
     }
 
+    /** Allows read-only network mirrors to project authoritative brain state. */
+    public void setBrainEaten(boolean brainEaten) {
+        this.brainEaten = brainEaten;
+    }
 
     public void setContinueAfterBrainEaten(boolean continueAfterBrainEaten) {
         this.continueAfterBrainEaten = continueAfterBrainEaten;

@@ -203,6 +203,11 @@ public class Zombie extends GameEntity {
         return hp;
     }
 
+    /** Keep the same zombie instance while mirroring an authoritative snapshot. */
+    public void syncNetworkHealth(int targetHealth) {
+        hp = Math.max(0, Math.min(maxHp, targetHealth));
+    }
+
     public int getMaxHp() {
         return maxHp;
     }

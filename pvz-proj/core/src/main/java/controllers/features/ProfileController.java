@@ -45,13 +45,10 @@ public class ProfileController {
             return;
         }
 
-        if (authController.usernameExists(newUsername)) {
-            fail("Username already exists.");
+        if (!authController.renameLoggedInUser(newUsername)) {
+            lastMessage = authController.getLastMessage();
             return;
         }
-
-        user.setUsername(newUsername);
-        authController.saveUsers();
         success("Username changed successfully.");
     }
 
@@ -118,8 +115,10 @@ public class ProfileController {
             return;
         }
 
-        authController.setUserPassword(user, newPassword);
-        authController.saveUsers();
+        if (!authController.changeLoggedInPassword(oldPassword, newPassword)) {
+            lastMessage = authController.getLastMessage();
+            return;
+        }
         success("Password changed successfully.");
     }
 

@@ -16,6 +16,8 @@ import controllers.features.ShopController;
 import controllers.features.SettingsController;
 import controllers.features.TravelLogController;
 import navigation.ScreenManager;
+import network.client.NetworkManager;
+import network.ui.NetworkCoordinator;
 import pvz.skin.PvzSkin;
 import ui.PvzAnimationService;
 
@@ -35,23 +37,27 @@ public class Main extends Game {
     private PvzAnimationService animationService;
     private AudioManager audioManager;
     private ScreenManager screenManager;
+    private NetworkManager networkManager;
+    private NetworkCoordinator networkCoordinator;
 
     @Override
     public void create() {
         skin = PvzSkin.get();
-        authController = new AuthController();
+        networkManager = new NetworkManager();
+        authController = new AuthController(networkManager);
         audioManager = new AudioManager(authController);
         mainMenuController = new MainMenuController(authController);
         gameController = new GameController(authController);
         profileController = new ProfileController(authController);
         newsController = new NewsController(authController);
-        leaderboardController = new LeaderboardController(authController);
+        leaderboardController = new LeaderboardController(authController, networkManager);
         collectionController = new CollectionController(authController);
         greenhouseController = new GreenhouseController(authController);
         shopController = new ShopController(authController);
         settingsController = new SettingsController(authController);
         travelLogController = new TravelLogController(authController);
         screenManager = new ScreenManager(this);
+        networkCoordinator = new NetworkCoordinator(this, networkManager);
         screenManager.showInitialScreen();
         if (audioManager != null) {
             audioManager.playMenuMusic();
@@ -80,6 +86,9 @@ public class Main extends Game {
         }
         if (audioManager != null) {
             audioManager.dispose();
+        }
+        if (networkManager != null) {
+            networkManager.close();
         }
         if (skin != null) {
             skin.dispose();
@@ -147,5 +156,13 @@ public class Main extends Game {
 
     public ScreenManager getScreenManager() {
         return screenManager;
+    }
+
+    public NetworkManager getNetworkManager() {
+        return networkManager;
+    }
+
+    public NetworkCoordinator getNetworkCoordinator() {
+        return networkCoordinator;
     }
 }

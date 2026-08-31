@@ -9,6 +9,7 @@ abstract class UserProgress extends UserIdentity {
     private boolean debugAdventureUnlockOverride;
     private String debugAdventureChapterName;
     private int debugAdventureChapterLevel;
+    private boolean debugAllContentUnlocked;
 
     protected UserProgress(String username, String password, String nickname, String email, String gender) {
         super(username, password, nickname, email, gender);
@@ -211,6 +212,18 @@ abstract class UserProgress extends UserIdentity {
         debugAdventureUnlockOverride = false;
         debugAdventureChapterName = "";
         debugAdventureChapterLevel = 1;
+    }
+
+    public boolean isDebugAllContentUnlocked() {
+        return debugAllContentUnlocked;
+    }
+
+    public void enableDebugAllContentUnlocked() {
+        debugAllContentUnlocked = true;
+    }
+
+    public void disableDebugAllContentUnlocked() {
+        debugAllContentUnlocked = false;
     }
 
     private void unlockAllAdventureChapters() {

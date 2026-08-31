@@ -182,6 +182,116 @@ public final class CompactSeedBank {
         return null;
     }
 
+    public void renderNetworkIZombie(
+            ShapeRenderer shapes,
+            Batch batch,
+            models.minigame.NetworkIZombieGame game,
+            float stateTime,
+            String selectedPlantName
+    ) {
+        if (game == null) {
+            return;
+        }
+        renderEgyptPlantBank(shapes, batch, game.getAvailablePlantOptions(), game.getSunAmount(),
+                stateTime, selectedPlantName);
+    }
+
+    public void renderEgyptPlantBank(
+            ShapeRenderer shapes,
+            Batch batch,
+            List<models.minigame.IZombieGame.PlantOptionView> options,
+            int sunAmount,
+            float stateTime,
+            String selectedPlantName
+    ) {
+        if (shapes == null || batch == null || options == null || options.isEmpty()) {
+            return;
+        }
+
+        shapes.begin(ShapeRenderer.ShapeType.Filled);
+        for (int index = 0; index < options.size() && index < MAX_VISIBLE_SLOTS; index++) {
+            models.minigame.IZombieGame.PlantOptionView option = options.get(index);
+            float y = staticSlotY(index);
+            boolean ready = option.cooldownMillis() <= 0L && sunAmount >= option.sunCost();
+            boolean selected = isSelected(option.plantName(), selectedPlantName);
+            shapes.setColor(selected ? SELECTED_BORDER : ready ? READY_BORDER : COOLDOWN_BORDER);
+            shapes.rect(BANK_X, y, SLOT_WIDTH, SLOT_HEIGHT);
+            shapes.setColor(SLOT_COLOR);
+            shapes.rect(
+                    BANK_X + SLOT_INSET, y + SLOT_INSET,
+                    SLOT_WIDTH - SLOT_INSET * 2f, SLOT_HEIGHT - SLOT_INSET * 2f
+            );
+        }
+        shapes.end();
+
+        batch.begin();
+        for (int index = 0; index < options.size() && index < MAX_VISIBLE_SLOTS; index++) {
+            models.minigame.IZombieGame.PlantOptionView option = options.get(index);
+            EntityAnimationProfile profile = profileForZombotany(option.plantName());
+            if (profile != null) {
+                String clip = profile.firstClip("idle", "play", "walk");
+                animations.draw(
+                        batch, profile.getPath(), clip, stateTime,
+                        BANK_X + SLOT_WIDTH * 0.50f,
+                        staticSlotY(index) + PLANT_Y_OFFSET,
+                        profile.getScale() * COMPACT_SCALE_MULTIPLIER, true
+                );
+            }
+        }
+        Color previousFontColor = new Color(font.getColor());
+        font.setColor(TEXT_COLOR);
+        for (int index = 0; index < options.size() && index < MAX_VISIBLE_SLOTS; index++) {
+            models.minigame.IZombieGame.PlantOptionView option = options.get(index);
+            font.draw(batch, String.valueOf(option.sunCost()),
+                    BANK_X + SLOT_WIDTH - 28f, staticSlotY(index) + 19f);
+        }
+        font.setColor(previousFontColor);
+        batch.end();
+
+        shapes.begin(ShapeRenderer.ShapeType.Filled);
+        shapes.setColor(COOLDOWN_SHADE);
+        for (int index = 0; index < options.size() && index < MAX_VISIBLE_SLOTS; index++) {
+            models.minigame.IZombieGame.PlantOptionView option = options.get(index);
+            if (option.cooldownMillis() <= 0L) {
+                continue;
+            }
+            float total = Math.max(1f, option.cooldownMillis());
+            PlantType type = DefaultPlantRegistry.getInstance().getByName(option.plantName());
+            if (type != null && type.getRecharge() > 0) {
+                total = Math.max(total, type.getRecharge() * 100f);
+            }
+            float ratio = MathUtils.clamp(option.cooldownMillis() / total, 0f, 1f);
+            float innerHeight = SLOT_HEIGHT - SLOT_INSET * 2f;
+            float darkHeight = innerHeight * ratio;
+            float brightHeight = innerHeight - darkHeight;
+            shapes.rect(
+                    BANK_X + SLOT_INSET, staticSlotY(index) + SLOT_INSET + brightHeight,
+                    SLOT_WIDTH - SLOT_INSET * 2f, darkHeight
+            );
+        }
+        shapes.end();
+    }
+
+    public String findNetworkPlantAt(models.minigame.NetworkIZombieGame game, float x, float y) {
+        if (game == null) {
+            return null;
+        }
+        return findEgyptPlantAt(game.getAvailablePlantOptions(), x, y);
+    }
+
+    public String findEgyptPlantAt(List<models.minigame.IZombieGame.PlantOptionView> options, float x, float y) {
+        if (options == null || x < BANK_X || x > BANK_X + SLOT_WIDTH) {
+            return null;
+        }
+        for (int index = 0; index < options.size() && index < MAX_VISIBLE_SLOTS; index++) {
+            float slotY = staticSlotY(index);
+            if (y >= slotY && y <= slotY + SLOT_HEIGHT) {
+                return options.get(index).plantName();
+            }
+        }
+        return null;
+    }
+
     private EntityAnimationProfile profileForZombotany(String plantName) {
         EntityAnimationProfile cached = profiles.get(plantName);
         if (cached != null) {

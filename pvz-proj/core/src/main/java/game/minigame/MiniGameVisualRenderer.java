@@ -24,8 +24,10 @@ import models.engine.board.Board;
 import models.engine.board.Lane;
 import models.engine.board.Position;
 import models.level.core.SeasonType;
+import models.minigame.CouchIZombieGame;
 import models.minigame.IZombieGame;
 import models.minigame.MatchThreeGame;
+import models.minigame.NetworkIZombieGame;
 import models.minigame.MiniGameSession;
 import models.minigame.MiniGameType;
 import models.minigame.VasebreakerGame;
@@ -96,6 +98,8 @@ public final class MiniGameVisualRenderer {
     private final TextureRegion backgroundRight;
     private final TextureRegion brainImage;
     private final TextureRegion sunImage;
+    private final String sunAnimationPath;
+    private final String sunClip;
     private final String normalSunAnimationPath;
     private final String normalSunAnimationClip;
     private final TextureRegion conveyorBelt;
@@ -142,34 +146,49 @@ public final class MiniGameVisualRenderer {
         this.boardRenderer = new BoardRenderer(geometry);
         this.animations = animations;
         this.uiAnimations = uiAnimations;
-        this.entityRenderer = new EntityRenderSystem(
-                geometry,
-                animations,
-                !(session instanceof IZombieGame),
-                session instanceof MatchThreeGame
-        );
+        this.entityRenderer = isNetworkLawn(session)
+                ? new EntityRenderSystem(geometry, animations, SeasonType.ANCIENT_EGYPT)
+                : new EntityRenderSystem(
+                        geometry,
+                        animations,
+                        !(session instanceof IZombieGame),
+                        session instanceof MatchThreeGame
+                );
         this.plantAnimationRegistry = new EntityAnimationRegistry(animations.getCatalog());
         this.packetPlantProfiles = new LinkedHashMap<>();
         this.projectileRenderer = new ProjectileRenderSystem(geometry, animations);
         this.mowerRenderer = new LawnMowerRenderSystem(geometry, animations, SeasonType.ANCIENT_EGYPT);
         this.worldHeight = worldHeight;
-        String backgroundId = backgroundId(session.getType());
-        background = animations.region(backgroundId);
-        backgroundLeft = animations.region(backgroundId + "_LEFT");
-        backgroundRight = animations.region(backgroundId + "_RIGHT");
+        String backgroundId = backgroundId(session);
+        TextureRegion resolvedBackground = animations.region(backgroundId);
+        TextureRegion resolvedBackgroundLeft = animations.region(backgroundId + "_LEFT");
+        TextureRegion resolvedBackgroundRight = animations.region(backgroundId + "_RIGHT");
+        if (resolvedBackground == null && isNetworkLawn(session)) {
+            backgroundId = "IMAGE_BACKGROUNDS_EGYPT_TEXTURE";
+            resolvedBackground = animations.region(backgroundId);
+            resolvedBackgroundLeft = animations.region(backgroundId + "_LEFT");
+            resolvedBackgroundRight = animations.region(backgroundId + "_RIGHT");
+        }
+        background = resolvedBackground;
+        backgroundLeft = resolvedBackgroundLeft;
+        backgroundRight = resolvedBackgroundRight;
         brainImage = animations.region("IMAGE_UI_CALENDAR_TIMER_DECO_BIGBRAINZ");
         sunImage = animations.region("IMAGE_EFFECTS_SUN_SUN_110X110");
-        AnimationDefinition normalSun = animations.getCatalog().findByName("SUN", null);
-        if (normalSun == null) {
-            normalSunAnimationPath = null;
-            normalSunAnimationClip = null;
-        } else {
-            normalSunAnimationPath = normalSun.getPath();
-            normalSunAnimationClip = normalSun.hasClip("animation")
+        AnimationDefinition sunDefinition = animations.getCatalog() == null
+                ? null
+                : animations.getCatalog().findByName("SUN", null);
+        if (sunDefinition != null) {
+            sunAnimationPath = sunDefinition.getPath();
+            sunClip = sunDefinition.hasClip("animation")
                     ? "animation"
-                    : normalSun.getClips().isEmpty() ? null : normalSun.getClips().iterator().next();
-            animations.preload(normalSunAnimationPath);
+                    : (sunDefinition.getClips().isEmpty() ? null : sunDefinition.getClips().iterator().next());
+            animations.preload(sunAnimationPath);
+        } else {
+            sunAnimationPath = null;
+            sunClip = null;
         }
+        normalSunAnimationPath = sunAnimationPath;
+        normalSunAnimationClip = sunClip;
         conveyorBelt = animations.region("IMAGE_UI_CONVEYOR_CONVEYOR_BELT");
         conveyorTop = animations.region("IMAGE_UI_CONVEYOR_CONVEYOR_TOP");
         conveyorSide = animations.region("IMAGE_UI_CONVEYOR_CONVEYOR_SIDE");
@@ -436,6 +455,9 @@ public final class MiniGameVisualRenderer {
         if (session instanceof IZombieGame game) {
             drawBrains(batch, shapes, game);
             drawSunDrops(batch, game, stateTime);
+            if (game instanceof NetworkIZombieGame networkGame) {
+                drawNetworkProjectiles(batch, networkGame);
+            }
             return;
         }
         if (session instanceof ZombotanyGame game) {
@@ -942,6 +964,20 @@ public final class MiniGameVisualRenderer {
         }
     }
 
+    private void drawNetworkProjectiles(Batch batch, NetworkIZombieGame game) {
+        if (peaImage == null || game == null) {
+            return;
+        }
+        batch.begin();
+        for (NetworkIZombieGame.NetworkProjectileView projectile : game.getNetworkProjectiles()) {
+            Vector2 position = geometry.entityToScreen(projectile.x(), projectile.row());
+            float height = 28f;
+            float width = height * peaImage.getRegionWidth() / (float) peaImage.getRegionHeight();
+            batch.draw(peaImage, position.x - width * 0.5f, position.y - height * 0.5f, width, height);
+        }
+        batch.end();
+    }
+
     private void updateSmoothNuts(float delta, WallNutBowlingGame game) {
         Set<Integer> activeIds = new HashSet<>();
         float alpha = 1f - (float) Math.exp(-15f * Math.max(0f, delta));
@@ -1029,7 +1065,7 @@ public final class MiniGameVisualRenderer {
 
     private void drawSunDrops(Batch batch, IZombieGame game, float stateTime) {
         sunDropBounds.clear();
-        if (sunImage == null) {
+        if (sunAnimationPath == null && sunImage == null) {
             return;
         }
         batch.begin();
@@ -1041,21 +1077,27 @@ public final class MiniGameVisualRenderer {
             float bounce = fallProgress >= 0.78f && fallProgress < 1f
                     ? 5f * (float) Math.sin((fallProgress - 0.78f) / 0.22f * Math.PI)
                     : 0f;
-            float alpha = age <= SUN_FULL_VISIBLE_TIME
-                    ? 1f
-                    : 1f - MathUtils.clamp(
-                            (age - SUN_FULL_VISIBLE_TIME) / SUN_FADE_DURATION,
-                            0f,
-                            1f
-                    );
             float pulse = 1f + 0.05f * (float) Math.sin(stateTime * 7f + drop.id());
             float size = SUN_BASE_SIZE * pulse;
             float x = basePosition.x - size / 2f;
             float y = basePosition.y + fallOffset - bounce - size / 2f;
             Rectangle bounds = new Rectangle(x, y, size, size);
             sunDropBounds.put(drop.id(), bounds);
-            batch.setColor(1f, 1f, 1f, alpha);
-            batch.draw(sunImage, bounds.x, bounds.y, bounds.width, bounds.height);
+            batch.setColor(Color.WHITE);
+            if (sunAnimationPath != null && sunClip != null) {
+                animations.draw(
+                        batch,
+                        sunAnimationPath,
+                        sunClip,
+                        stateTime + drop.id() * 0.13f,
+                        bounds.x + bounds.width / 2f,
+                        bounds.y + bounds.height / 2f,
+                        0.64f * pulse,
+                        true
+                );
+            } else if (sunImage != null) {
+                batch.draw(sunImage, bounds.x, bounds.y, bounds.width, bounds.height);
+            }
         }
         batch.setColor(Color.WHITE);
         batch.end();
@@ -1178,7 +1220,11 @@ public final class MiniGameVisualRenderer {
         return ((ZombotanyGame) session).getBoard();
     }
 
-    private String backgroundId(MiniGameType type) {
+    private String backgroundId(MiniGameSession currentSession) {
+        if (isNetworkLawn(currentSession)) {
+            return "IMAGE_BACKGROUNDS_LUNAR_TEXTURE";
+        }
+        MiniGameType type = currentSession.getType();
         if (type == MiniGameType.VASEBREAKER) {
             return "IMAGE_BACKGROUNDS_BACKGROUND_LOD_BIRTHDAY_TEXTURE";
         }
@@ -1192,6 +1238,10 @@ public final class MiniGameVisualRenderer {
             return "IMAGE_BACKGROUNDS_EGYPT_TEXTURE";
         }
         return "IMAGE_BACKGROUNDS_FRONTLAWN_TEXTURE";
+    }
+
+    private static boolean isNetworkLawn(MiniGameSession currentSession) {
+        return currentSession instanceof NetworkIZombieGame || currentSession instanceof CouchIZombieGame;
     }
 
     private float scaledHeight(TextureRegion region, float targetWidth) {

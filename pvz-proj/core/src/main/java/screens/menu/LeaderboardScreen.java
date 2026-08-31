@@ -6,7 +6,6 @@ import com.badlogic.gdx.scenes.scene2d.ui.Table;
 import com.badlogic.gdx.utils.Align;
 import com.pvz.Main;
 import controllers.features.LeaderboardController;
-import models.account.User;
 import ui.BackButton;
 import ui.MenuButton;
 
@@ -57,10 +56,10 @@ public class LeaderboardScreen extends BaseMenuScreen {
     private void refreshRows() {
         rowsTable.clearChildren();
         addHeaders();
-        List<User> users = controller.getRankedUsers(sortColumn, ascending);
+        List<LeaderboardController.LeaderboardEntry> entries = controller.getEntries(sortColumn, ascending);
         int rank = 1;
-        for (User user : users) {
-            addUserRow(rank, user);
+        for (LeaderboardController.LeaderboardEntry entry : entries) {
+            addUserRow(rank, entry);
             rank++;
         }
     }
@@ -88,14 +87,14 @@ public class LeaderboardScreen extends BaseMenuScreen {
         rowsTable.add(button).width(width).height(40f).center();
     }
 
-    private void addUserRow(int rank, User user) {
+    private void addUserRow(int rank, LeaderboardController.LeaderboardEntry entry) {
         addValue(String.valueOf(rank), 42f);
-        addValue(user.getUsername(), 145f);
-        addValue(controller.getLastProgress(user), 175f);
-        addValue(String.valueOf(controller.getCompletedMiniGameCount(user)), 110f);
-        addValue(String.valueOf(controller.getDailyQuestCount(user)), 120f);
-        addValue(String.valueOf(controller.getNonDailyQuestCount(user)), 120f);
-        addValue(String.valueOf(user.getBestMioPoint()), 130f);
+        addValue(entry.username(), 145f);
+        addValue(entry.progress(), 175f);
+        addValue(String.valueOf(entry.miniGames()), 110f);
+        addValue(String.valueOf(entry.dailyQuests()), 120f);
+        addValue(String.valueOf(entry.otherQuests()), 120f);
+        addValue(entry.myPoint() == null ? "-" : String.valueOf(entry.myPoint()), 130f);
         rowsTable.row();
     }
 

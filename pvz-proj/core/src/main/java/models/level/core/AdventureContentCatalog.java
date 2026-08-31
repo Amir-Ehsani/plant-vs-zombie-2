@@ -112,6 +112,19 @@ public final class AdventureContentCatalog {
     }
 
 
+    public static List<String> allPlantNames(PlantRegistry registry) {
+        List<String> names = new ArrayList<>();
+        if (registry == null) {
+            return names;
+        }
+        for (PlantType type : registry.getAllPlantTypes()) {
+            if (type != null && type.getName() != null && !type.getName().isBlank()) {
+                names.add(type.getName());
+            }
+        }
+        return names;
+    }
+
     public static List<String> plantNamesForLevel(
             String chapterName,
             int levelNumber,

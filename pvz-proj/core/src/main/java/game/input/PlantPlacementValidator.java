@@ -66,7 +66,7 @@ public final class PlantPlacementValidator {
         if (!conveyorPlant && !isUnlocked(type.getName())) {
             return InteractionValidation.invalid("Plant is locked in your collection.");
         }
-        if (level != null && !level.isPlantAllowed(type.getName())) {
+        if (level != null && !level.isPlantAllowed(type.getName()) && !session.isPlantSelected(type.getName())) {
             return InteractionValidation.invalid("Plant is locked or unavailable in this level.");
         }
         return InteractionValidation.valid();
