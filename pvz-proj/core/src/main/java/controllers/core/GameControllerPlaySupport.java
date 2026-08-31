@@ -111,7 +111,7 @@ abstract class GameControllerPlaySupport extends GameControllerDisplaySupport {
             fail("Plant is locked in your collection.");
             return null;
         }
-        if (level != null && !level.isPlantAllowed(type.getName())) {
+        if (level != null && !level.isPlantAllowed(type.getName()) && !gameSession.isPlantSelected(type.getName())) {
             fail("Plant is locked or unavailable in this level.");
             return null;
         }

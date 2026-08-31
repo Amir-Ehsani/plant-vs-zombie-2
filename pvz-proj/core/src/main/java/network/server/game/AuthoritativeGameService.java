@@ -18,6 +18,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -39,6 +40,11 @@ public final class AuthoritativeGameService implements AutoCloseable {
     private final AtomicBoolean started = new AtomicBoolean();
     private final ScheduledExecutorService ticker = Executors.newSingleThreadScheduledExecutor(runnable -> {
         Thread thread = new Thread(runnable, "pvz-authoritative-game");
+        thread.setDaemon(true);
+        return thread;
+    });
+    private final ExecutorService outbound = Executors.newSingleThreadExecutor(runnable -> {
+        Thread thread = new Thread(runnable, "pvz-authoritative-outbound");
         thread.setDaemon(true);
         return thread;
     });
@@ -146,10 +152,12 @@ public final class AuthoritativeGameService implements AutoCloseable {
     }
 
     private void tickAll() {
-        try {
-            long now = System.currentTimeMillis();
-            for (RunningMatch running : new ArrayList<>(runningMatches.values())) {
-                if (runningMatches.get(running.ticket.getMatchId()) != running) continue;
+        long now = System.currentTimeMillis();
+        for (RunningMatch running : new ArrayList<>(runningMatches.values())) {
+            if (runningMatches.get(running.ticket.getMatchId()) != running) {
+                continue;
+            }
+            try {
                 long previous = running.lastTickAt;
                 running.lastTickAt = now;
                 long delta = previous <= 0L ? TICK_MILLIS : Math.max(1L, Math.min(250L, now - previous));
@@ -161,10 +169,10 @@ public final class AuthoritativeGameService implements AutoCloseable {
                     broadcastSnapshot(running, snapshot);
                     running.lastSnapshotBroadcastAt = now;
                 }
+            } catch (Throwable throwable) {
+                server.log("authoritative game tick failed for " + running.ticket.getMatchId()
+                        + ": " + throwable.getClass().getSimpleName() + ": " + throwable.getMessage());
             }
-        } catch (Throwable throwable) {
-            server.log("authoritative game tick failed: " + throwable.getClass().getSimpleName()
-                    + ": " + throwable.getMessage());
         }
     }
 
@@ -237,17 +245,29 @@ public final class AuthoritativeGameService implements AutoCloseable {
         return result;
     }
 
-    private static void sendQuietly(ClientConnection connection, NetworkMessage message) {
-        if (connection == null || !connection.isOpen()) return;
-        try { connection.send(message); }
-        catch (IOException ignored) { }
+    private void sendQuietly(ClientConnection connection, NetworkMessage message) {
+        if (connection == null || !connection.isOpen()) {
+            return;
+        }
+        try {
+            outbound.execute(() -> {
+                try {
+                    connection.send(message);
+                } catch (IOException ignored) {
+                }
+            });
+        } catch (RuntimeException ignored) {
+        }
     }
 
     @Override
     public void close() {
         runningMatches.clear();
         ticker.shutdownNow();
+        outbound.shutdownNow();
         try { ticker.awaitTermination(1, TimeUnit.SECONDS); }
+        catch (InterruptedException interrupted) { Thread.currentThread().interrupt(); }
+        try { outbound.awaitTermination(1, TimeUnit.SECONDS); }
         catch (InterruptedException interrupted) { Thread.currentThread().interrupt(); }
     }
 

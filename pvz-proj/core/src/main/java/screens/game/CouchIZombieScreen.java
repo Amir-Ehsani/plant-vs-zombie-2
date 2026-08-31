@@ -51,7 +51,7 @@ public final class CouchIZombieScreen extends BaseScreen {
         Table header = new Table();
         Label title = new Label("I, ZOMBIE - COUCH PLAY", game.getSkin(), "big_outline");
         title.setColor(Color.WHITE);
-        timerLabel = new Label("02:00", game.getSkin(), "medium_outline");
+        timerLabel = new Label("10:00", game.getSkin(), "medium_outline");
         timerLabel.setColor(Color.WHITE);
         resourcesLabel = new Label("", game.getSkin(), "secondary");
         resourcesLabel.setColor(Color.WHITE);

@@ -28,7 +28,7 @@ public final class NetworkManager implements AutoCloseable {
 
     private final PvZNetworkClient client = new PvZNetworkClient();
     private final NetworkProfileCodec profileCodec = new NetworkProfileCodec();
-    private final ExecutorService io = Executors.newFixedThreadPool(3, runnable -> {
+    private final ExecutorService io = Executors.newSingleThreadExecutor(runnable -> {
         Thread thread = new Thread(runnable, "pvz-network-io");
         thread.setDaemon(true);
         return thread;
@@ -447,9 +447,16 @@ public final class NetworkManager implements AutoCloseable {
         }
     }
 
-    private NetworkResponse call(NetworkMessage request, boolean authenticated) {
+    private synchronized NetworkResponse call(NetworkMessage request, boolean authenticated) {
         if (!ensureConnected()) return NetworkResponse.failure(lastError);
         if (authenticated && !client.isAuthenticated()) {
+            if (authenticatedUsername != null && !authenticatedUsername.isBlank()) {
+                NetworkSessionStore.SavedSession saved = NetworkSessionStore.load();
+                if (saved == null || !authenticatedUsername.equalsIgnoreCase(saved.username)) {
+                    return NetworkResponse.failure("connection dropped; sign in again as "
+                            + authenticatedUsername);
+                }
+            }
             NetworkAuthResult restored = resumeSavedSession();
             if (!restored.successful()) {
                 return NetworkResponse.failure("login with the server before using this feature ("

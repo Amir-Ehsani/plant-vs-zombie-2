@@ -96,10 +96,8 @@ public final class PvZNetworkClient implements AutoCloseable {
             send(request);
             return future.get(Math.max(250L, timeoutMillis), TimeUnit.MILLISECONDS);
         } catch (TimeoutException exception) {
-            // A TCP socket can remain in ESTABLISHED state long after the remote process
-            // or network path has disappeared. Treat an unanswered correlated request as
-            // a dead transport so the next high-level operation can reconnect cleanly.
-            disconnected("server response timed out");
+            // Never close the socket because one RPC was slow. Match snapshots keep the
+            // reader alive; tearing down here is what dropped local two-client games.
             throw new IOException("server response timed out", exception);
         } finally {
             pending.remove(request.getRequestId(), future);
@@ -112,8 +110,8 @@ public final class PvZNetworkClient implements AutoCloseable {
         if (sessionToken != null && message.getSessionToken() == null) message.sessionToken(sessionToken);
         try {
             output.writeObject(message);
-            output.flush();
             output.reset();
+            output.flush();
             lastSentAtEpochMillis = System.currentTimeMillis();
         } catch (IOException exception) {
             disconnected("connection write failed: " + readable(exception));

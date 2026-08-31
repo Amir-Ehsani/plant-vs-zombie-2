@@ -270,6 +270,9 @@ public class IZombieGame extends MiniGameSession {
     public record ZombieOptionView(String zombieName, int sunCost, int remainingRechargeTicks, int rechargeTicks) {
     }
 
+    public record PlantOptionView(String plantName, int sunCost, long cooldownMillis) {
+    }
+
     public record SunDropView(int id, int amount, double x, double y, int remainingTicks) {
     }
 

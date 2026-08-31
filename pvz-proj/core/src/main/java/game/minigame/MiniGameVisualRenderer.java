@@ -24,6 +24,7 @@ import models.engine.board.Board;
 import models.engine.board.Lane;
 import models.engine.board.Position;
 import models.level.core.SeasonType;
+import models.minigame.CouchIZombieGame;
 import models.minigame.IZombieGame;
 import models.minigame.MatchThreeGame;
 import models.minigame.NetworkIZombieGame;
@@ -97,6 +98,8 @@ public final class MiniGameVisualRenderer {
     private final TextureRegion backgroundRight;
     private final TextureRegion brainImage;
     private final TextureRegion sunImage;
+    private final String sunAnimationPath;
+    private final String sunClip;
     private final TextureRegion conveyorBelt;
     private final TextureRegion conveyorTop;
     private final TextureRegion conveyorSide;
@@ -141,7 +144,7 @@ public final class MiniGameVisualRenderer {
         this.boardRenderer = new BoardRenderer(geometry);
         this.animations = animations;
         this.uiAnimations = uiAnimations;
-        this.entityRenderer = session instanceof NetworkIZombieGame
+        this.entityRenderer = isNetworkLawn(session)
                 ? new EntityRenderSystem(geometry, animations, SeasonType.ANCIENT_EGYPT)
                 : new EntityRenderSystem(
                         geometry,
@@ -158,7 +161,7 @@ public final class MiniGameVisualRenderer {
         TextureRegion resolvedBackground = animations.region(backgroundId);
         TextureRegion resolvedBackgroundLeft = animations.region(backgroundId + "_LEFT");
         TextureRegion resolvedBackgroundRight = animations.region(backgroundId + "_RIGHT");
-        if (resolvedBackground == null && session instanceof NetworkIZombieGame) {
+        if (resolvedBackground == null && isNetworkLawn(session)) {
             backgroundId = "IMAGE_BACKGROUNDS_EGYPT_TEXTURE";
             resolvedBackground = animations.region(backgroundId);
             resolvedBackgroundLeft = animations.region(backgroundId + "_LEFT");
@@ -169,6 +172,19 @@ public final class MiniGameVisualRenderer {
         backgroundRight = resolvedBackgroundRight;
         brainImage = animations.region("IMAGE_UI_CALENDAR_TIMER_DECO_BIGBRAINZ");
         sunImage = animations.region("IMAGE_EFFECTS_SUN_SUN_110X110");
+        AnimationDefinition sunDefinition = animations.getCatalog() == null
+                ? null
+                : animations.getCatalog().findByName("SUN", null);
+        if (sunDefinition != null) {
+            sunAnimationPath = sunDefinition.getPath();
+            sunClip = sunDefinition.hasClip("animation")
+                    ? "animation"
+                    : (sunDefinition.getClips().isEmpty() ? null : sunDefinition.getClips().iterator().next());
+            animations.preload(sunAnimationPath);
+        } else {
+            sunAnimationPath = null;
+            sunClip = null;
+        }
         conveyorBelt = animations.region("IMAGE_UI_CONVEYOR_CONVEYOR_BELT");
         conveyorTop = animations.region("IMAGE_UI_CONVEYOR_CONVEYOR_TOP");
         conveyorSide = animations.region("IMAGE_UI_CONVEYOR_CONVEYOR_SIDE");
@@ -1063,7 +1079,7 @@ public final class MiniGameVisualRenderer {
 
     private void drawSunDrops(Batch batch, IZombieGame game, float stateTime) {
         sunDropBounds.clear();
-        if (sunImage == null) {
+        if (sunAnimationPath == null && sunImage == null) {
             return;
         }
         batch.begin();
@@ -1075,21 +1091,27 @@ public final class MiniGameVisualRenderer {
             float bounce = fallProgress >= 0.78f && fallProgress < 1f
                     ? 5f * (float) Math.sin((fallProgress - 0.78f) / 0.22f * Math.PI)
                     : 0f;
-            float alpha = age <= SUN_FULL_VISIBLE_TIME
-                    ? 1f
-                    : 1f - MathUtils.clamp(
-                            (age - SUN_FULL_VISIBLE_TIME) / SUN_FADE_DURATION,
-                            0f,
-                            1f
-                    );
             float pulse = 1f + 0.05f * (float) Math.sin(stateTime * 7f + drop.id());
             float size = SUN_BASE_SIZE * pulse;
             float x = basePosition.x - size / 2f;
             float y = basePosition.y + fallOffset - bounce - size / 2f;
             Rectangle bounds = new Rectangle(x, y, size, size);
             sunDropBounds.put(drop.id(), bounds);
-            batch.setColor(1f, 1f, 1f, alpha);
-            batch.draw(sunImage, bounds.x, bounds.y, bounds.width, bounds.height);
+            batch.setColor(Color.WHITE);
+            if (sunAnimationPath != null && sunClip != null) {
+                animations.draw(
+                        batch,
+                        sunAnimationPath,
+                        sunClip,
+                        stateTime + drop.id() * 0.13f,
+                        bounds.x + bounds.width / 2f,
+                        bounds.y + bounds.height / 2f,
+                        0.64f * pulse,
+                        true
+                );
+            } else if (sunImage != null) {
+                batch.draw(sunImage, bounds.x, bounds.y, bounds.width, bounds.height);
+            }
         }
         batch.setColor(Color.WHITE);
         batch.end();
@@ -1203,9 +1225,8 @@ public final class MiniGameVisualRenderer {
     }
 
     private String backgroundId(MiniGameSession currentSession) {
-        if (currentSession instanceof NetworkIZombieGame) {
-            // Online mode deliberately uses the same Ancient Egypt level-one presentation base.
-            return "IMAGE_BACKGROUNDS_EGYPT_TEXTURE";
+        if (isNetworkLawn(currentSession)) {
+            return "IMAGE_BACKGROUNDS_LUNAR_TEXTURE";
         }
         MiniGameType type = currentSession.getType();
         if (type == MiniGameType.VASEBREAKER) {
@@ -1221,6 +1242,10 @@ public final class MiniGameVisualRenderer {
             return "IMAGE_BACKGROUNDS_EGYPT_TEXTURE";
         }
         return "IMAGE_BACKGROUNDS_FRONTLAWN_TEXTURE";
+    }
+
+    private static boolean isNetworkLawn(MiniGameSession currentSession) {
+        return currentSession instanceof NetworkIZombieGame || currentSession instanceof CouchIZombieGame;
     }
 
     private float scaledHeight(TextureRegion region, float targetWidth) {

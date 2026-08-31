@@ -54,14 +54,17 @@ public final class ClientConnection implements Runnable, AutoCloseable {
                     send(NetworkMessage.of(MessageType.ERROR).put("message", "wire payload must be NetworkMessage"));
                     server.log("invalid payload from " + getRemoteAddress() + ": "
                             + (item == null ? "null" : item.getClass().getName()));
-                    break;
+                    continue;
                 }
 
                 NetworkMessage response = dispatcher.dispatch(this, request);
                 if (response != null) send(response);
             }
-        } catch (EOFException | SocketException exception) {
-            // Normal disconnects and shutdowns reach this path.
+        } catch (EOFException exception) {
+            server.log("client EOF: " + getRemoteAddress());
+        } catch (SocketException exception) {
+            server.log("client socket closed: " + getRemoteAddress()
+                    + (exception.getMessage() == null ? "" : " (" + exception.getMessage() + ")"));
         } catch (IOException exception) {
             if (open.get() && server.isRunning()) {
                 server.log("connection error from " + getRemoteAddress() + ": " + exception.getMessage());
@@ -84,8 +87,8 @@ public final class ClientConnection implements Runnable, AutoCloseable {
             if (!open.get() || output == null) throw new IOException("client connection is closed");
             try {
                 output.writeObject(message);
-                output.flush();
                 output.reset();
+                output.flush();
             } catch (IOException exception) {
                 close();
                 throw exception;

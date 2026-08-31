@@ -138,12 +138,12 @@ public class MainMenuScreen extends BaseMenuScreen {
         if (regions.isEmpty()) {
             Table fallback = createPanel();
             fallback.pad(22f);
-            fallback.add(createTitle("Adventure")).padBottom(10f).row();
-            fallback.add(createSecondaryLabel("Start your journey")).padBottom(12f).row();
+            fallback.add(createTitle("I, Zombie Online")).padBottom(10f).row();
+            fallback.add(createSecondaryLabel("Challenge a player or join a match")).padBottom(12f).row();
             fallback.add(new MenuButton(
-                    "Adventure",
+                    "Play Online",
                     skin,
-                    game.getScreenManager()::showAdventure
+                    game.getScreenManager()::showNetworkLobby
             )).width(220f).height(52f);
             return fallback;
         }
@@ -153,7 +153,7 @@ public class MainMenuScreen extends BaseMenuScreen {
         banner.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
-                game.getScreenManager().showAdventure();
+                game.getScreenManager().showNetworkLobby();
             }
         });
 

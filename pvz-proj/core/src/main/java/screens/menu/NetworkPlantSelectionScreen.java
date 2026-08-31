@@ -13,8 +13,11 @@ import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable;
 import com.badlogic.gdx.utils.Align;
 import com.badlogic.gdx.utils.Scaling;
 import com.pvz.Main;
+import models.account.PlantData;
+import models.account.User;
 import models.core.plant.DefaultPlantRegistry;
 import models.core.plant.PlantType;
+import models.minigame.EgyptIZombieChooser;
 import models.minigame.NetworkIZombieGame;
 import network.game.AuthoritativeIZombieGame;
 import ui.BackButton;
@@ -34,7 +37,7 @@ public final class NetworkPlantSelectionScreen extends BaseMenuScreen {
     private static final Color TEXT_COLOR = Color.valueOf("4A3A1F");
     private static final Color TITLE_COLOR = Color.WHITE;
 
-    private final NetworkIZombieGame networkGame;
+    private final EgyptIZombieChooser chooser;
     private final Table selectedSlots;
     private final Table detailPanel;
     private final Table plantGrid;
@@ -44,8 +47,12 @@ public final class NetworkPlantSelectionScreen extends BaseMenuScreen {
     private boolean starting;
 
     public NetworkPlantSelectionScreen(Main game, NetworkIZombieGame networkGame) {
+        this(game, (EgyptIZombieChooser) networkGame);
+    }
+
+    public NetworkPlantSelectionScreen(Main game, EgyptIZombieChooser chooser) {
         super(game);
-        this.networkGame = networkGame;
+        this.chooser = chooser;
         selectedSlots = new Table();
         detailPanel = new Table();
         plantGrid = new Table();
@@ -67,14 +74,14 @@ public final class NetworkPlantSelectionScreen extends BaseMenuScreen {
 
     @Override
     public void render(float delta) {
-        if (networkGame != null) {
-            networkGame.pumpNetworkEvents();
-            if (networkGame.isPlantsReady() && !starting) {
+        if (chooser != null) {
+            chooser.pumpChooser();
+            if (chooser.isPlantsReady() && !starting) {
                 starting = true;
                 game.getScreenManager().showActiveMiniGame();
                 return;
             }
-            if (!networkGame.isRunning()) {
+            if (!chooser.isRunning()) {
                 game.getScreenManager().showNetworkLobby();
                 return;
             }
@@ -96,7 +103,7 @@ public final class NetworkPlantSelectionScreen extends BaseMenuScreen {
         panel.add(title).padBottom(2f).row();
 
         Label mission = panelLabel(
-                "Ancient Egypt - defend the lawn for 2 minutes. Pick up to "
+                "Defend the lawn for 10 minutes. Pick up to "
                         + AuthoritativeIZombieGame.MAX_SELECTED_PLANTS
                         + " plants, then press Let's Rock."
         );
@@ -108,12 +115,9 @@ public final class NetworkPlantSelectionScreen extends BaseMenuScreen {
         Table body = new Table();
         body.top().center();
 
-        selectedSlots.top();
-        body.add(selectedSlots).width(148f).height(410f).top().padRight(10f);
-
         Table browser = new Table();
         browser.top();
-        browser.add(detailPanel).width(720f).height(120f).padBottom(4f).row();
+        browser.add(detailPanel).width(820f).height(120f).padBottom(4f).row();
 
         plantGrid.top().left();
         plantGrid.padRight(8f);
@@ -123,8 +127,8 @@ public final class NetworkPlantSelectionScreen extends BaseMenuScreen {
         scrollPane.setOverscroll(false, false);
         scrollPane.setScrollingDisabled(true, false);
         scrollPane.setScrollbarsOnTop(false);
-        browser.add(scrollPane).width(748f).height(280f);
-        body.add(browser).width(760f).height(410f).top().center();
+        browser.add(scrollPane).width(868f).height(280f);
+        body.add(browser).width(885f).height(410f).top().center();
 
         panel.add(body).width(1015f).height(410f).center().row();
 
@@ -322,28 +326,57 @@ public final class NetworkPlantSelectionScreen extends BaseMenuScreen {
     }
 
     private void startMatch() {
-        if (starting || networkGame.isActionInFlight()) {
+        if (starting || chooser.isChooserBusy()) {
             return;
         }
         if (selectedPlants.isEmpty()) {
             notificationManager.showError("Pick at least one plant first.");
             return;
         }
-        if (!networkGame.lockSelectedPlants(new ArrayList<>(selectedPlants))
-                && !networkGame.getNetworkMessage().isBlank()) {
-            notificationManager.showError(networkGame.getNetworkMessage());
+        if (!chooser.lockSelectedPlants(new ArrayList<>(selectedPlants))
+                && !chooser.getChooserMessage().isBlank()) {
+            notificationManager.showError(chooser.getChooserMessage());
         }
     }
 
     private void leaveMatch() {
-        networkGame.leaveMatchAsync();
-        networkGame.clearNetworkMatch();
+        chooser.abandonChooser();
         game.getTravelLogController().abandonMiniGame();
         game.getScreenManager().showNetworkLobby();
     }
 
     private List<String> catalog() {
-        return networkGame.getEgyptPlantCatalog();
+        User user = game.getAuthController().getLoggedInUser();
+        if (user != null && (user.isDebugAllContentUnlocked()
+                || (user.getSettings() != null && user.getSettings().isDebugMode()))) {
+            return unlockedPlantCatalog(user);
+        }
+        return chooser.getEgyptPlantCatalog();
+    }
+
+    private List<String> unlockedPlantCatalog(User user) {
+        LinkedHashSet<String> names = new LinkedHashSet<>();
+        for (PlantType type : DefaultPlantRegistry.getInstance().getAllPlantTypes()) {
+            if (type == null || isHiddenSelectionPlant(type.getName())) {
+                continue;
+            }
+            names.add(type.getName());
+        }
+        if (user != null && user.getCollection() != null) {
+            for (PlantData data : user.getCollection().getOwnedPlants()) {
+                if (data != null && data.isUnlocked() && !isHiddenSelectionPlant(data.getName())) {
+                    names.add(data.getName());
+                }
+            }
+        }
+        List<String> result = new ArrayList<>(names);
+        result.sort(String.CASE_INSENSITIVE_ORDER);
+        return result;
+    }
+
+    private boolean isHiddenSelectionPlant(String plantName) {
+        String normalized = normalize(plantName);
+        return normalized.equals("goo peashooter");
     }
 
     private boolean catalogContains(String plantName) {

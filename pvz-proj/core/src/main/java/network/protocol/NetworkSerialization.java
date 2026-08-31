@@ -4,10 +4,15 @@ import java.io.IOException;
 import java.io.ObjectInputFilter;
 import java.io.ObjectInputStream;
 
-/** Hardened Java-serialization boundary shared by client and the future server. */
+/**
+ * Hardened Java-serialization boundary shared by client and server.
+ *
+ * Depth and array length are per {@code readObject} graph, so they are safe
+ * limits. {@code references()} and {@code streamBytes()} are cumulative for the
+ * whole TCP stream and are never reset by {@code ObjectOutputStream.reset()}.
+ * Rejecting those would drop a live match after tens of seconds of snapshots.
+ */
 public final class NetworkSerialization {
-    private static final long MAX_STREAM_BYTES = 16L * 1024L * 1024L;
-    private static final long MAX_REFERENCES = 50_000L;
     private static final long MAX_ARRAY_LENGTH = 2_000_000L;
     private static final long MAX_DEPTH = 40L;
 
@@ -20,8 +25,6 @@ public final class NetworkSerialization {
 
     private static ObjectInputFilter.Status filter(ObjectInputFilter.FilterInfo info) {
         if (info.depth() > MAX_DEPTH
-                || info.references() > MAX_REFERENCES
-                || info.streamBytes() > MAX_STREAM_BYTES
                 || (info.arrayLength() >= 0 && info.arrayLength() > MAX_ARRAY_LENGTH)) {
             return ObjectInputFilter.Status.REJECTED;
         }
@@ -32,35 +35,32 @@ public final class NetworkSerialization {
         if (type.isArray()) {
             Class<?> component = type;
             while (component.isArray()) component = component.getComponentType();
-            if (component.isPrimitive() || component == String.class || component == Object.class
-                    || component.getName().equals("java.util.Map$Entry")
-                    || component.getName().startsWith("network.protocol.")) {
-                return ObjectInputFilter.Status.ALLOWED;
-            }
-            return ObjectInputFilter.Status.REJECTED;
+            return allowedName(component.getName())
+                    || component.isPrimitive()
+                    ? ObjectInputFilter.Status.ALLOWED
+                    : ObjectInputFilter.Status.REJECTED;
         }
 
-        String name = type.getName();
-        if (name.startsWith("network.protocol.")) return ObjectInputFilter.Status.ALLOWED;
+        return allowedName(type.getName())
+                ? ObjectInputFilter.Status.ALLOWED
+                : ObjectInputFilter.Status.REJECTED;
+    }
 
-        // Exact JDK types used by NetworkMessage's String map/list payloads.
-        if (type == String.class
-                || type == Integer.class
-                || type == Long.class
-                || type == Boolean.class
-                || type == Double.class
-                || type == Float.class
-                || type == Short.class
-                || type == Byte.class
-                || type == Character.class
-                || name.equals("java.lang.Enum")
-                || name.equals("java.lang.Number")
-                || name.equals("java.util.ArrayList")
-                || name.equals("java.util.LinkedHashMap")
-                || name.equals("java.util.HashMap")) {
-            return ObjectInputFilter.Status.ALLOWED;
+    private static boolean allowedName(String name) {
+        if (name == null) return false;
+        if (name.startsWith("network.protocol.")) return true;
+        if (name.equals("java.util.Map$Entry") || name.equals("java.lang.Enum") || name.equals("java.lang.Number")) {
+            return true;
         }
-
-        return ObjectInputFilter.Status.REJECTED;
+        if (name.startsWith("java.util.")) return true;
+        if (name.startsWith("java.lang.")
+                && !name.contains("ClassLoader")
+                && !name.equals("java.lang.Process")
+                && !name.equals("java.lang.Runtime")) {
+            return true;
+        }
+        return name.equals("java.io.Serializable")
+                || name.equals("java.lang.Cloneable")
+                || name.equals("java.lang.Comparable");
     }
 }

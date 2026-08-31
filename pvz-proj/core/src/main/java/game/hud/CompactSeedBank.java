@@ -189,19 +189,30 @@ public final class CompactSeedBank {
             float stateTime,
             String selectedPlantName
     ) {
-        if (shapes == null || batch == null || game == null) {
+        if (game == null) {
             return;
         }
-        List<models.minigame.NetworkIZombieGame.PlantOptionView> options = game.getAvailablePlantOptions();
-        if (options.isEmpty()) {
+        renderEgyptPlantBank(shapes, batch, game.getAvailablePlantOptions(), game.getSunAmount(),
+                stateTime, selectedPlantName);
+    }
+
+    public void renderEgyptPlantBank(
+            ShapeRenderer shapes,
+            Batch batch,
+            List<models.minigame.IZombieGame.PlantOptionView> options,
+            int sunAmount,
+            float stateTime,
+            String selectedPlantName
+    ) {
+        if (shapes == null || batch == null || options == null || options.isEmpty()) {
             return;
         }
 
         shapes.begin(ShapeRenderer.ShapeType.Filled);
         for (int index = 0; index < options.size() && index < MAX_VISIBLE_SLOTS; index++) {
-            models.minigame.NetworkIZombieGame.PlantOptionView option = options.get(index);
+            models.minigame.IZombieGame.PlantOptionView option = options.get(index);
             float y = staticSlotY(index);
-            boolean ready = option.cooldownMillis() <= 0L && game.getSunAmount() >= option.sunCost();
+            boolean ready = option.cooldownMillis() <= 0L && sunAmount >= option.sunCost();
             boolean selected = isSelected(option.plantName(), selectedPlantName);
             shapes.setColor(selected ? SELECTED_BORDER : ready ? READY_BORDER : COOLDOWN_BORDER);
             shapes.rect(BANK_X, y, SLOT_WIDTH, SLOT_HEIGHT);
@@ -215,7 +226,7 @@ public final class CompactSeedBank {
 
         batch.begin();
         for (int index = 0; index < options.size() && index < MAX_VISIBLE_SLOTS; index++) {
-            models.minigame.NetworkIZombieGame.PlantOptionView option = options.get(index);
+            models.minigame.IZombieGame.PlantOptionView option = options.get(index);
             EntityAnimationProfile profile = profileForZombotany(option.plantName());
             if (profile != null) {
                 String clip = profile.firstClip("idle", "play", "walk");
@@ -230,7 +241,7 @@ public final class CompactSeedBank {
         Color previousFontColor = new Color(font.getColor());
         font.setColor(TEXT_COLOR);
         for (int index = 0; index < options.size() && index < MAX_VISIBLE_SLOTS; index++) {
-            models.minigame.NetworkIZombieGame.PlantOptionView option = options.get(index);
+            models.minigame.IZombieGame.PlantOptionView option = options.get(index);
             font.draw(batch, String.valueOf(option.sunCost()),
                     BANK_X + SLOT_WIDTH - 28f, staticSlotY(index) + 19f);
         }
@@ -240,7 +251,7 @@ public final class CompactSeedBank {
         shapes.begin(ShapeRenderer.ShapeType.Filled);
         shapes.setColor(COOLDOWN_SHADE);
         for (int index = 0; index < options.size() && index < MAX_VISIBLE_SLOTS; index++) {
-            models.minigame.NetworkIZombieGame.PlantOptionView option = options.get(index);
+            models.minigame.IZombieGame.PlantOptionView option = options.get(index);
             if (option.cooldownMillis() <= 0L) {
                 continue;
             }
@@ -262,10 +273,16 @@ public final class CompactSeedBank {
     }
 
     public String findNetworkPlantAt(models.minigame.NetworkIZombieGame game, float x, float y) {
-        if (game == null || x < BANK_X || x > BANK_X + SLOT_WIDTH) {
+        if (game == null) {
             return null;
         }
-        List<models.minigame.NetworkIZombieGame.PlantOptionView> options = game.getAvailablePlantOptions();
+        return findEgyptPlantAt(game.getAvailablePlantOptions(), x, y);
+    }
+
+    public String findEgyptPlantAt(List<models.minigame.IZombieGame.PlantOptionView> options, float x, float y) {
+        if (options == null || x < BANK_X || x > BANK_X + SLOT_WIDTH) {
+            return null;
+        }
         for (int index = 0; index < options.size() && index < MAX_VISIBLE_SLOTS; index++) {
             float slotY = staticSlotY(index);
             if (y >= slotY && y <= slotY + SLOT_HEIGHT) {

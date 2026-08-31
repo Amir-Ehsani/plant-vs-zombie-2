@@ -87,6 +87,10 @@ abstract class GameControllerSelectionSupport extends GameControllerLevelSupport
         if (plantName == null || gameSession == null) {
             return false;
         }
+        User user = authController == null ? null : authController.getLoggedInUser();
+        if (user != null && user.isDebugAllContentUnlocked() && isPlantUnlockedByUser(plantName)) {
+            return true;
+        }
 
         Level level = gameSession.getCurrentLevel();
         return level == null || level.isPlantAllowed(plantName);

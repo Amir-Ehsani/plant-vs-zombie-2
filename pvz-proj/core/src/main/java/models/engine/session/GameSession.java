@@ -201,7 +201,7 @@ public class GameSession extends GameSessionPlantSupport {
         if (type == null || !isPlantSelected(plantName)) {
             return false;
         }
-        if (currentLevel != null && !currentLevel.isPlantAllowed(plantName)) {
+        if (currentLevel != null && !currentLevel.isPlantAllowed(plantName) && !isPlantSelected(plantName)) {
             return false;
         }
         if (getPlantRechargeRemainingTicks(plantName) > 0) {
@@ -239,8 +239,10 @@ public class GameSession extends GameSessionPlantSupport {
             return false;
         }
         if (currentLevel != null
-                && (!currentLevel.isPlantAllowed(imitaterType.getName())
-                || !currentLevel.isPlantAllowed(copiedType.getName()))) {
+                && ((!currentLevel.isPlantAllowed(imitaterType.getName())
+                && !isPlantSelected(imitaterType.getName()))
+                || (!currentLevel.isPlantAllowed(copiedType.getName())
+                && !isPlantSelected(copiedType.getName())))) {
             return false;
         }
         if (getPlantRechargeRemainingTicks(imitaterType.getName()) > 0) {

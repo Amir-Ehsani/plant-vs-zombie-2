@@ -8,7 +8,6 @@ import models.engine.board.Board;
 import models.engine.board.Lane;
 import models.engine.board.Position;
 import models.engine.board.Tile;
-import models.engine.board.TileType;
 import network.client.NetworkManager;
 import network.client.NetworkMatchContext;
 import network.client.NetworkOperationResult;
@@ -37,7 +36,7 @@ import java.util.concurrent.CompletableFuture;
  * board/rendering core. The server remains authoritative; this class only mirrors
  * snapshots into the same Board/Plant/Zombie model used by local gameplay.
  */
-public final class NetworkIZombieGame extends IZombieGame {
+public final class NetworkIZombieGame extends IZombieGame implements EgyptIZombieChooser {
     private final NetworkManager network;
     private final NetworkMatchContext context;
     private final PlantFactory plantFactory;
@@ -52,6 +51,8 @@ public final class NetworkIZombieGame extends IZombieGame {
     private volatile boolean actionInFlight;
     private volatile String networkMessage;
     private boolean finishApplied;
+    private long snapshotReceivedAtMillis;
+    private long snapshotRemainingMillis;
 
     public NetworkIZombieGame(NetworkManager network, NetworkMatchContext context) {
         super(1); // Internal compatibility only. Online I, Zombie has no user-facing stages.
@@ -71,6 +72,8 @@ public final class NetworkIZombieGame extends IZombieGame {
         this.actionInFlight = false;
         this.networkMessage = "Waiting for the server...";
         this.finishApplied = false;
+        this.snapshotReceivedAtMillis = System.currentTimeMillis();
+        this.snapshotRemainingMillis = AuthoritativeIZombieGame.DEFAULT_MATCH_DURATION_MILLIS;
         prepareMirrorBoard();
         network.clearMatchEvents();
     }
@@ -143,7 +146,8 @@ public final class NetworkIZombieGame extends IZombieGame {
 
     @Override
     public boolean collectSunDrop(int dropId) {
-        if (actionInFlight || snapshot == null || snapshot.isFinished() || !snapshot.isPlantsReady()) {
+        if (!network.isConnected() || actionInFlight || snapshot == null
+                || snapshot.isFinished() || !snapshot.isPlantsReady()) {
             return false;
         }
         actionInFlight = true;
@@ -163,7 +167,7 @@ public final class NetworkIZombieGame extends IZombieGame {
             return false;
         }
         String type = normalizeZombieType(zombieName);
-        if (!isChoiceUsable(type) || actionInFlight) {
+        if (!network.isConnected() || !isChoiceUsable(type) || actionInFlight) {
             return false;
         }
         actionInFlight = true;
@@ -183,7 +187,7 @@ public final class NetworkIZombieGame extends IZombieGame {
             return false;
         }
         String type = normalizePlantType(plantName);
-        if (!isChoiceUsable(type) || actionInFlight) {
+        if (!network.isConnected() || !isChoiceUsable(type) || actionInFlight) {
             return false;
         }
         actionInFlight = true;
@@ -205,18 +209,19 @@ public final class NetworkIZombieGame extends IZombieGame {
         }
         for (String name : loadout) {
             String type = normalizePlantType(name);
-            int cost = AuthoritativeIZombieGame.plantCosts().getOrDefault(type, Integer.MAX_VALUE);
+            int cost = AuthoritativeIZombieGame.plantSunCost(type);
             result.add(new PlantOptionView(plantDisplayName(type), cost, getCooldownMillis(type)));
         }
         return List.copyOf(result);
     }
 
+    @Override
     public boolean lockSelectedPlants(List<String> plantNames) {
         if (context.role() != GameRole.PLANTS) {
             networkMessage = "Only the plant player can choose plants.";
             return false;
         }
-        if (actionInFlight) {
+        if (actionInFlight || !network.isConnected()) {
             return false;
         }
         actionInFlight = true;
@@ -225,10 +230,12 @@ public final class NetworkIZombieGame extends IZombieGame {
         return true;
     }
 
+    @Override
     public boolean isPlantsReady() {
         return snapshot != null && snapshot.isPlantsReady();
     }
 
+    @Override
     public List<String> getEgyptPlantCatalog() {
         List<String> names = new ArrayList<>();
         for (String key : AuthoritativeIZombieGame.plantCosts().keySet()) {
@@ -238,6 +245,14 @@ public final class NetworkIZombieGame extends IZombieGame {
     }
 
     public void pumpNetworkEvents() {
+        if (!network.isConnected() && !finishApplied) {
+            finishApplied = true;
+            String reason = network.getDisconnectReason();
+            String detail = reason == null || reason.isBlank() ? "Connection lost" : reason;
+            markLost(detail);
+            networkMessage = "Disconnected from the match: " + detail;
+            return;
+        }
         NetworkMessage event;
         while ((event = network.pollMatchEvent()) != null) {
             if (event.getMatchId() != null && !context.matchId().equals(event.getMatchId())) {
@@ -285,7 +300,14 @@ public final class NetworkIZombieGame extends IZombieGame {
     }
 
     public long getRemainingMillis() {
-        return snapshot == null ? AuthoritativeIZombieGame.DEFAULT_MATCH_DURATION_MILLIS : snapshot.getRemainingMillis();
+        if (snapshot == null) {
+            return AuthoritativeIZombieGame.DEFAULT_MATCH_DURATION_MILLIS;
+        }
+        if (!snapshot.isPlantsReady() || snapshot.isFinished()) {
+            return snapshot.getRemainingMillis();
+        }
+        long elapsed = Math.max(0L, System.currentTimeMillis() - snapshotReceivedAtMillis);
+        return Math.max(0L, snapshotRemainingMillis - elapsed);
     }
 
     public long getCooldownMillis(String type) {
@@ -304,7 +326,7 @@ public final class NetworkIZombieGame extends IZombieGame {
         }
         String normalized = normalizeKey(type);
         return context.role() == GameRole.PLANTS
-                ? AuthoritativeIZombieGame.plantCosts().getOrDefault(normalized, Integer.MAX_VALUE)
+                ? AuthoritativeIZombieGame.plantSunCost(normalized)
                 : AuthoritativeIZombieGame.zombieCosts().getOrDefault(normalized, Integer.MAX_VALUE);
     }
 
@@ -336,6 +358,27 @@ public final class NetworkIZombieGame extends IZombieGame {
         return actionInFlight;
     }
 
+    @Override
+    public boolean isChooserBusy() {
+        return actionInFlight;
+    }
+
+    @Override
+    public String getChooserMessage() {
+        return getNetworkMessage();
+    }
+
+    @Override
+    public void pumpChooser() {
+        pumpNetworkEvents();
+    }
+
+    @Override
+    public void abandonChooser() {
+        leaveMatchAsync();
+        clearNetworkMatch();
+    }
+
     public String getNetworkMessage() {
         return networkMessage == null ? "" : networkMessage;
     }
@@ -354,6 +397,8 @@ public final class NetworkIZombieGame extends IZombieGame {
         }
         snapshot = next;
         lastSequence = next.getSequence();
+        snapshotReceivedAtMillis = System.currentTimeMillis();
+        snapshotRemainingMillis = next.getRemainingMillis();
         mirrorSnapshot(next);
         if (next.isFinished() && !finishApplied) {
             finishApplied = true;
@@ -518,9 +563,6 @@ public final class NetworkIZombieGame extends IZombieGame {
 
     private void prepareMirrorBoard() {
         // Reuse the exact Ancient Egypt level-one terrain base used by ordinary gameplay.
-        mirrorBoard.setTileType(new Position(5, 1), TileType.GRAVE);
-        mirrorBoard.setTileType(new Position(6, 3), TileType.GRAVE);
-        mirrorBoard.setTileType(new Position(4, 5), TileType.GRAVE);
         for (Lane lane : mirrorBoard.getLanes()) {
             lane.setContinueAfterBrainEaten(true);
             lane.getLawnMower().disable();
@@ -646,9 +688,6 @@ public final class NetworkIZombieGame extends IZombieGame {
         }
         String message = current.getMessage();
         return message == null || message.isBlank() ? current.getClass().getSimpleName() : message;
-    }
-
-    public record PlantOptionView(String plantName, int sunCost, long cooldownMillis) {
     }
 
     public record NetworkProjectileView(String id, String type, double x, int row) {

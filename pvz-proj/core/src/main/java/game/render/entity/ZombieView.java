@@ -8,6 +8,7 @@ import game.animation.core.AnimationDefinition;
 import game.animation.core.EntityAnimationProfile;
 import game.animation.core.PvzAnimationService;
 import game.render.BoardGeometry;
+import models.core.plant.Plant;
 import models.core.zombie.Armor;
 import models.core.zombie.Zombie;
 import models.engine.board.Board;
@@ -562,10 +563,27 @@ public final class ZombieView extends EntityView<Zombie> {
         if (entity.getType().hasTag("stationary") || isMovementBlocked(effects)) {
             return profile.firstClip("idle", "walk", "eat", "play");
         }
-        if (stationaryTime >= EATING_DELAY) {
+        if (stationaryTime >= EATING_DELAY && isChewingLivingPlant(board)) {
             return profile.firstClip("eat", "idle", "walk", "play");
         }
+        if (stationaryTime >= EATING_DELAY) {
+            return profile.firstClip("idle", "walk", "eat", "play");
+        }
         return profile.firstClip("walk", "idle", "eat", "play");
+    }
+
+    private boolean isChewingLivingPlant(Board board) {
+        if (board == null || entity == null) {
+            return false;
+        }
+        int column = Math.max(1, (int) Math.round(entity.getX()));
+        int row = Math.max(1, (int) Math.round(entity.getY()));
+        Tile tile = board.getTileAt(new Position(column, row));
+        if (tile == null) {
+            tile = board.getTileAt(new Position(Math.max(1, (int) Math.floor(entity.getX())), row));
+        }
+        Plant plant = tile == null ? null : tile.getCurrentPlant();
+        return plant != null && plant.isAlive();
     }
 
     private String resolvePushClip(List<String> effects, Board board) {

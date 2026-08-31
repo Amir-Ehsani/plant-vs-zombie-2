@@ -132,7 +132,8 @@ abstract class GameSessionState {
         for (PlantType type : resolveStatusPlantTypes()) {
             boolean selected = isPlantSelected(type.getName());
             boolean allowedByLevel = currentLevel == null
-                    || currentLevel.isPlantAllowed(type.getName());
+                    || currentLevel.isPlantAllowed(type.getName())
+                    || selected;
             int cost = resolvePlantCost(type);
             boolean enoughSun = totalSunAmount >= cost;
             int remainingTicks = getPlantRechargeRemainingTicks(type.getName());

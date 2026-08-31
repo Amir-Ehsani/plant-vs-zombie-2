@@ -40,7 +40,7 @@ public final class AuthoritativeIZombieGame {
     public static final int ROWS = 5;
     public static final int COLUMNS = 9;
     public static final int LAST_PLANT_COLUMN = IZombieGame.RED_LINE_COLUMN - 1;
-    public static final long DEFAULT_MATCH_DURATION_MILLIS = 120_000L;
+    public static final long DEFAULT_MATCH_DURATION_MILLIS = 600_000L;
     public static final int MAX_SELECTED_PLANTS = 8;
     public static final int INITIAL_SUN = 50;
 
@@ -134,6 +134,20 @@ public final class AuthoritativeIZombieGame {
         return PLANT_COSTS;
     }
 
+    public static int plantSunCost(String type) {
+        String key = normalize(type);
+        Integer mapped = PLANT_COSTS.get(key);
+        if (mapped != null) {
+            return mapped;
+        }
+        PlantType plantType = plantType(key);
+        return plantType == null ? Integer.MAX_VALUE : Math.max(0, plantType.getSunCost());
+    }
+
+    public static boolean isPlantAvailable(String type) {
+        return plantType(normalize(type)) != null;
+    }
+
     public static Map<String, Integer> zombieCosts() {
         return ZOMBIE_COSTS;
     }
@@ -177,8 +191,8 @@ public final class AuthoritativeIZombieGame {
         LinkedHashSet<String> selected = new LinkedHashSet<>();
         for (String type : types) {
             String key = normalize(type);
-            if (!PLANT_COSTS.containsKey(key) || plantType(key) == null) {
-                return ActionResult.failure("plant type is not available in Ancient Egypt", snapshot());
+            if (!isPlantAvailable(key)) {
+                return ActionResult.failure("plant type is not available", snapshot());
             }
             selected.add(key);
             if (selected.size() > MAX_SELECTED_PLANTS) {
@@ -251,9 +265,9 @@ public final class AuthoritativeIZombieGame {
         if (!plantLoadout.contains(key)) {
             return ActionResult.failure("that plant was not selected for this match", snapshot());
         }
-        Integer cost = PLANT_COSTS.get(key);
+        int cost = plantSunCost(key);
         PlantType plantType = plantType(key);
-        if (cost == null || plantType == null) {
+        if (cost == Integer.MAX_VALUE || plantType == null) {
             return ActionResult.failure("plant type is not available", snapshot());
         }
         if (plantSun < cost) {
@@ -405,6 +419,7 @@ public final class AuthoritativeIZombieGame {
             int row = clamp((int) Math.round(zombie.getY()) - 1, 0, ROWS - 1);
             Map<String, String> attributes = new LinkedHashMap<>();
             attributes.put("side", GameRole.ZOMBIES.name());
+            attributes.put("eating", String.valueOf(isZombieEatingPlant(zombie)));
             entities.add(new EntityState(
                     zombie.getId(),
                     "ZOMBIE",
@@ -485,11 +500,32 @@ public final class AuthoritativeIZombieGame {
         return zombiesUsername;
     }
 
+    public synchronized Board getBoard() {
+        return board;
+    }
+
+    public synchronized int getPlantSun() {
+        return plantSun;
+    }
+
+    public synchronized int getZombieSun() {
+        return zombieSun;
+    }
+
+    public synchronized boolean isPlantsReady() {
+        return plantsReady;
+    }
+
+    public synchronized long plantCooldownMillis(String type) {
+        return Math.max(0L, plantReadyAt.getOrDefault(normalize(type), 0L) - elapsedMillis);
+    }
+
+    public synchronized long zombieCooldownMillis(String type) {
+        return Math.max(0L, zombieReadyAt.getOrDefault(normalize(type), 0L) - elapsedMillis);
+    }
+
     private void configureLevelOneBaseBoard() {
-        board.setGraveSpawningAllowed(true);
-        board.setTileType(new Position(5, 1), TileType.GRAVE);
-        board.setTileType(new Position(6, 3), TileType.GRAVE);
-        board.setTileType(new Position(4, 5), TileType.GRAVE);
+        board.setGraveSpawningAllowed(false);
         for (Lane lane : board.getLanes()) {
             lane.getLawnMower().disable();
             lane.setContinueAfterBrainEaten(true);
@@ -526,6 +562,7 @@ public final class AuthoritativeIZombieGame {
 
     private void scheduleNextSkySun(GameRole owner) {
         double elapsedSeconds = elapsedMillis / 1000.0;
+        // Same cadence as Ancient Egypt sky sun: one drop, roughly every 12s.
         double intervalSeconds = Math.max(6.0 + 0.05 * elapsedSeconds, 12.0);
         long interval = Math.max(1_000L, (long) Math.ceil(intervalSeconds * 1000.0));
         long next = elapsedMillis + interval;
@@ -773,6 +810,17 @@ public final class AuthoritativeIZombieGame {
 
     private static int clamp(int value, int min, int max) {
         return Math.max(min, Math.min(max, value));
+    }
+
+    private boolean isZombieEatingPlant(Zombie zombie) {
+        if (zombie == null || !zombie.isAlive()) {
+            return false;
+        }
+        int column = clamp((int) Math.round(zombie.getX()), 1, COLUMNS);
+        int row = clamp((int) Math.round(zombie.getY()), 1, ROWS);
+        Tile tile = board.getTileAt(new Position(column, row));
+        Plant plant = tile == null ? null : tile.getCurrentPlant();
+        return plant != null && plant.isAlive();
     }
 
     private static String requireName(String value, String field) {

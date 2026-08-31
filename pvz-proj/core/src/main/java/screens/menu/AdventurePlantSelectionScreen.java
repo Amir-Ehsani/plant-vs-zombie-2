@@ -440,8 +440,11 @@ public class AdventurePlantSelectionScreen extends BaseMenuScreen {
             return result;
         }
         for (PlantData data : user.getCollection().getOwnedPlants()) {
-            if (data == null || !data.isUnlocked() || isHiddenSelectionPlant(data.getName())
-                    || !isPlantVisibleInGrid(level, data.getName())) {
+            if (data == null || !data.isUnlocked() || isHiddenSelectionPlant(data.getName())) {
+                continue;
+            }
+            boolean debugAll = user.isDebugAllContentUnlocked();
+            if (!debugAll && !isPlantVisibleInGrid(level, data.getName())) {
                 continue;
             }
             result.add(data);

@@ -25,11 +25,11 @@ import screens.menu.ZombotanyPlantSelectionScreen;
 import screens.menu.ShopScreen;
 import screens.game.GameScreen;
 import screens.game.MiniGameScreen;
-import screens.game.CouchIZombieScreen;
 import screens.menu.NetworkLobbyScreen;
 import screens.menu.NetworkPlantSelectionScreen;
 import network.client.NetworkMatchContext;
 import network.protocol.GameRole;
+import models.minigame.CouchIZombieGame;
 import models.minigame.NetworkIZombieGame;
 
 public class ScreenManager {
@@ -144,8 +144,13 @@ public class ScreenManager {
         show(new MiniGameScreen(game));
     }
 
-    public void showCouchIZombie(int stage) {
-        show(new CouchIZombieScreen(game, stage));
+    public void showCouchIZombie(int ignoredStage) {
+        CouchIZombieGame couchGame = new CouchIZombieGame();
+        if (!game.getTravelLogController().enterCouchIZombie(couchGame)) {
+            showNetworkLobby();
+            return;
+        }
+        show(new NetworkPlantSelectionScreen(game, couchGame));
     }
 
     public void showZombotanyPlantSelection(int stage) {
@@ -204,8 +209,7 @@ public class ScreenManager {
             );
             return;
         }
-        if (nextScreen instanceof MiniGameScreen
-                || nextScreen instanceof CouchIZombieScreen) {
+        if (nextScreen instanceof MiniGameScreen) {
             game.getAudioManager().playMiniGameMusic();
         }
     }
