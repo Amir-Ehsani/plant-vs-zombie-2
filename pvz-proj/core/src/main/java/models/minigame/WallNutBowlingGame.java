@@ -384,21 +384,23 @@ public class WallNutBowlingGame extends MiniGameSession {
     }
 
     private void initializeInventory() {
+        // Keep the total stock close to the original stages while matching the
+        // conveyor odds: normal 1.0x, Explode-o-nut 0.8x, giant/tall 0.6x.
         if (getStage() == 1) {
-            inventory.put(NutType.BOWLING, 18);
-            inventory.put(NutType.EXPLOSIVE, 4);
-            inventory.put(NutType.GIANT, 2);
+            inventory.put(NutType.BOWLING, 10);
+            inventory.put(NutType.EXPLOSIVE, 8);
+            inventory.put(NutType.GIANT, 6);
             return;
         }
         if (getStage() == 2) {
-            inventory.put(NutType.BOWLING, 24);
-            inventory.put(NutType.EXPLOSIVE, 5);
-            inventory.put(NutType.GIANT, 2);
+            inventory.put(NutType.BOWLING, 13);
+            inventory.put(NutType.EXPLOSIVE, 10);
+            inventory.put(NutType.GIANT, 8);
             return;
         }
-        inventory.put(NutType.BOWLING, 30);
-        inventory.put(NutType.EXPLOSIVE, 6);
-        inventory.put(NutType.GIANT, 3);
+        inventory.put(NutType.BOWLING, 16);
+        inventory.put(NutType.EXPLOSIVE, 13);
+        inventory.put(NutType.GIANT, 10);
     }
 
     private void initializeSchedule() {

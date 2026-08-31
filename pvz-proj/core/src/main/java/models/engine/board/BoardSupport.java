@@ -336,6 +336,19 @@ abstract class BoardSupport extends BoardState {
         return removedCount;
     }
 
+    protected int removeUnsupportedLandPlants(List<GameEvent> events) {
+        int removedCount = 0;
+        for (Lane lane : lanes) {
+            for (Tile tile : lane.getTiles()) {
+                for (Plant plant : tile.removeUnsupportedLandPlants()) {
+                    removedCount++;
+                    events.add(GameEvent.plantDestroyed(plant.getName(), tile.getPosition()));
+                }
+            }
+        }
+        return removedCount;
+    }
+
     protected String normalize(String value) {
         if (value == null) {
             return "";

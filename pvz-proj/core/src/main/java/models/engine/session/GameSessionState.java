@@ -68,6 +68,7 @@ abstract class GameSessionState {
     protected int plantFoodCount;
     protected int initialPlantFoodCount;
     protected int totalSunProduced;
+    protected int totalSunCollected;
     protected Level currentLevel;
     protected Board board;
     protected TickManager tickManager;
@@ -313,6 +314,10 @@ abstract class GameSessionState {
 
     public int getTotalSunProduced() {
         return totalSunProduced;
+    }
+
+    public int getTotalSunCollected() {
+        return totalSunCollected;
     }
 
     public int getTotalZombiesKilled() {

@@ -25,6 +25,8 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.IdentityHashMap;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -43,6 +45,7 @@ public final class EntityRenderSystem {
     private static final String DARK_PLANT_FOOD_GRAVE_PATH =
         "768/FULL/GRAVESTONES/DARK_PLANTFOOD/DARK_PLANTFOOD.PAM";
     private static final float GRAVE_SCALE = 0.52f;
+    private static final float GRAVE_RISE_SECONDS = 0.48f;
     private static final String FROSTBITE_ICE_BLOCK_PATH =
         "768/FULL/EFFECTS/FROSTBITE_ICE_BLOCK_ZOMBIE/FROSTBITE_ICE_BLOCK_ZOMBIE.PAM";
     private static final String ARCADE_CABINET_PATH =
@@ -53,6 +56,10 @@ public final class EntityRenderSystem {
     private static final float ICE_BLOCK_SCALE = 0.47f;
     private static final float ARCADE_CABINET_SCALE = 0.50f;
     private static final float BARREL_SCALE = 0.48f;
+    private static final String OCTOPUS_PROJECTILE_PATH =
+        "768/FULL/EFFECTS/ZOMBIE_OCTOPUS_PROJECTILE/ZOMBIE_OCTOPUS_PROJECTILE.PAM";
+    private static final String WIZARD_LIGHTNING_PATH =
+        "768/FULL/EFFECTS/DARK_WIZARD_LIGHTNINGBOLT/DARK_WIZARD_LIGHTNINGBOLT.PAM";
     private final BoardGeometry geometry;
     private final PvzAnimationService animations;
     private final EntityAnimationRegistry registry;
@@ -66,6 +73,9 @@ public final class EntityRenderSystem {
     private final List<ZombieHeadVisual> deathHeads = new ArrayList<>();
     private final List<PlantActionVisual> plantActionVisuals = new ArrayList<>();
     private final List<PlantFieldEffectVisual> fieldEffectVisuals = new ArrayList<>();
+    private final Map<Position, Float> graveRiseTimes = new LinkedHashMap<>();
+    private final Set<Position> knownGraves = new LinkedHashSet<>();
+    private boolean graveSnapshotInitialized;
     private TextureRegion craterRegion;
     private float terrainObjectTime;
 
@@ -122,6 +132,8 @@ public final class EntityRenderSystem {
         registry = new EntityAnimationRegistry(animations.getCatalog());
         preloadGraveAnimations();
         preloadInteractiveTerrainAnimations();
+        animations.preload(OCTOPUS_PROJECTILE_PATH);
+        animations.preload(WIZARD_LIGHTNING_PATH);
     }
 
     public void playPlantAction(PlantType type, Position position, String clip) {
@@ -191,6 +203,7 @@ public final class EntityRenderSystem {
         if (delta > 0f) {
             terrainObjectTime += delta;
         }
+        updateGraveRiseVisuals(delta, board);
         Set<Plant> activePlants = Collections.newSetFromMap(new IdentityHashMap<>());
         Set<Zombie> activeZombies = Collections.newSetFromMap(new IdentityHashMap<>());
 
@@ -359,9 +372,11 @@ public final class EntityRenderSystem {
                         position.x, position.y, ARCADE_CABINET_SCALE, true
                     );
                 } else {
+                    // A detached barrel is a stationary obstacle; keep a clean barrel pose
+                    // instead of making the abandoned object roll forever.
                     animations.draw(
-                        batch, BARREL_PATH, "roll", terrainObjectTime,
-                        position.x, position.y, BARREL_SCALE, true
+                        batch, BARREL_PATH, "roll", 0f,
+                        position.x, position.y, BARREL_SCALE, false
                     );
                 }
             }
@@ -417,7 +432,53 @@ public final class EntityRenderSystem {
                 Vector2 position = geometry.entityToScreen(
                     tile.getPosition().getX(), tile.getPosition().getY()
                 );
-                animations.draw(batch, path, clip, 0f, position.x, position.y, GRAVE_SCALE, false);
+                float time = graveRiseTimes.getOrDefault(tile.getPosition(), GRAVE_RISE_SECONDS);
+                float progress = Math.min(1f, Math.max(0f, time / GRAVE_RISE_SECONDS));
+                float eased = progress * progress * (3f - 2f * progress);
+                float yOffset = -geometry.getTileHeight() * 0.36f * (1f - eased);
+                float pop = 1f + 0.10f * (float) Math.sin(Math.PI * progress) * (1f - progress);
+                float scale = GRAVE_SCALE * (0.66f + 0.34f * eased) * pop;
+                animations.draw(
+                    batch, path, clip, 0f, position.x, position.y + yOffset, scale, false
+                );
+            }
+        }
+    }
+
+    private void updateGraveRiseVisuals(float delta, Board board) {
+        Set<Position> current = new LinkedHashSet<>();
+        for (int row = 1; row <= board.getHeight(); row++) {
+            Lane lane = board.getLaneAt(row);
+            if (lane == null) {
+                continue;
+            }
+            for (Tile tile : lane.getTiles()) {
+                if (tile.isGraveTerrain()) {
+                    current.add(tile.getPosition());
+                }
+            }
+        }
+        if (!graveSnapshotInitialized) {
+            knownGraves.addAll(current);
+            graveSnapshotInitialized = true;
+            return;
+        }
+        for (Position position : current) {
+            if (knownGraves.add(position)) {
+                graveRiseTimes.put(position, 0f);
+            }
+        }
+        knownGraves.retainAll(current);
+        graveRiseTimes.keySet().retainAll(current);
+        if (delta <= 0f) {
+            return;
+        }
+        for (Map.Entry<Position, Float> entry : new ArrayList<>(graveRiseTimes.entrySet())) {
+            float next = entry.getValue() + delta;
+            if (next >= GRAVE_RISE_SECONDS) {
+                graveRiseTimes.remove(entry.getKey());
+            } else {
+                graveRiseTimes.put(entry.getKey(), next);
             }
         }
     }

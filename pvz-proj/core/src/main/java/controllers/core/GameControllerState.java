@@ -215,7 +215,11 @@ abstract class GameControllerState {
     ) {
         List<ZombieType> types = new ArrayList<>();
         for (ZombieType type : registry.getAllZombieTypes()) {
-            if (type != null && containsNormalizedName(allowedZombieNames, type.getName())) types.add(type);
+            if (type != null
+                    && !isAutomaticSpawnDisabled(type)
+                    && containsNormalizedName(allowedZombieNames, type.getName())) {
+                types.add(type);
+            }
         }
         types.sort((first, second) -> {
             int comparison = Integer.compare(first.getWaveCost(), second.getWaveCost());
@@ -258,7 +262,9 @@ abstract class GameControllerState {
         if (waveNumber != totalWaves || unlockedNames == null) return zombies;
         for (String name : unlockedNames) {
             ZombieType type = registry.getZombieTypeByName(name);
-            if (type != null && containsNormalizedName(allowedNames, type.getName())) {
+            if (type != null
+                    && !isAutomaticSpawnDisabled(type)
+                    && containsNormalizedName(allowedNames, type.getName())) {
                 zombies.add(factory.createZombie(type, 9, 1));
             }
         }
@@ -286,6 +292,16 @@ abstract class GameControllerState {
         }
     }
 
+
+    private boolean isAutomaticSpawnDisabled(ZombieType type) {
+        if (type == null) {
+            return true;
+        }
+        String name = type.getName() == null ? "" : type.getName().trim();
+        String id = type.getId() == null ? "" : type.getId().trim();
+        return name.equalsIgnoreCase("Fisherman")
+                || id.equalsIgnoreCase("ZombieBeachFisherman");
+    }
 
     protected boolean containsNormalizedName(List<String> names, String targetName) {
         if (names == null || targetName == null) {

@@ -62,6 +62,7 @@ public final class BossRenderSystem {
 
     private static final float DARK_EFFECT_SCALE = 0.72f;
     private static final float DARK_BREATH_SCALE = 0.66f;
+    private static final float DARK_ARRIVAL_FIRE_IMPACT_TIME = 7.8f;
     private static final float SHARK_SCALE = 0.68f;
     private static final float IDLE_SHARK_SCALE = 0.54f;
     private static final float TURBINE_SCALE = 0.82f;
@@ -207,6 +208,8 @@ public final class BossRenderSystem {
         Vector2 position = geometry.entityToScreen(boss.getX(), visualBossLane(boss));
         if (isDarkBoss(boss)) {
             position.x += geometry.getTileWidth() * 0.72f;
+            // The Dark Dragon PAM already contains its complete sky-entry motion.
+            // Do not add a second artificial vertical translation on top of that clip.
         } else if (isBeachBoss(boss)) {
             position.x += geometry.getTileWidth() * 0.34f;
         }
@@ -239,7 +242,7 @@ public final class BossRenderSystem {
 
     private String visualClip(Boss boss) {
         if (isDarkBoss(boss) && boss.getState() == BossState.INTRO) {
-            return "idle";
+            return "intro";
         }
         if (boss.getState() == BossState.STUNNED) {
             return stunClip(boss);
@@ -428,9 +431,12 @@ public final class BossRenderSystem {
     }
 
     private void renderDarkArrivalFire(Batch batch, Boss boss) {
-        if (!isDarkBoss(boss) || boss.getState() != BossState.INTRO || stateTime > 2.0f) {
+        if (!isDarkBoss(boss) || boss.getState() != BossState.INTRO
+                || stateTime < DARK_ARRIVAL_FIRE_IMPACT_TIME - 1.15f
+                || stateTime > DARK_ARRIVAL_FIRE_IMPACT_TIME + 0.75f) {
             return;
         }
+        float fireTime = stateTime - (DARK_ARRIVAL_FIRE_IMPACT_TIME - 1.15f);
         float scale = Math.min(
                 geometry.getTileWidth() / 220f,
                 geometry.getTileHeight() / 247f
@@ -438,7 +444,7 @@ public final class BossRenderSystem {
         for (int lane = 1; lane <= BoardGeometry.ROWS; lane++) {
             for (int column = BoardGeometry.COLUMNS - 1; column <= BoardGeometry.COLUMNS; column++) {
                 Vector2 p = geometry.boardToScreen(lane, column);
-                float time = stateTime + (BoardGeometry.COLUMNS - column) * 0.08f + lane * 0.03f;
+                float time = fireTime + (BoardGeometry.COLUMNS - column) * 0.08f + lane * 0.03f;
                 animations.draw(batch, FIRE_PEA_PATH, "idle2", time,
                         p.x, p.y, -scale, scale, true, Collections.emptyMap());
                 animations.draw(batch, SNAPDRAGON_FIRE_PATH, "animation", time,

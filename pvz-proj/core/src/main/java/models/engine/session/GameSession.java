@@ -69,6 +69,7 @@ public class GameSession extends GameSessionPlantSupport {
         plantFoodCount = Math.max(0, Math.min(MAX_PLANT_FOOD, initialPlantFoodCount));
         initialPlantFoodCount = 0;
         totalSunProduced = 0;
+        totalSunCollected = 0;
         board = new Board();
         tickManager = new TickManager();
         sunManager = new SunManager();
@@ -397,6 +398,7 @@ public class GameSession extends GameSessionPlantSupport {
         }
 
         totalSunAmount += sun.getSunAmount();
+        totalSunCollected += sun.getSunAmount();
         Tile tile = board.getTileAt(position);
         Plant plant = findSunProducerWaitingAt(tile);
         if (sun.isProducedByPlant() && plant != null) {

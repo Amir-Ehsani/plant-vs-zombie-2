@@ -19,7 +19,7 @@ public final class WaveProgressHud {
     private static final String ZOMBIE_HEAD_ID = "IMAGE_UI_HUD_INGAME_PROGRESS_METER_ZOMBIEHEAD";
 
     private static final float TOP_MARGIN = 12f;
-    private static final float ZOMBOTANY_TOP_MARGIN = 12f;
+    private static final float ZOMBOTANY_TOP_MARGIN = 72f;
     private static final float TRACK_LEFT_INSET = 10f;
     private static final float TRACK_RIGHT_INSET = 10f;
     private static final float FLAG_X_OFFSET = 1f;

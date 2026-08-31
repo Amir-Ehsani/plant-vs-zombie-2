@@ -73,6 +73,7 @@ abstract class GameSessionPlantSupport extends GameSessionEventSupport {
                 tickManager.getCurrentTick(),
                 totalSunAmount,
                 totalSunProduced,
+                totalSunCollected,
                 board.getTotalZombiesKilled(),
                 board.getTotalPlantsDestroyed()
         );

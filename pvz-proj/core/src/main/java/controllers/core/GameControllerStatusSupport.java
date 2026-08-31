@@ -403,6 +403,7 @@ abstract class GameControllerStatusSupport extends GameControllerMapRenderSuppor
                 gameSession.getTickManager().getCurrentTick(),
                 gameSession.getTotalSunAmount(),
                 gameSession.getTotalSunProduced(),
+                gameSession.getTotalSunCollected(),
                 gameSession.getTotalZombiesKilled(),
                 gameSession.getTotalPlantsDestroyed()
         );

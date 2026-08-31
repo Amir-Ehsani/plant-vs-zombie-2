@@ -40,7 +40,7 @@ public final class BossCatalog {
                     "zomboss-dark", "Zombot Dark Dragon", chapter, DARK_PATH, 0.82f,
                     new BossHealth(7000, 9000, 11000), true, true,
                     "intro", "idle", "idle", "idle", "summoning",
-                    "stun_loop", "die", 103, 30, 57
+                    "stun_loop", "die", 104, 30, 57
             );
             case "wave-beach" -> new Boss(
                     "zomboss-beach", "Zombot Sharktronic Sub", chapter, BEACH_PATH, 0.84f,

@@ -61,10 +61,11 @@ public final class PlantPlacementValidator {
         if (!session.isPlantSelected(type.getName())) {
             return InteractionValidation.invalid("Plant is not selected for this level.");
         }
-        if (!isUnlocked(type.getName())) {
+        Level level = session.getCurrentLevel();
+        boolean conveyorPlant = level != null && level.usesConveyorBelt();
+        if (!conveyorPlant && !isUnlocked(type.getName())) {
             return InteractionValidation.invalid("Plant is locked in your collection.");
         }
-        Level level = session.getCurrentLevel();
         if (level != null && !level.isPlantAllowed(type.getName()) && !session.isPlantSelected(type.getName())) {
             return InteractionValidation.invalid("Plant is locked or unavailable in this level.");
         }

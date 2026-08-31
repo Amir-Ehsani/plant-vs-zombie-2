@@ -45,9 +45,12 @@ abstract class LevelState {
     protected final Set<Integer> appliedTerrainWaves;
     protected final Set<Position> lowTidePositions;
     protected final Set<Position> activeNecromancyGravePositions;
+    protected final Set<Integer> lastFrostWindLanes;
     protected final ZombieFactory zombieFactory;
     protected final Random chapterRandom;
-    protected int highTideWaterColumns;
+    protected int minimumWaterColumns;
+    protected int maximumWaterColumns;
+    protected int currentWaterColumns;
 
     protected LevelStatus status;
     protected Board board;
@@ -112,9 +115,12 @@ abstract class LevelState {
         this.appliedTerrainWaves = new LinkedHashSet<>();
         this.lowTidePositions = new LinkedHashSet<>();
         this.activeNecromancyGravePositions = new LinkedHashSet<>();
+        this.lastFrostWindLanes = new LinkedHashSet<>();
         this.zombieFactory = new ZombieFactory();
         this.chapterRandom = new Random(levelId * 1009L);
-        this.highTideWaterColumns = 2;
+        this.minimumWaterColumns = 0;
+        this.maximumWaterColumns = 0;
+        this.currentWaterColumns = 0;
         this.status = LevelStatus.NOT_STARTED;
         this.board = null;
         this.seasonType = null;

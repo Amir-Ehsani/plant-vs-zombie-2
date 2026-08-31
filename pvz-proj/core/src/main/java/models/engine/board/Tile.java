@@ -106,6 +106,10 @@ public class Tile {
             return false;
         }
 
+        if (isNamedPlant(plant, "lily pad") && tileType != TileType.WATER) {
+            return false;
+        }
+
         if (isGraveTerrain()) {
             return plants.isEmpty() && isNamedPlant(plant, "grave buster");
         }
@@ -219,6 +223,22 @@ public class Tile {
         List<Plant> removed = new ArrayList<>();
         for (Plant plant : new ArrayList<>(plants)) {
             if (isDirectWaterPlant(plant) || hasLilyPad) {
+                continue;
+            }
+            plants.remove(plant);
+            removed.add(plant);
+        }
+        return removed;
+    }
+
+    public List<Plant> removeUnsupportedLandPlants() {
+        if (tileType == TileType.WATER || plants.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        List<Plant> removed = new ArrayList<>();
+        for (Plant plant : new ArrayList<>(plants)) {
+            if (!isDirectWaterPlant(plant)) {
                 continue;
             }
             plants.remove(plant);

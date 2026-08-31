@@ -70,7 +70,7 @@ abstract class LaneCombatTargetSupport extends LaneCombatTerrainSupport {
         double minimum = Double.MAX_VALUE;
         for (Tile tile : lane.getTiles()) {
             for (Plant plant : tile.getPlants()) {
-                if (!plant.isAlive() || plant.isTransformedToCat()
+                if (!plant.isAlive() || plant.isTransformedToSheep()
                         || excludeDisabled && plant.isDisabled()) {
                     continue;
                 }
@@ -92,7 +92,7 @@ abstract class LaneCombatTargetSupport extends LaneCombatTerrainSupport {
         double minimum = Double.MAX_VALUE;
         for (Tile tile : lane.getTiles()) {
             for (Plant plant : tile.getPlants()) {
-                if (plant == attacker || !plant.isAlive() || !plant.isDisabled()
+                if (plant == attacker || !plant.isAlive() || !plant.isFrozenByZombie()
                         || plant.getX() < attacker.getX()) {
                     continue;
                 }
@@ -106,9 +106,7 @@ abstract class LaneCombatTargetSupport extends LaneCombatTerrainSupport {
         if (target == null) {
             return false;
         }
-        if (target.isCoveredByOctopus()) {
-            target.damageOctopus();
-        } else if (target.isFrozenByZombie()) {
+        if (target.isFrozenByZombie()) {
             int damage = Math.max(1, attacker.getAttackDamage());
             target.damageIce(damage, isFirePlant(attacker));
         }

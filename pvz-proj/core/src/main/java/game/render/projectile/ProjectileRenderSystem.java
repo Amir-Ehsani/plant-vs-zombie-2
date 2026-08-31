@@ -189,21 +189,155 @@ public final class ProjectileRenderSystem {
 
     private void spawnForPlant(Board board, Plant plant, ProjectileVisualType baseType) {
         List<ZombieSnapshot> targets = resolveTargets(plant, visualTargetSnapshots(board));
-        if (targets.isEmpty()) {
-            return;
-        }
-        int shots = Math.max(resolveShotCount(board, plant), targets.size());
-        int targetIndex = 0;
-        for (int shot = 0; shot < shots; shot++) {
-            ZombieSnapshot zombieTarget = targets.get(Math.min(targetIndex, targets.size() - 1));
-            ProjectileVisualType type = resolveVisualType(board, plant, zombieTarget, baseType);
-            ProjectileTarget visualTarget = resolveProjectileTarget(board, plant, zombieTarget, type);
-            float delay = releaseDelaySeconds(plant, type) + shot * SHOT_STAGGER_SECONDS;
-            spawnProjectile(plant, visualTarget, type, delay);
-            if (targets.size() > 1) {
-                targetIndex = (targetIndex + 1) % targets.size();
+        if (!targets.isEmpty()) {
+            int shots = Math.max(resolveShotCount(board, plant), targets.size());
+            int targetIndex = 0;
+            for (int shot = 0; shot < shots; shot++) {
+                ZombieSnapshot zombieTarget = targets.get(Math.min(targetIndex, targets.size() - 1));
+                ProjectileVisualType type = resolveVisualType(board, plant, zombieTarget, baseType);
+                ProjectileTarget visualTarget = resolveProjectileTarget(board, plant, zombieTarget, type);
+                float delay = releaseDelaySeconds(plant, type) + shot * SHOT_STAGGER_SECONDS;
+                spawnProjectile(plant, visualTarget, type, delay);
+                if (targets.size() > 1) {
+                    targetIndex = (targetIndex + 1) % targets.size();
+                }
             }
         }
+        spawnMissingGraveProjectiles(board, plant, baseType, targets);
+    }
+
+    private void spawnMissingGraveProjectiles(
+        Board board,
+        Plant plant,
+        ProjectileVisualType baseType,
+        List<ZombieSnapshot> zombieTargets
+    ) {
+        String name = normalize(plant.getName());
+        int ownLane = (int) Math.round(plant.getY());
+        if (name.equals("threepeater")) {
+            for (int lane : new int[]{ownLane - 1, ownLane, ownLane + 1}) {
+                if (!hasForwardZombieTarget(zombieTargets, plant, lane)) {
+                    spawnGraveShotForLane(board, plant, baseType, lane, 0);
+                }
+            }
+            return;
+        }
+        if (name.equals("rotobaga")) {
+            for (int lane : new int[]{ownLane - 1, ownLane + 1}) {
+                if (!hasForwardZombieTarget(zombieTargets, plant, lane)) {
+                    spawnGraveShotForLane(board, plant, baseType, lane, 0);
+                }
+            }
+            return;
+        }
+        if (name.equals("starfruit")) {
+            if (zombieTargets.isEmpty()) {
+                spawnGraveShotForLane(board, plant, baseType, ownLane, 0);
+            }
+            return;
+        }
+        if (name.equals("split pea")) {
+            if (!hasForwardZombieTarget(zombieTargets, plant, ownLane)) {
+                spawnGraveShotForLane(board, plant, baseType, ownLane, 0);
+            }
+            return;
+        }
+        if (!zombieTargets.isEmpty()) {
+            return;
+        }
+        int shots = Math.max(1, resolveShotCount(board, plant));
+        for (int shot = 0; shot < shots; shot++) {
+            spawnGraveShotForLane(board, plant, baseType, ownLane, shot);
+        }
+    }
+
+    private boolean hasForwardZombieTarget(
+        List<ZombieSnapshot> targets, Plant plant, int lane
+    ) {
+        for (ZombieSnapshot target : targets) {
+            if (target.lane == lane && target.x >= plant.getX() - 0.01) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void spawnGraveShotForLane(
+        Board board, Plant plant, ProjectileVisualType baseType, int laneNumber, int shotIndex
+    ) {
+        Tile grave = nearestGraveAhead(board, plant, laneNumber);
+        if (grave == null) {
+            return;
+        }
+        ProjectileVisualType type = resolveTorchwoodTypeForFixedTarget(
+            board, plant, laneNumber, grave.getPosition().getX(), baseType
+        );
+        float delay = releaseDelaySeconds(plant, type) + shotIndex * SHOT_STAGGER_SECONDS;
+        spawnProjectile(
+            plant,
+            ProjectileTarget.fixed(grave.getPosition().getX(), laneNumber),
+            type,
+            delay
+        );
+    }
+
+    private Tile nearestGraveAhead(Board board, Plant plant, int laneNumber) {
+        Lane lane = board == null ? null : board.getLaneAt(laneNumber);
+        if (lane == null) {
+            return null;
+        }
+        double maximumRange = graveTargetRange(plant);
+        Tile selected = null;
+        double best = Double.MAX_VALUE;
+        for (Tile tile : lane.getTiles()) {
+            if (!tile.isGraveTerrain() || tile.getTerrainHealth() <= 0) {
+                continue;
+            }
+            double distance = tile.getPosition().getX() - plant.getX();
+            if (distance < -0.01 || distance > maximumRange || distance >= best) {
+                continue;
+            }
+            selected = tile;
+            best = distance;
+        }
+        return selected;
+    }
+
+    private double graveTargetRange(Plant plant) {
+        String name = normalize(plant.getName());
+        int bonus = Math.max(0, plant.getRange() - 1);
+        if (name.equals("puff shroom") || name.equals("sea shroom")) {
+            return 3 + bonus;
+        }
+        if (name.equals("fume shroom")) {
+            return 4 + bonus;
+        }
+        return Double.MAX_VALUE;
+    }
+
+    private ProjectileVisualType resolveTorchwoodTypeForFixedTarget(
+        Board board,
+        Plant plant,
+        int laneNumber,
+        double targetX,
+        ProjectileVisualType type
+    ) {
+        if (!isTorchwoodConvertiblePea(type) || !isGreenPeaPlant(plant)) {
+            return type;
+        }
+        Lane lane = board.getLaneAt(laneNumber);
+        if (lane == null) {
+            return type;
+        }
+        int start = Math.max(1, (int) Math.floor(plant.getX()) + 1);
+        int end = Math.min(board.getWidth(), (int) Math.ceil(targetX) - 1);
+        for (int x = start; x <= end; x++) {
+            Tile tile = lane.getTileAt(x);
+            if (tile != null && hasTorchwood(tile)) {
+                return ProjectileVisualType.FIRE;
+            }
+        }
+        return type;
     }
 
     private List<ZombieSnapshot> resolveTargets(

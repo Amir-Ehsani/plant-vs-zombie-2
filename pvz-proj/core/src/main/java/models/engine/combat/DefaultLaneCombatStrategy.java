@@ -27,6 +27,7 @@ import java.util.Set;
 
 
 public class DefaultLaneCombatStrategy extends LaneCombatPlantSupport implements LaneCombatStrategy {
+    private static final int OCTOPUS_BREAK_STEP_TICKS = 3 * TICKS_PER_SECOND;
     public DefaultLaneCombatStrategy() {
         super(null);
     }
@@ -42,7 +43,13 @@ public class DefaultLaneCombatStrategy extends LaneCombatPlantSupport implements
     @Override
     public LaneTickResult updateLane(Lane lane) {
         if (lane == null) throw new IllegalArgumentException("Lane cannot be null.");
-        List<Zombie> livingAtStart = collectLivingZombies(lane);
+        List<Zombie> zombiesAtStart = collectZombiesAtTickStart(lane);
+        List<Zombie> livingAtStart = new ArrayList<>();
+        for (Zombie zombie : zombiesAtStart) {
+            if (zombie.isAlive()) {
+                livingAtStart.add(zombie);
+            }
+        }
         Map<Plant, Position> plantPositions = capturePlantPositions(lane);
         Set<Plant> consumedPlants = Collections.newSetFromMap(new IdentityHashMap<>());
         List<GameEvent> events = new ArrayList<>();
@@ -52,7 +59,7 @@ public class DefaultLaneCombatStrategy extends LaneCombatPlantSupport implements
         List<Zombie> mowerKilled = handleLaneEnd(lane, livingAtStart);
         boolean mowerTriggered = mowerWasReady && lane.getLawnMower().isTriggered();
         int plantsDestroyed = removeDeadPlants(lane, consumedPlants, plantPositions, events);
-        int zombiesKilled = appendZombieDeathEvents(livingAtStart, mowerKilled, events);
+        int zombiesKilled = appendZombieDeathEvents(zombiesAtStart, mowerKilled, events);
         if (mowerTriggered) appendMowerEvent(lane, mowerKilled, events);
         redistributeLivingZombies(lane, livingAtStart);
         return new LaneTickResult(
@@ -61,13 +68,26 @@ public class DefaultLaneCombatStrategy extends LaneCombatPlantSupport implements
         );
     }
 
+    private List<Zombie> collectZombiesAtTickStart(Lane lane) {
+        List<Zombie> zombies = new ArrayList<>();
+        Set<Zombie> seen = Collections.newSetFromMap(new IdentityHashMap<>());
+        for (Tile tile : lane.getTiles()) {
+            for (Zombie zombie : tile.getZombies()) {
+                if (zombie != null && seen.add(zombie)) {
+                    zombies.add(zombie);
+                }
+            }
+        }
+        return zombies;
+    }
+
     private int appendZombieDeathEvents(
-            List<Zombie> livingAtStart, List<Zombie> mowerKilled, List<GameEvent> events
+            List<Zombie> zombiesAtStart, List<Zombie> mowerKilled, List<GameEvent> events
     ) {
         Set<Zombie> mowerKilledSet = Collections.newSetFromMap(new IdentityHashMap<>());
         mowerKilledSet.addAll(mowerKilled);
         int killed = 0;
-        for (Zombie zombie : livingAtStart) {
+        for (Zombie zombie : zombiesAtStart) {
             if (zombie.isAlive()) continue;
             killed++;
             events.add(GameEvent.zombieKilled(zombie, mowerKilledSet.contains(zombie)));
@@ -119,6 +139,7 @@ public class DefaultLaneCombatStrategy extends LaneCombatPlantSupport implements
                 state.bowlingBlueRechargeTicks = Math.max(0, state.bowlingBlueRechargeTicks - 1);
                 state.bowlingOrangeRechargeTicks = Math.max(0, state.bowlingOrangeRechargeTicks - 1);
                 plant.tickCooldown();
+                updateOctopusCover(plant, state);
                 if (plant.consumeExplosiveArmorBreak()) {
                     damageArea(tile.getPosition(), 1, 1,
                             Math.max(1800, plant.getExplodeDamage()),
@@ -155,6 +176,18 @@ public class DefaultLaneCombatStrategy extends LaneCombatPlantSupport implements
 
                 performPlantAttack(lane, tile, plant, state);
             }
+        }
+    }
+
+    private void updateOctopusCover(Plant plant, PlantRuntimeState state) {
+        if (!plant.isCoveredByOctopus()) {
+            state.octopusBreakTicks = 0;
+            return;
+        }
+        state.octopusBreakTicks++;
+        if (state.octopusBreakTicks >= OCTOPUS_BREAK_STEP_TICKS) {
+            state.octopusBreakTicks = 0;
+            plant.damageOctopus();
         }
     }
 

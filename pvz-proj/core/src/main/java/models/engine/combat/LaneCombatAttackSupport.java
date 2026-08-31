@@ -121,27 +121,46 @@ abstract class LaneCombatAttackSupport extends LaneCombatAbilitySupport {
             Zombie target = behind
                 ? nearestZombieBehind(new ArrayList<>(targetLane.getAllZombies()), plant)
                 : selectPrimaryTarget(plant, new ArrayList<>(targetLane.getAllZombies()));
-            if (target == null) {
+            Tile graveTarget = target == null && !behind
+                ? findNearestGraveTerrain(targetLane, plant, resolveMaximumRange(plant)) : null;
+            if (target == null && graveTarget == null) {
                 continue;
             }
-            Plant torchwood = !behind && isGreenPeaProjectilePlant(normalizeText(plant.getName()), plant)
+            Plant torchwood = target != null && !behind
+                && isGreenPeaProjectilePlant(normalizeText(plant.getName()), plant)
                 ? findTorchwoodBetween(plant, target, targetLane) : null;
             int shotDamage = torchwood == null ? damage : damage * (torchwood.hasBlueFlame() ? 3 : 2);
             boolean fireDamage = torchwood != null;
+            double targetX = target != null ? target.getX() : graveTarget.getPosition().getX();
             for (int repeat = 0; repeat < repeats; repeat++) {
                 int shotIndex = scheduled++;
                 int delay = PlantActionTiming.projectileImpactTicks(
-                    plant.getName(), "attack", Math.abs(target.getX() - plant.getX()), shotIndex
+                    plant.getName(), "attack", Math.abs(targetX - plant.getX()), shotIndex
                 );
                 scheduleCombatAction(delay, () -> {
                     Zombie impactTarget = behind
                         ? nearestZombieBehind(new ArrayList<>(targetLane.getAllZombies()), plant)
                         : selectPrimaryTarget(plant, new ArrayList<>(targetLane.getAllZombies()));
+                    if (impactTarget == null && !behind) {
+                        Tile currentGrave = findNearestGraveTerrain(
+                            targetLane, plant, resolveMaximumRange(plant)
+                        );
+                        if (currentGrave != null) {
+                            board.damageTerrain(currentGrave.getPosition(), shotDamage, fireDamage);
+                        }
+                        return;
+                    }
                     if (impactTarget == null) {
                         return;
                     }
+                    Tile blockingTerrain = findBlockingTerrain(targetLane, plant, impactTarget);
+                    if (blockingTerrain != null) {
+                        board.damageTerrain(blockingTerrain.getPosition(), shotDamage, fireDamage);
+                        return;
+                    }
                     dealPlantDamage(
-                        plant, impactTarget, shotDamage, fireDamage ? "fire" : resolveDamageType(plant), fireDamage
+                        plant, impactTarget, shotDamage,
+                        fireDamage ? "fire" : resolveDamageType(plant), fireDamage
                     );
                     applyOnHitEffects(plant, impactTarget);
                 });
@@ -187,6 +206,24 @@ abstract class LaneCombatAttackSupport extends LaneCombatAbilitySupport {
     private boolean handleStarfruitAttack(Plant plant, PlantRuntimeState state) {
         List<Zombie> targets = starfruitDirectionalTargets(plant);
         if (targets.isEmpty()) {
+            Lane lane = board == null ? null : board.getLaneAt((int) Math.round(plant.getY()));
+            Tile grave = lane == null ? null
+                    : findNearestGraveTerrain(lane, plant, resolveMaximumRange(plant));
+            if (grave == null) {
+                return true;
+            }
+            int damage = effectiveDamage(plant, 20);
+            int delay = PlantActionTiming.projectileImpactTicks(
+                    plant.getName(), "attack", Math.abs(grave.getPosition().getX() - plant.getX()), 0
+            );
+            scheduleCombatAction(delay, () -> {
+                Tile currentGrave = findNearestGraveTerrain(lane, plant, resolveMaximumRange(plant));
+                if (currentGrave != null) {
+                    board.damageTerrain(currentGrave.getPosition(), damage, false);
+                }
+            });
+            plant.prepareAttackAnimation("attack");
+            finishAttack(plant, state);
             return true;
         }
         int damage = effectiveDamage(plant, 20);
@@ -290,6 +327,12 @@ abstract class LaneCombatAttackSupport extends LaneCombatAbilitySupport {
         double range = resolveMaximumRange(plant);
         if (front != null && Math.abs(front.getX() - plant.getX()) > range) front = null;
         if (back != null && Math.abs(back.getX() - plant.getX()) > range) back = null;
+        Tile graveTarget = front == null && back == null
+            ? findNearestGraveTerrain(lane, plant, range) : null;
+        if (front == null && back == null && graveTarget == null) {
+            // Do not trigger a punch animation while Bonk Choy has nothing to hit.
+            return true;
+        }
         String clip = resolveBonkAttackClip(front, back);
         int delay = PlantActionTiming.meleeImpactTicks(plant.getName(), clip);
         int damage = effectiveDamage(plant, 15);
@@ -303,6 +346,12 @@ abstract class LaneCombatAttackSupport extends LaneCombatAbilitySupport {
             if (currentBack != null && currentBack != currentFront
                 && Math.abs(currentBack.getX() - plant.getX()) <= range) {
                 dealPlantDamage(plant, currentBack, damage, "melee", false);
+            }
+            if (currentFront == null && currentBack == null) {
+                Tile currentGrave = findNearestGraveTerrain(lane, plant, range);
+                if (currentGrave != null) {
+                    board.damageTerrain(currentGrave.getPosition(), damage, false);
+                }
             }
         });
         plant.prepareAttackAnimation(clip);
@@ -319,7 +368,9 @@ abstract class LaneCombatAttackSupport extends LaneCombatAbilitySupport {
         double range = resolveMaximumRange(plant);
         if (front != null && Math.abs(front.getX() - plant.getX()) > range) front = null;
         if (back != null && Math.abs(back.getX() - plant.getX()) > range) back = null;
-        if (front == null && back == null) {
+        Tile graveTarget = front == null && back == null
+            ? findNearestGraveTerrain(lane, plant, range) : null;
+        if (front == null && back == null && graveTarget == null) {
             return true;
         }
         String clip = front != null && back != null ? "attack3" : back != null ? "attack2" : "attack";
@@ -335,6 +386,12 @@ abstract class LaneCombatAttackSupport extends LaneCombatAbilitySupport {
             if (currentBack != null && currentBack != currentFront
                 && Math.abs(currentBack.getX() - plant.getX()) <= range) {
                 dealPlantDamage(plant, currentBack, damage, "fire whip", true);
+            }
+            if (currentFront == null && currentBack == null) {
+                Tile currentGrave = findNearestGraveTerrain(lane, plant, range);
+                if (currentGrave != null) {
+                    board.damageTerrain(currentGrave.getPosition(), damage, true);
+                }
             }
             meltNearbyTerrain("wasabi whip", plant);
         });
@@ -358,7 +415,9 @@ abstract class LaneCombatAttackSupport extends LaneCombatAbilitySupport {
     ) {
         List<Zombie> candidates = collectCandidateZombies(plant, lane);
         Zombie target = selectPrimaryTarget(plant, candidates);
-        if (target == null || !isChargeReady(name, plant, state)) {
+        Tile graveTarget = target == null
+            ? findNearestGraveTerrain(lane, plant, resolveMaximumRange(plant)) : null;
+        if ((target == null && graveTarget == null) || !isChargeReady(name, plant, state)) {
             return;
         }
         if (name.equals("bowling bulb")) {
@@ -366,7 +425,8 @@ abstract class LaneCombatAttackSupport extends LaneCombatAbilitySupport {
         }
         int damage = effectiveDamage(plant, resolveBaseDamage(plant, state, tile));
         boolean peaProjectile = isGreenPeaProjectilePlant(name, plant);
-        Plant torchwood = peaProjectile ? findTorchwoodBetween(plant, target, lane) : null;
+        Plant torchwood = target != null && peaProjectile
+            ? findTorchwoodBetween(plant, target, lane) : null;
         boolean fireDamage = isFirePlant(plant) || torchwood != null;
         if (torchwood != null) {
             damage *= torchwood.hasBlueFlame() ? 3 : 2;
@@ -379,8 +439,9 @@ abstract class LaneCombatAttackSupport extends LaneCombatAbilitySupport {
         boolean fireAtImpact = fireDamage;
         for (int shot = 0; shot < shotCount; shot++) {
             int shotIndex = shot;
+            double impactX = target != null ? target.getX() : graveTarget.getPosition().getX();
             int delay = PlantActionTiming.projectileImpactTicks(
-                plant.getName(), attackClip, Math.abs(target.getX() - plant.getX()), shotIndex
+                plant.getName(), attackClip, Math.abs(impactX - plant.getX()), shotIndex
             );
             scheduleCombatAction(delay, () -> applyStandardProjectileImpact(
                 name, lane, plant, damagePerShot, fireAtImpact, butterShot, shotIndex
@@ -447,6 +508,10 @@ abstract class LaneCombatAttackSupport extends LaneCombatAbilitySupport {
         List<Zombie> candidates = collectCandidateZombies(plant, lane);
         Zombie target = selectPrimaryTarget(plant, candidates);
         if (target == null) {
+            Tile graveTarget = findNearestGraveTerrain(lane, plant, resolveMaximumRange(plant));
+            if (graveTarget != null) {
+                board.damageTerrain(graveTarget.getPosition(), damage, fireDamage);
+            }
             return;
         }
         Tile blockingTerrain = findBlockingTerrain(lane, plant, target);
@@ -866,7 +931,7 @@ abstract class LaneCombatAttackSupport extends LaneCombatAbilitySupport {
         maybeAttractToSweetPotato(lane, zombie, state);
         Tile tile = tileForZombie(lane, zombie);
         Plant plant = tile == null ? null : tile.getCurrentPlant();
-        if (plant != null && plant.isTransformedToCat()) plant = null;
+        if (plant != null && plant.isTransformedToSheep()) plant = null;
         updateSnorkelState(zombie, tile, plant);
         if (handleAllstarZombieCollision(lane, zombie, state)
             || handleHeavyZombieCollision(lane, zombie)

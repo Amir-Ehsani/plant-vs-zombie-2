@@ -241,16 +241,28 @@ public class Plant extends PlantState {
         octopusHits = Math.max(0, octopusHits - 1);
     }
 
-    public void transformToCat(Zombie wizard) {
+    public void transformToSheep(Zombie wizard) {
         if (wizard != null) {
             transformedByWizard = wizard;
         }
     }
 
-    public void restoreFromCat(Zombie wizard) {
+    public void restoreFromSheep(Zombie wizard) {
         if (wizard == null || transformedByWizard == wizard) {
             transformedByWizard = null;
         }
+    }
+
+    /** @deprecated Wizard transformation is a sheep, not a cat. */
+    @Deprecated
+    public void transformToCat(Zombie wizard) {
+        transformToSheep(wizard);
+    }
+
+    /** @deprecated Wizard transformation is a sheep, not a cat. */
+    @Deprecated
+    public void restoreFromCat(Zombie wizard) {
+        restoreFromSheep(wizard);
     }
 
     public void setLevel(int level) {
