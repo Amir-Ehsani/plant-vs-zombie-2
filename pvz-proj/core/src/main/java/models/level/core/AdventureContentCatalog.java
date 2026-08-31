@@ -125,6 +125,16 @@ public final class AdventureContentCatalog {
         return names;
     }
 
+    public static List<String> plantNamesForChapter(
+            String chapterName,
+            PlantRegistry registry
+    ) {
+        return filterPlantsForChapter(
+                AdventureLevelCatalog.normalizeChapterName(chapterName),
+                allPlantNames(registry)
+        );
+    }
+
     public static List<String> plantNamesForLevel(
             String chapterName,
             int levelNumber,
@@ -158,14 +168,17 @@ public final class AdventureContentCatalog {
             PlantRegistry registry
     ) {
         String chapter = AdventureLevelCatalog.normalizeChapterName(chapterName);
+        List<String> requested;
         if (chapter.equals("ancient-egypt") && levelNumber == 2) {
-            return existingPlantNames(List.of(
+            requested = List.of(
                     "Repeater", "Cabbage-pult", "Kernel-pult", "Bonk Choy",
                     "Wall-nut", "Potato Mine", "Iceberg Lettuce",
                     "Grave Buster", "Squash"
-            ), registry);
+            );
+        } else {
+            requested = plantNamesForLevel(chapterName, levelNumber, registry);
         }
-        return plantNamesForLevel(chapterName, levelNumber, registry);
+        return filterPlantsForChapter(chapter, existingPlantNames(requested, registry));
     }
 
     public static List<String> zombieNamesForLevel(
@@ -316,6 +329,19 @@ public final class AdventureContentCatalog {
         return result;
     }
 
+    private static List<String> filterPlantsForChapter(String chapter, List<String> plants) {
+        List<String> result = new ArrayList<>();
+        if (plants == null) {
+            return result;
+        }
+        for (String plantName : plants) {
+            if (plantName != null && !isChapterIncompatiblePlant(chapter, plantName)) {
+                result.add(plantName);
+            }
+        }
+        return result;
+    }
+
     private static boolean isChapterIncompatiblePlant(String chapter, String plantName) {
         String plant = normalize(plantName);
         if (!chapter.equals("wave-beach") && isWaterOnlyPlant(plant)) {
@@ -330,7 +356,10 @@ public final class AdventureContentCatalog {
         if (chapter.equals("wave-beach")) {
             return isDarkAgesPlant(plant);
         }
-        return chapter.equals("wild-west") && plant.equals("hot potato");
+        if (chapter.equals("wild-west")) {
+            return plant.equals("hot potato") || isBeachPlant(plant) || isFrostbitePlant(plant);
+        }
+        return false;
     }
 
     private static boolean isWaterOnlyPlant(String plant) {

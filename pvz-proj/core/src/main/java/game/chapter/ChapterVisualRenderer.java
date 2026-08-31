@@ -47,6 +47,11 @@ public final class ChapterVisualRenderer {
             "768/INITIAL/EFFECTS/DIRT_SPAWN_DIRT/DIRT_SPAWN_DIRT.PAM";
     private static final String LOW_BEACH_RIPPLE_PAM =
             "768/FULL/BACKGROUNDS/WATER_GARGANTUAR_RIPPLE/WATER_GARGANTUAR_RIPPLE.PAM";
+    private static final String WAVE_UPPERLAYER_PAM =
+            "768/FULL/BACKGROUNDS/WAVE_UPPERLAYER/WAVE_UPPERLAYER.PAM";
+    private static final String WATER_UNDERLAYER_PAM =
+            "768/FULL/BACKGROUNDS/WATER_UNDERLAYER/WATER_UNDERLAYER.PAM";
+    private static final int MAX_SANDSTORM_BURSTS = 3;
 
     private static final Color WATER_COLOR = new Color(0.12f, 0.48f, 0.72f, 0.34f);
     private static final Color WATER_SHINE_COLOR = new Color(0.60f, 0.92f, 1f, 0.24f);
@@ -75,6 +80,7 @@ public final class ChapterVisualRenderer {
     private final TextureRegion waveBigThin;
     private final TextureRegion waveUpperThin;
     private final TextureRegion waveUpperWide;
+    private final TextureRegion waveUpperStrip;
     private final TextureRegion tideLine;
     private final TextureRegion scorchedTile;
     private final TextureRegion scorchedEdge;
@@ -123,6 +129,9 @@ public final class ChapterVisualRenderer {
         this.waveUpperWide = animations.region(
                 "IMAGE_BACKGROUNDS_WAVE_UPPERLAYER_WAVE_UPPERLAYER_484X1390"
         );
+        this.waveUpperStrip = animations.region(
+                "IMAGE_BACKGROUNDS_WAVE_UPPERLAYER_WAVE_UPPERLAYER_2852X86"
+        );
         this.tideLine = animations.region(
                 "IMAGE_BACKGROUNDS_WATER_TIDE_LINE_WATER_TIDE_LINE_161X397"
         );
@@ -153,6 +162,8 @@ public final class ChapterVisualRenderer {
         this.observedWave = 0;
         if (season == SeasonType.BIG_WAVE_BEACH) {
             animations.preload(LOW_BEACH_RIPPLE_PAM);
+            animations.preload(WAVE_UPPERLAYER_PAM);
+            animations.preload(WATER_UNDERLAYER_PAM);
             displayedTideX = targetTideX();
         } else if (season == SeasonType.FROSTBITE_CAVES) {
             animations.preload(FROST_WIND_PAM);
@@ -239,7 +250,11 @@ public final class ChapterVisualRenderer {
         if (observedWave != level.getWaveManager().getTotalWaves()) {
             return;
         }
+        boolean spawned = false;
         for (Zombie zombie : board.getAllZombies()) {
+            if (sandBursts.size() >= MAX_SANDSTORM_BURSTS) {
+                break;
+            }
             if (zombie == null || !zombie.isAlive() || seenSandstormZombies.containsKey(zombie)) {
                 continue;
             }
@@ -249,6 +264,9 @@ public final class ChapterVisualRenderer {
             }
             seenSandstormZombies.put(zombie, Boolean.TRUE);
             sandBursts.add(new SandBurstVisual((float) zombie.getX(), (float) zombie.getY()));
+            spawned = true;
+        }
+        if (spawned) {
             AudioManager.playGlobal(AudioCue.SANDSTORM);
         }
     }
@@ -354,8 +372,11 @@ public final class ChapterVisualRenderer {
     private void drawTerrainSprites(Batch batch) {
         batch.begin();
         if (season == SeasonType.BIG_WAVE_BEACH) {
-            drawOceanExtension(batch);
-            drawContinuousWaterTiles(batch);
+            drawClippedWater(batch);
+            for (Position position : level.getLowTidePositions()) {
+                drawLowBeachMarker(batch, position);
+            }
+            drawTideLine(batch);
         }
         for (int row = 1; row <= board.getHeight(); row++) {
             for (int column = 1; column <= board.getWidth(); column++) {
@@ -369,12 +390,6 @@ public final class ChapterVisualRenderer {
                     drawScorchedTile(batch, position);
                 }
             }
-        }
-        if (season == SeasonType.BIG_WAVE_BEACH) {
-            for (Position position : level.getLowTidePositions()) {
-                drawLowBeachMarker(batch, position);
-            }
-            drawTideLine(batch);
         }
         batch.end();
     }
@@ -398,7 +413,7 @@ public final class ChapterVisualRenderer {
             return;
         }
         Rectangle boardBounds = geometry.getBoardBounds();
-        float width = boardBounds.x + boardBounds.width - displayedTideX;
+        float width = WORLD_WIDTH - displayedTideX;
         if (width <= 0f) {
             return;
         }
@@ -410,33 +425,86 @@ public final class ChapterVisualRenderer {
         shapes.rect(displayedTideX, waveY, width, 3f);
     }
 
+    private void drawClippedWater(Batch batch) {
+        if (Float.isNaN(displayedTideX) || camera == null) {
+            return;
+        }
+        Rectangle boardBounds = geometry.getBoardBounds();
+        Rectangle clipBounds = new Rectangle(
+                displayedTideX,
+                boardBounds.y,
+                Math.max(1f, WORLD_WIDTH - displayedTideX),
+                boardBounds.height
+        );
+        Rectangle scissors = new Rectangle();
+        batch.flush();
+        ScissorStack.calculateScissors(camera, batch.getTransformMatrix(), clipBounds, scissors);
+        if (!ScissorStack.pushScissors(scissors)) {
+            return;
+        }
+        try {
+            drawContinuousWaterTiles(batch);
+            batch.flush();
+        } finally {
+            ScissorStack.popScissors();
+        }
+    }
+
     private void drawContinuousWaterTiles(Batch batch) {
         if (Float.isNaN(displayedTideX)) {
             return;
         }
         Rectangle boardBounds = geometry.getBoardBounds();
-        float endX = boardBounds.x + boardBounds.width;
-        float tileWidth = geometry.getTileWidth();
-        float tileHeight = geometry.getTileHeight();
-        if (waterTile != null) {
-            for (float x = displayedTideX; x < endX; x += tileWidth) {
-                float width = Math.min(tileWidth, endX - x);
-                for (int row = 0; row < board.getHeight(); row++) {
-                    float y = boardBounds.y + row * tileHeight;
-                    float pulse = 0.80f + 0.06f * MathUtils.sin(
-                            elapsed * 1.9f + x * 0.01f + row
-                    );
-                    batch.setColor(0.82f, 0.96f, 1f, pulse);
-                    batch.draw(waterTile, x, y, width, tileHeight);
-                }
-            }
-        }
+        drawAnimatedWaterBody(batch, boardBounds);
+        drawMovingWaveStrip(batch, boardBounds);
         batch.setColor(Color.WHITE);
-        drawWaveLayer(batch, waveBigLeft, displayedTideX, boardBounds, 0.92f, -0.10f);
-        drawWaveLayer(batch, waveUpperTall, displayedTideX, boardBounds, 0.96f, 0.02f);
-        drawWaveLayer(batch, waveBigThin, displayedTideX + tileWidth * 0.32f, boardBounds, 0.90f, 0.04f);
-        drawWaveLayer(batch, waveUpperThin, displayedTideX + tileWidth * 0.55f, boardBounds, 0.96f, 0.06f);
-        drawWaveLayer(batch, waveUpperWide, displayedTideX + tileWidth * 0.88f, boardBounds, 0.82f, 0.08f);
+        drawWaveLayer(batch, waveBigLeft, displayedTideX, boardBounds, 0.90f, 0.08f);
+        drawWaveLayer(batch, waveUpperTall, displayedTideX, boardBounds, 0.96f, 0.05f);
+        drawWaveLayer(batch, waveBigThin, displayedTideX + geometry.getTileWidth() * 0.18f, boardBounds, 0.88f, 0.06f);
+        drawWaveLayer(batch, waveUpperThin, displayedTideX + geometry.getTileWidth() * 0.34f, boardBounds, 0.94f, 0.07f);
+        drawWaveLayer(batch, waveUpperWide, displayedTideX + geometry.getTileWidth() * 0.55f, boardBounds, 0.82f, 0.09f);
+        batch.setColor(Color.WHITE);
+    }
+
+    private void drawAnimatedWaterBody(Batch batch, Rectangle boardBounds) {
+        float centerX = (displayedTideX + WORLD_WIDTH) * 0.50f;
+        float centerY = boardBounds.y + boardBounds.height * 0.50f;
+        batch.setColor(1f, 1f, 1f, 0.72f);
+        animations.draw(
+                batch, WATER_UNDERLAYER_PAM, "Water", elapsed,
+                centerX, centerY, 1.35f, true
+        );
+        batch.setColor(Color.WHITE);
+    }
+
+    private void drawMovingWaveStrip(Batch batch, Rectangle boardBounds) {
+        TextureRegion strip = waveUpperStrip != null ? waveUpperStrip : waveUpperWide;
+        if (strip == null) {
+            animations.draw(
+                    batch, WAVE_UPPERLAYER_PAM, "water", elapsed,
+                    displayedTideX + geometry.getTileWidth(),
+                    boardBounds.y + boardBounds.height * 0.55f,
+                    0.92f, true
+            );
+            return;
+        }
+        float waterLeft = displayedTideX;
+        float waterRight = WORLD_WIDTH;
+        float nativeRatio = strip.getRegionWidth() / Math.max(1f, (float) strip.getRegionHeight());
+        float stripHeight = Math.max(28f, geometry.getTileHeight() * 0.42f);
+        float stripWidth = stripHeight * nativeRatio;
+        float surge = Math.max(0f, MathUtils.sin(elapsed * 1.05f)) * geometry.getTileWidth() * 0.85f;
+        batch.setColor(1f, 1f, 1f, 0.94f);
+        int row = 0;
+        for (float y = boardBounds.y; y < boardBounds.y + boardBounds.height; y += stripHeight * 0.78f) {
+            float phase = surge + Math.max(0f, MathUtils.sin(elapsed * 1.35f + row * 0.85f))
+                    * geometry.getTileWidth() * 0.28f;
+            float startX = waterLeft + phase;
+            for (float x = startX; x < waterRight + stripWidth * 0.20f; x += stripWidth * 0.96f) {
+                batch.draw(strip, x, y, stripWidth, stripHeight);
+            }
+            row++;
+        }
         batch.setColor(Color.WHITE);
     }
 
@@ -449,33 +517,14 @@ public final class ChapterVisualRenderer {
         }
         float height = boardBounds.height;
         float width = height * region.getRegionWidth() / Math.max(1f, region.getRegionHeight());
-        float horizontal = MathUtils.sin(elapsed * 1.5f + boundaryX * 0.01f)
-                * geometry.getTileWidth() * horizontalScale;
+        float horizontal = Math.abs(MathUtils.sin(elapsed * 1.5f + boundaryX * 0.01f))
+                * geometry.getTileWidth() * Math.abs(horizontalScale);
         batch.setColor(1f, 1f, 1f, alpha);
         batch.draw(
-                region, boundaryX - width * 0.10f + horizontal,
+                region, boundaryX + horizontal,
                 boardBounds.y,
                 width, height
         );
-    }
-
-    private void drawOceanExtension(Batch batch) {
-        if (waterTile == null) {
-            return;
-        }
-        Rectangle boardBounds = geometry.getBoardBounds();
-        float startX = boardBounds.x + boardBounds.width;
-        float endX = Math.max(startX, WORLD_WIDTH);
-        float stripWidth = geometry.getTileWidth();
-        for (float x = startX; x < endX; x += stripWidth) {
-            float width = Math.min(stripWidth, endX - x);
-            for (int row = 0; row < BoardGeometry.ROWS; row++) {
-                float y = boardBounds.y + row * geometry.getTileHeight();
-                batch.setColor(0.82f, 0.96f, 1f, 0.84f);
-                batch.draw(waterTile, x, y, width, geometry.getTileHeight());
-            }
-        }
-        batch.setColor(Color.WHITE);
     }
 
     private void drawLowBeachMarker(Batch batch, Position position) {
@@ -633,13 +682,11 @@ public final class ChapterVisualRenderer {
         for (int lane : lanes) {
             Rectangle laneTile = geometry.getTileBounds(lane, 1);
             float y = laneTile.y + laneTile.height * 0.50f;
-            for (int section = 0; section < 3; section++) {
-                float x = boardBounds.x + boardBounds.width * (0.18f + section * 0.34f);
-                animations.draw(
-                        batch, FROST_WIND_PAM, "animation", animationTime,
-                        x, y, 0.56f, false
-                );
-            }
+            float x = boardBounds.x + boardBounds.width * 0.50f;
+            animations.draw(
+                    batch, FROST_WIND_PAM, "animation", animationTime,
+                    x, y, 0.72f, false
+            );
         }
         batch.setColor(Color.WHITE);
         batch.end();

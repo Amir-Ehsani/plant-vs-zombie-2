@@ -172,7 +172,7 @@ abstract class GameControllerLevelSupport extends GameControllerStatusSupport {
         );
         User user = authController == null ? null : authController.getLoggedInUser();
         if (user != null && user.isDebugAllContentUnlocked()) {
-            allowedPlants = AdventureContentCatalog.allPlantNames(plantRegistry);
+            allowedPlants = AdventureContentCatalog.plantNamesForChapter(chapterName, plantRegistry);
         }
         List<String> allowedZombies = AdventureContentCatalog.zombieNamesForLevel(
                 chapterName, levelNumber, zombieRegistry
@@ -225,7 +225,12 @@ abstract class GameControllerLevelSupport extends GameControllerStatusSupport {
         WaveManager waveManager = new WaveManager(
                 new ArrayList<>(), null, AttackPattern.ROUND_ROBIN
         );
-        List<String> bossPlants = new ArrayList<>(allowedPlants);
+        List<String> bossPlants = AdventureContentCatalog.conveyorPlantNamesForLevel(
+                chapterName, AdventureLevelCatalog.BOSS_LEVEL, plantRegistry
+        );
+        if (bossPlants.isEmpty()) {
+            bossPlants = new ArrayList<>(allowedPlants);
+        }
         ConveyorBeltRule conveyor = new ConveyorBeltRule(
                 bossPlants,
                 25,

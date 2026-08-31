@@ -132,7 +132,17 @@ public class PamAnimationActor extends Actor {
             return loop;
         }
         String walk = findClip(clips, "walk", 2);
-        return walk == null ? clips.get(0) : walk;
+        if (walk != null) {
+            return walk;
+        }
+        for (String value : clips) {
+            String normalized = value == null ? "" : value.toLowerCase(Locale.ROOT);
+            if (!normalized.contains("attack") && !normalized.contains("plantfood")
+                    && !normalized.contains("explosion") && !normalized.contains("special")) {
+                return value;
+            }
+        }
+        return clips.get(0);
     }
 
     private String findClip(List<String> clips, String token, int mode) {

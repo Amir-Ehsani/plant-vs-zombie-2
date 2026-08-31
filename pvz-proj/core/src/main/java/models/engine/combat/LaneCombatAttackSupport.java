@@ -185,21 +185,34 @@ abstract class LaneCombatAttackSupport extends LaneCombatAbilitySupport {
         List<Zombie> candidates = collectCandidateZombies(plant, lane);
         Zombie front = nearestZombie(candidates, plant, false);
         Zombie back = nearestZombieBehind(candidates, plant);
+        Tile graveTarget = front == null
+                ? findNearestGraveTerrain(lane, plant, resolveMaximumRange(plant)) : null;
+        if (front == null && back == null && graveTarget == null) {
+            return true;
+        }
         int damage = effectiveDamage(plant, 20);
-        if (front != null) dealPlantDamage(plant, front, damage, "pea", true);
-        if (back != null && back != front) dealPlantDamage(plant, back, damage * 2, "pea", true);
-        boolean hitGrave = false;
-        if (front == null) {
-            Tile grave = findNearestGraveTerrain(lane, plant, resolveMaximumRange(plant));
-            if (grave != null) {
-                board.damageTerrain(grave.getPosition(), damage, false);
-                hitGrave = true;
-            }
+        if (front != null) {
+            scheduleDirectionalProjectile(plant, lane, false, damage, 0);
+        } else if (graveTarget != null) {
+            int delay = PlantActionTiming.projectileImpactTicks(
+                    plant.getName(), "attack",
+                    Math.abs(graveTarget.getPosition().getX() - plant.getX()), 0
+            );
+            scheduleCombatAction(delay, () -> {
+                Tile currentGrave = findNearestGraveTerrain(lane, plant, resolveMaximumRange(plant));
+                if (currentGrave != null) {
+                    board.damageTerrain(currentGrave.getPosition(), damage, false);
+                }
+            });
         }
-        if (front != null || back != null || hitGrave) {
-            plant.attack();
-            state.hasAttacked = true;
+        if (back != null) {
+            scheduleDirectionalProjectile(plant, lane, true, damage, 0);
+            scheduleDirectionalProjectile(plant, lane, true, damage, 1);
         }
+        String clip = front != null && back != null ? "attack3"
+                : back != null ? "attack2" : "attack";
+        plant.prepareAttackAnimation(clip);
+        finishAttack(plant, state);
         return true;
     }
 

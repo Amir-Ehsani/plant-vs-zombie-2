@@ -107,6 +107,10 @@ public class AdventureLevelSelectionScreen extends BaseMenuScreen {
         addAsset(group, config.spaceRegionIdD, config.spaceDX, config.spaceDY, config.spaceDWidth, config.spaceDHeight);
 
         addIsland(group, config.homeRegionId, 70f, 190f, config.homeWidth, config.homeHeight);
+        if ("wave-beach".equals(AdventureLevelCatalog.normalizeChapterName(chapterName))) {
+            addAsset(group, "IMAGE_WORLDMAP_BEACH_ANIM27_ANIM27_875X481", 112f, 248f, 170f, 94f);
+            addAsset(group, "IMAGE_WORLDMAP_BEACH_ANIM27_ANIM27_877X488", 110f, 300f, 176f, 98f);
+        }
         addIsland(group, config.platformOneRegionId, 345f, 290f, config.platformOneWidth, config.platformOneHeight);
         addIsland(group, config.platformTwoRegionId, 620f, 305f, config.platformTwoWidth, config.platformTwoHeight);
         addIsland(group, config.castleRegionId, 890f, 160f, config.castleWidth, config.castleHeight);

@@ -129,12 +129,12 @@ public final class CompactSeedBank {
             ZombotanyGame.SeedOptionView option = options.get(index);
             EntityAnimationProfile profile = profileForZombotany(option.plantName());
             if (profile != null) {
-                String clip = profile.firstClip("idle", "play", "walk");
+                String clip = seedBankIdleClip(profile);
                 animations.draw(
-                    batch, profile.getPath(), clip, previewTime(option.plantName(), profile, clip),
+                    batch, profile.getPath(), clip, previewIdleTime(stateTime, profile, clip),
                     BANK_X + SLOT_WIDTH * 0.50f,
                     staticSlotY(index) + PLANT_Y_OFFSET,
-                    profile.getScale() * COMPACT_SCALE_MULTIPLIER, false
+                    profile.getScale() * COMPACT_SCALE_MULTIPLIER, true
                 );
             }
         }
@@ -229,9 +229,9 @@ public final class CompactSeedBank {
             models.minigame.IZombieGame.PlantOptionView option = options.get(index);
             EntityAnimationProfile profile = profileForZombotany(option.plantName());
             if (profile != null) {
-                String clip = profile.firstClip("idle", "play", "walk");
+                String clip = seedBankIdleClip(profile);
                 animations.draw(
-                        batch, profile.getPath(), clip, stateTime,
+                        batch, profile.getPath(), clip, previewIdleTime(stateTime, profile, clip),
                         BANK_X + SLOT_WIDTH * 0.50f,
                         staticSlotY(index) + PLANT_Y_OFFSET,
                         profile.getScale() * COMPACT_SCALE_MULTIPLIER, true
@@ -496,25 +496,66 @@ public final class CompactSeedBank {
         if (profile == null) {
             return;
         }
-        String clip = profile.firstClip("idle", "play", "walk");
+        String clip = seedBankIdleClip(profile);
         animations.draw(
             batch,
             profile.getPath(),
             clip,
-            previewTime(plant.name(), profile, clip),
+            previewIdleTime(stateTime, profile, clip),
             slotX(session) + slotWidth(session) * 0.50f,
             slotY(session, plant) + PLANT_Y_OFFSET,
             profile.getScale() * COMPACT_SCALE_MULTIPLIER,
-            false
+            true
         );
     }
 
-    private float previewTime(String plantName, EntityAnimationProfile profile, String clip) {
-        if (profile == null || clip == null || !normalizeKey(plantName).equals("gravebuster")) {
+    private String seedBankIdleClip(EntityAnimationProfile profile) {
+        if (profile == null) {
+            return null;
+        }
+        String exact = firstExactIdleClip(profile,
+                "idle", "idle2", "idle_stage1", "idle2_stage1", "idle1_1", "idle_stage1_");
+        if (exact != null) {
+            return exact;
+        }
+        for (String clip : profile.getDefinition().getClips()) {
+            if (isIdlePreviewClip(clip)) {
+                return clip;
+            }
+        }
+        return null;
+    }
+
+    private String firstExactIdleClip(EntityAnimationProfile profile, String... names) {
+        for (String name : names) {
+            for (String clip : profile.getDefinition().getClips()) {
+                if (normalizeKey(clip).replace(" ", "").equals(normalizeKey(name).replace(" ", ""))) {
+                    return clip;
+                }
+            }
+        }
+        return null;
+    }
+
+    private boolean isIdlePreviewClip(String clip) {
+        String normalized = normalizeKey(clip).replace(" ", "");
+        if (normalized.contains("attack") || normalized.contains("plantfood")
+                || normalized.contains("special") || normalized.contains("explosion")
+                || normalized.contains("death") || normalized.equals("plant")) {
+            return false;
+        }
+        return normalized.equals("idle") || normalized.startsWith("idle");
+    }
+
+    private float previewIdleTime(float stateTime, EntityAnimationProfile profile, String clip) {
+        if (profile == null || clip == null) {
             return 0f;
         }
         float duration = profile.getDefinition().getClipDuration(clip);
-        return Math.max(0f, duration - 0.001f);
+        if (duration <= 0.05f) {
+            return 0f;
+        }
+        return Math.max(0f, stateTime);
     }
 
     private EntityAnimationProfile profileFor(GameSession session, String plantName) {

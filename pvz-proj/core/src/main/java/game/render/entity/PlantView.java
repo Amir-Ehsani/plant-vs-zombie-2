@@ -796,7 +796,9 @@ public final class PlantView extends EntityView<Plant> {
                 return damageClip;
             }
         }
-        return profile.firstClip("idle", "idle2", "idle_stage1", "stage1_idle", "loop", "animation", "charge");
+        return profile.firstClip(
+            "idle", "idle2", "idle_stage1", "stage1_idle", "idle1_1", "loop", "animation", "charge"
+        );
     }
 
     private String resolveStageClip(Board board) {
