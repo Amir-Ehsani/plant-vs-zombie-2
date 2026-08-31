@@ -96,6 +96,8 @@ public final class MiniGameVisualRenderer {
     private final TextureRegion backgroundRight;
     private final TextureRegion brainImage;
     private final TextureRegion sunImage;
+    private final String normalSunAnimationPath;
+    private final String normalSunAnimationClip;
     private final TextureRegion conveyorBelt;
     private final TextureRegion conveyorTop;
     private final TextureRegion conveyorSide;
@@ -157,6 +159,17 @@ public final class MiniGameVisualRenderer {
         backgroundRight = animations.region(backgroundId + "_RIGHT");
         brainImage = animations.region("IMAGE_UI_CALENDAR_TIMER_DECO_BIGBRAINZ");
         sunImage = animations.region("IMAGE_EFFECTS_SUN_SUN_110X110");
+        AnimationDefinition normalSun = animations.getCatalog().findByName("SUN", null);
+        if (normalSun == null) {
+            normalSunAnimationPath = null;
+            normalSunAnimationClip = null;
+        } else {
+            normalSunAnimationPath = normalSun.getPath();
+            normalSunAnimationClip = normalSun.hasClip("animation")
+                    ? "animation"
+                    : normalSun.getClips().isEmpty() ? null : normalSun.getClips().iterator().next();
+            animations.preload(normalSunAnimationPath);
+        }
         conveyorBelt = animations.region("IMAGE_UI_CONVEYOR_CONVEYOR_BELT");
         conveyorTop = animations.region("IMAGE_UI_CONVEYOR_CONVEYOR_TOP");
         conveyorSide = animations.region("IMAGE_UI_CONVEYOR_CONVEYOR_SIDE");
@@ -253,9 +266,6 @@ public final class MiniGameVisualRenderer {
             mowerRenderer.render(batch, board());
         }
         entityRenderer.render(batch, board());
-        if (session instanceof ZombotanyGame game) {
-            drawZombotanyPlantHeads(batch, game, stateTime);
-        }
         if (session instanceof MatchThreeGame game) {
             drawMatchUpgradeEffect(batch, game);
         }
@@ -488,45 +498,6 @@ public final class MiniGameVisualRenderer {
         batch.end();
     }
 
-    private void drawZombotanyPlantHeads(Batch batch, ZombotanyGame game, float stateTime) {
-        batch.begin();
-        for (ZombotanyGame.PlantZombieView view : game.getPlantZombies()) {
-            String plantName = zombotanyPlantName(view.kind());
-            PlantType type = DefaultPlantRegistry.getInstance().getByName(plantName);
-            if (type == null) {
-                continue;
-            }
-            EntityAnimationProfile profile = packetPlantProfiles.computeIfAbsent(
-                    "zombotany:" + plantName, ignored -> plantAnimationRegistry.forPlantType(type));
-            if (profile == null) {
-                continue;
-            }
-            animations.preload(profile.getPath());
-            Vector2 position = geometry.entityToScreen(view.zombie().getX(), view.zombie().getY());
-            position.y += geometry.getTileHeight() * 0.43f;
-            String clip = profile.firstClip("idle", "idle2");
-            if (clip != null) {
-                animations.draw(batch, profile.getPath(), clip, stateTime,
-                        position.x, position.y, profile.getScale() * 0.60f, true);
-            }
-        }
-        batch.end();
-    }
-
-    private String zombotanyPlantName(String kind) {
-        String normalized = kind == null ? "" : kind.toLowerCase(Locale.ROOT);
-        if (normalized.contains("wall")) {
-            return "Wall-nut";
-        }
-        if (normalized.contains("jalapeno")) {
-            return "Jalapeno";
-        }
-        if (normalized.contains("squash")) {
-            return "Squash";
-        }
-        return "Peashooter";
-    }
-
     private void drawZombotanyLaneFire(Batch batch, ZombotanyGame game, float stateTime) {
         if (game.getBurningLanes().isEmpty()) {
             return;
@@ -536,17 +507,15 @@ public final class MiniGameVisualRenderer {
             if (lane == null || lane < 1 || lane > BoardGeometry.ROWS) {
                 continue;
             }
+            int remainingTicks = game.getBurningLaneRemainingTicks(lane);
+            float localTime = Math.max(0f, (18 - remainingTicks) / 10f);
             for (int column = 1; column <= BoardGeometry.COLUMNS; column++) {
                 Vector2 center = geometry.boardToScreen(lane, column);
+                float phase = localTime + column * 0.055f;
+
                 animations.draw(
-                        batch,
-                        JALAPENO_FIRE_PAM,
-                        "idle2",
-                        stateTime,
-                        center.x,
-                        center.y,
-                        0.46f,
-                        true
+                        batch, JALAPENO_FIRE_PAM, "idle2", phase,
+                        center.x, center.y, 0.46f, true
                 );
             }
         }
@@ -557,7 +526,7 @@ public final class MiniGameVisualRenderer {
         if (peaProjectilePath != null && peaProjectileClip != null) {
             batch.begin();
             for (SmoothPeaVisual pea : smoothPeas.values()) {
-                Vector2 position = geometry.entityToScreen(pea.x, pea.y);
+                Vector2 position = geometry.entityToScreen(pea.x, pea.renderY());
                 position.y += geometry.getTileHeight() * 0.48f;
                 animations.draw(
                         batch, peaProjectilePath, peaProjectileClip, pea.age,
@@ -570,7 +539,7 @@ public final class MiniGameVisualRenderer {
         if (peaImage != null) {
             batch.begin();
             for (SmoothPeaVisual pea : smoothPeas.values()) {
-                Vector2 position = geometry.entityToScreen(pea.x, pea.y);
+                Vector2 position = geometry.entityToScreen(pea.x, pea.renderY());
                 position.y += geometry.getTileHeight() * 0.48f;
                 float height = 20f;
                 float width = height * peaImage.getRegionWidth() / peaImage.getRegionHeight();
@@ -582,7 +551,7 @@ public final class MiniGameVisualRenderer {
         shapes.begin(ShapeRenderer.ShapeType.Filled);
         shapes.setColor(ZOMBOTANY_PEA_FALLBACK);
         for (SmoothPeaVisual pea : smoothPeas.values()) {
-            Vector2 position = geometry.entityToScreen(pea.x, pea.y);
+            Vector2 position = geometry.entityToScreen(pea.x, pea.renderY());
             position.y += geometry.getTileHeight() * 0.48f;
             shapes.circle(position.x, position.y, 9f);
         }
@@ -914,18 +883,44 @@ public final class MiniGameVisualRenderer {
     }
 
     private String chooseAvailableNutType(Map<String, Integer> inventory) {
-        List<String> choices = new ArrayList<>();
+        List<String> available = new ArrayList<>();
+        List<Float> weights = new ArrayList<>();
+        float totalWeight = 0f;
         for (Map.Entry<String, Integer> entry : inventory.entrySet()) {
             int displayed = displayedNutCount(entry.getKey());
-            int remaining = Math.max(0, entry.getValue() - displayed);
-            for (int index = 0; index < remaining; index++) {
-                choices.add(entry.getKey());
+            if (entry.getValue() - displayed <= 0) {
+                continue;
             }
+            float weight = nutWeight(entry.getKey());
+            if (weight <= 0f) {
+                continue;
+            }
+            available.add(entry.getKey());
+            weights.add(weight);
+            totalWeight += weight;
         }
-        if (choices.isEmpty()) {
+        if (available.isEmpty() || totalWeight <= 0f) {
             return null;
         }
-        return choices.get(nutRandom.nextInt(choices.size()));
+        float roll = nutRandom.nextFloat() * totalWeight;
+        for (int index = 0; index < available.size(); index++) {
+            roll -= weights.get(index);
+            if (roll <= 0f) {
+                return available.get(index);
+            }
+        }
+        return available.get(available.size() - 1);
+    }
+
+    private float nutWeight(String type) {
+        String normalized = type == null ? "" : type.trim().toLowerCase(Locale.ROOT);
+        if (normalized.equals("explosive")) {
+            return 0.8f;
+        }
+        if (normalized.equals("giant")) {
+            return 0.6f;
+        }
+        return 1.0f;
     }
 
     private int displayedNutCount(String type) {
@@ -1068,7 +1063,7 @@ public final class MiniGameVisualRenderer {
 
     private void drawZombotanySunDrops(Batch batch, ZombotanyGame game, float stateTime) {
         sunDropBounds.clear();
-        if (sunImage == null) {
+        if (normalSunAnimationPath == null && sunImage == null) {
             return;
         }
         batch.begin();
@@ -1080,14 +1075,24 @@ public final class MiniGameVisualRenderer {
             float bounce = fallProgress >= 0.78f && fallProgress < 1f
                     ? 5f * (float) Math.sin((fallProgress - 0.78f) / 0.22f * Math.PI)
                     : 0f;
-            float pulse = 1f + 0.05f * (float) Math.sin(stateTime * 7f + drop.id());
+            float centerX = basePosition.x;
+            float centerY = basePosition.y + fallOffset - bounce;
+            float pulse = 1f + 0.04f * (float) Math.sin(stateTime * 7f + drop.id());
             float size = SUN_BASE_SIZE * pulse;
-            float x = basePosition.x - size / 2f;
-            float y = basePosition.y + fallOffset - bounce - size / 2f;
-            Rectangle bounds = new Rectangle(x, y, size, size);
+            Rectangle bounds = new Rectangle(
+                    centerX - size / 2f, centerY - size / 2f, size, size
+            );
             sunDropBounds.put(drop.id(), bounds);
             batch.setColor(Color.WHITE);
-            batch.draw(sunImage, bounds.x, bounds.y, bounds.width, bounds.height);
+            if (normalSunAnimationPath != null && normalSunAnimationClip != null) {
+                // Use the same animated normal sun visual as the adventure game.
+                animations.draw(
+                        batch, normalSunAnimationPath, normalSunAnimationClip, stateTime,
+                        centerX, centerY, 0.64f * pulse, true
+                );
+            } else {
+                batch.draw(sunImage, bounds.x, bounds.y, bounds.width, bounds.height);
+            }
         }
         batch.setColor(Color.WHITE);
         batch.end();
@@ -1258,6 +1263,12 @@ public final class MiniGameVisualRenderer {
         private void updatePosition() {
             float progress = MathUtils.clamp(age / duration, 0f, 1f);
             x = MathUtils.lerp((float) startX, (float) targetX, progress);
+        }
+
+        private double renderY() {
+            float progress = MathUtils.clamp(age / duration, 0f, 1f);
+            // Zombie peas angle slightly downward as they cross the lane.
+            return y + 0.12 * progress;
         }
 
         private boolean isFinished() {

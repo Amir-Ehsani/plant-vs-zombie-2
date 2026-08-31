@@ -17,11 +17,11 @@ public enum SeasonType {
     ),
     BIG_WAVE_BEACH(
             "Big Wave Beach",
-            Arrays.asList("Fisherman", "Octopus", "Snorkel")
+            Arrays.asList("Octopus", "Snorkel")
     ),
     DARK_AGES(
             "Dark Ages",
-            Arrays.asList("knight", "Juggler", "Wizard", "King", "Imp Dragon")
+            Arrays.asList("knight", "Juggler", "Wizard", "Imp Dragon")
     );
 
     private static List<String> commonZombies() {

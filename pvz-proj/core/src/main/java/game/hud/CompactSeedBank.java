@@ -131,10 +131,10 @@ public final class CompactSeedBank {
             if (profile != null) {
                 String clip = profile.firstClip("idle", "play", "walk");
                 animations.draw(
-                    batch, profile.getPath(), clip, stateTime,
+                    batch, profile.getPath(), clip, previewTime(option.plantName(), profile, clip),
                     BANK_X + SLOT_WIDTH * 0.50f,
                     staticSlotY(index) + PLANT_Y_OFFSET,
-                    profile.getScale() * COMPACT_SCALE_MULTIPLIER, true
+                    profile.getScale() * COMPACT_SCALE_MULTIPLIER, false
                 );
             }
         }
@@ -361,6 +361,27 @@ public final class CompactSeedBank {
         VisiblePlant plant,
         float stateTime
     ) {
+        if (normalizeKey(plant.name()).equals("gravebuster")) {
+            TextureRegion packet = animations.region("IMAGE_UI_PACKETS_GRAVEBUSTER");
+            if (packet != null) {
+                float maxWidth = slotWidth(session) * 0.62f;
+                float maxHeight = SLOT_HEIGHT * 0.72f;
+                float scale = Math.min(
+                    maxWidth / Math.max(1f, packet.getRegionWidth()),
+                    maxHeight / Math.max(1f, packet.getRegionHeight())
+                );
+                float width = packet.getRegionWidth() * scale;
+                float height = packet.getRegionHeight() * scale;
+                batch.draw(
+                    packet,
+                    slotX(session) + (slotWidth(session) - width) * 0.5f,
+                    slotY(session, plant) + (SLOT_HEIGHT - height) * 0.5f,
+                    width, height
+                );
+                return;
+            }
+        }
+
         EntityAnimationProfile profile = profileFor(session, plant.name());
         if (profile == null) {
             return;
@@ -370,12 +391,20 @@ public final class CompactSeedBank {
             batch,
             profile.getPath(),
             clip,
-            stateTime,
+            previewTime(plant.name(), profile, clip),
             slotX(session) + slotWidth(session) * 0.50f,
             slotY(session, plant) + PLANT_Y_OFFSET,
             profile.getScale() * COMPACT_SCALE_MULTIPLIER,
-            true
+            false
         );
+    }
+
+    private float previewTime(String plantName, EntityAnimationProfile profile, String clip) {
+        if (profile == null || clip == null || !normalizeKey(plantName).equals("gravebuster")) {
+            return 0f;
+        }
+        float duration = profile.getDefinition().getClipDuration(clip);
+        return Math.max(0f, duration - 0.001f);
     }
 
     private EntityAnimationProfile profileFor(GameSession session, String plantName) {

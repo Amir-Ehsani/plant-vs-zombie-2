@@ -218,7 +218,7 @@
       "id": "ZombieBeachOctopus",
       "defaultArmor": null,
       "tags": [],
-      "ability": "Periodically disables a plant with an octopus."
+      "ability": "Periodically covers a plant with an octopus."
     },
     {
       "name": "Snorkel",

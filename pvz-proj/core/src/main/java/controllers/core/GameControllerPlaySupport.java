@@ -107,6 +107,7 @@ abstract class GameControllerPlaySupport extends GameControllerDisplaySupport {
         }
         Level level = gameSession.getCurrentLevel();
         if ((level == null || level.getLevelType() != LevelType.BOSS)
+                && (level == null || !level.usesConveyorBelt())
                 && !isPlantUnlockedByUser(type.getName())) {
             fail("Plant is locked in your collection.");
             return null;

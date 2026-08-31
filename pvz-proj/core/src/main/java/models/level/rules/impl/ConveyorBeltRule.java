@@ -11,13 +11,15 @@ import java.util.Locale;
 import java.util.Random;
 
 public class ConveyorBeltRule extends AbstractLevelRule {
-    private static final int DEFAULT_INTERVAL_TICKS = 20;
+    private static final int DEFAULT_INTERVAL_TICKS = 50;
+    private static final int MAX_CONVEYOR_PLANTS = 8;
 
     private final List<String> plantPool;
     private final List<String> conveyorPlants;
     private final Random random;
     private final int intervalTicks;
     private int nextPlantTick;
+    private int lastObservedTick;
 
     public ConveyorBeltRule(List<String> plantPool) {
         this(plantPool, DEFAULT_INTERVAL_TICKS, new Random());
@@ -39,6 +41,7 @@ public class ConveyorBeltRule extends AbstractLevelRule {
         this.intervalTicks = intervalTicks;
         this.random = random;
         this.nextPlantTick = 0;
+        this.lastObservedTick = 0;
     }
 
     @Override
@@ -51,15 +54,22 @@ public class ConveyorBeltRule extends AbstractLevelRule {
         resetResult();
         conveyorPlants.clear();
         addRandomPlant();
-        nextPlantTick = context.getCurrentTick() + intervalTicks;
+        lastObservedTick = context.getCurrentTick();
+        nextPlantTick = lastObservedTick + intervalTicks;
     }
 
     @Override
     public void onTick(LevelRuntimeContext context) {
-        while (context.getCurrentTick() >= nextPlantTick) {
-            addRandomPlant();
-            nextPlantTick += intervalTicks;
+        lastObservedTick = context.getCurrentTick();
+        if (lastObservedTick < nextPlantTick) {
+            return;
         }
+        if (conveyorPlants.size() < MAX_CONVEYOR_PLANTS) {
+            addRandomPlant();
+        }
+        // Missed belt deliveries are discarded rather than queued. This also
+        // prevents a full belt from instantly refilling after a plant is used.
+        nextPlantTick = lastObservedTick + intervalTicks;
     }
 
     @Override
@@ -97,11 +107,24 @@ public class ConveyorBeltRule extends AbstractLevelRule {
         for (int i = 0; i < conveyorPlants.size(); i++) {
             if (normalize(conveyorPlants.get(i)).equals(normalized)) {
                 conveyorPlants.remove(i);
+                nextPlantTick = lastObservedTick + intervalTicks;
                 return true;
             }
         }
 
         return false;
+    }
+
+    public int getIntervalTicks() {
+        return intervalTicks;
+    }
+
+    public int getMaxConveyorPlants() {
+        return MAX_CONVEYOR_PLANTS;
+    }
+
+    public int getNextPlantTick() {
+        return nextPlantTick;
     }
 
     private void addRandomPlant() {

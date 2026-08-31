@@ -835,14 +835,8 @@ public final class GameScreen extends BaseScreen {
             return;
         }
         batch.begin();
-        interactionOverlay.drawPlantGhost(
-            batch,
-            session,
-            interactions,
-            cursorWorld.x,
-            cursorWorld.y,
-            visualStateTime
-        );
+        // Plant placement is click-select/click-place only. Do not render a dragged
+        // plant sprite or idle animation attached to the mouse cursor.
         interactionOverlay.drawSpriteToolCursor(
             batch,
             interactions,
@@ -1420,10 +1414,12 @@ public final class GameScreen extends BaseScreen {
                 announcementOverlay.push("NECROMANCY!");
             } else if (normalized.contains("low-tide zombies") || normalized.contains("surfacing")) {
                 announcementOverlay.push("ZOMBIES ARE RISING FROM THE SHALLOWS!");
-            } else if (normalized.contains("tide receded")) {
-                announcementOverlay.push("LOW TIDE!");
-            } else if (normalized.contains("tide rose")) {
-                announcementOverlay.push("HIGH TIDE!");
+            } else if (normalized.contains("tide receded")
+                    || normalized.contains("water level is receding")) {
+                announcementOverlay.push("LOW TIDE! WATER LEVEL RECEDING!");
+            } else if (normalized.contains("tide rose")
+                    || normalized.contains("water level is rising")) {
+                announcementOverlay.push("HUGE WAVE! WATER LEVEL RISING!");
             } else if (normalized.contains("sandstorm")) {
                 announcementOverlay.push("SANDSTORM!");
             } else if (normalized.contains("icy wind")) {

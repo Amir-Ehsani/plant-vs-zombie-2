@@ -60,17 +60,51 @@ public final class AdventureChapterConfigurator {
         level.bindSeasonType(SeasonType.BIG_WAVE_BEACH);
         if (levelNumber == AdventureLevelCatalog.BOSS_LEVEL) {
             setWaterColumns(level, 3, 9);
+            level.setTideWaterRange(7, 7);
             return;
         }
 
-        setWaterColumns(level, 5, 9);
-        if (levelNumber > 1) {
-            for (int row = 1; row <= 5; row++) {
-                level.setTerrainTile(position(4, row), TileType.LOW_TIDE);
+        // Start with three ocean columns and let waves push the tide as far as five.
+        // This keeps Night Ops (level 2) visibly aquatic from the first frame too.
+        setWaterColumns(level, 7, 9);
+        level.setTideWaterRange(3, 5);
+        markRandomLowTideTiles(level, levelNumber);
+    }
+
+    private static void markRandomLowTideTiles(Level level, int levelNumber) {
+        List<Position> candidates = new ArrayList<>();
+        // Columns 1-4 counted from the right on a 9-column board are columns 9..6.
+        for (int row = 1; row <= 5; row++) {
+            for (int column = 6; column <= 9; column++) {
+                candidates.add(position(column, row));
             }
-            level.setHighTideWaterColumns(1);
+        }
+        Random random = new Random(level.getLevelId() * 3571L + levelNumber * 211L);
+        Collections.shuffle(candidates, random);
+        int wanted = 3 + random.nextInt(2);
+        List<Position> chosen = new ArrayList<>();
+
+        Position first = candidates.get(0);
+        chosen.add(first);
+        for (Position candidate : candidates) {
+            if (candidate.getX() != first.getX()) {
+                chosen.add(candidate);
+                break;
+            }
+        }
+        for (Position candidate : candidates) {
+            if (chosen.size() >= wanted) {
+                break;
+            }
+            if (!chosen.contains(candidate)) {
+                chosen.add(candidate);
+            }
+        }
+        for (Position position : chosen) {
+            level.markLowTidePosition(position);
         }
     }
+
 
     private static void setWaterColumns(Level level, int firstColumn, int lastColumn) {
         for (int row = 1; row <= 5; row++) {
