@@ -2,6 +2,7 @@ package network.game;
 
 import models.core.plant.DefaultPlantRegistry;
 import models.core.plant.Plant;
+import models.core.plant.PlantActionTiming;
 import models.core.plant.PlantFactory;
 import models.core.plant.PlantRegistry;
 import models.core.plant.PlantType;
@@ -19,12 +20,15 @@ import network.protocol.GameSnapshot;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashSet;
+import java.util.HashMap;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Random;
 import java.util.Set;
 
 /**
@@ -37,14 +41,16 @@ public final class AuthoritativeIZombieGame {
     public static final int COLUMNS = 9;
     public static final int LAST_PLANT_COLUMN = IZombieGame.RED_LINE_COLUMN - 1;
     public static final long DEFAULT_MATCH_DURATION_MILLIS = 120_000L;
+    public static final int MAX_SELECTED_PLANTS = 8;
+    public static final int INITIAL_SUN = 50;
 
     private static final long CORE_TICK_MILLIS = 100L;
-    private static final long PASSIVE_INCOME_INTERVAL_MILLIS = 5_000L;
-    private static final int PLANT_PASSIVE_INCOME = 25;
-    private static final int ZOMBIE_PASSIVE_INCOME = 0;
-    private static final long SUNFLOWER_INCOME_INTERVAL_MILLIS = 7_000L;
-    private static final int SUNFLOWER_INCOME = 50;
-    private static final int SUNFLOWER_EAT_REWARD = 200;
+    private static final int TICKS_PER_SECOND = 10;
+    private static final int FALLING_SUN_TICKS = 50;
+    private static final int GROUND_SUN_LIFETIME_TICKS = 100;
+    private static final int NORMAL_SKY_SUN_AMOUNT = 25;
+    private static final int BASE_PLANT_SUN_AMOUNT = 50;
+    private static final int TWIN_SUNFLOWER_SUN_AMOUNT = 100;
 
     private static final Map<String, Integer> PLANT_COSTS = createPlantCosts();
     private static final Map<String, Integer> ZOMBIE_COSTS = createZombieCosts();
@@ -58,15 +64,22 @@ public final class AuthoritativeIZombieGame {
     private final ZombieFactory zombieFactory;
     private final Map<String, Long> plantReadyAt;
     private final Map<String, Long> zombieReadyAt;
-    private final Set<String> previousSunflowerIds;
+    private final Map<String, Integer> nextPlantSunTick;
+    private final List<SunDrop> sunDrops;
+    private final List<DelayedPlantEffect> delayedPlantEffects;
+    private final LinkedHashSet<String> plantLoadout;
+    private final Random random;
 
     private long elapsedMillis;
-    private long lastPassiveIncomeAt;
-    private long lastSunflowerIncomeAt;
+    private long nextPlantSkySunAt;
+    private long nextZombieSkySunAt;
     private long boardTickRemainderMillis;
+    private int boardTick;
+    private int nextSunDropId;
     private long sequence;
     private int plantSun;
     private int zombieSun;
+    private boolean plantsReady;
     private GameRole winner;
     private String finishReason;
 
@@ -97,14 +110,21 @@ public final class AuthoritativeIZombieGame {
         this.zombieFactory = new ZombieFactory();
         this.plantReadyAt = new LinkedHashMap<>();
         this.zombieReadyAt = new LinkedHashMap<>();
-        this.previousSunflowerIds = new HashSet<>();
+        this.nextPlantSunTick = new HashMap<>();
+        this.sunDrops = new ArrayList<>();
+        this.delayedPlantEffects = new ArrayList<>();
+        this.plantLoadout = new LinkedHashSet<>();
+        this.random = new Random(plantsUsername.hashCode() * 31L + zombiesUsername.hashCode());
         this.elapsedMillis = 0L;
-        this.lastPassiveIncomeAt = 0L;
-        this.lastSunflowerIncomeAt = 0L;
+        this.nextPlantSkySunAt = -1L;
+        this.nextZombieSkySunAt = -1L;
         this.boardTickRemainderMillis = 0L;
+        this.boardTick = 0;
+        this.nextSunDropId = 1;
         this.sequence = 1L;
-        this.plantSun = IZombieGame.INITIAL_SUN;
-        this.zombieSun = IZombieGame.INITIAL_SUN;
+        this.plantSun = INITIAL_SUN;
+        this.zombieSun = INITIAL_SUN;
+        this.plantsReady = false;
         this.winner = null;
         this.finishReason = "";
         configureLevelOneBaseBoard();
@@ -128,6 +148,91 @@ public final class AuthoritativeIZombieGame {
         return ZOMBIE_COSTS;
     }
 
+    /** Couch Play skips the selection screen and uses the full Ancient Egypt level-one catalog. */
+    public synchronized void useFullCatalogLoadout() {
+        if (plantsReady || isFinished()) {
+            return;
+        }
+        plantLoadout.clear();
+        plantLoadout.addAll(PLANT_COSTS.keySet());
+        plantsReady = true;
+        scheduleNextSkySun(GameRole.PLANTS);
+        scheduleNextSkySun(GameRole.ZOMBIES);
+        sequence++;
+    }
+
+    public synchronized ActionResult lockPlants(String actorUsername, List<String> types) {
+        if (isFinished()) {
+            return ActionResult.failure("match is already finished", snapshot());
+        }
+        if (!plantsUsername.equalsIgnoreCase(requireName(actorUsername, "actor username"))) {
+            return ActionResult.failure("only the plant player can choose plants", snapshot());
+        }
+        if (plantsReady) {
+            return ActionResult.failure("plants are already locked in", snapshot());
+        }
+        if (types == null || types.isEmpty()) {
+            return ActionResult.failure("choose at least one plant", snapshot());
+        }
+        LinkedHashSet<String> selected = new LinkedHashSet<>();
+        for (String type : types) {
+            String key = normalize(type);
+            if (!PLANT_COSTS.containsKey(key) || plantType(key) == null) {
+                return ActionResult.failure("plant type is not available in Ancient Egypt", snapshot());
+            }
+            selected.add(key);
+            if (selected.size() > MAX_SELECTED_PLANTS) {
+                return ActionResult.failure("select at most " + MAX_SELECTED_PLANTS + " plants", snapshot());
+            }
+        }
+        plantLoadout.clear();
+        plantLoadout.addAll(selected);
+        plantsReady = true;
+        scheduleNextSkySun(GameRole.PLANTS);
+        scheduleNextSkySun(GameRole.ZOMBIES);
+        sequence++;
+        return ActionResult.success("Plants locked in. Let's rock!", snapshot());
+    }
+
+    public synchronized ActionResult collectSun(String actorUsername, int dropId) {
+        if (isFinished()) {
+            return ActionResult.failure("match is already finished", snapshot());
+        }
+        if (!plantsReady) {
+            return ActionResult.failure("waiting for the plant player to choose plants", snapshot());
+        }
+        String actor = requireName(actorUsername, "actor username");
+        GameRole role;
+        if (plantsUsername.equalsIgnoreCase(actor)) {
+            role = GameRole.PLANTS;
+        } else if (zombiesUsername.equalsIgnoreCase(actor)) {
+            role = GameRole.ZOMBIES;
+        } else {
+            return ActionResult.failure("you are not in this match", snapshot());
+        }
+        SunDrop found = null;
+        for (SunDrop drop : sunDrops) {
+            if (drop.id == dropId) {
+                found = drop;
+                break;
+            }
+        }
+        if (found == null) {
+            return ActionResult.failure("that sun has already disappeared", snapshot());
+        }
+        if (found.owner != role) {
+            return ActionResult.failure("that sun belongs to the other player", snapshot());
+        }
+        if (role == GameRole.PLANTS) {
+            plantSun += found.amount;
+        } else {
+            zombieSun += found.amount;
+        }
+        sunDrops.remove(found);
+        sequence++;
+        return ActionResult.success("Collected " + found.amount + " sun", snapshot());
+    }
+
     public synchronized ActionResult placePlant(String actorUsername, String type, int row, int column) {
         if (isFinished()) {
             return ActionResult.failure("match is already finished", snapshot());
@@ -135,11 +240,17 @@ public final class AuthoritativeIZombieGame {
         if (!plantsUsername.equalsIgnoreCase(requireName(actorUsername, "actor username"))) {
             return ActionResult.failure("only the plant player can place plants", snapshot());
         }
+        if (!plantsReady) {
+            return ActionResult.failure("choose your plants first", snapshot());
+        }
         if (!validRow(row) || column < 0 || column > LAST_PLANT_COLUMN) {
             return ActionResult.failure("plant position is outside the plant side", snapshot());
         }
 
         String key = normalize(type);
+        if (!plantLoadout.contains(key)) {
+            return ActionResult.failure("that plant was not selected for this match", snapshot());
+        }
         Integer cost = PLANT_COSTS.get(key);
         PlantType plantType = plantType(key);
         if (cost == null || plantType == null) {
@@ -166,9 +277,8 @@ public final class AuthoritativeIZombieGame {
 
         plantSun -= cost;
         plantReadyAt.put(key, elapsedMillis + Math.max(CORE_TICK_MILLIS, plantType.getRecharge() * CORE_TICK_MILLIS));
-        if (isSunflower(plant)) {
-            previousSunflowerIds.add(plant.getId());
-        }
+        schedulePlantSunIfProducer(plant);
+        scheduleImmediatePlant(plant, position);
         sequence++;
         return ActionResult.success(plant.getName() + " planted", snapshot());
     }
@@ -179,6 +289,9 @@ public final class AuthoritativeIZombieGame {
         }
         if (!zombiesUsername.equalsIgnoreCase(requireName(actorUsername, "actor username"))) {
             return ActionResult.failure("only the zombie player can release zombies", snapshot());
+        }
+        if (!plantsReady) {
+            return ActionResult.failure("waiting for the plant player to choose plants", snapshot());
         }
         if (!validRow(row)) {
             return ActionResult.failure("zombie lane is invalid", snapshot());
@@ -220,6 +333,9 @@ public final class AuthoritativeIZombieGame {
         if (isFinished()) {
             return;
         }
+        if (!plantsReady) {
+            return;
+        }
         long remainingBefore = getRemainingMillis();
         long delta = Math.min(Math.max(0L, deltaMillis), remainingBefore);
         if (delta <= 0L) {
@@ -229,14 +345,16 @@ public final class AuthoritativeIZombieGame {
 
         elapsedMillis += delta;
         boardTickRemainderMillis += delta;
-        producePassiveIncome();
-        produceSunflowerIncome();
+        produceSkySun();
 
         while (boardTickRemainderMillis >= CORE_TICK_MILLIS && !isFinished()) {
             boardTickRemainderMillis -= CORE_TICK_MILLIS;
-            Set<String> before = livingSunflowerIds();
+            boardTick++;
+            producePlantSun();
+            tickSunDrops();
             board.updateTicks();
-            rewardEatenSunflowers(before, livingSunflowerIds());
+            tickDelayedPlantEffects();
+            pruneDeadProducerSchedules();
             if (getBrainsRemaining() == 0) {
                 finish(GameRole.ZOMBIES, "Zombies ate every brain");
             }
@@ -268,6 +386,10 @@ public final class AuthoritativeIZombieGame {
             Map<String, String> attributes = new LinkedHashMap<>();
             attributes.put("column", String.valueOf(column));
             attributes.put("side", GameRole.PLANTS.name());
+            attributes.put("attackSerial", String.valueOf(plant.getVisualAttackSerial()));
+            attributes.put("attackClip", plant.getVisualAttackClip() == null ? "" : plant.getVisualAttackClip());
+            attributes.put("specialSerial", String.valueOf(plant.getVisualSpecialSerial()));
+            attributes.put("specialClip", plant.getVisualSpecialClip() == null ? "" : plant.getVisualSpecialClip());
             entities.add(new EntityState(
                     plant.getId(),
                     "PLANT",
@@ -294,13 +416,30 @@ public final class AuthoritativeIZombieGame {
                     attributes
             ));
         }
+        for (SunDrop drop : sunDrops) {
+            Map<String, String> attributes = new LinkedHashMap<>();
+            attributes.put("owner", drop.owner.name());
+            attributes.put("dropId", String.valueOf(drop.id));
+            attributes.put("falling", String.valueOf(drop.falling));
+            attributes.put("fromPlant", String.valueOf(drop.fromPlant));
+            entities.add(new EntityState(
+                    "sun-" + drop.id,
+                    "SUN",
+                    drop.fromPlant ? "PLANT" : "SKY",
+                    clamp((int) Math.round(drop.y) - 1, 0, ROWS - 1),
+                    drop.x - 1.0,
+                    drop.amount,
+                    drop.amount,
+                    attributes
+            ));
+        }
 
         return new GameSnapshot(
                 sequence,
-                isFinished() ? "FINISHED" : "RUNNING",
+                isFinished() ? "FINISHED" : (plantsReady ? "RUNNING" : "WAITING"),
                 1,
                 elapsedMillis,
-                getRemainingMillis(),
+                plantsReady ? getRemainingMillis() : matchDurationMillis,
                 plantSun,
                 zombieSun,
                 brainState(),
@@ -308,7 +447,9 @@ public final class AuthoritativeIZombieGame {
                 remainingCooldowns(plantReadyAt),
                 remainingCooldowns(zombieReadyAt),
                 winner,
-                finishReason
+                finishReason,
+                plantsReady,
+                plantLoadoutDisplayNames()
         );
     }
 
@@ -356,54 +497,143 @@ public final class AuthoritativeIZombieGame {
         // Deliberately do not pre-place plants or zombies. The online match starts empty.
     }
 
-    private void producePassiveIncome() {
-        while (lastPassiveIncomeAt + PASSIVE_INCOME_INTERVAL_MILLIS <= elapsedMillis) {
-            lastPassiveIncomeAt += PASSIVE_INCOME_INTERVAL_MILLIS;
-            plantSun += PLANT_PASSIVE_INCOME;
-            zombieSun += ZOMBIE_PASSIVE_INCOME;
-        }
+    private void produceSkySun() {
+        spawnSkySunIfDue(GameRole.PLANTS);
+        spawnSkySunIfDue(GameRole.ZOMBIES);
     }
 
-    private void produceSunflowerIncome() {
-        while (lastSunflowerIncomeAt + SUNFLOWER_INCOME_INTERVAL_MILLIS <= elapsedMillis) {
-            lastSunflowerIncomeAt += SUNFLOWER_INCOME_INTERVAL_MILLIS;
-            int living = 0;
-            for (Plant plant : board.getAllPlants()) {
-                if (isSunflower(plant)) {
-                    living++;
-                }
-            }
-            plantSun += living * SUNFLOWER_INCOME;
-        }
-    }
-
-    private Set<String> livingSunflowerIds() {
-        Set<String> result = new HashSet<>();
-        for (Plant plant : board.getAllPlants()) {
-            if (isSunflower(plant)) {
-                result.add(plant.getId());
-            }
-        }
-        return result;
-    }
-
-    private void rewardEatenSunflowers(Set<String> before, Set<String> after) {
-        if (before == null || before.isEmpty()) {
-            previousSunflowerIds.clear();
-            if (after != null) {
-                previousSunflowerIds.addAll(after);
-            }
+    private void spawnSkySunIfDue(GameRole owner) {
+        long nextAt = owner == GameRole.PLANTS ? nextPlantSkySunAt : nextZombieSkySunAt;
+        if (nextAt < 0L || elapsedMillis < nextAt) {
             return;
         }
-        for (String id : before) {
-            if (after == null || !after.contains(id)) {
-                zombieSun += SUNFLOWER_EAT_REWARD;
+        Position position = randomSkySunPosition(owner);
+        if (position != null && !hasSunAt(position.getX(), position.getY())) {
+            sunDrops.add(new SunDrop(
+                    nextSunDropId++,
+                    owner,
+                    false,
+                    position.getX(),
+                    position.getY(),
+                    NORMAL_SKY_SUN_AMOUNT,
+                    FALLING_SUN_TICKS + GROUND_SUN_LIFETIME_TICKS,
+                    true,
+                    FALLING_SUN_TICKS
+            ));
+        }
+        scheduleNextSkySun(owner);
+    }
+
+    private void scheduleNextSkySun(GameRole owner) {
+        double elapsedSeconds = elapsedMillis / 1000.0;
+        double intervalSeconds = Math.max(6.0 + 0.05 * elapsedSeconds, 12.0);
+        long interval = Math.max(1_000L, (long) Math.ceil(intervalSeconds * 1000.0));
+        long next = elapsedMillis + interval;
+        if (owner == GameRole.PLANTS) {
+            nextPlantSkySunAt = next;
+        } else {
+            nextZombieSkySunAt = next;
+        }
+    }
+
+    private Position randomSkySunPosition(GameRole owner) {
+        int minColumn = owner == GameRole.PLANTS ? 1 : LAST_PLANT_COLUMN + 2;
+        int maxColumn = owner == GameRole.PLANTS ? LAST_PLANT_COLUMN + 1 : COLUMNS;
+        Position fallback = new Position(
+                minColumn + random.nextInt(Math.max(1, maxColumn - minColumn + 1)),
+                1 + random.nextInt(ROWS)
+        );
+        for (int attempt = 0; attempt < ROWS * COLUMNS; attempt++) {
+            int column = minColumn + random.nextInt(Math.max(1, maxColumn - minColumn + 1));
+            int row = 1 + random.nextInt(ROWS);
+            if (!hasSunAt(column, row)) {
+                return new Position(column, row);
             }
         }
-        previousSunflowerIds.clear();
-        if (after != null) {
-            previousSunflowerIds.addAll(after);
+        return fallback;
+    }
+
+    private void producePlantSun() {
+        for (Plant plant : board.getAllPlants()) {
+            if (!isSunProducer(plant)) {
+                continue;
+            }
+            nextPlantSunTick.putIfAbsent(plant.getId(), boardTick + Math.max(1, plant.getProductionTimeTicks()));
+            int nextTick = nextPlantSunTick.getOrDefault(plant.getId(), Integer.MAX_VALUE);
+            if (boardTick < nextTick) {
+                continue;
+            }
+            int column = clamp((int) Math.round(plant.getX()), 1, COLUMNS);
+            int row = clamp((int) Math.round(plant.getY()), 1, ROWS);
+            if (hasSunAt(column, row)) {
+                nextPlantSunTick.put(plant.getId(), boardTick + TICKS_PER_SECOND);
+                continue;
+            }
+            plant.triggerSpecialAnimation("special");
+            sunDrops.add(new SunDrop(
+                    nextSunDropId++,
+                    GameRole.PLANTS,
+                    true,
+                    column,
+                    row,
+                    plantSunAmount(plant),
+                    GROUND_SUN_LIFETIME_TICKS,
+                    false,
+                    0
+            ));
+            nextPlantSunTick.put(plant.getId(), boardTick + Math.max(1, plant.getProductionTimeTicks()));
         }
+    }
+
+    private void schedulePlantSunIfProducer(Plant plant) {
+        if (isSunProducer(plant)) {
+            nextPlantSunTick.put(plant.getId(), boardTick + Math.max(1, plant.getProductionTimeTicks()));
+        }
+    }
+
+    private void pruneDeadProducerSchedules() {
+        Set<String> living = new LinkedHashSet<>();
+        for (Plant plant : board.getAllPlants()) {
+            living.add(plant.getId());
+        }
+        nextPlantSunTick.keySet().removeIf(id -> !living.contains(id));
+    }
+
+    private void tickSunDrops() {
+        Iterator<SunDrop> iterator = sunDrops.iterator();
+        while (iterator.hasNext()) {
+            SunDrop drop = iterator.next();
+            drop.remainingTicks--;
+            if (drop.falling) {
+                drop.fallingTicksRemaining--;
+                if (drop.fallingTicksRemaining <= 0) {
+                    drop.falling = false;
+                }
+            }
+            if (drop.remainingTicks <= 0) {
+                iterator.remove();
+            }
+        }
+    }
+
+    private boolean hasSunAt(double x, double y) {
+        int column = (int) Math.round(x);
+        int row = (int) Math.round(y);
+        for (SunDrop drop : sunDrops) {
+            if ((int) Math.round(drop.x) == column && (int) Math.round(drop.y) == row) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private List<String> plantLoadoutDisplayNames() {
+        List<String> names = new ArrayList<>();
+        for (String key : plantLoadout) {
+            PlantType type = plantType(key);
+            names.add(type == null ? key : type.getName());
+        }
+        return names;
     }
 
     private boolean[] brainState() {
@@ -457,10 +687,13 @@ public final class AuthoritativeIZombieGame {
                 "Sunflower",
                 "Peashooter",
                 "Wall-nut",
-                "Repeater",
-                "Snow Pea",
-                "Tall-nut",
-                "Threepeater"
+                "Potato Mine",
+                "Cabbage-pult",
+                "Kernel-pult",
+                "Iceberg Lettuce",
+                "Bonk Choy",
+                "Cherry Bomb",
+                "Grave Buster"
         )) {
             PlantType type = registry.getByName(name);
             if (type != null) {
@@ -490,8 +723,18 @@ public final class AuthoritativeIZombieGame {
         return null;
     }
 
-    private static boolean isSunflower(Plant plant) {
-        return plant != null && normalize(plant.getName()).equals("SUNFLOWER");
+    private static boolean isSunProducer(Plant plant) {
+        if (plant == null || plant.getType() == null || plant.getType().getCategory() == null) {
+            return false;
+        }
+        return plant.getType().getCategory().trim().equalsIgnoreCase("sun producer");
+    }
+
+    private static int plantSunAmount(Plant plant) {
+        if (plant != null && normalize(plant.getName()).equals("TWIN_SUNFLOWER")) {
+            return TWIN_SUNFLOWER_SUN_AMOUNT;
+        }
+        return BASE_PLANT_SUN_AMOUNT;
     }
 
     private static String zombieName(String normalized) {
@@ -537,5 +780,131 @@ public final class AuthoritativeIZombieGame {
             throw new IllegalArgumentException(field + " is required");
         }
         return value.trim();
+    }
+
+    private void scheduleImmediatePlant(Plant plant, Position position) {
+        String name = plantNameKey(plant);
+        if ("cherry bomb".equals(name)) {
+            plant.prepareAttackAnimation("attack");
+            plant.triggerSpecialAnimation("attack");
+            delayedPlantEffects.add(new DelayedPlantEffect(
+                    Math.max(1, PlantActionTiming.specialImpactTicks("cherry bomb")),
+                    plant,
+                    position,
+                    "cherry bomb"
+            ));
+            return;
+        }
+        if ("grave buster".equals(name)) {
+            plant.prepareAttackAnimation("attack");
+            plant.triggerSpecialAnimation("attack");
+            delayedPlantEffects.add(new DelayedPlantEffect(
+                    Math.max(1, PlantActionTiming.specialImpactTicks("grave buster")),
+                    plant,
+                    position,
+                    "grave buster"
+            ));
+        }
+    }
+
+    private void tickDelayedPlantEffects() {
+        Iterator<DelayedPlantEffect> iterator = delayedPlantEffects.iterator();
+        while (iterator.hasNext()) {
+            DelayedPlantEffect effect = iterator.next();
+            effect.remainingTicks--;
+            if (effect.remainingTicks > 0) {
+                continue;
+            }
+            iterator.remove();
+            resolveImmediatePlant(effect);
+        }
+    }
+
+    private void resolveImmediatePlant(DelayedPlantEffect effect) {
+        if (effect.plant == null || !effect.plant.isAlive()) {
+            return;
+        }
+        if ("cherry bomb".equals(effect.kind)) {
+            String category = effect.plant.getType() == null || effect.plant.getType().getCategory() == null
+                    ? ""
+                    : effect.plant.getType().getCategory();
+            board.damageZombiesInArea(
+                    effect.position,
+                    1,
+                    1,
+                    Math.max(1800, effect.plant.getAttackDamage()),
+                    "cherry bomb",
+                    effect.plant.getName(),
+                    category
+            );
+            removePlantFromBoard(effect.plant, effect.position);
+            return;
+        }
+        if ("grave buster".equals(effect.kind)) {
+            board.removeTerrain(effect.position, TileType.GRAVE);
+            removePlantFromBoard(effect.plant, effect.position);
+        }
+    }
+
+    private void removePlantFromBoard(Plant plant, Position position) {
+        Tile tile = board.getTileAt(position);
+        if (tile != null) {
+            tile.removePlant(plant);
+        }
+    }
+
+    private static String plantNameKey(Plant plant) {
+        return plant == null || plant.getName() == null
+                ? ""
+                : plant.getName().trim().toLowerCase(Locale.ROOT)
+                .replace('-', ' ').replace('_', ' ').replaceAll("\\s+", " ");
+    }
+
+    private static final class DelayedPlantEffect {
+        private int remainingTicks;
+        private final Plant plant;
+        private final Position position;
+        private final String kind;
+
+        private DelayedPlantEffect(int remainingTicks, Plant plant, Position position, String kind) {
+            this.remainingTicks = remainingTicks;
+            this.plant = plant;
+            this.position = position;
+            this.kind = kind;
+        }
+    }
+
+    private static final class SunDrop {
+        private final int id;
+        private final GameRole owner;
+        private final boolean fromPlant;
+        private final double x;
+        private final double y;
+        private final int amount;
+        private int remainingTicks;
+        private boolean falling;
+        private int fallingTicksRemaining;
+
+        private SunDrop(
+                int id,
+                GameRole owner,
+                boolean fromPlant,
+                double x,
+                double y,
+                int amount,
+                int remainingTicks,
+                boolean falling,
+                int fallingTicksRemaining
+        ) {
+            this.id = id;
+            this.owner = owner;
+            this.fromPlant = fromPlant;
+            this.x = x;
+            this.y = y;
+            this.amount = amount;
+            this.remainingTicks = remainingTicks;
+            this.falling = falling;
+            this.fallingTicksRemaining = fallingTicksRemaining;
+        }
     }
 }

@@ -40,6 +40,7 @@ public final class CouchIZombieController {
         selectedPlant = plantTypes.isEmpty() ? "" : plantTypes.get(0);
         selectedZombie = zombieTypes.isEmpty() ? "" : zombieTypes.get(0);
         zombieRow = AuthoritativeIZombieGame.ROWS / 2;
+        game.useFullCatalogLoadout();
     }
 
     public AuthoritativeIZombieGame getGame() { return game; }

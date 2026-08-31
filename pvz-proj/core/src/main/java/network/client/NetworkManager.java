@@ -332,6 +332,25 @@ public final class NetworkManager implements AutoCloseable {
         return CompletableFuture.supplyAsync(() -> spawnZombie(matchId, type, row), io);
     }
 
+    public NetworkOperationResult lockPlants(String matchId, List<String> plants) {
+        String joined = plants == null ? "" : String.join(",", plants);
+        return toResult(call(NetworkMessage.of(MessageType.MATCH_ACTION).matchId(matchId)
+                .put("action", "LOCK_PLANTS").put("plants", joined), true));
+    }
+
+    public CompletableFuture<NetworkOperationResult> lockPlantsAsync(String matchId, List<String> plants) {
+        return CompletableFuture.supplyAsync(() -> lockPlants(matchId, plants), io);
+    }
+
+    public NetworkOperationResult collectSun(String matchId, int dropId) {
+        return toResult(call(NetworkMessage.of(MessageType.MATCH_ACTION).matchId(matchId)
+                .put("action", "COLLECT_SUN").put("dropId", dropId), true));
+    }
+
+    public CompletableFuture<NetworkOperationResult> collectSunAsync(String matchId, int dropId) {
+        return CompletableFuture.supplyAsync(() -> collectSun(matchId, dropId), io);
+    }
+
     public NetworkOperationResult sendReaction(String matchId, ReactionCategory category, String value) {
         if (matchId == null || matchId.isBlank()) return NetworkOperationResult.error("match id is required");
         String canonical = ReactionCatalog.canonicalValue(category, value);

@@ -2,7 +2,6 @@ package models.minigame;
 
 import models.core.plant.Plant;
 import models.core.plant.PlantFactory;
-import models.core.projectile.Damage;
 import models.core.zombie.Zombie;
 import models.core.zombie.ZombieFactory;
 import models.engine.board.Board;
@@ -94,7 +93,7 @@ public final class NetworkIZombieGame extends IZombieGame {
     @Override
     public int getSunAmount() {
         if (snapshot == null) {
-            return 350;
+            return AuthoritativeIZombieGame.INITIAL_SUN;
         }
         return context.role() == GameRole.PLANTS ? snapshot.getPlantSun() : snapshot.getZombieSun();
     }
@@ -119,12 +118,38 @@ public final class NetworkIZombieGame extends IZombieGame {
 
     @Override
     public List<SunDropView> getSunDrops() {
-        return List.of();
+        if (snapshot == null) {
+            return List.of();
+        }
+        List<SunDropView> result = new ArrayList<>();
+        for (EntityState entity : snapshot.getEntities()) {
+            if (entity == null || !"SUN".equals(entity.getCategory())) {
+                continue;
+            }
+            if (!ownsSun(entity)) {
+                continue;
+            }
+            int dropId = parseDropId(entity);
+            result.add(new SunDropView(
+                    dropId,
+                    Math.max(1, entity.getHealth()),
+                    entity.getX() + 1.0,
+                    entity.getRow() + 1.0,
+                    40
+            ));
+        }
+        return List.copyOf(result);
     }
 
     @Override
     public boolean collectSunDrop(int dropId) {
-        return false;
+        if (actionInFlight || snapshot == null || snapshot.isFinished() || !snapshot.isPlantsReady()) {
+            return false;
+        }
+        actionInFlight = true;
+        networkMessage = "Collecting sun...";
+        network.collectSunAsync(context.matchId(), dropId).whenComplete(this::finishAction);
+        return true;
     }
 
     @Override
@@ -174,14 +199,42 @@ public final class NetworkIZombieGame extends IZombieGame {
             return List.of();
         }
         List<PlantOptionView> result = new ArrayList<>();
-        for (Map.Entry<String, Integer> entry : AuthoritativeIZombieGame.plantCosts().entrySet()) {
-            result.add(new PlantOptionView(
-                    plantDisplayName(entry.getKey()),
-                    entry.getValue(),
-                    getCooldownMillis(entry.getKey())
-            ));
+        List<String> loadout = snapshot == null ? List.of() : snapshot.getPlantLoadout();
+        if (loadout.isEmpty() && snapshot != null && snapshot.isPlantsReady()) {
+            loadout = new ArrayList<>(AuthoritativeIZombieGame.plantCosts().keySet());
+        }
+        for (String name : loadout) {
+            String type = normalizePlantType(name);
+            int cost = AuthoritativeIZombieGame.plantCosts().getOrDefault(type, Integer.MAX_VALUE);
+            result.add(new PlantOptionView(plantDisplayName(type), cost, getCooldownMillis(type)));
         }
         return List.copyOf(result);
+    }
+
+    public boolean lockSelectedPlants(List<String> plantNames) {
+        if (context.role() != GameRole.PLANTS) {
+            networkMessage = "Only the plant player can choose plants.";
+            return false;
+        }
+        if (actionInFlight) {
+            return false;
+        }
+        actionInFlight = true;
+        networkMessage = "Locking plants...";
+        network.lockPlantsAsync(context.matchId(), plantNames).whenComplete(this::finishAction);
+        return true;
+    }
+
+    public boolean isPlantsReady() {
+        return snapshot != null && snapshot.isPlantsReady();
+    }
+
+    public List<String> getEgyptPlantCatalog() {
+        List<String> names = new ArrayList<>();
+        for (String key : AuthoritativeIZombieGame.plantCosts().keySet()) {
+            names.add(plantDisplayName(key));
+        }
+        return List.copyOf(names);
     }
 
     public void pumpNetworkEvents() {
@@ -260,6 +313,12 @@ public final class NetworkIZombieGame extends IZombieGame {
             networkMessage = "Waiting for synchronized server state...";
             return false;
         }
+        if (!snapshot.isPlantsReady()) {
+            networkMessage = context.role() == GameRole.PLANTS
+                    ? "Choose your plants first."
+                    : "Waiting for the plant player to choose plants.";
+            return false;
+        }
         int cost = getChoiceCost(type);
         if (getSunAmount() < cost) {
             networkMessage = "Not enough sun.";
@@ -310,7 +369,6 @@ public final class NetworkIZombieGame extends IZombieGame {
     }
 
     private void mirrorSnapshot(GameSnapshot next) {
-        clearMirrorMembership();
         projectiles.clear();
         Set<String> activePlants = new HashSet<>();
         Set<String> activeZombies = new HashSet<>();
@@ -330,8 +388,8 @@ public final class NetworkIZombieGame extends IZombieGame {
             }
         }
 
-        plantsById.keySet().removeIf(id -> !activePlants.contains(id));
-        zombiesById.keySet().removeIf(id -> !activeZombies.contains(id));
+        removeMissingPlants(activePlants);
+        removeMissingZombies(activeZombies);
         boolean[] brains = next.getBrains();
         for (int row = 0; row < mirrorBoard.getHeight(); row++) {
             Lane lane = mirrorBoard.getLaneAt(row + 1);
@@ -349,7 +407,8 @@ public final class NetworkIZombieGame extends IZombieGame {
         int boardY = clamp(state.getRow() + 1, 1, mirrorBoard.getHeight());
         String name = plantDisplayName(state.getType());
         Plant plant = plantsById.get(id);
-        if (plant == null || !plant.isAlive() || plant.getHp() < state.getHealth()) {
+        if (plant == null || !plant.getName().equalsIgnoreCase(name)) {
+            detachPlant(id);
             try {
                 plant = plantFactory.createPlant(name, boardX, boardY);
             } catch (RuntimeException ignored) {
@@ -358,13 +417,20 @@ public final class NetworkIZombieGame extends IZombieGame {
             plantsById.put(id, plant);
         }
         plant.moveTo(boardX, boardY);
-        reduceHealth(plant, state.getHealth());
+        plant.syncNetworkHealth(state.getHealth());
+        plant.applyNetworkVisualState(
+                parseIntAttribute(state, "attackSerial", plant.getVisualAttackSerial()),
+                state.getAttribute("attackClip"),
+                parseIntAttribute(state, "specialSerial", plant.getVisualSpecialSerial()),
+                state.getAttribute("specialClip")
+        );
         Tile tile = mirrorBoard.getTileAt(new Position(boardX, boardY));
-        if (tile != null && plant.isAlive()) {
+        if (tile != null && plant.isAlive() && !tile.hasPlant(plant)) {
+            relocatePlant(plant);
             try {
                 tile.placePlant(plant);
             } catch (RuntimeException ignored) {
-                // Snapshot wins. If a layered tile is unsupported locally, keep the top-level visual stable.
+                // Snapshot wins. Keep the plant object so animations stay attached.
             }
         }
         active.add(id);
@@ -376,7 +442,8 @@ public final class NetworkIZombieGame extends IZombieGame {
         int boardY = clamp(state.getRow() + 1, 1, mirrorBoard.getHeight());
         String name = zombieDisplayName(state.getType());
         Zombie zombie = zombiesById.get(id);
-        if (zombie == null || !zombie.isAlive() || zombie.getHp() < state.getHealth()) {
+        if (zombie == null || !zombie.getName().equalsIgnoreCase(name)) {
+            detachZombie(id);
             try {
                 zombie = zombieFactory.createZombie(name, boardX, boardY);
             } catch (RuntimeException ignored) {
@@ -385,22 +452,66 @@ public final class NetworkIZombieGame extends IZombieGame {
             zombiesById.put(id, zombie);
         }
         zombie.moveTo(boardX, boardY);
-        reduceHealth(zombie, state.getHealth());
+        zombie.syncNetworkHealth(state.getHealth());
         int tileX = clamp((int) Math.floor(state.getX()) + 1, 1, mirrorBoard.getWidth());
         Tile tile = mirrorBoard.getTileAt(new Position(tileX, boardY));
+        relocateZombie(zombie);
         if (tile != null && zombie.isAlive()) {
             tile.addZombie(zombie);
         }
         active.add(id);
     }
 
-    private void clearMirrorMembership() {
+    private void removeMissingPlants(Set<String> active) {
+        List<String> stale = new ArrayList<>();
+        for (String id : plantsById.keySet()) {
+            if (!active.contains(id)) {
+                stale.add(id);
+            }
+        }
+        for (String id : stale) {
+            detachPlant(id);
+        }
+    }
+
+    private void removeMissingZombies(Set<String> active) {
+        List<String> stale = new ArrayList<>();
+        for (String id : zombiesById.keySet()) {
+            if (!active.contains(id)) {
+                stale.add(id);
+            }
+        }
+        for (String id : stale) {
+            detachZombie(id);
+        }
+    }
+
+    private void detachPlant(String id) {
+        Plant plant = plantsById.remove(id);
+        if (plant != null) {
+            relocatePlant(plant);
+        }
+    }
+
+    private void detachZombie(String id) {
+        Zombie zombie = zombiesById.remove(id);
+        if (zombie != null) {
+            relocateZombie(zombie);
+        }
+    }
+
+    private void relocatePlant(Plant plant) {
         for (Lane lane : mirrorBoard.getLanes()) {
             for (Tile tile : lane.getTiles()) {
-                while (tile.hasPlant()) {
-                    tile.removePlant();
-                }
-                tile.clearZombies();
+                tile.removePlant(plant);
+            }
+        }
+    }
+
+    private void relocateZombie(Zombie zombie) {
+        for (Lane lane : mirrorBoard.getLanes()) {
+            for (Tile tile : lane.getTiles()) {
+                tile.removeZombie(zombie);
             }
         }
     }
@@ -425,32 +536,44 @@ public final class NetworkIZombieGame extends IZombieGame {
         }
     }
 
-    private static void reduceHealth(Plant plant, int targetHealth) {
-        if (plant == null || !plant.isAlive()) {
-            return;
-        }
-        int damage = plant.getHp() - Math.max(0, targetHealth);
-        if (damage > 0) {
-            plant.takeDamage(new Damage(damage, "network sync"));
-        }
-    }
-
-    private static void reduceHealth(Zombie zombie, int targetHealth) {
-        if (zombie == null || !zombie.isAlive()) {
-            return;
-        }
-        int damage = zombie.getHp() - Math.max(0, targetHealth);
-        if (damage > 0) {
-            zombie.takeDamage(new Damage(damage, "network sync"));
-        }
-    }
-
     private static int parseColumn(EntityState state) {
         try {
             return Integer.parseInt(state.getAttribute("column"));
         } catch (RuntimeException ignored) {
             return Math.max(0, (int) Math.floor(state.getX()));
         }
+    }
+
+    private static int parseIntAttribute(EntityState state, String key, int fallback) {
+        try {
+            return Integer.parseInt(state.getAttribute(key));
+        } catch (RuntimeException ignored) {
+            return fallback;
+        }
+    }
+
+    private static int parseDropId(EntityState state) {
+        int fromAttribute = parseIntAttribute(state, "dropId", -1);
+        if (fromAttribute >= 0) {
+            return fromAttribute;
+        }
+        String id = state.getId();
+        if (id != null && id.startsWith("sun-")) {
+            try {
+                return Integer.parseInt(id.substring(4));
+            } catch (RuntimeException ignored) {
+                return 0;
+            }
+        }
+        return 0;
+    }
+
+    private boolean ownsSun(EntityState entity) {
+        String owner = entity.getAttribute("owner");
+        if (owner == null || owner.isBlank()) {
+            return true;
+        }
+        return context.role().name().equalsIgnoreCase(owner);
     }
 
     private static int millisToTicks(long millis) {
@@ -485,15 +608,17 @@ public final class NetworkIZombieGame extends IZombieGame {
     }
 
     public static String plantDisplayName(String type) {
-        return switch (normalizeKey(type)) {
-            case "SUNFLOWER" -> "Sunflower";
-            case "WALL_NUT" -> "Wall-nut";
-            case "SNOW_PEA" -> "Snow Pea";
-            case "REPEATER" -> "Repeater";
-            case "TALL_NUT" -> "Tall-nut";
-            case "THREEPEATER" -> "Threepeater";
-            default -> "Peashooter";
-        };
+        String normalized = normalizeKey(type);
+        models.core.plant.PlantType plantType = models.core.plant.DefaultPlantRegistry.getInstance().getByName(type);
+        if (plantType != null) {
+            return plantType.getName();
+        }
+        for (models.core.plant.PlantType candidate : models.core.plant.DefaultPlantRegistry.getInstance().getAllPlantTypes()) {
+            if (candidate != null && normalizeKey(candidate.getName()).equals(normalized)) {
+                return candidate.getName();
+            }
+        }
+        return type == null || type.isBlank() ? "Peashooter" : type;
     }
 
     public static String zombieDisplayName(String type) {

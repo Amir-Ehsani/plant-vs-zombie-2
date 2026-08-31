@@ -76,6 +76,26 @@ public class Plant extends PlantState {
         visualSpecialSerial++;
     }
 
+    /** Keep the same plant instance while mirroring an authoritative snapshot. */
+    public void syncNetworkHealth(int targetHealth) {
+        hp = Math.max(0, Math.min(maxHp, targetHealth));
+    }
+
+    /**
+     * Copies attack/special serials from the server so local projectile and PAM
+     * renderers can fire without recreating the plant every snapshot.
+     */
+    public void applyNetworkVisualState(int attackSerial, String attackClip, int specialSerial, String specialClip) {
+        if (attackSerial > visualAttackSerial) {
+            visualAttackSerial = attackSerial;
+            visualAttackClip = attackClip == null || attackClip.isBlank() ? "attack" : attackClip;
+        }
+        if (specialSerial > visualSpecialSerial) {
+            visualSpecialSerial = specialSerial;
+            visualSpecialClip = specialClip;
+        }
+    }
+
     private void registerAttackVisual() {
         visualAttackClip = pendingVisualAttackClip == null ? "attack" : pendingVisualAttackClip;
         pendingVisualAttackClip = null;

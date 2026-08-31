@@ -27,7 +27,9 @@ import screens.game.GameScreen;
 import screens.game.MiniGameScreen;
 import screens.game.CouchIZombieScreen;
 import screens.menu.NetworkLobbyScreen;
+import screens.menu.NetworkPlantSelectionScreen;
 import network.client.NetworkMatchContext;
+import network.protocol.GameRole;
 import models.minigame.NetworkIZombieGame;
 
 public class ScreenManager {
@@ -133,6 +135,10 @@ public class ScreenManager {
         NetworkIZombieGame networkGame = new NetworkIZombieGame(game.getNetworkManager(), context);
         if (!game.getTravelLogController().enterNetworkIZombie(networkGame)) {
             showNetworkLobby();
+            return;
+        }
+        if (context.role() == GameRole.PLANTS) {
+            show(new NetworkPlantSelectionScreen(game, networkGame));
             return;
         }
         show(new MiniGameScreen(game));

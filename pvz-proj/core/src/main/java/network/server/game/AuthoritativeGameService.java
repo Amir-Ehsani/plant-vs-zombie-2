@@ -15,6 +15,7 @@ import network.server.matchmaking.MatchmakingService;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
@@ -98,6 +99,10 @@ public final class AuthoritativeGameService implements AutoCloseable {
         String action = required(request, "action", "match action is required").trim().toUpperCase();
         ActionResult result;
         switch (action) {
+            case "LOCK_PLANTS" -> {
+                if (role != GameRole.PLANTS) throw new IllegalArgumentException("only the plant player can choose plants");
+                result = running.game.lockPlants(username, splitCsv(request.get("plants")));
+            }
             case "PLACE_PLANT" -> {
                 if (role != GameRole.PLANTS) throw new IllegalArgumentException("only the plant player can place plants");
                 result = running.game.placePlant(username,
@@ -111,6 +116,7 @@ public final class AuthoritativeGameService implements AutoCloseable {
                         required(request, "type", "zombie type is required"),
                         request.getInt("row", Integer.MIN_VALUE));
             }
+            case "COLLECT_SUN" -> result = running.game.collectSun(username, request.getInt("dropId", Integer.MIN_VALUE));
             default -> throw new IllegalArgumentException("unsupported match action: " + action);
         }
 
@@ -216,6 +222,19 @@ public final class AuthoritativeGameService implements AutoCloseable {
         String value = request == null ? null : request.get(key);
         if (value == null || value.isBlank()) throw new IllegalArgumentException(message);
         return value;
+    }
+
+    private static List<String> splitCsv(String value) {
+        List<String> result = new ArrayList<>();
+        if (value == null || value.isBlank()) {
+            return result;
+        }
+        for (String part : value.split(",")) {
+            if (part != null && !part.isBlank()) {
+                result.add(part.trim());
+            }
+        }
+        return result;
     }
 
     private static void sendQuietly(ClientConnection connection, NetworkMessage message) {

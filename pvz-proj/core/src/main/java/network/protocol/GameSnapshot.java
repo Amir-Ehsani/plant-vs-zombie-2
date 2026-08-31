@@ -33,6 +33,8 @@ public final class GameSnapshot implements Serializable {
     private final Map<String, Long> zombieCooldownMillis;
     private final GameRole winner;
     private final String finishReason;
+    private final boolean plantsReady;
+    private final List<String> plantLoadout;
 
     /** Backward-compatible constructor retained for older tests/callers. */
     public GameSnapshot(long sequence,
@@ -45,7 +47,7 @@ public final class GameSnapshot implements Serializable {
                         GameRole winner,
                         String finishReason) {
         this(sequence, status, 1, 0L, remainingMillis, plantSun, zombieSun, brains, entities,
-                Collections.emptyMap(), Collections.emptyMap(), winner, finishReason);
+                Collections.emptyMap(), Collections.emptyMap(), winner, finishReason, true, List.of());
     }
 
     public GameSnapshot(long sequence,
@@ -61,6 +63,25 @@ public final class GameSnapshot implements Serializable {
                         Map<String, Long> zombieCooldownMillis,
                         GameRole winner,
                         String finishReason) {
+        this(sequence, status, stage, elapsedMillis, remainingMillis, plantSun, zombieSun, brains, entities,
+                plantCooldownMillis, zombieCooldownMillis, winner, finishReason, true, List.of());
+    }
+
+    public GameSnapshot(long sequence,
+                        String status,
+                        int stage,
+                        long elapsedMillis,
+                        long remainingMillis,
+                        int plantSun,
+                        int zombieSun,
+                        boolean[] brains,
+                        List<EntityState> entities,
+                        Map<String, Long> plantCooldownMillis,
+                        Map<String, Long> zombieCooldownMillis,
+                        GameRole winner,
+                        String finishReason,
+                        boolean plantsReady,
+                        List<String> plantLoadout) {
         this.sequence = Math.max(0L, sequence);
         this.status = Objects.requireNonNullElse(status, "RUNNING");
         this.stage = Math.max(1, Math.min(3, stage));
@@ -74,6 +95,8 @@ public final class GameSnapshot implements Serializable {
         this.zombieCooldownMillis = normalizedCooldowns(zombieCooldownMillis);
         this.winner = winner;
         this.finishReason = Objects.requireNonNullElse(finishReason, "");
+        this.plantsReady = plantsReady;
+        this.plantLoadout = plantLoadout == null ? new ArrayList<>() : new ArrayList<>(plantLoadout);
     }
 
     public long getSequence() { return sequence; }
@@ -89,6 +112,10 @@ public final class GameSnapshot implements Serializable {
     public Map<String, Long> getZombieCooldowns() { return zombieCooldownMillis == null ? Collections.emptyMap() : Collections.unmodifiableMap(zombieCooldownMillis); }
     public GameRole getWinner() { return winner; }
     public String getFinishReason() { return finishReason; }
+    public boolean isPlantsReady() { return plantsReady; }
+    public List<String> getPlantLoadout() {
+        return plantLoadout == null ? Collections.emptyList() : Collections.unmodifiableList(plantLoadout);
+    }
 
     public long getPlantCooldownMillis(String type) {
         return cooldownFor(plantCooldownMillis, type);
