@@ -13,6 +13,7 @@ import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.Matrix4;
 import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.math.Vector2;
+import com.badlogic.gdx.scenes.scene2d.Actor;
 import com.badlogic.gdx.scenes.scene2d.InputEvent;
 import com.badlogic.gdx.scenes.scene2d.Touchable;
 import com.badlogic.gdx.scenes.scene2d.ui.Button;
@@ -37,6 +38,7 @@ import game.dialogue.LevelDialogueController;
 import game.hud.CompactSeedBank;
 import game.hud.BossHealthHud;
 import game.hud.GameplayWaveBanner;
+import game.hud.PlantFoodSlotIcon;
 import game.hud.WaveProgressHud;
 import game.input.GameplayInputMode;
 import game.input.GameplayInteractionSystem;
@@ -105,7 +107,7 @@ public final class GameScreen extends BaseScreen {
     private final Label statusLabel;
     private final ResourceBar resourceBar;
     private Label sunValueLabel;
-    private final Image[] plantFoodSlotIcons;
+    private final Actor[] plantFoodSlotIcons;
     private final Table plantCardsTable;
     private final Map<String, PlantCard> gameplayPlantCards;
     private final EntityRenderSystem entityRenderSystem;
@@ -171,7 +173,7 @@ public final class GameScreen extends BaseScreen {
         boardRenderer = new BoardRenderer(boardGeometry);
         animations = new PvzAnimationService();
         plantFoodDropRegion = animations.region("IMAGE_UI_ALMANAC_ALMANAC_STAT_ICON_PLANTFOOD_LARGE");
-        plantFoodSlotIcons = new Image[3];
+        plantFoodSlotIcons = new Actor[3];
         plantFoodSlotBackgroundRegion = animations.region("IMAGE_UI_POWERUPS_POWERUP_FRAME");
         gameplayClock = new GameplayClock(controller);
         gameplayClock.setGameSpeed(resolveInitialGameSpeed());
@@ -480,19 +482,15 @@ public final class GameScreen extends BaseScreen {
             counter.add(backgroundImage);
         }
 
-        TextureRegion plantFoodRegion = game.getAnimationService().region(
-                "IMAGE_UI_ALMANAC_ALMANAC_STAT_ICON_PLANTFOOD_LARGE"
-        );
         Table slots = new Table();
         slots.setFillParent(true);
         slots.top().left();
-        slots.padLeft(14f).padRight(14f).padTop(1f).padBottom(15f);
+        slots.padLeft(10f).padRight(10f).padTop(0f).padBottom(12f);
         for (int index = 0; index < plantFoodSlotIcons.length; index++) {
-            Image icon = plantFoodRegion == null ? new Image() : new Image(plantFoodRegion);
-            icon.setScaling(Scaling.fit);
+            Actor icon = createPlantFoodSlotIcon();
             icon.setVisible(false);
             plantFoodSlotIcons[index] = icon;
-            slots.add(icon).expandX().size(42f).top();
+            slots.add(icon).expandX().size(52f, 46f).top();
         }
         counter.add(slots);
 
@@ -504,6 +502,15 @@ public final class GameScreen extends BaseScreen {
             }
         });
         return counter;
+    }
+
+    private Actor createPlantFoodSlotIcon() {
+        if (animations != null && animations.isAvailable()) {
+            return new PlantFoodSlotIcon(animations);
+        }
+        Image fallback = new Image();
+        fallback.setTouchable(Touchable.disabled);
+        return fallback;
     }
 
     private Button createShovelButton() {
