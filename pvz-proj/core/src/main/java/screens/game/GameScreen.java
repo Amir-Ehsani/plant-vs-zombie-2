@@ -1162,7 +1162,11 @@ public final class GameScreen extends BaseScreen {
         } else if (normalized.equals("grave buster")) {
             entityRenderSystem.playFieldEffect(
                 "768/INITIAL/EFFECTS/GRAVEBUSTER_DIRT/GRAVEBUSTER_DIRT.PAM",
-                "gravebuster_dirt_anim", java.util.Collections.singletonList(position), 0.48f, delay, 0f, false
+                "gravebuster_dirt_anim", java.util.Collections.singletonList(position), 0.48f, 0f, delay, true
+            );
+            entityRenderSystem.playFieldEffect(
+                "768/INITIAL/EFFECTS/GRAVEBUSTER_DIRT/GRAVEBUSTER_DIRT.PAM",
+                "gravebuster_dirt_fade", java.util.Collections.singletonList(position), 0.48f, delay, 0f, false
             );
         } else if (normalized.equals("jalapeno")) {
             List<Position> lane = new ArrayList<>();

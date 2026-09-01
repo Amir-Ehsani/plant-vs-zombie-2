@@ -241,6 +241,10 @@ public final class PlantView extends EntityView<Plant> {
             );
             return;
         }
+        if (name.equals("gravebuster")) {
+            startSequence(firstClip("attack"), firstClip("attack1"));
+            return;
+        }
         String clip = findClip(requested);
         if (clip == null) {
             clip = firstClip("special", "attack", "intro");

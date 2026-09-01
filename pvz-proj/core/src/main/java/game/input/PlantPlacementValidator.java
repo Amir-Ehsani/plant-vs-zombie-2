@@ -99,6 +99,9 @@ public final class PlantPlacementValidator {
         if (board.canPlacePlant(preview, position)) {
             return InteractionValidation.valid();
         }
+        if (isGraveBuster(type) && !tile.isGraveTerrain()) {
+            return InteractionValidation.invalid("Grave Buster can only be planted on graves.");
+        }
         if (tile.hasPlant()) {
             return InteractionValidation.invalid("Tile is occupied or these plants cannot be stacked.");
         }
@@ -111,6 +114,17 @@ public final class PlantPlacementValidator {
         }
         PlantData data = user.getCollection().findOwnedPlant(plantName);
         return data != null && data.isUnlocked();
+    }
+
+    private boolean isGraveBuster(PlantType type) {
+        if (type == null || type.getName() == null) {
+            return false;
+        }
+        return type.getName().trim().toLowerCase(java.util.Locale.ROOT)
+                .replace('-', ' ')
+                .replace('_', ' ')
+                .replaceAll("\\s+", " ")
+                .equals("grave buster");
     }
 
     private String formatSeconds(float seconds) {

@@ -110,8 +110,12 @@ public class Tile {
             return false;
         }
 
+        if (isNamedPlant(plant, "grave buster")) {
+            return isGraveTerrain() && plants.isEmpty();
+        }
+
         if (isGraveTerrain()) {
-            return plants.isEmpty() && isNamedPlant(plant, "grave buster");
+            return false;
         }
         if (tileType == TileType.ICE) {
             return plants.isEmpty() && isNamedPlant(plant, "hot potato");

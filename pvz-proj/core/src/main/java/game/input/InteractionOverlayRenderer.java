@@ -96,7 +96,7 @@ public final class InteractionOverlayRenderer {
         if (profile == null) {
             return;
         }
-        String clip = profile.firstClip("idle", "idle2", "idle_stage1", "play", "walk");
+        String clip = profile.firstClip("idle", "idle2", "idle_stage1", "play", "walk", "attack");
         if (clip == null) {
             return;
         }
