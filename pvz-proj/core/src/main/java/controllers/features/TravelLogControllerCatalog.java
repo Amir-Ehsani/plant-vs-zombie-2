@@ -4,21 +4,9 @@ import controllers.auth.AuthController;
 import models.account.PlantData;
 import models.account.Quest;
 import models.account.User;
-import models.core.plant.DefaultPlantRegistry;
-import models.core.plant.PlantRegistry;
-import models.core.plant.PlantType;
-import models.engine.board.Position;
-import models.minigame.IZombieGame;
-import models.minigame.MiniGameSession;
-import models.minigame.MiniGameType;
-import models.minigame.VasebreakerGame;
-import models.minigame.WallNutBowlingGame;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
-import java.util.Locale;
-
 
 abstract class TravelLogControllerCatalog extends TravelLogControllerData {
     protected TravelLogControllerCatalog(AuthController authController) {
@@ -391,14 +379,18 @@ abstract class TravelLogControllerCatalog extends TravelLogControllerData {
         }
 
         if (quest.getGemReward() > 0) {
-            if (reward.length() > 0) reward.append(", ");
+            if (reward.length() > 0) {
+                reward.append(", ");
+            }
             reward.append(quest.getGemReward()).append(" gems");
         }
 
         if (quest.getSeedPacketReward() > 0) {
             String plantName = addSeedPacketsToRewardPlant(user, quest.getSeedPacketReward());
 
-            if (reward.length() > 0) reward.append(", ");
+            if (reward.length() > 0) {
+                reward.append(", ");
+            }
             reward.append(quest.getSeedPacketReward()).append(" seed packets");
 
             if (!plantName.isBlank()) {
@@ -409,7 +401,9 @@ abstract class TravelLogControllerCatalog extends TravelLogControllerData {
         if (quest.hasRandomPlantReward()) {
             String unlockedPlantName = unlockRandomPlantReward(user);
 
-            if (reward.length() > 0) reward.append(", ");
+            if (reward.length() > 0) {
+                reward.append(", ");
+            }
 
             if (unlockedPlantName.isBlank()) {
                 reward.append("random plant reward was already owned");

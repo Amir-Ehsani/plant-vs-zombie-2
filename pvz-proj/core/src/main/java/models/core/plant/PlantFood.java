@@ -107,11 +107,21 @@ public class PlantFood {
         }
         int damage = Math.max(1, plant.getAttackDamage());
         Boolean result = applySunAndBasicPeaEffect(name, plant, context, damage);
-        if (result == null) result = applyAdvancedPeaEffect(name, plant, context, damage);
-        if (result == null) result = applyMushroomAndPultEffect(name, plant, context, damage);
-        if (result == null) result = applyInstantAndMeleeEffect(name, plant, context, damage);
-        if (result == null) result = applyDefenseAndSupportEffect(name, plant, context, damage);
-        if (result != null) return result;
+        if (result == null) {
+            result = applyAdvancedPeaEffect(name, plant, context, damage);
+        }
+        if (result == null) {
+            result = applyMushroomAndPultEffect(name, plant, context, damage);
+        }
+        if (result == null) {
+            result = applyInstantAndMeleeEffect(name, plant, context, damage);
+        }
+        if (result == null) {
+            result = applyDefenseAndSupportEffect(name, plant, context, damage);
+        }
+        if (result != null) {
+            return result;
+        }
         plant.heal(healAmount);
         plant.setPlantFoodModifiers(2, 2, false);
         return true;
@@ -151,13 +161,17 @@ public class PlantFood {
                     temporaryModifier(context, plant, 1, 5, false);
             case "repeater" -> {
                 applyTemporaryModifiers(context, plant, 1, 5, false);
-                if (context != null) runAtPlantFoodImpact(context, plant,
+                if (context != null) {
+                    runAtPlantFoodImpact(context, plant,
                         () -> context.damageNearestInLane(plant, damage * 20, "plant food giant pea"));
+                }
                 yield true;
             }
             case "threepeater" -> temporaryModifier(context, plant, 1, 5, false);
             case "snow pea" -> {
-                if (context != null) runAtPlantFoodImpact(context, plant, () -> context.freezeLane(plant, DEFAULT_FREEZE_TICKS));
+                if (context != null) {
+                    runAtPlantFoodImpact(context, plant, () -> context.freezeLane(plant, DEFAULT_FREEZE_TICKS));
+                }
                 yield temporaryModifier(context, plant, 1, 5, false);
             }
             default -> null;
@@ -208,7 +222,9 @@ public class PlantFood {
                 yield temporaryModifier(context, plant, 1, 5, false);
             }
             case "mega gatling pea" -> {
-                if (context != null) runAtPlantFoodImpact(context, plant, () -> context.damageLane(plant, damage * 80, "plant food mega pea"));
+                if (context != null) {
+                    runAtPlantFoodImpact(context, plant, () -> context.damageLane(plant, damage * 80, "plant food mega pea"));
+                }
                 yield temporaryModifier(context, plant, 2, 8, false);
             }
             default -> null;

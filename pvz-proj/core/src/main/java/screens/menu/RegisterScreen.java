@@ -4,6 +4,7 @@ import com.badlogic.gdx.scenes.scene2d.ui.ScrollPane;
 import com.badlogic.gdx.scenes.scene2d.ui.SelectBox;
 import com.badlogic.gdx.scenes.scene2d.ui.Table;
 import com.badlogic.gdx.scenes.scene2d.ui.TextField;
+import com.badlogic.gdx.utils.Align;
 import com.pvz.Main;
 import controllers.auth.AuthController;
 import ui.BackButton;
@@ -41,6 +42,7 @@ public class RegisterScreen extends BaseMenuScreen {
         fillForm(form);
         ScrollPane scrollPane = new ScrollPane(form, skin);
         scrollPane.setFadeScrollBars(false);
+        scrollPane.setCancelTouchFocus(false);
         root.add(scrollPane).width(760f).height(610f);
     }
 
@@ -52,9 +54,9 @@ public class RegisterScreen extends BaseMenuScreen {
         emailField = createField("Email");
         answerField = createField("Security answer");
         confirmAnswerField = createField("Confirm security answer");
-        genderBox = new SelectBox<>(skin);
+        genderBox = createSelectBox();
         genderBox.setItems("male", "female");
-        questionBox = new SelectBox<>(skin);
+        questionBox = createSelectBox();
         questionBox.setItems(SECURITY_QUESTIONS);
     }
 
@@ -88,6 +90,13 @@ public class RegisterScreen extends BaseMenuScreen {
     private void addSelectRow(Table table, String label, SelectBox<String> box) {
         table.add(createLabel(label)).left().width(210f);
         table.add(box).width(430f).height(48f).row();
+    }
+
+    private SelectBox<String> createSelectBox() {
+        SelectBox<String> box = new SelectBox<>(skin);
+        box.setAlignment(Align.center);
+        box.setMaxListCount(6);
+        return box;
     }
 
     private void addActions(Table form) {

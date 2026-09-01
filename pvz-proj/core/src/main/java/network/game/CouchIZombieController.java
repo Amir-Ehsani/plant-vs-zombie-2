@@ -55,32 +55,42 @@ public final class CouchIZombieController {
 
     public boolean selectPlant(String type) {
         String normalized = normalize(type);
-        if (!plantTypes.contains(normalized)) return false;
+        if (!plantTypes.contains(normalized)) {
+            return false;
+        }
         selectedPlant = normalized;
         return true;
     }
 
     public boolean selectPlantByIndex(int zeroBasedIndex) {
-        if (zeroBasedIndex < 0 || zeroBasedIndex >= plantTypes.size()) return false;
+        if (zeroBasedIndex < 0 || zeroBasedIndex >= plantTypes.size()) {
+            return false;
+        }
         selectedPlant = plantTypes.get(zeroBasedIndex);
         return true;
     }
 
     public boolean selectZombie(String type) {
         String normalized = normalize(type);
-        if (!zombieTypes.contains(normalized)) return false;
+        if (!zombieTypes.contains(normalized)) {
+            return false;
+        }
         selectedZombie = normalized;
         return true;
     }
 
     public boolean selectZombieByIndex(int zeroBasedIndex) {
-        if (zeroBasedIndex < 0 || zeroBasedIndex >= zombieTypes.size()) return false;
+        if (zeroBasedIndex < 0 || zeroBasedIndex >= zombieTypes.size()) {
+            return false;
+        }
         selectedZombie = zombieTypes.get(zeroBasedIndex);
         return true;
     }
 
     public int moveZombieRow(int delta) {
-        if (delta == 0) return zombieRow;
+        if (delta == 0) {
+            return zombieRow;
+        }
         zombieRow = Math.max(0, Math.min(AuthoritativeIZombieGame.ROWS - 1, zombieRow + delta));
         return zombieRow;
     }
@@ -136,7 +146,9 @@ public final class CouchIZombieController {
     }
 
     private static int cost(Map<String, Integer> costs, String type) {
-        if (costs == null) return Integer.MAX_VALUE;
+        if (costs == null) {
+            return Integer.MAX_VALUE;
+        }
         return costs.getOrDefault(normalize(type), Integer.MAX_VALUE);
     }
 

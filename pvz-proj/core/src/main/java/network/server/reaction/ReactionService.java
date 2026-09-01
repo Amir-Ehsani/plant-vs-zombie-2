@@ -45,10 +45,14 @@ public final class ReactionService {
     private NetworkMessage sendReaction(ClientConnection client, NetworkMessage request) {
         String username = requireAuthenticated(client, request);
         String matchId = request.getMatchId();
-        if (matchId == null || matchId.isBlank()) throw new IllegalArgumentException("match id is required");
+        if (matchId == null || matchId.isBlank()) {
+            throw new IllegalArgumentException("match id is required");
+        }
 
         MatchTicket match = matchmaking.getMatch(matchId);
-        if (match == null) throw new IllegalArgumentException("match is not active");
+        if (match == null) {
+            throw new IllegalArgumentException("match is not active");
+        }
         GameRole role = match.roleOf(client);
         if (role == null || match.roleOf(username) != role) {
             throw new IllegalArgumentException("this connection does not own a side in that match");
@@ -105,7 +109,9 @@ public final class ReactionService {
 
     /** Removes small per-match rate-limit entries after a match ends. */
     public void clearMatch(String matchId) {
-        if (matchId == null || matchId.isBlank()) return;
+        if (matchId == null || matchId.isBlank()) {
+            return;
+        }
         String prefix = matchId + "|";
         nextAllowedAtByParticipant.keySet().removeIf(key -> key.startsWith(prefix));
     }
@@ -114,12 +120,16 @@ public final class ReactionService {
 
     private String requireAuthenticated(ClientConnection client, NetworkMessage request) {
         String username = sessions.authenticate(client, request.getSessionToken());
-        if (username == null) throw new IllegalArgumentException("authentication required or session expired");
+        if (username == null) {
+            throw new IllegalArgumentException("authentication required or session expired");
+        }
         return username;
     }
 
     private static ReactionCategory parseCategory(String raw) {
-        if (raw == null || raw.isBlank()) throw new IllegalArgumentException("reaction category is required");
+        if (raw == null || raw.isBlank()) {
+            throw new IllegalArgumentException("reaction category is required");
+        }
         try { return ReactionCategory.valueOf(raw.trim().toUpperCase(Locale.ROOT)); }
         catch (IllegalArgumentException exception) { throw new IllegalArgumentException("unknown reaction category"); }
     }

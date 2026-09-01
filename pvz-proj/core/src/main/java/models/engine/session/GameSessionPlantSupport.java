@@ -2,7 +2,6 @@ package models.engine.session;
 
 import models.core.plant.DefaultPlantRegistry;
 import models.core.plant.Plant;
-import models.core.plant.PlantFactory;
 import models.core.plant.PlantFood;
 import models.core.plant.PlantFoodContext;
 import models.core.plant.PlantActionTiming;
@@ -10,39 +9,23 @@ import models.core.plant.PlantRegistry;
 import models.core.plant.PlantType;
 import models.core.projectile.Damage;
 import models.core.zombie.Zombie;
-import models.core.zombie.ZombieFactory;
-import models.engine.board.Board;
-import models.engine.board.BoardResourceHandler;
 import models.engine.board.Lane;
 import models.engine.board.Position;
 import models.engine.board.Tile;
 import models.engine.board.TileType;
-import models.engine.combat.BoardTickResult;
 import models.engine.events.GameEvent;
-import models.engine.events.GameEventType;
 import models.engine.sun.Sun;
-import models.engine.sun.SunManager;
-import models.engine.sun.SunType;
-import models.engine.time.TickManager;
-import models.level.core.Level;
-import models.level.core.Season;
 import models.level.rules.LevelRuntimeContext;
-import models.level.rules.impl.LockedPlantsRule;
-import models.level.wave.Wave;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Comparator;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.IdentityHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Random;
 import java.util.Set;
-
 
 abstract class GameSessionPlantSupport extends GameSessionEventSupport {
     private static final int SUN_PRODUCTION_PENDING = -2;
@@ -457,9 +440,15 @@ abstract class GameSessionPlantSupport extends GameSessionEventSupport {
         String name = normalizeName(plant.getName());
         int damage = Math.max(1, plant.getAttackDamage());
         Boolean handled = executeResourceOrTerrainPlant(name, plant, position);
-        if (handled == null) handled = executeAreaDamagePlant(name, plant, position, damage);
-        if (handled == null) handled = executeLaneOrGlobalPlant(name, plant, position, damage);
-        if (handled != null) return handled;
+        if (handled == null) {
+            handled = executeAreaDamagePlant(name, plant, position, damage);
+        }
+        if (handled == null) {
+            handled = executeLaneOrGlobalPlant(name, plant, position, damage);
+        }
+        if (handled != null) {
+            return handled;
+        }
         if (name.endsWith(" mint")) {
             activateMintEntranceEffect(name, plant, position);
             activateMint(name, plant);
@@ -474,9 +463,15 @@ abstract class GameSessionPlantSupport extends GameSessionEventSupport {
             spawnImmediateSunBurst(position, produced);
             return true;
         }
-        if (name.equals("grave buster")) return board.removeTerrain(position, TileType.GRAVE);
-        if (!name.equals("hot potato")) return null;
-        if (board.getTileAt(position).getTileType() != TileType.ICE) return false;
+        if (name.equals("grave buster")) {
+            return board.removeTerrain(position, TileType.GRAVE);
+        }
+        if (!name.equals("hot potato")) {
+            return null;
+        }
+        if (board.getTileAt(position).getTileType() != TileType.ICE) {
+            return false;
+        }
         board.meltTerrainArea(position, plant.hasMeltAreaThreeByThree() ? 1 : 0);
         return true;
     }
@@ -504,7 +499,9 @@ abstract class GameSessionPlantSupport extends GameSessionEventSupport {
                 position, radius, radius, Math.max(1800, damage), damageType,
                 plant.getName(), plantCategory(plant)
         ));
-        if (name.equals("grapeshot")) executeGrapeshotBounces(plant);
+        if (name.equals("grapeshot")) {
+            executeGrapeshotBounces(plant);
+        }
         return true;
     }
 
@@ -544,7 +541,9 @@ abstract class GameSessionPlantSupport extends GameSessionEventSupport {
             board.meltTerrainInLane(position.getY());
             return true;
         }
-        if (!name.equals("ice shroom")) return null;
+        if (!name.equals("ice shroom")) {
+            return null;
+        }
         recordBoardEvents(board.damageAllZombies(
                 50, "ice shroom", plant.getName(), plantCategory(plant)
         ));
@@ -555,8 +554,6 @@ abstract class GameSessionPlantSupport extends GameSessionEventSupport {
     private String plantCategory(Plant plant) {
         return plant.getType() == null ? "" : plant.getType().getCategory();
     }
-
-
 
     private void activateMintEntranceEffect(
             String normalizedName, Plant plant, Position position

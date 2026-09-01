@@ -68,7 +68,9 @@ public final class MatchmakingService {
 
     /** Starts periodic expiry/cleanup so challenges expire even if nobody clicks again. */
     public void start() {
-        if (!janitorStarted.compareAndSet(false, true)) return;
+        if (!janitorStarted.compareAndSet(false, true)) {
+            return;
+        }
         janitor.scheduleAtFixedRate(() -> {
             try { cleanupExpiredChallengesLocked(); }
             catch (Throwable throwable) {
@@ -89,8 +91,12 @@ public final class MatchmakingService {
         String challenger = requireAuthenticated(client, request);
         String target = required(request, "targetUsername", "opponent username is required").trim();
         int stage = requestedStage(request);
-        if (challenger.equalsIgnoreCase(target)) throw new IllegalArgumentException("you cannot challenge yourself");
-        if (!accounts.exists(target)) throw new IllegalArgumentException("opponent username does not exist");
+        if (challenger.equalsIgnoreCase(target)) {
+            throw new IllegalArgumentException("you cannot challenge yourself");
+        }
+        if (!accounts.exists(target)) {
+            throw new IllegalArgumentException("opponent username does not exist");
+        }
 
         ClientConnection targetConnection = sessions.getConnection(target);
         if (targetConnection == null || !targetConnection.isOpen()) {
@@ -104,7 +110,9 @@ public final class MatchmakingService {
             ensureAvailableLocked(target, "opponent is already waiting for or playing a match");
 
             String canonicalTarget = sessions.usernameForConnection(targetConnection);
-            if (canonicalTarget == null) throw new IllegalArgumentException("opponent is offline");
+            if (canonicalTarget == null) {
+                throw new IllegalArgumentException("opponent is offline");
+            }
             challenge = new PendingChallenge(
                     UUID.randomUUID().toString(),
                     challenger,
@@ -149,7 +157,9 @@ public final class MatchmakingService {
         synchronized (this) {
             cleanupExpiredChallengesLocked();
             challenge = challengesById.get(challengeId);
-            if (challenge == null) throw new IllegalArgumentException("challenge is invalid, expired, or already answered");
+            if (challenge == null) {
+                throw new IllegalArgumentException("challenge is invalid, expired, or already answered");
+            }
             if (!challenge.target.equalsIgnoreCase(responder) || challenge.targetConnection != client) {
                 throw new IllegalArgumentException("only the challenged player can answer this challenge");
             }
@@ -197,8 +207,12 @@ public final class MatchmakingService {
 
         synchronized (this) {
             cleanupExpiredChallengesLocked();
-            if (matchByUser.containsKey(key(username))) throw new IllegalArgumentException("you are already in a match");
-            if (challengeByUser.containsKey(key(username))) throw new IllegalArgumentException("answer or cancel the pending challenge first");
+            if (matchByUser.containsKey(key(username))) {
+                throw new IllegalArgumentException("you are already in a match");
+            }
+            if (challengeByUser.containsKey(key(username))) {
+                throw new IllegalArgumentException("answer or cancel the pending challenge first");
+            }
 
             QueueEntry existing = randomQueue.get(key(username));
             if (existing != null) {
@@ -223,9 +237,13 @@ public final class MatchmakingService {
                     break;
                 }
             }
-            for (String staleKey : stale) randomQueue.remove(staleKey);
+            for (String staleKey : stale) {
+                randomQueue.remove(staleKey);
+            }
 
-            if (opponent != null) randomQueue.remove(key(opponent.username));
+            if (opponent != null) {
+                randomQueue.remove(key(opponent.username));
+            }
             else {
                 randomQueue.put(key(username), new QueueEntry(username, client, stage, System.currentTimeMillis()));
                 return RequestDispatcher.success(request, "waiting for a random opponent")
@@ -273,7 +291,9 @@ public final class MatchmakingService {
         synchronized (this) {
             QueueEntry entry = randomQueue.get(key(username));
             removed = entry != null && entry.connection == client;
-            if (removed) randomQueue.remove(key(username));
+            if (removed) {
+                randomQueue.remove(key(username));
+            }
         }
         return RequestDispatcher.success(request, removed ? "left the random queue" : "you were not in the random queue")
                 .put("queued", false)
@@ -282,13 +302,17 @@ public final class MatchmakingService {
 
     /** Called by the account layer after a new authenticated socket becomes authoritative for a username. */
     public void sessionStarted(String username, ClientConnection client) {
-        if (username == null || client == null) return;
+        if (username == null || client == null) {
+            return;
+        }
         cleanupParticipant(username, client, true, "signed in from another client");
     }
 
     /** Called before an authenticated socket is forgotten by ServerSessionManager. */
     public void sessionEnded(String username, ClientConnection client, String reason) {
-        if (username == null || client == null) return;
+        if (username == null || client == null) {
+            return;
+        }
         cleanupParticipant(username, client, false, reason == null ? "left matchmaking" : reason);
     }
 
@@ -296,7 +320,9 @@ public final class MatchmakingService {
     public synchronized void renameUser(String oldUsername, String newUsername, ClientConnection client) {
         String oldKey = key(oldUsername);
         String newKey = key(newUsername);
-        if (oldKey.equals(newKey)) return;
+        if (oldKey.equals(newKey)) {
+            return;
+        }
 
         QueueEntry queue = randomQueue.remove(oldKey);
         if (queue != null && queue.connection == client) {
@@ -309,8 +335,12 @@ public final class MatchmakingService {
         if (challengeId != null) {
             PendingChallenge challenge = challengesById.get(challengeId);
             if (challenge != null) {
-                if (challenge.challengerConnection == client) challenge.challenger = newUsername;
-                if (challenge.targetConnection == client) challenge.target = newUsername;
+                if (challenge.challengerConnection == client) {
+                    challenge.challenger = newUsername;
+                }
+                if (challenge.targetConnection == client) {
+                    challenge.target = newUsername;
+                }
                 challengeByUser.put(newKey, challengeId);
             }
         }
@@ -318,7 +348,9 @@ public final class MatchmakingService {
         String matchId = matchByUser.remove(oldKey);
         if (matchId != null) {
             MatchTicket match = matchesById.get(matchId);
-            if (match != null) match.renameUsername(oldUsername, newUsername);
+            if (match != null) {
+                match.renameUsername(oldUsername, newUsername);
+            }
             matchByUser.put(newKey, matchId);
         }
     }
@@ -333,8 +365,12 @@ public final class MatchmakingService {
         synchronized (this) {
             String userKey = key(username);
             QueueEntry queue = randomQueue.get(userKey);
-            if (queue != null && (!onlyIfDifferentConnection || queue.connection != client)) randomQueue.remove(userKey);
-            if (queue != null && !onlyIfDifferentConnection && queue.connection == client) randomQueue.remove(userKey);
+            if (queue != null && (!onlyIfDifferentConnection || queue.connection != client)) {
+                randomQueue.remove(userKey);
+            }
+            if (queue != null && !onlyIfDifferentConnection && queue.connection == client) {
+                randomQueue.remove(userKey);
+            }
 
             String challengeId = challengeByUser.get(userKey);
             if (challengeId != null) {
@@ -423,7 +459,9 @@ public final class MatchmakingService {
             sendMatchStarted(match, GameRole.PLANTS);
             sendMatchStarted(match, GameRole.ZOMBIES);
             AuthoritativeGameService service = gameService;
-            if (service != null) service.startMatch(match);
+            if (service != null) {
+                service.startMatch(match);
+            }
         } catch (IOException exception) {
             synchronized (this) { removeMatchLocked(match); }
             sendQuietly(match.getPlantsConnection(), NetworkMessage.of(MessageType.MATCH_FINISHED)
@@ -456,7 +494,9 @@ public final class MatchmakingService {
         long now = System.currentTimeMillis();
         List<PendingChallenge> expired = new ArrayList<>();
         for (PendingChallenge challenge : challengesById.values()) {
-            if (challenge.expiresAtEpochMillis <= now) expired.add(challenge);
+            if (challenge.expiresAtEpochMillis <= now) {
+                expired.add(challenge);
+            }
         }
         for (PendingChallenge challenge : expired) {
             removeChallengeLocked(challenge);
@@ -481,44 +521,58 @@ public final class MatchmakingService {
     }
 
     private void removeChallengeLocked(PendingChallenge challenge) {
-        if (challenge == null) return;
+        if (challenge == null) {
+            return;
+        }
         challengesById.remove(challenge.id, challenge);
         challengeByUser.remove(key(challenge.challenger), challenge.id);
         challengeByUser.remove(key(challenge.target), challenge.id);
     }
 
     private void removeMatchLocked(MatchTicket match) {
-        if (match == null) return;
+        if (match == null) {
+            return;
+        }
         matchesById.remove(match.getMatchId(), match);
         matchByUser.remove(key(match.getPlantsUsername()), match.getMatchId());
         matchByUser.remove(key(match.getZombiesUsername()), match.getMatchId());
         AuthoritativeGameService service = gameService;
-        if (service != null) service.abandonMatch(match.getMatchId());
+        if (service != null) {
+            service.abandonMatch(match.getMatchId());
+        }
     }
 
     /** Called by the authoritative game service after a normal timer/brain/forfeit finish. */
     public synchronized void completeMatchFromGame(String matchId) {
         MatchTicket match = matchId == null ? null : matchesById.get(matchId);
-        if (match != null) removeMatchLocked(match);
+        if (match != null) {
+            removeMatchLocked(match);
+        }
     }
 
     private int queuePositionLocked(String userKey) {
         int position = 0;
         for (String key : randomQueue.keySet()) {
             position++;
-            if (key.equals(userKey)) return position;
+            if (key.equals(userKey)) {
+                return position;
+            }
         }
         return -1;
     }
 
     private String requireAuthenticated(ClientConnection client, NetworkMessage request) {
         String username = sessions.authenticate(client, request.getSessionToken());
-        if (username == null) throw new IllegalArgumentException("authentication required or session expired");
+        if (username == null) {
+            throw new IllegalArgumentException("authentication required or session expired");
+        }
         return username;
     }
 
     private boolean isCurrentAuthenticatedConnection(String username, ClientConnection connection) {
-        if (username == null || connection == null || !connection.isOpen()) return false;
+        if (username == null || connection == null || !connection.isOpen()) {
+            return false;
+        }
         return sessions.getConnection(username) == connection;
     }
 
@@ -532,7 +586,9 @@ public final class MatchmakingService {
 
     private static String required(NetworkMessage request, String key, String message) {
         String value = request == null ? null : request.get(key);
-        if (value == null || value.isBlank()) throw new IllegalArgumentException(message);
+        if (value == null || value.isBlank()) {
+            throw new IllegalArgumentException(message);
+        }
         return value;
     }
 
@@ -541,7 +597,9 @@ public final class MatchmakingService {
     }
 
     private static void sendQuietly(ClientConnection connection, NetworkMessage message) {
-        if (connection == null || !connection.isOpen()) return;
+        if (connection == null || !connection.isOpen()) {
+            return;
+        }
         try { connection.send(message); }
         catch (IOException ignored) { }
     }

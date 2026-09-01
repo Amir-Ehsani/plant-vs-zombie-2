@@ -2,8 +2,6 @@ package models.account;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
-
 
 abstract class UserIdentity {
     protected String username;

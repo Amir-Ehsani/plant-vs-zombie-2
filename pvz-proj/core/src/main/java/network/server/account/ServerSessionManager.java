@@ -22,16 +22,22 @@ public final class ServerSessionManager {
     }
 
     public String createSession(String username, ClientConnection client) {
-        if (username == null || username.isBlank() || client == null) throw new IllegalArgumentException("session identity is required");
+        if (username == null || username.isBlank() || client == null) {
+            throw new IllegalArgumentException("session identity is required");
+        }
         Session replaced;
         Session previousConnection;
         Session created;
         synchronized (this) {
             previousConnection = byConnection.remove(client);
-            if (previousConnection != null) removeInternal(previousConnection);
+            if (previousConnection != null) {
+                removeInternal(previousConnection);
+            }
 
             replaced = byUsername.get(key(username));
-            if (replaced != null) removeInternal(replaced);
+            if (replaced != null) {
+                removeInternal(replaced);
+            }
 
             String token = ServerCrypto.randomToken(32);
             created = new Session(token, username.trim(), client);
@@ -50,9 +56,13 @@ public final class ServerSessionManager {
     }
 
     public synchronized String authenticate(ClientConnection client, String token) {
-        if (client == null || token == null || token.isBlank()) return null;
+        if (client == null || token == null || token.isBlank()) {
+            return null;
+        }
         Session session = byToken.get(token);
-        if (session == null || session.client != client || !client.isOpen()) return null;
+        if (session == null || session.client != client || !client.isOpen()) {
+            return null;
+        }
         return session.username;
     }
 
@@ -73,21 +83,29 @@ public final class ServerSessionManager {
     }
 
     public synchronized void logout(ClientConnection client, String token) {
-        if (client == null || token == null) return;
+        if (client == null || token == null) {
+            return;
+        }
         Session session = byToken.get(token);
-        if (session != null && session.client == client) removeInternal(session);
+        if (session != null && session.client == client) {
+            removeInternal(session);
+        }
     }
 
     public synchronized void connectionClosed(ClientConnection client) {
         Session session = byConnection.get(client);
-        if (session != null) removeInternal(session);
+        if (session != null) {
+            removeInternal(session);
+        }
     }
 
     public void invalidateUser(String username, String reason) {
         Session removed;
         synchronized (this) {
             removed = byUsername.get(key(username));
-            if (removed != null) removeInternal(removed);
+            if (removed != null) {
+                removeInternal(removed);
+            }
         }
         if (removed != null && removed.client.isOpen()) {
             try {
@@ -99,7 +117,9 @@ public final class ServerSessionManager {
 
     public synchronized void renameUser(String oldUsername, String newUsername) {
         Session session = byUsername.remove(key(oldUsername));
-        if (session == null) return;
+        if (session == null) {
+            return;
+        }
         session.username = newUsername;
         byUsername.put(key(newUsername), session);
     }

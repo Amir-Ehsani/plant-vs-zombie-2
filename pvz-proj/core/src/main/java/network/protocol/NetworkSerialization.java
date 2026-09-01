@@ -19,7 +19,9 @@ public final class NetworkSerialization {
     private NetworkSerialization() { }
 
     public static void secure(ObjectInputStream input) throws IOException {
-        if (input == null) throw new IOException("object input stream is null");
+        if (input == null) {
+            throw new IOException("object input stream is null");
+        }
         input.setObjectInputFilter(NetworkSerialization::filter);
     }
 
@@ -30,11 +32,17 @@ public final class NetworkSerialization {
         }
 
         Class<?> type = info.serialClass();
-        if (type == null) return ObjectInputFilter.Status.UNDECIDED;
-        if (type.isPrimitive()) return ObjectInputFilter.Status.ALLOWED;
+        if (type == null) {
+            return ObjectInputFilter.Status.UNDECIDED;
+        }
+        if (type.isPrimitive()) {
+            return ObjectInputFilter.Status.ALLOWED;
+        }
         if (type.isArray()) {
             Class<?> component = type;
-            while (component.isArray()) component = component.getComponentType();
+            while (component.isArray()) {
+                component = component.getComponentType();
+            }
             return allowedName(component.getName())
                     || component.isPrimitive()
                     ? ObjectInputFilter.Status.ALLOWED
@@ -47,12 +55,18 @@ public final class NetworkSerialization {
     }
 
     private static boolean allowedName(String name) {
-        if (name == null) return false;
-        if (name.startsWith("network.protocol.")) return true;
+        if (name == null) {
+            return false;
+        }
+        if (name.startsWith("network.protocol.")) {
+            return true;
+        }
         if (name.equals("java.util.Map$Entry") || name.equals("java.lang.Enum") || name.equals("java.lang.Number")) {
             return true;
         }
-        if (name.startsWith("java.util.")) return true;
+        if (name.startsWith("java.util.")) {
+            return true;
+        }
         if (name.startsWith("java.lang.")
                 && !name.contains("ClassLoader")
                 && !name.equals("java.lang.Process")

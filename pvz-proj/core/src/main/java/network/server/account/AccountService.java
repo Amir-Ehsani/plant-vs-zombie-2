@@ -35,7 +35,9 @@ public final class AccountService {
     private NetworkMessage register(ClientConnection client, NetworkMessage request) {
         ServerAccount account = ServerAccount.fromRegistration(request);
         validateUsername(account.getUsername());
-        if (!repository.create(account)) throw new IllegalArgumentException("username is already taken");
+        if (!repository.create(account)) {
+            throw new IllegalArgumentException("username is already taken");
+        }
         server.log("registered account: " + account.getUsername());
         return RequestDispatcher.success(request, "registration successful")
                 .put("username", account.getUsername());
@@ -60,7 +62,9 @@ public final class AccountService {
         server.getMatchmakingService().sessionStarted(account.getUsername(), client);
         server.log("login: " + account.getUsername() + " from " + client.getRemoteAddress());
         NetworkMessage response = authenticatedResponse(request, account, sessionToken, "login successful");
-        if (persistentToken != null) response.put("persistentToken", persistentToken);
+        if (persistentToken != null) {
+            response.put("persistentToken", persistentToken);
+        }
         return response;
     }
 
@@ -101,12 +105,18 @@ public final class AccountService {
         String oldUsername = requireAuthenticatedUsername(client, request);
         String newUsername = required(request, "newUsername", "new username is required").trim();
         validateUsername(newUsername);
-        if (oldUsername.equalsIgnoreCase(newUsername)) throw new IllegalArgumentException("new username is the same as current username");
-        if (repository.exists(newUsername)) throw new IllegalArgumentException("username is already taken");
+        if (oldUsername.equalsIgnoreCase(newUsername)) {
+            throw new IllegalArgumentException("new username is the same as current username");
+        }
+        if (repository.exists(newUsername)) {
+            throw new IllegalArgumentException("username is already taken");
+        }
 
         ServerAccount account = requireAccount(oldUsername);
         account.applyRename(request, newUsername);
-        if (!repository.rename(oldUsername, account)) throw new IllegalArgumentException("could not rename account");
+        if (!repository.rename(oldUsername, account)) {
+            throw new IllegalArgumentException("could not rename account");
+        }
         sessions.renameUser(oldUsername, newUsername);
         server.getMatchmakingService().renameUser(oldUsername, newUsername, client);
         server.log("account renamed: " + oldUsername + " -> " + newUsername);
@@ -118,11 +128,17 @@ public final class AccountService {
         String username = requireAuthenticatedUsername(client, request);
         String oldHash = required(request, "oldPasswordHash", "old password is required");
         String newHash = required(request, "newPasswordHash", "new password is required");
-        if (!ServerCrypto.looksLikeSha256(newHash)) throw new IllegalArgumentException("new password hash must be SHA-256 hex");
+        if (!ServerCrypto.looksLikeSha256(newHash)) {
+            throw new IllegalArgumentException("new password hash must be SHA-256 hex");
+        }
 
         ServerAccount account = requireAccount(username);
-        if (!account.verifyPasswordHash(oldHash)) throw new IllegalArgumentException("old password is incorrect");
-        if (account.verifyPasswordHash(newHash)) throw new IllegalArgumentException("new password must be different from current password");
+        if (!account.verifyPasswordHash(oldHash)) {
+            throw new IllegalArgumentException("old password is incorrect");
+        }
+        if (account.verifyPasswordHash(newHash)) {
+            throw new IllegalArgumentException("new password must be different from current password");
+        }
         account.setPasswordHash(newHash);
         account.clearPersistentToken();
         account.applyPasswordChangeProfile(request);
@@ -147,20 +163,28 @@ public final class AccountService {
         String resetId = required(request, "resetId", "reset id is required");
         String answerHash = required(request, "securityAnswerHash", "security answer is required");
         String username = resets.usernameForVerification(resetId);
-        if (username == null) throw new IllegalArgumentException("password reset request is invalid or expired");
+        if (username == null) {
+            throw new IllegalArgumentException("password reset request is invalid or expired");
+        }
         ServerAccount account = requireAccount(username);
         boolean matches = account.verifySecurityAnswerHash(answerHash);
         resets.markAttempt(resetId, matches);
-        if (!matches) throw new IllegalArgumentException("security answer is incorrect");
+        if (!matches) {
+            throw new IllegalArgumentException("security answer is incorrect");
+        }
         return RequestDispatcher.success(request, "security answer accepted");
     }
 
     private NetworkMessage resetCommit(ClientConnection client, NetworkMessage request) {
         String resetId = required(request, "resetId", "reset id is required");
         String newHash = required(request, "newPasswordHash", "new password is required");
-        if (!ServerCrypto.looksLikeSha256(newHash)) throw new IllegalArgumentException("new password hash must be SHA-256 hex");
+        if (!ServerCrypto.looksLikeSha256(newHash)) {
+            throw new IllegalArgumentException("new password hash must be SHA-256 hex");
+        }
         String username = resets.consumeVerified(resetId);
-        if (username == null) throw new IllegalArgumentException("security answer must be verified before resetting password");
+        if (username == null) {
+            throw new IllegalArgumentException("security answer must be verified before resetting password");
+        }
         ServerAccount account = requireAccount(username);
         account.setPasswordHash(newHash);
         account.clearPersistentToken();
@@ -175,13 +199,17 @@ public final class AccountService {
 
     private String requireAuthenticatedUsername(ClientConnection client, NetworkMessage request) {
         String username = sessions.authenticate(client, request.getSessionToken());
-        if (username == null) throw new IllegalArgumentException("authentication required or session expired");
+        if (username == null) {
+            throw new IllegalArgumentException("authentication required or session expired");
+        }
         return username;
     }
 
     private ServerAccount requireAccount(String username) {
         ServerAccount account = repository.find(username);
-        if (account == null) throw new IllegalArgumentException("account no longer exists");
+        if (account == null) {
+            throw new IllegalArgumentException("account no longer exists");
+        }
         return account;
     }
 
@@ -200,14 +228,20 @@ public final class AccountService {
 
     private static String required(NetworkMessage request, String key, String message) {
         String value = request == null ? null : request.get(key);
-        if (value == null || value.isBlank()) throw new IllegalArgumentException(message);
+        if (value == null || value.isBlank()) {
+            throw new IllegalArgumentException(message);
+        }
         return value;
     }
 
     private static void validateUsername(String username) {
-        if (username == null || username.isBlank()) throw new IllegalArgumentException("username is required");
+        if (username == null || username.isBlank()) {
+            throw new IllegalArgumentException("username is required");
+        }
         String trimmed = username.trim();
-        if (trimmed.length() > 128) throw new IllegalArgumentException("username is too long");
+        if (trimmed.length() > 128) {
+            throw new IllegalArgumentException("username is too long");
+        }
         for (int i = 0; i < trimmed.length(); i++) {
             char c = trimmed.charAt(i);
             if (!(c >= 'a' && c <= 'z') && !(c >= 'A' && c <= 'Z')

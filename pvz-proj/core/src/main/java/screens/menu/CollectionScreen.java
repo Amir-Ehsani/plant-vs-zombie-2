@@ -31,7 +31,7 @@ public class CollectionScreen extends BaseMenuScreen {
         zombiePanel = new CollectionZombiePanel(skin, game.getAuthController(), animations);
         contentContainer = new Container<>();
         contentContainer.fill();
-        contentContainer.setClip(true);
+        contentContainer.setClip(false);
         plantsVisible = true;
         buildUi();
         showPlants();

@@ -45,6 +45,10 @@ public interface LevelRule {
         return false;
     }
 
+    default boolean allowsPlanting() {
+        return true;
+    }
+
     default boolean ignoresPlantRecharge() {
         return false;
     }

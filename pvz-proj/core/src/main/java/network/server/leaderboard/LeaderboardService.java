@@ -34,7 +34,9 @@ public final class LeaderboardService {
     private final ServerSessionManager sessions;
 
     public LeaderboardService(AccountRepository repository, ServerSessionManager sessions) {
-        if (repository == null || sessions == null) throw new IllegalArgumentException("leaderboard dependencies are required");
+        if (repository == null || sessions == null) {
+            throw new IllegalArgumentException("leaderboard dependencies are required");
+        }
         this.repository = repository;
         this.sessions = sessions;
     }
@@ -53,7 +55,9 @@ public final class LeaderboardService {
         accounts.sort(comparator(column, ascending));
 
         List<LeaderboardRow> rows = new ArrayList<>(accounts.size());
-        for (ServerAccount account : accounts) rows.add(toRow(account));
+        for (ServerAccount account : accounts) {
+            rows.add(toRow(account));
+        }
 
         return RequestDispatcher.success(request, "leaderboard loaded")
                 .put("column", column)
@@ -66,7 +70,9 @@ public final class LeaderboardService {
     private NetworkMessage submitScore(ClientConnection client, NetworkMessage request) {
         String username = requireAuthenticatedUsername(client, request);
         String rawScore = request.get("score");
-        if (rawScore == null || rawScore.isBlank()) throw new IllegalArgumentException("score is required");
+        if (rawScore == null || rawScore.isBlank()) {
+            throw new IllegalArgumentException("score is required");
+        }
 
         final int score;
         try {
@@ -74,10 +80,14 @@ public final class LeaderboardService {
         } catch (NumberFormatException exception) {
             throw new IllegalArgumentException("score must be an integer");
         }
-        if (score < 0) throw new IllegalArgumentException("score cannot be negative");
+        if (score < 0) {
+            throw new IllegalArgumentException("score cannot be negative");
+        }
 
         AccountRepository.ScoreUpdate update = repository.updateMyPointIfHigher(username, score);
-        if (update == null) throw new IllegalArgumentException("account no longer exists");
+        if (update == null) {
+            throw new IllegalArgumentException("account no longer exists");
+        }
 
         return RequestDispatcher.success(request,
                         update.improved() ? "new network scored-game record saved" : "score received; personal best unchanged")
@@ -89,7 +99,9 @@ public final class LeaderboardService {
 
     private String requireAuthenticatedUsername(ClientConnection client, NetworkMessage request) {
         String username = sessions.authenticate(client, request.getSessionToken());
-        if (username == null) throw new IllegalArgumentException("authentication required or session expired");
+        if (username == null) {
+            throw new IllegalArgumentException("authentication required or session expired");
+        }
         return username;
     }
 
@@ -124,7 +136,9 @@ public final class LeaderboardService {
             }
             default -> throw new IllegalArgumentException("unsupported leaderboard column: " + column);
         }
-        if (!ascending) comparator = comparator.reversed();
+        if (!ascending) {
+            comparator = comparator.reversed();
+        }
         return comparator.thenComparing(account -> safe(account.getUsername()), String.CASE_INSENSITIVE_ORDER);
     }
 
@@ -132,9 +146,15 @@ public final class LeaderboardService {
         return (left, right) -> {
             Integer a = left.getMyPoint();
             Integer b = right.getMyPoint();
-            if (a == null && b == null) return 0;
-            if (a == null) return 1;
-            if (b == null) return -1;
+            if (a == null && b == null) {
+                return 0;
+            }
+            if (a == null) {
+                return 1;
+            }
+            if (b == null) {
+                return -1;
+            }
             int compared = Integer.compare(a, b);
             return ascending ? compared : -compared;
         };
@@ -150,7 +170,9 @@ public final class LeaderboardService {
 
     private static String normalizeColumn(String column) {
         String normalized = column == null ? "score" : column.trim().toLowerCase(Locale.ROOT);
-        if (normalized.isEmpty()) normalized = "score";
+        if (normalized.isEmpty()) {
+            normalized = "score";
+        }
         return switch (normalized) {
             case "score", "username", "level", "minigames", "daily", "quests", "other" -> normalized;
             default -> throw new IllegalArgumentException("unsupported leaderboard column: " + normalized);
@@ -158,12 +180,16 @@ public final class LeaderboardService {
     }
 
     private static String normalizedChapter(String chapter) {
-        if (chapter == null || chapter.isBlank()) return "";
+        if (chapter == null || chapter.isBlank()) {
+            return "";
+        }
         return chapter.trim().toLowerCase(Locale.ROOT);
     }
 
     private static int parsedLevel(String raw) {
-        if (raw == null || raw.isBlank()) return 0;
+        if (raw == null || raw.isBlank()) {
+            return 0;
+        }
         try { return Math.max(0, Integer.parseInt(raw.trim())); }
         catch (NumberFormatException ignored) { return 0; }
     }

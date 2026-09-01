@@ -59,12 +59,24 @@ public class GameView extends BaseView {
     public void handleInput(String input) {
         String command = cleanInput(input);
 
-        if (handleNavigation(command)) return;
-        if (handlePlantSelectionCommands(command)) return;
-        if (handleSimpleCommands(command)) return;
-        if (handleAdvanceTime(command)) return;
-        if (handleLocationCommands(command)) return;
-        if (handleCheatCommands(command)) return;
+        if (handleNavigation(command)) {
+            return;
+        }
+        if (handlePlantSelectionCommands(command)) {
+            return;
+        }
+        if (handleSimpleCommands(command)) {
+            return;
+        }
+        if (handleAdvanceTime(command)) {
+            return;
+        }
+        if (handleLocationCommands(command)) {
+            return;
+        }
+        if (handleCheatCommands(command)) {
+            return;
+        }
 
         gameController.invalidCommand("game play menu");
         printControllerMessage(gameController.getLastMessage());

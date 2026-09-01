@@ -1,64 +1,32 @@
 package controllers.core;
 
-import controllers.features.TravelLogController;
-import models.account.Collection;
-import models.account.News;
-import models.account.PlantData;
-import models.account.Quest;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
 import controllers.auth.AuthController;
-import models.account.User;
-import models.core.plant.DefaultPlantRegistry;
 import models.core.plant.Plant;
-import models.core.plant.PlantRegistry;
 import models.core.plant.PlantType;
 import models.core.zombie.Armor;
-import models.core.zombie.DefaultZombieRegistry;
 import models.core.zombie.Zombie;
-import models.core.zombie.ZombieFactory;
-import models.core.zombie.ZombieRegistry;
-import models.core.zombie.ZombieType;
 import models.engine.board.Board;
-import models.engine.board.Lane;
 import models.engine.board.Position;
-import models.engine.board.Tile;
-import models.engine.board.TileType;
 import models.engine.events.GameEvent;
-import models.engine.session.GameSession;
 import models.engine.session.GameState;
-import models.engine.session.PlantRechargeStatus;
-import models.engine.sun.Sun;
-import models.level.core.AdventureContentCatalog;
 import models.level.core.AdventureLevelCatalog;
 import models.level.core.Level;
-import models.level.core.LevelType;
 import models.level.rules.LevelRule;
 import models.level.rules.LevelRuntimeContext;
-import models.level.rules.NoSpecialRule;
 import models.level.rules.SpecialLevelType;
-import models.level.rules.TimedWarObjective;
 import models.level.rules.impl.ConveyorBeltRule;
 import models.level.rules.impl.DeadLineRule;
 import models.level.rules.impl.LockedPlantsRule;
 import models.level.rules.impl.LoveYourPlantsRule;
 import models.level.rules.impl.NightOpsRule;
-import models.level.rules.impl.PlantWhatYouGetRule;
 import models.level.rules.impl.SaveOurSeedsRule;
 import models.level.rules.impl.TimedWarRule;
-import models.level.wave.AttackPattern;
-import models.level.wave.Wave;
-import models.level.wave.WaveManager;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
-import java.util.Set;
-
 
 abstract class GameControllerStatusSupport extends GameControllerMapRenderSupport {
     protected GameControllerStatusSupport(AuthController authController) {
@@ -211,11 +179,17 @@ abstract class GameControllerStatusSupport extends GameControllerMapRenderSuppor
     }
 
     protected void appendSpecialLevelStatus(StringBuilder builder, Level level) {
-        if (level == null) return;
+        if (level == null) {
+            return;
+        }
         LevelRule rule = level.getLevelRule();
         LevelRuntimeContext context = createLevelContext();
-        if (appendTimedOrConveyorStatus(builder, level, rule, context)) return;
-        if (appendLockedOrProtectedStatus(builder, rule)) return;
+        if (appendTimedOrConveyorStatus(builder, level, rule, context)) {
+            return;
+        }
+        if (appendLockedOrProtectedStatus(builder, rule)) {
+            return;
+        }
         appendRemainingRuleStatus(builder, rule, context);
     }
 
@@ -273,9 +247,6 @@ abstract class GameControllerStatusSupport extends GameControllerMapRenderSuppor
         }
     }
 
-
-
-
     protected void appendEvents(StringBuilder builder, List<GameEvent> events) {
         if (events == null) {
             return;
@@ -291,7 +262,9 @@ abstract class GameControllerStatusSupport extends GameControllerMapRenderSuppor
     }
 
     protected String formatEvent(GameEvent event) {
-        if (event == null || event.getType() == null) return "";
+        if (event == null || event.getType() == null) {
+            return "";
+        }
         return switch (event.getType()) {
             case WAVE_STARTED, ZOMBIE_SPAWNED, ZOMBIE_KILLED -> formatZombieEvent(event);
             case PLANT_DESTROYED, PLANT_SUN_PRODUCED -> formatPlantEvent(event);
@@ -365,7 +338,6 @@ abstract class GameControllerStatusSupport extends GameControllerMapRenderSuppor
             default -> "";
         };
     }
-
 
     protected void appendFinishedState(StringBuilder builder) {
         GameState state = gameSession.getState();

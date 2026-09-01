@@ -58,7 +58,9 @@ public final class ClientConnection implements Runnable, AutoCloseable {
                 }
 
                 NetworkMessage response = dispatcher.dispatch(this, request);
-                if (response != null) send(response);
+                if (response != null) {
+                    send(response);
+                }
             }
         } catch (EOFException exception) {
             server.log("client EOF: " + getRemoteAddress());
@@ -82,9 +84,13 @@ public final class ClientConnection implements Runnable, AutoCloseable {
 
     /** Thread-safe write used by correlated replies and unsolicited server events. */
     public void send(NetworkMessage message) throws IOException {
-        if (message == null) return;
+        if (message == null) {
+            return;
+        }
         synchronized (writeLock) {
-            if (!open.get() || output == null) throw new IOException("client connection is closed");
+            if (!open.get() || output == null) {
+                throw new IOException("client connection is closed");
+            }
             try {
                 output.writeObject(message);
                 output.reset();
@@ -110,7 +116,9 @@ public final class ClientConnection implements Runnable, AutoCloseable {
 
     @Override
     public void close() {
-        if (!open.compareAndSet(true, false)) return;
+        if (!open.compareAndSet(true, false)) {
+            return;
+        }
         try { socket.close(); } catch (IOException ignored) { }
         try { if (input != null) input.close(); } catch (IOException ignored) { }
         synchronized (writeLock) {

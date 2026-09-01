@@ -134,9 +134,15 @@ public final class LawnMowerRenderSystem {
     }
 
     private String animationNameFor(SeasonType seasonType) {
-        if (seasonType == SeasonType.FROSTBITE_CAVES) return "MOWER_ICEAGE";
-        if (seasonType == SeasonType.BIG_WAVE_BEACH) return "MOWER_BEACH";
-        if (seasonType == SeasonType.DARK_AGES) return "MOWER_DARK";
+        if (seasonType == SeasonType.FROSTBITE_CAVES) {
+            return "MOWER_ICEAGE";
+        }
+        if (seasonType == SeasonType.BIG_WAVE_BEACH) {
+            return "MOWER_BEACH";
+        }
+        if (seasonType == SeasonType.DARK_AGES) {
+            return "MOWER_DARK";
+        }
         return "MOWER_EGYPT";
     }
 

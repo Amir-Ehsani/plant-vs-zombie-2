@@ -19,36 +19,52 @@ final class PasswordResetManager {
 
     synchronized String usernameForVerification(String resetId) {
         ResetState state = valid(resetId);
-        if (state == null || state.attempts >= MAX_VERIFY_ATTEMPTS) return null;
+        if (state == null || state.attempts >= MAX_VERIFY_ATTEMPTS) {
+            return null;
+        }
         return state.username;
     }
 
     synchronized boolean markAttempt(String resetId, boolean successful) {
         ResetState state = valid(resetId);
-        if (state == null) return false;
+        if (state == null) {
+            return false;
+        }
         state.attempts++;
-        if (successful) state.verified = true;
-        if (!successful && state.attempts >= MAX_VERIFY_ATTEMPTS) resets.remove(resetId);
+        if (successful) {
+            state.verified = true;
+        }
+        if (!successful && state.attempts >= MAX_VERIFY_ATTEMPTS) {
+            resets.remove(resetId);
+        }
         return successful;
     }
 
     synchronized String consumeVerified(String resetId) {
         ResetState state = valid(resetId);
-        if (state == null || !state.verified) return null;
+        if (state == null || !state.verified) {
+            return null;
+        }
         resets.remove(resetId);
         return state.username;
     }
 
     private ResetState valid(String resetId) {
         prune();
-        if (resetId == null || resetId.isBlank()) return null;
+        if (resetId == null || resetId.isBlank()) {
+            return null;
+        }
         return resets.get(resetId);
     }
 
     private void prune() {
         long now = System.currentTimeMillis();
         Iterator<Map.Entry<String, ResetState>> iterator = resets.entrySet().iterator();
-        while (iterator.hasNext()) if (iterator.next().getValue().expiresAt < now) iterator.remove();
+        while (iterator.hasNext()) {
+            if (iterator.next().getValue().expiresAt < now) {
+                iterator.remove();
+            }
+        }
     }
 
     private static final class ResetState {

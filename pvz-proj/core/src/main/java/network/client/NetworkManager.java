@@ -74,7 +74,9 @@ public final class NetworkManager implements AutoCloseable {
     }
 
     public NetworkAuthResult register(User user, String securityQuestion, String rawSecurityAnswer) {
-        if (user == null) return NetworkAuthResult.error("registration profile is missing");
+        if (user == null) {
+            return NetworkAuthResult.error("registration profile is missing");
+        }
         try {
             NetworkMessage request = profileMessage(MessageType.REGISTER, user)
                     .put("passwordHash", user.getPasswordHash())
@@ -92,17 +94,25 @@ public final class NetworkManager implements AutoCloseable {
                 .put("username", username)
                 .put("passwordHash", ClientCrypto.sha256(rawPassword))
                 .put("stayLoggedIn", stayLoggedIn), false);
-        if (!response.wasSuccessful()) return NetworkAuthResult.error(response.getMessage());
+        if (!response.wasSuccessful()) {
+            return NetworkAuthResult.error(response.getMessage());
+        }
         NetworkAuthResult result = acceptAuthenticatedProfile(response, stayLoggedIn
                 ? response.get("persistentToken") : null);
-        if (result.successful()) flushPendingScore(result.user());
+        if (result.successful()) {
+            flushPendingScore(result.user());
+        }
         return result;
     }
 
     public NetworkAuthResult resumeSavedSession() {
         NetworkSessionStore.SavedSession saved = NetworkSessionStore.load();
-        if (saved == null) return NetworkAuthResult.error("no saved server session");
-        if (!ensureConnected()) return NetworkAuthResult.error(lastError);
+        if (saved == null) {
+            return NetworkAuthResult.error("no saved server session");
+        }
+        if (!ensureConnected()) {
+            return NetworkAuthResult.error(lastError);
+        }
         try {
             NetworkResponse response = NetworkResponse.from(client.request(
                     NetworkMessage.of(MessageType.RESUME_SESSION)
@@ -114,7 +124,9 @@ public final class NetworkManager implements AutoCloseable {
                 return NetworkAuthResult.error(response.getMessage());
             }
             NetworkAuthResult result = acceptAuthenticatedProfile(response, saved.persistentToken);
-            if (result.successful()) flushPendingScore(result.user());
+            if (result.successful()) {
+                flushPendingScore(result.user());
+            }
             return result;
         } catch (Exception exception) {
             lastError = "session restore failed: " + readable(exception);
@@ -125,7 +137,9 @@ public final class NetworkManager implements AutoCloseable {
     private NetworkAuthResult acceptAuthenticatedProfile(NetworkResponse response, String persistentToken) {
         try {
             String token = response.get("sessionToken");
-            if (token == null || token.isBlank()) return NetworkAuthResult.error("server omitted the session token");
+            if (token == null || token.isBlank()) {
+                return NetworkAuthResult.error("server omitted the session token");
+            }
             User user = profileCodec.decode(response.getResponse().getBinaryPayload());
             client.setSessionToken(token);
             authenticatedUsername = user.getUsername();
@@ -162,8 +176,12 @@ public final class NetworkManager implements AutoCloseable {
     }
 
     public NetworkOperationResult synchronize(User user) {
-        if (user == null) return NetworkOperationResult.error("profile is missing");
-        if (!client.isAuthenticated()) return NetworkOperationResult.error("server session is not active");
+        if (user == null) {
+            return NetworkOperationResult.error("profile is missing");
+        }
+        if (!client.isAuthenticated()) {
+            return NetworkOperationResult.error("server session is not active");
+        }
         try {
             return toResult(call(profileMessage(MessageType.ACCOUNT_SYNC, user), true));
         } catch (IOException exception) {
@@ -179,14 +197,18 @@ public final class NetworkManager implements AutoCloseable {
     }
 
     public NetworkOperationResult rename(User renamedUser, String newUsername) {
-        if (renamedUser == null) return NetworkOperationResult.error("profile is missing");
+        if (renamedUser == null) {
+            return NetworkOperationResult.error("profile is missing");
+        }
         try {
             NetworkResponse response = call(profileMessage(MessageType.ACCOUNT_RENAME, renamedUser)
                     .put("newUsername", newUsername), true);
             if (response.wasSuccessful()) {
                 authenticatedUsername = newUsername;
                 NetworkSessionStore.SavedSession saved = NetworkSessionStore.load();
-                if (saved != null) NetworkSessionStore.save(newUsername, saved.persistentToken);
+                if (saved != null) {
+                    NetworkSessionStore.save(newUsername, saved.persistentToken);
+                }
             }
             return toResult(response);
         } catch (IOException exception) {
@@ -195,12 +217,16 @@ public final class NetworkManager implements AutoCloseable {
     }
 
     public NetworkOperationResult changePassword(User updatedUser, String oldPassword, String newPassword) {
-        if (updatedUser == null) return NetworkOperationResult.error("profile is missing");
+        if (updatedUser == null) {
+            return NetworkOperationResult.error("profile is missing");
+        }
         try {
             NetworkResponse response = call(profileMessage(MessageType.CHANGE_PASSWORD, updatedUser)
                     .put("oldPasswordHash", ClientCrypto.sha256(oldPassword))
                     .put("newPasswordHash", ClientCrypto.sha256(newPassword)), true);
-            if (response.wasSuccessful()) NetworkSessionStore.clear();
+            if (response.wasSuccessful()) {
+                NetworkSessionStore.clear();
+            }
             return toResult(response);
         } catch (IOException exception) {
             return NetworkOperationResult.error(exception.getMessage());
@@ -242,7 +268,9 @@ public final class NetworkManager implements AutoCloseable {
         String username = user == null ? authenticatedUsername : user.getUsername();
         NetworkResponse response = call(NetworkMessage.of(MessageType.SCORE_SUBMIT).put("score", safeScore), true);
         if (response.wasSuccessful()) {
-            if (username != null) NetworkPendingScoreStore.clear(username);
+            if (username != null) {
+                NetworkPendingScoreStore.clear(username);
+            }
         } else if (username != null) {
             NetworkPendingScoreStore.saveMax(username, safeScore);
         }
@@ -250,14 +278,20 @@ public final class NetworkManager implements AutoCloseable {
     }
 
     public void submitScoredGameAsync(User user, int score) {
-        if (score <= 0) return;
+        if (score <= 0) {
+            return;
+        }
         io.execute(() -> submitScoredGame(user, score));
     }
 
     private void flushPendingScore(User user) {
-        if (user == null || user.getUsername() == null) return;
+        if (user == null || user.getUsername() == null) {
+            return;
+        }
         int pending = NetworkPendingScoreStore.load(user.getUsername());
-        if (pending >= 0) submitScoredGameAsync(user, pending);
+        if (pending >= 0) {
+            submitScoredGameAsync(user, pending);
+        }
     }
 
     public NetworkOperationResult challenge(String targetUsername) {
@@ -352,9 +386,13 @@ public final class NetworkManager implements AutoCloseable {
     }
 
     public NetworkOperationResult sendReaction(String matchId, ReactionCategory category, String value) {
-        if (matchId == null || matchId.isBlank()) return NetworkOperationResult.error("match id is required");
+        if (matchId == null || matchId.isBlank()) {
+            return NetworkOperationResult.error("match id is required");
+        }
         String canonical = ReactionCatalog.canonicalValue(category, value);
-        if (canonical == null) return NetworkOperationResult.error("reaction is not one of the allowed presets");
+        if (canonical == null) {
+            return NetworkOperationResult.error("reaction is not one of the allowed presets");
+        }
         return toResult(call(NetworkMessage.of(MessageType.REACTION_SEND).matchId(matchId)
                 .put("category", category.name()).put("value", canonical), true));
     }
@@ -379,7 +417,9 @@ public final class NetworkManager implements AutoCloseable {
                 case CHALLENGE_INCOMING -> challengeEvents.add(event);
                 case MATCH_STARTED -> {
                     NetworkMatchContext context = NetworkMatchContext.from(event);
-                    if (context != null) activeMatch = context;
+                    if (context != null) {
+                        activeMatch = context;
+                    }
                     matchStartedEvents.add(event);
                 }
                 case MATCH_SNAPSHOT, MATCH_FINISHED, REACTION_RECEIVED -> matchEvents.add(event);
@@ -423,19 +463,27 @@ public final class NetworkManager implements AutoCloseable {
     }
 
     private int completedQuestCount(User user, boolean daily) {
-        if (user == null || user.getQuests() == null) return 0;
+        if (user == null || user.getQuests() == null) {
+            return 0;
+        }
         int count = 0;
         for (Quest quest : user.getQuests()) {
-            if (quest == null || !quest.isCompleted()) continue;
+            if (quest == null || !quest.isCompleted()) {
+                continue;
+            }
             String type = safe(quest.getType()).toLowerCase(Locale.ROOT);
             boolean dailyQuest = type.contains("daily") || type.contains("challenge");
-            if (dailyQuest == daily) count++;
+            if (dailyQuest == daily) {
+                count++;
+            }
         }
         return count;
     }
 
     private synchronized boolean ensureConnected() {
-        if (client.isConnected()) return true;
+        if (client.isConnected()) {
+            return true;
+        }
         try {
             client.connect(config);
             lastError = "";
@@ -448,7 +496,9 @@ public final class NetworkManager implements AutoCloseable {
     }
 
     private synchronized NetworkResponse call(NetworkMessage request, boolean authenticated) {
-        if (!ensureConnected()) return NetworkResponse.failure(lastError);
+        if (!ensureConnected()) {
+            return NetworkResponse.failure(lastError);
+        }
         if (authenticated && !client.isAuthenticated()) {
             if (authenticatedUsername != null && !authenticatedUsername.isBlank()) {
                 NetworkSessionStore.SavedSession saved = NetworkSessionStore.load();
@@ -474,7 +524,9 @@ public final class NetworkManager implements AutoCloseable {
     }
 
     private static NetworkOperationResult toResult(NetworkResponse response) {
-        if (response == null) return NetworkOperationResult.error("server did not return a response");
+        if (response == null) {
+            return NetworkOperationResult.error("server did not return a response");
+        }
         return new NetworkOperationResult(response.wasSuccessful(), response.getMessage());
     }
 
@@ -482,9 +534,13 @@ public final class NetworkManager implements AutoCloseable {
     private static String safe(String value) { return value == null ? "" : value; }
 
     private static String readable(Throwable throwable) {
-        if (throwable == null) return "unknown error";
+        if (throwable == null) {
+            return "unknown error";
+        }
         Throwable current = throwable;
-        while (current.getCause() != null) current = current.getCause();
+        while (current.getCause() != null) {
+            current = current.getCause();
+        }
         String message = current.getMessage();
         return message == null || message.isBlank() ? current.getClass().getSimpleName() : message;
     }
@@ -493,7 +549,9 @@ public final class NetworkManager implements AutoCloseable {
     public void close() {
         io.shutdown();
         try {
-            if (!io.awaitTermination(2, TimeUnit.SECONDS)) io.shutdownNow();
+            if (!io.awaitTermination(2, TimeUnit.SECONDS)) {
+                io.shutdownNow();
+            }
         } catch (InterruptedException interrupted) {
             io.shutdownNow();
             Thread.currentThread().interrupt();

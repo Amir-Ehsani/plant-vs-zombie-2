@@ -1,12 +1,18 @@
 package game.input;
 
+import com.badlogic.gdx.graphics.Camera;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.g2d.Batch;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.Rectangle;
+import com.badlogic.gdx.scenes.scene2d.utils.ScissorStack;
+import game.animation.core.EntityAnimationProfile;
+import game.animation.core.EntityAnimationRegistry;
 import game.animation.core.PvzAnimationService;
 import game.render.BoardGeometry;
+import models.core.plant.DefaultPlantRegistry;
+import models.core.plant.PlantType;
 import models.engine.board.Position;
 
 public final class InteractionOverlayRenderer {
@@ -19,6 +25,7 @@ public final class InteractionOverlayRenderer {
 
     private final BoardGeometry geometry;
     private final PvzAnimationService animations;
+    private final EntityAnimationRegistry plantRegistry;
     private final TextureRegion shovelCursor;
 
     public InteractionOverlayRenderer(BoardGeometry geometry, PvzAnimationService animations) {
@@ -27,6 +34,8 @@ public final class InteractionOverlayRenderer {
         }
         this.geometry = geometry;
         this.animations = animations;
+        plantRegistry = animations.getCatalog() == null
+                ? null : new EntityAnimationRegistry(animations.getCatalog());
         shovelCursor = animations.region(SHOVEL_ICON_ID);
     }
 
@@ -64,6 +73,62 @@ public final class InteractionOverlayRenderer {
             width,
             SHOVEL_CURSOR_HEIGHT
         );
+    }
+
+    public void drawPlantGhost(
+            Batch batch,
+            Camera camera,
+            GameplayInteractionSystem interactions,
+            float cursorX,
+            float cursorY,
+            float stateTime
+    ) {
+        if (batch == null || camera == null || interactions == null || plantRegistry == null
+                || interactions.getMode() != GameplayInputMode.PLANTING) {
+            return;
+        }
+        String plantName = interactions.getSelectedPlantName();
+        if (plantName == null || plantName.isBlank()) {
+            return;
+        }
+        PlantType type = DefaultPlantRegistry.getInstance().getByName(plantName);
+        EntityAnimationProfile profile = plantRegistry.forPlantType(type);
+        if (profile == null) {
+            return;
+        }
+        String clip = profile.firstClip("idle", "idle2", "idle_stage1", "play", "walk");
+        if (clip == null) {
+            return;
+        }
+        float width = Math.max(72f, geometry.getTileWidth() * 1.15f);
+        float height = Math.max(88f, geometry.getTileHeight() * 1.45f);
+        Rectangle clipBounds = new Rectangle(
+                cursorX - width * 0.5f,
+                cursorY - height * 0.32f,
+                width,
+                height
+        );
+        Rectangle scissors = new Rectangle();
+        batch.flush();
+        ScissorStack.calculateScissors(camera, batch.getTransformMatrix(), clipBounds, scissors);
+        if (!ScissorStack.pushScissors(scissors)) {
+            return;
+        }
+        try {
+            animations.draw(
+                    batch,
+                    profile.getPath(),
+                    clip,
+                    Math.max(0f, stateTime),
+                    cursorX,
+                    cursorY - 6f,
+                    profile.getScale() * 0.92f,
+                    true
+            );
+            batch.flush();
+        } finally {
+            ScissorStack.popScissors();
+        }
     }
 
     public void drawToolCursor(

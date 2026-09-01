@@ -156,10 +156,18 @@ public final class PlantActionTiming {
     public static double attackDurationSeconds(String plantName, String attackClip) {
         String name = normalize(plantName);
         String clip = normalize(attackClip);
-        if (name.equals("kernel pult")) return clip.equals("attack2") ? 1.8333 : 1.8667;
-        if (name.equals("bonk choy")) return clip.equals("attack3") ? 0.6667 : 0.3333;
-        if (name.equals("split pea")) return clip.equals("attack2") ? 1.0 : 0.9667;
-        if (name.equals("kiwibeast")) return 1.5;
+        if (name.equals("kernel pult")) {
+            return clip.equals("attack2") ? 1.8333 : 1.8667;
+        }
+        if (name.equals("bonk choy")) {
+            return clip.equals("attack3") ? 0.6667 : 0.3333;
+        }
+        if (name.equals("split pea")) {
+            return clip.equals("attack2") ? 1.0 : 0.9667;
+        }
+        if (name.equals("kiwibeast")) {
+            return 1.5;
+        }
         return switch (name) {
             case "peashooter", "repeater", "threepeater", "mega gatling pea" -> 1.0333;
             case "snow pea" -> 1.4333;
@@ -194,8 +202,12 @@ public final class PlantActionTiming {
                 || name.equals("pepper pult")) {
             return 0.47;
         }
-        if (name.equals("fume shroom")) return 0.35;
-        if (name.equals("cactus")) return 0.36;
+        if (name.equals("fume shroom")) {
+            return 0.35;
+        }
+        if (name.equals("cactus")) {
+            return 0.36;
+        }
         return 0.36;
     }
 

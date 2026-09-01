@@ -252,17 +252,23 @@ public class Quest {
         }
 
         if (gemReward > 0) {
-            if (builder.length() > 0) builder.append(", ");
+            if (builder.length() > 0) {
+                builder.append(", ");
+            }
             builder.append(gemReward).append(" gems");
         }
 
         if (seedPacketReward > 0) {
-            if (builder.length() > 0) builder.append(", ");
+            if (builder.length() > 0) {
+                builder.append(", ");
+            }
             builder.append(seedPacketReward).append(" seed packets");
         }
 
         if (randomPlantReward) {
-            if (builder.length() > 0) builder.append(", ");
+            if (builder.length() > 0) {
+                builder.append(", ");
+            }
             builder.append("random plant");
         }
 
@@ -278,7 +284,9 @@ public class Quest {
                 .replace("-", "_")
                 .replace(" ", "_");
 
-        if (normalized.isEmpty()) return "general";
+        if (normalized.isEmpty()) {
+            return "general";
+        }
         if (isDailyType(normalized)) {
             return "challenges";
         }

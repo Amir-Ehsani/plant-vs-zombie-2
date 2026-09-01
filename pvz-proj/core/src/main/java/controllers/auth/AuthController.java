@@ -171,7 +171,9 @@ public class AuthController {
         if (networkManager != null) {
             networkResult = networkManager.logout();
         }
-        if (loggedInUser != null) loggedInUser.setStayLoggedIn(false);
+        if (loggedInUser != null) {
+            loggedInUser.setStayLoggedIn(false);
+        }
         loggedInUser = null;
         lastSubmittedMioPoint = 0;
         saveLocalUsers();
@@ -246,7 +248,9 @@ public class AuthController {
             fail("Password cannot be empty.");
             return;
         }
-        if (!checkPassword(newPassword)) return;
+        if (!checkPassword(newPassword)) {
+            return;
+        }
 
         if (networkManager != null) {
             if (networkResetId == null || networkResetId.isBlank()) {
@@ -274,13 +278,17 @@ public class AuthController {
     }
 
     public boolean passwordMatches(User user, String plainPassword) {
-        if (user == null || plainPassword == null) return false;
+        if (user == null || plainPassword == null) {
+            return false;
+        }
         String storedHash = user.getPasswordHash();
         return storedHash != null && !storedHash.isBlank() && storedHash.equals(hashPassword(plainPassword));
     }
 
     public void setUserPassword(User user, String plainPassword) {
-        if (user == null || plainPassword == null) return;
+        if (user == null || plainPassword == null) {
+            return;
+        }
         user.setPassword("");
         user.setPasswordHash(hashPassword(plainPassword));
     }
@@ -356,7 +364,9 @@ public class AuthController {
 
     private User restoreServerSessionIfAvailable() {
         NetworkAuthResult result = networkManager.resumeSavedSession();
-        if (!result.successful() || result.user() == null) return null;
+        if (!result.successful() || result.user() == null) {
+            return null;
+        }
         User user = result.user();
         user.setStayLoggedIn(true);
         clearStayLoggedInUsers();
@@ -415,34 +425,50 @@ public class AuthController {
 
     private String normalizeGender(String gender) {
         String normalizedGender = normalize(gender);
-        if ("man".equals(normalizedGender) || "مرد".equals(normalizedGender)) return "male";
-        if ("woman".equals(normalizedGender) || "زن".equals(normalizedGender)) return "female";
+        if ("man".equals(normalizedGender) || "مرد".equals(normalizedGender)) {
+            return "male";
+        }
+        if ("woman".equals(normalizedGender) || "زن".equals(normalizedGender)) {
+            return "female";
+        }
         return normalizedGender;
     }
 
     private User findStayLoggedInUser() {
         for (User user : users) {
-            if (user != null && user.isStayLoggedIn()) return user;
+            if (user != null && user.isStayLoggedIn()) {
+                return user;
+            }
         }
         return null;
     }
 
     private User findUser(String username) {
-        if (username == null) return null;
+        if (username == null) {
+            return null;
+        }
         for (User user : users) {
-            if (user != null && username.equalsIgnoreCase(user.getUsername())) return user;
+            if (user != null && username.equalsIgnoreCase(user.getUsername())) {
+                return user;
+            }
         }
         return null;
     }
 
     private void clearStayLoggedInUsers() {
-        for (User user : users) if (user != null) user.setStayLoggedIn(false);
+        for (User user : users) {
+            if (user != null) {
+                user.setStayLoggedIn(false);
+            }
+        }
     }
 
     private void upsertLocalUser(User user) { upsertLocalUser(user, user == null ? null : user.getUsername()); }
 
     private void upsertLocalUser(User user, String oldUsername) {
-        if (user == null) return;
+        if (user == null) {
+            return;
+        }
         for (int index = users.size() - 1; index >= 0; index--) {
             User existing = users.get(index);
             if (existing == user) {
@@ -469,7 +495,9 @@ public class AuthController {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
             byte[] hashBytes = digest.digest(plainPassword.getBytes(StandardCharsets.UTF_8));
             StringBuilder builder = new StringBuilder();
-            for (byte hashByte : hashBytes) builder.append(String.format("%02x", hashByte));
+            for (byte hashByte : hashBytes) {
+                builder.append(String.format("%02x", hashByte));
+            }
             return builder.toString();
         } catch (NoSuchAlgorithmException exception) {
             throw new IllegalStateException("SHA-256 is not available.", exception);

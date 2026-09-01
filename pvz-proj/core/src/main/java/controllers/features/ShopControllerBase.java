@@ -3,7 +3,6 @@ package controllers.features;
 import controllers.auth.AuthController;
 import models.account.Collection;
 import models.account.Greenhouse;
-import models.account.IPurchasable;
 import models.account.PlantData;
 import models.account.User;
 
@@ -12,7 +11,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Random;
-
 
 abstract class ShopControllerBase {
     protected static final int POT_PRICE = 2000;
@@ -38,6 +36,7 @@ abstract class ShopControllerBase {
     protected final Random random;
     protected final List<ShopController.ShopItem> permanentItems;
     protected boolean insideShop;
+    protected String lastGrantedSeedPlantName;
     protected String lastMessage;
 
     protected ShopControllerBase() {
@@ -49,9 +48,9 @@ abstract class ShopControllerBase {
         random = new Random();
         permanentItems = createPermanentItems();
         insideShop = false;
+        lastGrantedSeedPlantName = "";
         lastMessage = "";
     }
-
 
     public User getCurrentUser() {
         return authController == null ? null : authController.getLoggedInUser();
@@ -145,6 +144,7 @@ abstract class ShopControllerBase {
             return user.getCollection().addStoredPlantFood(receivedAmount);
         }
         if ("random_seed_packet".equals(type)) {
+            lastGrantedSeedPlantName = "";
             return addRandomSeeds(user.getCollection(), receivedAmount);
         }
         if ("selected_seed_packet".equals(type)) {
@@ -208,6 +208,7 @@ abstract class ShopControllerBase {
         }
         PlantData plant = plants.get(random.nextInt(plants.size()));
         plant.addSeedPackets(amount);
+        lastGrantedSeedPlantName = plant.getName();
         return true;
     }
 

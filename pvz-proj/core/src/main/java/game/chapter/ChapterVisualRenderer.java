@@ -20,7 +20,6 @@ import models.engine.board.Position;
 import models.engine.board.Tile;
 import models.engine.board.TileType;
 import models.level.core.Level;
-import models.level.core.LevelType;
 import models.level.core.SeasonType;
 
 import java.util.ArrayList;
@@ -58,7 +57,6 @@ public final class ChapterVisualRenderer {
     private static final Color LOW_TIDE_COLOR = new Color(0.52f, 0.42f, 0.25f, 0.18f);
     private static final Color SLIPPERY_COLOR = new Color(0.54f, 0.88f, 1f, 0.26f);
     private static final Color ARROW_COLOR = new Color(0.88f, 0.98f, 1f, 0.82f);
-    private static final Color NECROMANCY_PULSE_COLOR = new Color(0.74f, 0.32f, 0.88f, 0.42f);
 
     private final Level level;
     private final Board board;
@@ -217,7 +215,6 @@ public final class ChapterVisualRenderer {
         if (season == SeasonType.DARK_AGES) {
             drawGraveRiseDirt(batch);
             drawNecromancyDirt(batch);
-            drawNecromancyPulse(shapes);
         }
     }
 
@@ -812,30 +809,6 @@ public final class ChapterVisualRenderer {
             );
         }
         batch.end();
-    }
-
-    private void drawNecromancyPulse(ShapeRenderer shapes) {
-        if (level.getActiveNecromancyGravePositions().isEmpty()) {
-            return;
-        }
-        float localPulse = necromancyTime > 0f
-                ? 1f - necromancyTime / NECROMANCY_DURATION
-                : (MathUtils.sin(elapsed * 3f) + 1f) * 0.5f;
-        float scale = necromancyTime > 0f ? 0.65f + localPulse * 0.55f : 0.78f + localPulse * 0.10f;
-        float alpha = necromancyTime > 0f ? 0.62f * (1f - localPulse * 0.55f) : 0.20f + localPulse * 0.12f;
-        shapes.begin(ShapeRenderer.ShapeType.Filled);
-        for (Position position : level.getActiveNecromancyGravePositions()) {
-            Tile tile = board.getTileAt(position);
-            if (tile == null || tile.getTileType() != TileType.GRAVE) {
-                continue;
-            }
-            Rectangle bounds = geometry.getTileBounds(position.getY(), position.getX());
-            float width = bounds.width * scale;
-            float height = bounds.height * scale * 0.52f;
-            shapes.setColor(NECROMANCY_PULSE_COLOR.r, NECROMANCY_PULSE_COLOR.g, NECROMANCY_PULSE_COLOR.b, alpha);
-            shapes.ellipse(bounds.x + (bounds.width - width) / 2f, bounds.y + bounds.height * 0.20f, width, height);
-        }
-        shapes.end();
     }
 
     private void drawCentered(Batch batch, TextureRegion region, Rectangle tile, float height, float alpha) {

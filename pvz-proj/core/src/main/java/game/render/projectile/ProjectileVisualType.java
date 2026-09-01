@@ -149,7 +149,9 @@ public enum ProjectileVisualType {
     public float getReleaseFraction() { return releaseFraction; }
 
     private static String normalize(String value) {
-        if (value == null) return "";
+        if (value == null) {
+            return "";
+        }
         return value.trim().toLowerCase(Locale.ROOT)
             .replace('-', ' ')
             .replace('_', ' ')

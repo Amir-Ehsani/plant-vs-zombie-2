@@ -108,8 +108,17 @@ public final class GameSnapshot implements Serializable {
     public int getZombieSun() { return zombieSun; }
     public boolean[] getBrains() { return brains == null ? new boolean[0] : brains.clone(); }
     public List<EntityState> getEntities() { return entities == null ? Collections.emptyList() : Collections.unmodifiableList(entities); }
-    public Map<String, Long> getPlantCooldowns() { return plantCooldownMillis == null ? Collections.emptyMap() : Collections.unmodifiableMap(plantCooldownMillis); }
-    public Map<String, Long> getZombieCooldowns() { return zombieCooldownMillis == null ? Collections.emptyMap() : Collections.unmodifiableMap(zombieCooldownMillis); }
+    public Map<String, Long> getPlantCooldowns() {
+        return plantCooldownMillis == null
+                ? Collections.emptyMap()
+                : Collections.unmodifiableMap(plantCooldownMillis);
+    }
+
+    public Map<String, Long> getZombieCooldowns() {
+        return zombieCooldownMillis == null
+                ? Collections.emptyMap()
+                : Collections.unmodifiableMap(zombieCooldownMillis);
+    }
     public GameRole getWinner() { return winner; }
     public String getFinishReason() { return finishReason; }
     public boolean isPlantsReady() { return plantsReady; }
@@ -127,7 +136,11 @@ public final class GameSnapshot implements Serializable {
 
     public int getBrainsRemaining() {
         int remaining = 0;
-        if (brains != null) for (boolean brain : brains) if (brain) remaining++;
+        if (brains != null) {
+            for (boolean brain : brains) {
+                if (brain) remaining++;
+            }
+        }
         return remaining;
     }
 
@@ -137,9 +150,13 @@ public final class GameSnapshot implements Serializable {
 
     private static Map<String, Long> normalizedCooldowns(Map<String, Long> source) {
         LinkedHashMap<String, Long> result = new LinkedHashMap<>();
-        if (source == null) return result;
+        if (source == null) {
+            return result;
+        }
         for (Map.Entry<String, Long> entry : source.entrySet()) {
-            if (entry.getKey() == null || entry.getKey().isBlank()) continue;
+            if (entry.getKey() == null || entry.getKey().isBlank()) {
+                continue;
+            }
             String key = normalizeType(entry.getKey());
             long value = entry.getValue() == null ? 0L : Math.max(0L, entry.getValue());
             result.put(key, value);
@@ -148,7 +165,9 @@ public final class GameSnapshot implements Serializable {
     }
 
     private static long cooldownFor(Map<String, Long> cooldowns, String type) {
-        if (type == null || cooldowns == null) return 0L;
+        if (type == null || cooldowns == null) {
+            return 0L;
+        }
         return Math.max(0L, cooldowns.getOrDefault(normalizeType(type), 0L));
     }
 

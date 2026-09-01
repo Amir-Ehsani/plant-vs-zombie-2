@@ -7,9 +7,7 @@ import models.engine.board.Position;
 import models.engine.board.TileType;
 import models.engine.events.GameEvent;
 import models.level.rules.LevelRule;
-import models.level.rules.LevelRuntimeContext;
 import models.level.rules.NoSpecialRule;
-import models.level.rules.SpecialLevelType;
 import models.level.wave.Wave;
 import models.level.wave.WaveManager;
 
@@ -22,7 +20,6 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Set;
 import java.util.Random;
-
 
 abstract class LevelState {
     protected static final int DEFAULT_INITIAL_SUN = 50;

@@ -1,12 +1,7 @@
 package controllers.features;
 
 import controllers.auth.AuthController;
-import models.account.PlantData;
-import models.account.Quest;
 import models.account.User;
-import models.core.plant.DefaultPlantRegistry;
-import models.core.plant.PlantRegistry;
-import models.core.plant.PlantType;
 import models.engine.board.Position;
 import models.minigame.CouchIZombieGame;
 import models.minigame.IZombieGame;
@@ -19,10 +14,7 @@ import models.minigame.WallNutBowlingGame;
 import models.minigame.ZombotanyGame;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
-import java.util.Locale;
-
 
 abstract class TravelLogControllerMiniGameSupport extends TravelLogControllerQuestSupport {
     protected TravelLogControllerMiniGameSupport(AuthController authController) {
@@ -501,7 +493,6 @@ abstract class TravelLogControllerMiniGameSupport extends TravelLogControllerQue
 
         lastMessage = builder.toString();
     }
-
 
     public abstract void recordQuestProgress(User user, String progressKey, int amount);
 }

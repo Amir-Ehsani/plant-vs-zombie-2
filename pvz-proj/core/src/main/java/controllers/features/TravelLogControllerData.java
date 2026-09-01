@@ -7,18 +7,12 @@ import models.account.User;
 import models.core.plant.DefaultPlantRegistry;
 import models.core.plant.PlantRegistry;
 import models.core.plant.PlantType;
-import models.engine.board.Position;
-import models.minigame.IZombieGame;
 import models.minigame.MiniGameSession;
 import models.minigame.MiniGameType;
-import models.minigame.VasebreakerGame;
-import models.minigame.WallNutBowlingGame;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
-
 
 abstract class TravelLogControllerData {
     protected final AuthController authController;
@@ -32,7 +26,6 @@ abstract class TravelLogControllerData {
         this.activeMiniGame = null;
         this.lastMessage = "";
     }
-
 
     protected void prepareCollectionPlants(User user) {
         for (PlantType type : plantRegistry.getAllPlantTypes()) {
@@ -177,7 +170,6 @@ abstract class TravelLogControllerData {
         return false;
     }
 
-
     protected static class QuestTemplate {
         protected final String questDescription;
         protected final String type;
@@ -247,7 +239,7 @@ abstract class TravelLogControllerData {
         protected final String displayName;
         protected final List<MiniGameStageInfo> stages;
 
-        public MiniGameInfo(
+        MiniGameInfo(
                 String name,
                 String displayName,
                 List<MiniGameStageInfo> stages
@@ -275,7 +267,7 @@ abstract class TravelLogControllerData {
         protected final boolean unlocked;
         protected final boolean completed;
 
-        public MiniGameStageInfo(int stage, boolean unlocked, boolean completed) {
+        MiniGameStageInfo(int stage, boolean unlocked, boolean completed) {
             this.stage = stage;
             this.unlocked = unlocked;
             this.completed = completed;

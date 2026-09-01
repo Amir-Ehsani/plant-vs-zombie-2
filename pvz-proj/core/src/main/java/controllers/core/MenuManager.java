@@ -1,11 +1,5 @@
 package controllers.core;
 
-import controllers.auth.AuthController;
-import controllers.features.*;
-import views.core.BaseView;
-import views.menus.*;
-
-
 public class MenuManager extends MenuManagerBase {
     public MenuManager() {
         super();
@@ -28,14 +22,24 @@ public class MenuManager extends MenuManagerBase {
     }
 
     private void enterFromRegister(String targetMenu) {
-        if ("login".equals(targetMenu)) enterLoginMenu();
-        else fail("You can't enter " + targetMenu + " menu from register menu.");
+        if ("login".equals(targetMenu)) {
+            enterLoginMenu();
+        }
+        else {
+            fail("You can't enter " + targetMenu + " menu from register menu.");
+        }
     }
 
     private void enterFromLogin(String targetMenu) {
-        if ("register".equals(targetMenu)) enterRegisterMenu();
-        else if ("main".equals(targetMenu) && authController.isLoggedIn()) enterMainMenu();
-        else fail("You can't enter " + targetMenu + " menu from login menu.");
+        if ("register".equals(targetMenu)) {
+            enterRegisterMenu();
+        }
+        else if ("main".equals(targetMenu) && authController.isLoggedIn()) {
+            enterMainMenu();
+        }
+        else {
+            fail("You can't enter " + targetMenu + " menu from login menu.");
+        }
     }
 
     private void enterFromMain(String targetMenu) {
@@ -50,10 +54,13 @@ public class MenuManager extends MenuManagerBase {
     }
 
     private void enterFromGame(String targetMenu) {
-        if ("collection".equals(targetMenu)) enterCollectionMenu();
-        else fail("You can't enter " + targetMenu + " menu from game menu.");
+        if ("collection".equals(targetMenu)) {
+            enterCollectionMenu();
+        }
+        else {
+            fail("You can't enter " + targetMenu + " menu from game menu.");
+        }
     }
-
 
     public void exitCurrentMenu() {
         if (currentView == null) {
@@ -79,7 +86,6 @@ public class MenuManager extends MenuManagerBase {
         travelLogController.abandonMiniGame();
         enterTravelLogMenu();
     }
-
 
     public void closeProgram() {
         authController.saveUsers();
@@ -216,8 +222,5 @@ public class MenuManager extends MenuManagerBase {
     public void invalidCommand(String menuName) {
         fail("Invalid command in " + menuName + ".");
     }
-
-
-
 
 }

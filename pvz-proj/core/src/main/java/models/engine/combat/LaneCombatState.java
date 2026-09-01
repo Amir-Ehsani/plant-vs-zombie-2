@@ -1,23 +1,15 @@
 package models.engine.combat;
 
-
 import models.core.plant.Plant;
-import models.core.projectile.Damage;
-import models.core.zombie.Armor;
 import models.core.zombie.Zombie;
-import models.core.zombie.ZombieFactory;
-import models.core.zombie.ZombieType;
 import models.engine.board.Board;
 import models.engine.board.Lane;
 import models.engine.board.Position;
 import models.engine.board.Tile;
 import models.engine.board.TileType;
-import models.engine.events.GameEvent;
-import models.entities.LawnMower;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -25,7 +17,6 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Random;
 import java.util.Set;
-
 
 abstract class LaneCombatState {
     protected static final double MELEE_RANGE = 1.35;
@@ -105,7 +96,6 @@ abstract class LaneCombatState {
     private final List<PendingCombatAction> pendingCombatActions;
     private int combatTick;
 
-
     protected LaneCombatState() {
         this(null, new Random());
     }
@@ -125,7 +115,6 @@ abstract class LaneCombatState {
         this.pendingCombatActions = new ArrayList<>();
         this.combatTick = 0;
     }
-
 
     public void beginBoardTick() {
         combatTick++;
@@ -163,7 +152,6 @@ abstract class LaneCombatState {
         plantStates.keySet().removeIf(plant -> plant == null || !plant.isAlive());
         pendingWizardTargets.removeIf(plant -> plant == null || !plant.isAlive() || plant.isTransformedToSheep());
     }
-
 
     public void freezeInitialZombie(Zombie zombie) {
         if (zombie == null || !zombie.isAlive()) {
@@ -317,6 +305,9 @@ abstract class LaneCombatState {
         }
         if (state.hypnotized) {
             effects.add("hypnotized");
+            if (state.hypnotizedTarget != null && state.hypnotizedTarget.isAlive()) {
+                effects.add("eating");
+            }
         }
         return Collections.unmodifiableList(effects);
     }

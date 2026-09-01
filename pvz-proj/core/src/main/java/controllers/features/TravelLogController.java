@@ -1,24 +1,11 @@
 package controllers.features;
 
 import controllers.auth.AuthController;
-import models.account.PlantData;
 import models.account.Quest;
 import models.account.User;
-import models.core.plant.DefaultPlantRegistry;
-import models.core.plant.PlantRegistry;
-import models.core.plant.PlantType;
-import models.engine.board.Position;
-import models.minigame.IZombieGame;
-import models.minigame.MiniGameSession;
-import models.minigame.MiniGameType;
-import models.minigame.VasebreakerGame;
-import models.minigame.WallNutBowlingGame;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
-import java.util.Locale;
-
 
 public class TravelLogController extends TravelLogControllerMiniGameSupport {
     public TravelLogController(AuthController authController) {
@@ -90,7 +77,9 @@ public class TravelLogController extends TravelLogControllerMiniGameSupport {
 
     public void collectAllDoneRewards(String pageName) {
         User user = getLoggedInUserOrFail();
-        if (user == null) return;
+        if (user == null) {
+            return;
+        }
         String normalizedPageName = normalizePageName(pageName);
         if (!isValidPage(normalizedPageName)) {
             fail("Travel log page " + pageName + " does not exist.");
@@ -109,7 +98,9 @@ public class TravelLogController extends TravelLogControllerMiniGameSupport {
     private RewardTotals collectAvailableRewards(User user, List<Quest> quests) {
         RewardTotals totals = new RewardTotals();
         for (Quest quest : quests) {
-            if (!quest.canClaimReward()) continue;
+            if (!quest.canClaimReward()) {
+                continue;
+            }
             quest.claimReward();
             applyQuestReward(user, quest);
             totals.add(quest);
@@ -129,7 +120,9 @@ public class TravelLogController extends TravelLogControllerMiniGameSupport {
             coins += quest.getCoinReward();
             gems += quest.getGemReward();
             seedPackets += quest.getSeedPacketReward();
-            if (quest.hasRandomPlantReward()) randomPlants++;
+            if (quest.hasRandomPlantReward()) {
+                randomPlants++;
+            }
         }
 
         private String message() {
@@ -138,7 +131,6 @@ public class TravelLogController extends TravelLogControllerMiniGameSupport {
                     + randomPlants + " random plants.";
         }
     }
-
 
     public void recordQuestProgress(User user, String progressKey, int amount) {
         if (user == null || progressKey == null || progressKey.isBlank() || amount <= 0) {

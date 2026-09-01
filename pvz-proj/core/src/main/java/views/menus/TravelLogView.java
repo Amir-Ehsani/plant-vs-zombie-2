@@ -238,7 +238,9 @@ public class TravelLogView extends BaseView {
         builder.append("   Applied reward: ").append(quest.getCoinReward()).append(" coins, ")
                 .append(quest.getGemReward()).append(" gems, ")
                 .append(quest.getSeedPacketReward()).append(" seed packets");
-        if (quest.hasRandomPlantReward()) builder.append(", random plant");
+        if (quest.hasRandomPlantReward()) {
+            builder.append(", random plant");
+        }
         builder.append("\n");
     }
 
@@ -249,9 +251,15 @@ public class TravelLogView extends BaseView {
     }
 
     private String questStatus(Quest quest) {
-        if (quest.isRewardClaimed()) return "reward collected";
-        if (quest.canClaimReward()) return "done - reward available";
-        if (quest.isCompleted()) return "done";
+        if (quest.isRewardClaimed()) {
+            return "reward collected";
+        }
+        if (quest.canClaimReward()) {
+            return "done - reward available";
+        }
+        if (quest.isCompleted()) {
+            return "done";
+        }
         return "not done";
     }
 

@@ -295,7 +295,9 @@ public final class EntityRenderSystem {
         while (iterator.hasNext()) {
             ZombiePartVisual part = iterator.next();
             part.update(delta);
-            if (part.isFinished()) iterator.remove();
+            if (part.isFinished()) {
+                iterator.remove();
+            }
         }
     }
 
@@ -304,7 +306,9 @@ public final class EntityRenderSystem {
         while (iterator.hasNext()) {
             ZombieDeathVisual death = iterator.next();
             death.update(delta);
-            if (death.isFinished()) iterator.remove();
+            if (death.isFinished()) {
+                iterator.remove();
+            }
         }
     }
 

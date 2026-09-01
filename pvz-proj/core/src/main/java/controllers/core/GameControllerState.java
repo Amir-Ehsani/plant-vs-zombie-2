@@ -1,9 +1,6 @@
 package controllers.core;
 
 import controllers.features.TravelLogController;
-import models.account.Collection;
-import models.account.News;
-import models.account.PlantData;
 import models.account.Quest;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -11,54 +8,21 @@ import java.util.Map;
 import controllers.auth.AuthController;
 import models.account.User;
 import models.core.plant.DefaultPlantRegistry;
-import models.core.plant.Plant;
 import models.core.plant.PlantRegistry;
-import models.core.plant.PlantType;
-import models.core.zombie.Armor;
 import models.core.zombie.DefaultZombieRegistry;
 import models.core.zombie.Zombie;
 import models.core.zombie.ZombieFactory;
 import models.core.zombie.ZombieRegistry;
 import models.core.zombie.ZombieType;
-import models.engine.board.Board;
-import models.engine.board.Lane;
 import models.engine.board.Position;
-import models.engine.board.Tile;
-import models.engine.board.TileType;
-import models.engine.events.GameEvent;
 import models.engine.session.GameSession;
-import models.engine.session.GameState;
-import models.engine.session.PlantRechargeStatus;
-import models.engine.sun.Sun;
-import models.level.core.AdventureContentCatalog;
-import models.level.core.AdventureLevelCatalog;
-import models.level.core.Level;
-import models.level.core.LevelType;
-import models.level.rules.LevelRule;
-import models.level.rules.LevelRuntimeContext;
-import models.level.rules.NoSpecialRule;
-import models.level.rules.SpecialLevelType;
-import models.level.rules.TimedWarObjective;
-import models.level.rules.impl.ConveyorBeltRule;
-import models.level.rules.impl.DeadLineRule;
-import models.level.rules.impl.LockedPlantsRule;
-import models.level.rules.impl.LoveYourPlantsRule;
-import models.level.rules.impl.NightOpsRule;
-import models.level.rules.impl.PlantWhatYouGetRule;
-import models.level.rules.impl.SaveOurSeedsRule;
-import models.level.rules.impl.TimedWarRule;
-import models.level.wave.AttackPattern;
 import models.level.wave.Wave;
-import models.level.wave.WaveManager;
 
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
-
 
 abstract class GameControllerState {
     protected static final double TICKS_PER_SECOND = 10.0;
@@ -97,7 +61,6 @@ abstract class GameControllerState {
     protected int sunProducerPlantsPlantedThisLevel;
     protected boolean anyNonCactusKillThisLevel;
 
-
     protected GameControllerState(AuthController authController) {
         this.authController = authController;
         this.travelLogController = new TravelLogController(authController);
@@ -118,7 +81,6 @@ abstract class GameControllerState {
 
         resetRuntimeQuestTracking();
     }
-
 
     protected boolean hasRunningSession() {
         return gameSession != null && gameSession.isRunning();
@@ -227,7 +189,9 @@ abstract class GameControllerState {
         });
         if (types.isEmpty()) {
             ZombieType fallback = registry.getZombieTypeByName("Default");
-            if (fallback != null) types.add(fallback);
+            if (fallback != null) {
+                types.add(fallback);
+            }
         }
         return types;
     }
@@ -259,7 +223,9 @@ abstract class GameControllerState {
             List<String> unlockedNames
     ) {
         List<Zombie> zombies = new ArrayList<>();
-        if (waveNumber != totalWaves || unlockedNames == null) return zombies;
+        if (waveNumber != totalWaves || unlockedNames == null) {
+            return zombies;
+        }
         for (String name : unlockedNames) {
             ZombieType type = registry.getZombieTypeByName(name);
             if (type != null
@@ -281,7 +247,9 @@ abstract class GameControllerState {
             int requestedCount,
             int stageOrdinal
     ) {
-        if (eligible.isEmpty()) return;
+        if (eligible.isEmpty()) {
+            return;
+        }
         int count = Math.max(requestedCount, zombies.size());
         int accessible = eligible.size();
         for (int index = zombies.size(); index < count; index++) {
@@ -291,7 +259,6 @@ abstract class GameControllerState {
             zombies.add(factory.createZombie(eligible.get(typeIndex), 9, 1));
         }
     }
-
 
     private boolean isAutomaticSpawnDisabled(ZombieType type) {
         if (type == null) {
@@ -343,7 +310,6 @@ abstract class GameControllerState {
         sunProducerPlantsPlantedThisLevel = 0;
         anyNonCactusKillThisLevel = false;
     }
-
 
     protected void ensureQuestList(User user) {
         if (user == null || travelLogController == null) {

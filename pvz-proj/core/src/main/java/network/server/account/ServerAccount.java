@@ -82,21 +82,31 @@ public final class ServerAccount implements Serializable {
         }
         String incomingNickname = request.get("nickname");
         String incomingEmail = request.get("email");
-        if (incomingNickname != null && !incomingNickname.isBlank()) nickname = incomingNickname.trim();
-        if (incomingEmail != null && !incomingEmail.isBlank()) email = incomingEmail.trim();
+        if (incomingNickname != null && !incomingNickname.isBlank()) {
+            nickname = incomingNickname.trim();
+        }
+        if (incomingEmail != null && !incomingEmail.isBlank()) {
+            email = incomingEmail.trim();
+        }
         profilePayload = clonePayload(payload);
         applyProfileMetadata(request);
         touch();
     }
 
     public void applyRename(NetworkMessage request, String newUsername) {
-        if (newUsername == null || newUsername.isBlank()) throw new IllegalArgumentException("new username is required");
+        if (newUsername == null || newUsername.isBlank()) {
+            throw new IllegalArgumentException("new username is required");
+        }
         byte[] payload = requireProfile(request.getBinaryPayload());
         username = newUsername.trim();
         String incomingNickname = request.get("nickname");
         String incomingEmail = request.get("email");
-        if (incomingNickname != null && !incomingNickname.isBlank()) nickname = incomingNickname.trim();
-        if (incomingEmail != null && !incomingEmail.isBlank()) email = incomingEmail.trim();
+        if (incomingNickname != null && !incomingNickname.isBlank()) {
+            nickname = incomingNickname.trim();
+        }
+        if (incomingEmail != null && !incomingEmail.isBlank()) {
+            email = incomingEmail.trim();
+        }
         profilePayload = clonePayload(payload);
         applyProfileMetadata(request);
         touch();
@@ -104,11 +114,17 @@ public final class ServerAccount implements Serializable {
 
     public void applyPasswordChangeProfile(NetworkMessage request) {
         byte[] payload = request.getBinaryPayload();
-        if (payload != null && payload.length > 0) profilePayload = clonePayload(requireProfile(payload));
+        if (payload != null && payload.length > 0) {
+            profilePayload = clonePayload(requireProfile(payload));
+        }
         String incomingNickname = request.get("nickname");
         String incomingEmail = request.get("email");
-        if (incomingNickname != null && !incomingNickname.isBlank()) nickname = incomingNickname.trim();
-        if (incomingEmail != null && !incomingEmail.isBlank()) email = incomingEmail.trim();
+        if (incomingNickname != null && !incomingNickname.isBlank()) {
+            nickname = incomingNickname.trim();
+        }
+        if (incomingEmail != null && !incomingEmail.isBlank()) {
+            email = incomingEmail.trim();
+        }
         applyProfileMetadata(request);
         touch();
     }
@@ -120,13 +136,19 @@ public final class ServerAccount implements Serializable {
         miniGamesWon = nonNegative(request.getInt("miniGamesWon", miniGamesWon));
         dailyQuestsDone = nonNegative(request.getInt("dailyQuestsDone", dailyQuestsDone));
         totalQuestsDone = nonNegative(request.getInt("totalQuestsDone", totalQuestsDone));
-        if (request.get("lastChapter") != null) lastChapter = request.get("lastChapter");
-        if (request.get("lastLevel") != null) lastLevel = request.get("lastLevel");
+        if (request.get("lastChapter") != null) {
+            lastChapter = request.get("lastChapter");
+        }
+        if (request.get("lastLevel") != null) {
+            lastLevel = request.get("lastLevel");
+        }
         touch();
     }
 
     public boolean verifyPasswordHash(String clientPasswordHash) {
-        if (!ServerCrypto.looksLikeSha256(clientPasswordHash)) return false;
+        if (!ServerCrypto.looksLikeSha256(clientPasswordHash)) {
+            return false;
+        }
         return ServerCrypto.constantTimeEquals(passwordVerifier,
                 ServerCrypto.saltedVerifier(passwordSalt, clientPasswordHash));
     }
@@ -139,7 +161,9 @@ public final class ServerAccount implements Serializable {
     }
 
     public boolean verifySecurityAnswerHash(String clientAnswerHash) {
-        if (!ServerCrypto.looksLikeSha256(clientAnswerHash)) return false;
+        if (!ServerCrypto.looksLikeSha256(clientAnswerHash)) {
+            return false;
+        }
         return ServerCrypto.constantTimeEquals(securityAnswerVerifier,
                 ServerCrypto.saltedVerifier(securityAnswerSalt, clientAnswerHash));
     }
@@ -214,17 +238,25 @@ public final class ServerAccount implements Serializable {
 
     private static String required(NetworkMessage request, String key, String message) {
         String value = request == null ? null : request.get(key);
-        if (value == null || value.isBlank()) throw new IllegalArgumentException(message);
+        if (value == null || value.isBlank()) {
+            throw new IllegalArgumentException(message);
+        }
         return value;
     }
 
     private static void validateHash(String hash, String label) {
-        if (!ServerCrypto.looksLikeSha256(hash)) throw new IllegalArgumentException(label + " must be SHA-256 hex");
+        if (!ServerCrypto.looksLikeSha256(hash)) {
+            throw new IllegalArgumentException(label + " must be SHA-256 hex");
+        }
     }
 
     private static byte[] requireProfile(byte[] payload) {
-        if (payload == null || payload.length == 0) throw new IllegalArgumentException("profile payload is required");
-        if (payload.length > MAX_PROFILE_BYTES) throw new IllegalArgumentException("profile payload is too large");
+        if (payload == null || payload.length == 0) {
+            throw new IllegalArgumentException("profile payload is required");
+        }
+        if (payload.length > MAX_PROFILE_BYTES) {
+            throw new IllegalArgumentException("profile payload is too large");
+        }
         return payload;
     }
 

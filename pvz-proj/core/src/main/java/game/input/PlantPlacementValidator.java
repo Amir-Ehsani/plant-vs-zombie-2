@@ -48,6 +48,10 @@ public final class PlantPlacementValidator {
         if (session.getTickManager() != null && session.getTickManager().isPaused()) {
             return InteractionValidation.invalid("Resume the game before interacting with the board.");
         }
+        Level level = session.getCurrentLevel();
+        if (level != null && !level.allowsPlanting()) {
+            return InteractionValidation.invalid("Planting is locked after START.");
+        }
         if (plantName == null || plantName.isBlank()) {
             return InteractionValidation.invalid("Select a plant first.");
         }

@@ -1,30 +1,18 @@
 package models.engine.combat;
 
 import models.core.plant.Plant;
-import models.core.projectile.Damage;
 import models.core.zombie.Armor;
 import models.core.zombie.Zombie;
 import models.core.zombie.ZombieFactory;
-import models.core.zombie.ZombieType;
 import models.engine.board.Board;
 import models.engine.board.Lane;
-import models.engine.board.Position;
 import models.engine.board.Tile;
-import models.engine.board.TileType;
-import models.engine.events.GameEvent;
-import models.entities.LawnMower;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.IdentityHashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
-import java.util.Map;
 import java.util.Random;
-import java.util.Set;
-
 
 abstract class LaneCombatTargetSupport extends LaneCombatTerrainSupport {
     protected LaneCombatTargetSupport(Board board) {

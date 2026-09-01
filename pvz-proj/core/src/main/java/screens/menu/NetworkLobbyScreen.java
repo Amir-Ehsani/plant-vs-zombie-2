@@ -35,7 +35,9 @@ public final class NetworkLobbyScreen extends BaseMenuScreen {
     @Override
     public void show() {
         super.show();
-        if (!requireLoggedIn()) return;
+        if (!requireLoggedIn()) {
+            return;
+        }
         updateStatus(initialStatus());
     }
 
@@ -120,26 +122,38 @@ public final class NetworkLobbyScreen extends BaseMenuScreen {
     }
 
     private void connect() {
-        if (busy) return;
+        if (busy) {
+            return;
+        }
         int port;
         try { port = Integer.parseInt(portField.getText().trim()); }
         catch (RuntimeException exception) { updateStatus("Port must be a number."); return; }
-        if (port < 1 || port > 65535) { updateStatus("Port must be between 1 and 65535."); return; }
+        if (port < 1 || port > 65535) {
+            updateStatus("Port must be between 1 and 65535."); return;
+        }
         String host = hostField.getText() == null ? "" : hostField.getText().trim();
-        if (host.isBlank()) { updateStatus("Server host is required."); return; }
+        if (host.isBlank()) {
+            updateStatus("Server host is required."); return;
+        }
         network.configure(host, port);
         run("Checking server...", network.statusAsync());
     }
 
     private void challenge() {
-        if (busy || !requireOnline()) return;
+        if (busy || !requireOnline()) {
+            return;
+        }
         String target = opponentField.getText() == null ? "" : opponentField.getText().trim();
-        if (target.isBlank()) { updateStatus("Enter the opponent username."); return; }
+        if (target.isBlank()) {
+            updateStatus("Enter the opponent username."); return;
+        }
         run("Sending challenge to " + target + "...", network.challengeAsync(target));
     }
 
     private void toggleRandom() {
-        if (busy || !requireOnline()) return;
+        if (busy || !requireOnline()) {
+            return;
+        }
         boolean joining = !waitingRandom;
         CompletableFuture<NetworkOperationResult> future = joining
                 ? network.joinRandomQueueAsync()
@@ -148,15 +162,21 @@ public final class NetworkLobbyScreen extends BaseMenuScreen {
         updateStatus(joining ? "Joining random queue..." : "Leaving random queue...");
         future.whenComplete((result, error) -> Gdx.app.postRunnable(() -> {
             busy = false;
-            if (error != null) { updateStatus("Network error: " + error.getMessage()); return; }
-            if (result != null && result.successful()) waitingRandom = joining;
+            if (error != null) {
+                updateStatus("Network error: " + error.getMessage()); return;
+            }
+            if (result != null && result.successful()) {
+                waitingRandom = joining;
+            }
             randomButton.setText(waitingRandom ? "Leave Queue" : "Random Match");
             updateStatus(result == null ? "Server returned no result." : result.message());
         }));
     }
 
     private boolean requireOnline() {
-        if (network.isAuthenticated()) return true;
+        if (network.isAuthenticated()) {
+            return true;
+        }
         updateStatus("Your server login is not active. Return to Login and sign in again.");
         return false;
     }
@@ -166,18 +186,26 @@ public final class NetworkLobbyScreen extends BaseMenuScreen {
         updateStatus(pending);
         future.whenComplete((result, error) -> Gdx.app.postRunnable(() -> {
             busy = false;
-            if (error != null) updateStatus("Network error: " + error.getMessage());
-            else updateStatus(result == null ? "Server returned no result." : result.message());
+            if (error != null) {
+                updateStatus("Network error: " + error.getMessage());
+            }
+            else {
+                updateStatus(result == null ? "Server returned no result." : result.message());
+            }
         }));
     }
 
     private void updateStatus(String text) {
-        if (statusLabel != null) statusLabel.setText(text == null ? "" : text);
+        if (statusLabel != null) {
+            statusLabel.setText(text == null ? "" : text);
+        }
     }
 
     @Override
     public void hide() {
-        if (waitingRandom) network.leaveRandomQueueAsync();
+        if (waitingRandom) {
+            network.leaveRandomQueueAsync();
+        }
         super.hide();
     }
 }

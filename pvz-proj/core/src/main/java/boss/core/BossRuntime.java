@@ -48,7 +48,7 @@ public final class BossRuntime {
 
     private static final int DARK_FIREBALL_IMPACT_TICKS = 18;
     private static final int DARK_BREATH_IMPACT_TICKS = 18;
-    private static final int DARK_BREATH_MIN_GAP_TICKS = 180;
+    private static final int DARK_BREATH_MIN_GAP_TICKS = 260;
     private static final int DARK_FIRE_LIFETIME_TICKS = 40;
     private static final int DARK_ACTION_END_TICKS = 34;
     private static final int DARK_ARRIVAL_FIRE_IMPACT_TICKS = 78;
@@ -152,8 +152,12 @@ public final class BossRuntime {
     }
 
     public void start(Board board, List<String> allowedZombieNames, int currentTick) {
-        if (started) return;
-        if (board == null) throw new IllegalArgumentException("Boss runtime requires a board.");
+        if (started) {
+            return;
+        }
+        if (board == null) {
+            throw new IllegalArgumentException("Boss runtime requires a board.");
+        }
         this.board = board;
         this.currentTick = currentTick;
         summonPool.clear();
@@ -193,16 +197,22 @@ public final class BossRuntime {
         releaseThawedFrozenZombies();
         observeHealth(currentTick);
         if (deathStarted) {
-            if (currentTick >= stateUntilTick) finishDefeat();
+            if (currentTick >= stateUntilTick) {
+                finishDefeat();
+            }
             return;
         }
         if (boss.getState() == BossState.STUNNED || boss.getState() == BossState.INTRO) {
-            if (currentTick >= stateUntilTick) activate(currentTick);
+            if (currentTick >= stateUntilTick) {
+                activate(currentTick);
+            }
             return;
         }
         if (boss.getState() == BossState.ACTION) {
             updateCurrentAction(currentTick);
-            if (currentTick >= stateUntilTick) activate(currentTick);
+            if (currentTick >= stateUntilTick) {
+                activate(currentTick);
+            }
             return;
         }
         if (boss.getState() == BossState.ACTIVE && currentTick >= nextActionTick) {
@@ -305,8 +315,8 @@ public final class BossRuntime {
             specialImpactTick = currentTick + COMMON_ACTION_TICKS;
             stateUntilTick = specialImpactTick;
         } else {
-            applyPendingLaneMove();
-            stateUntilTick = currentTick + COMMON_ACTION_TICKS;
+            specialImpactTick = currentTick + COMMON_ACTION_TICKS;
+            stateUntilTick = specialImpactTick;
         }
     }
 
@@ -382,7 +392,7 @@ public final class BossRuntime {
     private void startDarkFireballs(int currentTick) {
         clearActionState();
         actionStartTick = currentTick;
-        int count = Math.min(3, 2 + boss.getHealth().getSectionBreakSerial());
+        int count = Math.min(2, 1 + boss.getHealth().getSectionBreakSerial());
         chooseDistinctTargets(count, false);
         specialImpactTick = currentTick + DARK_FIREBALL_IMPACT_TICKS;
         stateUntilTick = currentTick + DARK_ACTION_END_TICKS;
@@ -396,7 +406,9 @@ public final class BossRuntime {
         specialImpactTick = currentTick + DARK_BREATH_IMPACT_TICKS;
         stateUntilTick = currentTick + DARK_ACTION_END_TICKS;
         for (int lane : new int[]{boss.getFirstLane(), boss.getSecondLane()}) {
-            for (int x = 1; x <= board.getWidth(); x++) actionTargets.add(new Position(x, lane));
+            for (int x = 1; x <= board.getWidth(); x++) {
+                actionTargets.add(new Position(x, lane));
+            }
         }
         boss.setState(BossState.ACTION, BossAction.DARK_FIRE_BREATH);
     }
@@ -409,7 +421,9 @@ public final class BossRuntime {
             for (int x = 1; x <= board.getWidth(); x++) {
                 Position p = new Position(x, y);
                 Tile tile = board.getTileAt(p);
-                if (tile.getTileType() == TileType.WATER && tile.hasPlant()) waterPlants.add(p);
+                if (tile.getTileType() == TileType.WATER && tile.hasPlant()) {
+                    waterPlants.add(p);
+                }
             }
         }
         Collections.shuffle(waterPlants, random);
@@ -429,7 +443,6 @@ public final class BossRuntime {
         actionStartTick = currentTick;
         specialImpactTick = currentTick + BEACH_TURBINE_CAPTURE_TICKS;
         specialResolveTick = currentTick + BEACH_TURBINE_RESOLVE_TICKS;
-        captureTurbineVictims();
         stateUntilTick = currentTick + BEACH_TURBINE_END_TICKS;
         boss.setState(BossState.ACTION, BossAction.BEACH_TURBINE);
     }
@@ -464,7 +477,8 @@ public final class BossRuntime {
     }
 
     private void updateLaneMove(int tick) {
-        if ((isBeachBoss() || isDarkBoss()) && !specialImpactResolved && tick >= specialImpactTick) {
+        if ((isBeachBoss() || isDarkBoss() || isEgyptBoss()) && !specialImpactResolved
+                && tick >= specialImpactTick) {
             specialImpactResolved = true;
             actionStage = 1;
             actionStageStartTick = tick;
@@ -697,7 +711,9 @@ public final class BossRuntime {
             specialImpactResolved = true;
             actionStage = 1;
             actionStageStartTick = tick;
-            for (Position target : actionTargets) killPlantsAt(target);
+            for (Position target : actionTargets) {
+                killPlantsAt(target);
+            }
             board.removeDeadEntities();
         }
     }
@@ -706,6 +722,7 @@ public final class BossRuntime {
         if (tick >= specialImpactTick && actionStage == 0) {
             actionStage = 1;
             actionStageStartTick = specialImpactTick;
+            captureTurbineVictims();
         }
         if (tick >= specialImpactTick && tick < specialResolveTick) {
             float progress = fraction(tick - specialImpactTick,
@@ -727,7 +744,9 @@ public final class BossRuntime {
     }
 
     private void resolveEgyptMissileImpact() {
-        if (board == null || actionTarget == null) return;
+        if (board == null || actionTarget == null) {
+            return;
+        }
         killPlantsAt(actionTarget);
         board.removeDeadEntities();
         createEgyptMissileGraves();
@@ -735,7 +754,9 @@ public final class BossRuntime {
 
     private void createEgyptMissileGraves() {
         int capacity = Math.min(2, GraveSpawnRules.remainingCapacity(board));
-        if (capacity <= 0) return;
+        if (capacity <= 0) {
+            return;
+        }
         List<Tile> candidates = new ArrayList<>();
         for (int lane = 1; lane <= board.getHeight(); lane++) {
             for (int x = 2; x < board.getWidth(); x++) {
@@ -746,7 +767,9 @@ public final class BossRuntime {
             }
         }
         Collections.shuffle(candidates, random);
-        for (int i = 0; i < Math.min(capacity, candidates.size()); i++) candidates.get(i).setTileType(TileType.GRAVE);
+        for (int i = 0; i < Math.min(capacity, candidates.size()); i++) {
+            candidates.get(i).setTileType(TileType.GRAVE);
+        }
     }
 
     private void destroyPlantsInBossLanes() {
@@ -756,22 +779,38 @@ public final class BossRuntime {
     }
 
     private void destroyPlantsInLane(int lane) {
-        if (lane < 1 || lane > board.getHeight()) return;
+        if (lane < 1 || lane > board.getHeight()) {
+            return;
+        }
         for (Tile tile : board.getLaneAt(lane).getTiles()) {
-            for (Plant plant : new ArrayList<>(tile.getPlants())) if (plant != null && plant.isAlive()) plant.kill();
+            for (Plant plant : new ArrayList<>(tile.getPlants())) {
+                if (plant != null && plant.isAlive()) {
+                    plant.kill();
+                }
+            }
         }
     }
 
     private void killPlantsAt(Position p) {
         Tile tile = board.getTileAt(p);
-        for (Plant plant : new ArrayList<>(tile.getPlants())) if (plant != null && plant.isAlive()) plant.kill();
+        for (Plant plant : new ArrayList<>(tile.getPlants())) {
+            if (plant != null && plant.isAlive()) {
+                plant.kill();
+            }
+        }
     }
 
     private void killEverythingAt(Position p) {
         Tile tile = board.getTileAt(p);
-        for (Plant plant : new ArrayList<>(tile.getPlants())) if (plant != null && plant.isAlive()) plant.kill();
+        for (Plant plant : new ArrayList<>(tile.getPlants())) {
+            if (plant != null && plant.isAlive()) {
+                plant.kill();
+            }
+        }
         for (Zombie zombie : new ArrayList<>(tile.getZombies())) {
-            if (zombie != null && zombie.isAlive() && !(zombie instanceof BossHitbox)) zombie.kill();
+            if (zombie != null && zombie.isAlive() && !(zombie instanceof BossHitbox)) {
+                zombie.kill();
+            }
         }
     }
 
@@ -882,7 +921,7 @@ public final class BossRuntime {
         summonNames.clear();
         int section = boss.getHealth().getSectionBreakSerial();
         int count = isDarkBoss()
-                ? Math.min(5, 3 + section)
+                ? Math.min(3, 2 + section)
                 : Math.max(1, Math.round(Math.min(6, 4 + section) * 0.6f));
         List<Position> candidates = new ArrayList<>();
         if (isDarkBoss()) {
@@ -961,18 +1000,24 @@ public final class BossRuntime {
     private int chooseAnotherLanePair(int oldFirstLane) {
         int maxFirstLane = Math.max(1, board.getHeight() - 1);
         int next = oldFirstLane;
-        while (maxFirstLane > 1 && next == oldFirstLane) next = random.nextInt(maxFirstLane) + 1;
+        while (maxFirstLane > 1 && next == oldFirstLane) {
+            next = random.nextInt(maxFirstLane) + 1;
+        }
         return next;
     }
 
     private void applyPendingLaneMove() {
-        if (pendingFirstLane <= 0 || pendingFirstLane == boss.getFirstLane()) return;
+        if (pendingFirstLane <= 0 || pendingFirstLane == boss.getFirstLane()) {
+            return;
+        }
         boss.setFirstLane(pendingFirstLane);
         relocateHitboxes();
     }
 
     private void summonZombies() {
-        if (board == null || summonPool.isEmpty()) return;
+        if (board == null || summonPool.isEmpty()) {
+            return;
+        }
         int section = boss.getHealth().getSectionBreakSerial();
         int originalCount = Math.min(4, 2 + section);
         int count = Math.max(1, Math.round(originalCount * 0.6f));
@@ -1003,7 +1048,9 @@ public final class BossRuntime {
     }
 
     private boolean isSafeSummon(String name) {
-        if (name == null || name.isBlank()) return false;
+        if (name == null || name.isBlank()) {
+            return false;
+        }
         String normalized = name.trim().toLowerCase(Locale.ROOT);
         return !normalized.contains("king")
                 && !normalized.contains("boss") && !normalized.contains("zomboss");
@@ -1018,7 +1065,10 @@ public final class BossRuntime {
     private boolean isDarkBoss() { return boss.getId().equals("zomboss-dark"); }
     private boolean isBeachBoss() { return boss.getId().equals("zomboss-beach"); }
     private int nextActionDelay() {
-        if (isDarkBoss() || isBeachBoss()) {
+        if (isDarkBoss()) {
+            return 90 + random.nextInt(41);
+        }
+        if (isBeachBoss()) {
             return 60 + random.nextInt(31);
         }
         return ACTION_MIN_GAP_TICKS + random.nextInt(ACTION_GAP_SPREAD_TICKS);
@@ -1028,21 +1078,37 @@ public final class BossRuntime {
         hitboxes.clear();
         hitboxes.add(new BossHitbox(boss, boss.getX(), boss.getFirstLane()));
         hitboxes.add(new BossHitbox(boss, boss.getX(), boss.getSecondLane()));
-        for (BossHitbox hitbox : hitboxes) addHitboxToTile(hitbox);
+        for (BossHitbox hitbox : hitboxes) {
+            addHitboxToTile(hitbox);
+        }
     }
 
-    private void moveBossX(double x) { boss.setX(x); relocateHitboxes(); }
-    private void restoreBossOrigin() { if (Math.abs(boss.getX() - BOSS_X) > 0.0001) moveBossX(BOSS_X); }
+    private void moveBossX(double x) {
+        boss.setX(x);
+        relocateHitboxes();
+    }
+
+    private void restoreBossOrigin() {
+        if (Math.abs(boss.getX() - BOSS_X) > 0.0001) {
+            moveBossX(BOSS_X);
+        }
+    }
 
     private void relocateHitboxes() {
-        if (board == null || hitboxes.size() < 2) return;
+        if (board == null || hitboxes.size() < 2) {
+            return;
+        }
         for (BossHitbox hitbox : hitboxes) {
             Tile source = board.getTileContainingZombie(hitbox);
-            if (source != null) source.removeZombie(hitbox);
+            if (source != null) {
+                source.removeZombie(hitbox);
+            }
         }
         hitboxes.get(0).moveTo(boss.getX(), boss.getFirstLane());
         hitboxes.get(1).moveTo(boss.getX(), boss.getSecondLane());
-        for (BossHitbox hitbox : hitboxes) addHitboxToTile(hitbox);
+        for (BossHitbox hitbox : hitboxes) {
+            addHitboxToTile(hitbox);
+        }
     }
 
     private void addHitboxToTile(BossHitbox hitbox) {
@@ -1101,7 +1167,9 @@ public final class BossRuntime {
         restoreBossOrigin();
         for (BossHitbox hitbox : hitboxes) {
             Tile tile = board.getTileContainingZombie(hitbox);
-            if (tile != null) tile.removeZombie(hitbox);
+            if (tile != null) {
+                tile.removeZombie(hitbox);
+            }
             hitbox.deactivate();
         }
         boss.setState(BossState.DEFEATED, BossAction.NONE);

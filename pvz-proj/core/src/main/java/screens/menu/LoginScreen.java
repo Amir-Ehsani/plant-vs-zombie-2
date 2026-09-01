@@ -86,15 +86,21 @@ public class LoginScreen extends BaseMenuScreen {
         int port;
         try { port = Integer.parseInt(serverPortField.getText().trim()); }
         catch (RuntimeException exception) { showControllerMessage("ERROR: Server port must be a number."); return false; }
-        if (port < 1 || port > 65535) { showControllerMessage("ERROR: Server port must be between 1 and 65535."); return false; }
+        if (port < 1 || port > 65535) {
+            showControllerMessage("ERROR: Server port must be between 1 and 65535."); return false;
+        }
         String host = serverHostField.getText() == null ? "" : serverHostField.getText().trim();
-        if (host.isBlank()) { showControllerMessage("ERROR: Server host is required."); return false; }
+        if (host.isBlank()) {
+            showControllerMessage("ERROR: Server host is required."); return false;
+        }
         game.getNetworkManager().configure(host, port);
         return true;
     }
 
     private void login() {
-        if (!applyEndpoint()) return;
+        if (!applyEndpoint()) {
+            return;
+        }
         controller.login(usernameField.getText().trim(), passwordField.getText(), stayLoggedInBox.isChecked());
         if (!controller.wasSuccessful()) {
             showControllerMessage(controller.getLastMessage());

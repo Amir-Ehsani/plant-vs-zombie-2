@@ -7,7 +7,7 @@ public class Position {
     private final int y;
 
     public Position(int x, int y) {
-        if(x <= 0 || y <= 0) {
+        if (x <= 0 || y <= 0) {
             throw new IllegalArgumentException("Position coordinates must be positive.");
         }
         this.x = x;

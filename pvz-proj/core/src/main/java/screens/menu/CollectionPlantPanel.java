@@ -64,8 +64,8 @@ public class CollectionPlantPanel extends Table {
         this.animations = animations;
         this.messageHandler = messageHandler;
         this.resourceRefresh = resourceRefresh;
-        familyFilter = new SelectBox<>(skin, "default");
-        stateFilter = new SelectBox<>(skin, "default");
+        familyFilter = createSelectBox(8);
+        stateFilter = createSelectBox(6);
         cardsTable = new Table();
         cardsTable.top();
         detailsTable = new Table();
@@ -75,7 +75,7 @@ public class CollectionPlantPanel extends Table {
         detailsScroll.setOverscroll(false, false);
         cardsScroll = new ScrollPane(cardsTable, skin);
         selectedPlantName = "";
-        setClip(true);
+        setClip(false);
         buildUi();
         bindFilters();
         refresh();
@@ -92,6 +92,7 @@ public class CollectionPlantPanel extends Table {
     private void buildUi() {
         defaults().pad(3f);
         Table filters = new Table();
+        filters.setClip(false);
         filters.defaults().padRight(8f).center();
         filters.add(panelLabel("Family"));
         filters.add(familyFilter).width(168f).padRight(16f);
@@ -101,6 +102,8 @@ public class CollectionPlantPanel extends Table {
         cardsScroll.setFadeScrollBars(false);
         cardsScroll.setScrollingDisabled(true, false);
         cardsScroll.setOverscroll(false, false);
+        cardsScroll.setCancelTouchFocus(false);
+        detailsScroll.setCancelTouchFocus(false);
         add(cardsScroll).width(708f).height(394f).top().left().padRight(8f);
         add(detailsScroll).width(346f).height(394f).top().left();
         stateFilter.setItems(ALL_STATES, UNLOCKED, LOCKED, UPGRADEABLE);
@@ -335,6 +338,13 @@ public class CollectionPlantPanel extends Table {
         label.setWrap(true);
         label.setAlignment(Align.left);
         return label;
+    }
+
+    private SelectBox<String> createSelectBox(int maxListCount) {
+        SelectBox<String> box = new SelectBox<>(skin);
+        box.setAlignment(Align.center);
+        box.setMaxListCount(maxListCount);
+        return box;
     }
 
     private Label panelLabel(String text) {

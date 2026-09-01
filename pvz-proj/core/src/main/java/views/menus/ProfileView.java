@@ -1,6 +1,5 @@
 package views.menus;
 
-import controllers.auth.AuthController;
 import controllers.core.MenuManager;
 import controllers.features.ProfileController;
 import views.core.BaseView;

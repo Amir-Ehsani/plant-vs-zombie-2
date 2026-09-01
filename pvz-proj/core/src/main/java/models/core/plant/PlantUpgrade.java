@@ -118,64 +118,137 @@ public class PlantUpgrade {
     private void applyEffect(Plant plant, String rawEffect) {
         String normalized = normalizeForMatching(rawEffect);
         int value = extractFirstNumber(rawEffect);
-        if (applyDamageOrHealthEffect(plant, normalized, value)) return;
-        if (applyCombatStatEffect(plant, normalized, value)) return;
-        if (applyTimingEffect(plant, normalized, value)) return;
-        if (applyProductionEffect(plant, normalized, value)) return;
+        if (applyDamageOrHealthEffect(plant, normalized, value)) {
+            return;
+        }
+        if (applyCombatStatEffect(plant, normalized, value)) {
+            return;
+        }
+        if (applyTimingEffect(plant, normalized, value)) {
+            return;
+        }
+        if (applyProductionEffect(plant, normalized, value)) {
+            return;
+        }
         applyBooleanEffect(plant, normalized);
     }
 
     private boolean applyDamageOrHealthEffect(Plant plant, String effect, int value) {
-        if (effect.startsWith("dmg tick")) plant.increaseDamagePerTick(value);
-        else if (effect.startsWith("aoe dmg")) plant.increaseAreaDamage(value);
-        else if (effect.startsWith("explode dmg")) plant.increaseExplodeDamage(value);
-        else if (effect.startsWith("reflect dmg")) plant.increaseReflectDamage(value);
-        else if (effect.startsWith("dmg")) plant.increaseAttackDamage(value);
-        else if (effect.startsWith("hp")) plant.increaseMaxHp(value);
-        else return false;
+        if (effect.startsWith("dmg tick")) {
+            plant.increaseDamagePerTick(value);
+        }
+        else if (effect.startsWith("aoe dmg")) {
+            plant.increaseAreaDamage(value);
+        }
+        else if (effect.startsWith("explode dmg")) {
+            plant.increaseExplodeDamage(value);
+        }
+        else if (effect.startsWith("reflect dmg")) {
+            plant.increaseReflectDamage(value);
+        }
+        else if (effect.startsWith("dmg")) {
+            plant.increaseAttackDamage(value);
+        }
+        else if (effect.startsWith("hp")) {
+            plant.increaseMaxHp(value);
+        }
+        else {
+            return false;
+        }
         return true;
     }
 
     private boolean applyCombatStatEffect(Plant plant, String effect, int value) {
-        if (effect.startsWith("cost")) plant.decreaseSunCost(value);
+        if (effect.startsWith("cost")) {
+            plant.decreaseSunCost(value);
+        }
         else if (effect.startsWith("cooldown")) {
             int ticks = secondsToTicks(value);
             plant.decreaseAttackIntervalByTicks(ticks);
             plant.reduceCooldown(ticks);
-        } else if (effect.startsWith("atk speed")) plant.decreaseAttackIntervalByPercent(value);
-        else if (effect.startsWith("range")) plant.increaseRange(value);
-        else if (effect.startsWith("targets")) plant.increaseTargetCount(value);
-        else if (effect.startsWith("pierce")) plant.increasePierceCount(value);
-        else if (effect.startsWith("bounces")) plant.increaseBounces(value);
-        else return false;
+        } else if (effect.startsWith("atk speed")) {
+            plant.decreaseAttackIntervalByPercent(value);
+        } else if (effect.startsWith("range")) {
+            plant.increaseRange(value);
+        }
+        else if (effect.startsWith("targets")) {
+            plant.increaseTargetCount(value);
+        }
+        else if (effect.startsWith("pierce")) {
+            plant.increasePierceCount(value);
+        }
+        else if (effect.startsWith("bounces")) {
+            plant.increaseBounces(value);
+        }
+        else {
+            return false;
+        }
         return true;
     }
 
     private boolean applyTimingEffect(Plant plant, String effect, int value) {
         int ticks = secondsToTicks(value);
-        if (effect.startsWith("freeze time")) plant.increaseFreezeDuration(ticks);
-        else if (effect.startsWith("chill time")) plant.increaseChillDuration(ticks);
-        else if (effect.startsWith("duration")) plant.increaseDuration(ticks);
-        else if (effect.startsWith("lifespan")) plant.increaseLifespan(ticks);
-        else if (effect.startsWith("grow time")) plant.decreaseGrowTime(ticks);
-        else if (effect.startsWith("prod time")) plant.decreaseProductionTime(ticks);
-        else if (effect.startsWith("charge time")) plant.decreaseChargeTime(ticks);
-        else if (effect.startsWith("arm time")) plant.decreaseArmTime(ticks);
-        else if (effect.startsWith("digest")) plant.decreaseDigestTime(ticks);
-        else if (effect.startsWith("eat time")) plant.decreaseEatTime(ticks);
-        else if (effect.startsWith("regen")) plant.decreaseRegenTime(ticks);
-        else return false;
+        if (effect.startsWith("freeze time")) {
+            plant.increaseFreezeDuration(ticks);
+        }
+        else if (effect.startsWith("chill time")) {
+            plant.increaseChillDuration(ticks);
+        }
+        else if (effect.startsWith("duration")) {
+            plant.increaseDuration(ticks);
+        }
+        else if (effect.startsWith("lifespan")) {
+            plant.increaseLifespan(ticks);
+        }
+        else if (effect.startsWith("grow time")) {
+            plant.decreaseGrowTime(ticks);
+        }
+        else if (effect.startsWith("prod time")) {
+            plant.decreaseProductionTime(ticks);
+        }
+        else if (effect.startsWith("charge time")) {
+            plant.decreaseChargeTime(ticks);
+        }
+        else if (effect.startsWith("arm time")) {
+            plant.decreaseArmTime(ticks);
+        }
+        else if (effect.startsWith("digest")) {
+            plant.decreaseDigestTime(ticks);
+        }
+        else if (effect.startsWith("eat time")) {
+            plant.decreaseEatTime(ticks);
+        }
+        else if (effect.startsWith("regen")) {
+            plant.decreaseRegenTime(ticks);
+        }
+        else {
+            return false;
+        }
         return true;
     }
 
     private boolean applyProductionEffect(Plant plant, String effect, int value) {
-        if (effect.startsWith("warmth radius")) plant.increaseWarmthRadius(value);
-        else if (effect.startsWith("max size")) plant.increaseMaxSize(value);
-        else if (effect.startsWith("plant food chance")) plant.increasePlantFoodChance(value);
-        else if (effect.startsWith("butter")) plant.increaseButterChance(value);
-        else if (effect.startsWith("sun drop")) plant.increaseSunDropBonus(value);
-        else if (effect.startsWith("sun")) plant.increaseSunProductionBonus(value);
-        else return false;
+        if (effect.startsWith("warmth radius")) {
+            plant.increaseWarmthRadius(value);
+        }
+        else if (effect.startsWith("max size")) {
+            plant.increaseMaxSize(value);
+        }
+        else if (effect.startsWith("plant food chance")) {
+            plant.increasePlantFoodChance(value);
+        }
+        else if (effect.startsWith("butter")) {
+            plant.increaseButterChance(value);
+        }
+        else if (effect.startsWith("sun drop")) {
+            plant.increaseSunDropBonus(value);
+        }
+        else if (effect.startsWith("sun")) {
+            plant.increaseSunProductionBonus(value);
+        }
+        else {
+            return false;
+        }
         return true;
     }
 

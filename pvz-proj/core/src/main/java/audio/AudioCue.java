@@ -35,7 +35,8 @@ public enum AudioCue {
             "pvz audio/loss audio.mp3"),
 
     MENU_MUSIC(true, 0L,
-            "pvz audio/menu background audio.mp3"),
+            "pvz audio/menu background audio.mp3",
+            "pvz audio/menu backgroung audio.mp3"),
     ANCIENT_EGYPT_MUSIC(true, 0L,
             "pvz audio/ancient egypt chapter.mp3"),
     FROSTBITE_CAVES_MUSIC(true, 0L,

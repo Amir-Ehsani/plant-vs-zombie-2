@@ -1,9 +1,33 @@
 package controllers.core;
 
 import controllers.auth.AuthController;
-import controllers.features.*;
+import controllers.features.ChapterLevelController;
+import controllers.features.CollectionController;
+import controllers.features.GameMenuController;
+import controllers.features.GreenhouseController;
+import controllers.features.LeaderboardController;
+import controllers.features.MainMenuController;
+import controllers.features.NewsController;
+import controllers.features.ProfileController;
+import controllers.features.SettingsController;
+import controllers.features.ShopController;
+import controllers.features.TravelLogController;
 import views.core.BaseView;
-import views.menus.*;
+import views.menus.ChapterLevelView;
+import views.menus.CollectionView;
+import views.menus.GameMenuView;
+import views.menus.GameView;
+import views.menus.GreenhouseView;
+import views.menus.LeaderboardView;
+import views.menus.LoginView;
+import views.menus.MainMenuView;
+import views.menus.MiniGameView;
+import views.menus.NewsView;
+import views.menus.ProfileView;
+import views.menus.RegisterView;
+import views.menus.SettingsView;
+import views.menus.ShopView;
+import views.menus.TravelLogView;
 
 
 abstract class MenuManagerBase {

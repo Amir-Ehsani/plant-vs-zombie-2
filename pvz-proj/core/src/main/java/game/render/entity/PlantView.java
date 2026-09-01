@@ -824,18 +824,30 @@ public final class PlantView extends EntityView<Plant> {
             if (entity.isGrowthFinished() || stateTime >= 72f) {
                 return firstClip("idle_stage3", "idle2_stage3");
             }
-            if (stateTime >= 24f) return firstClip("idle_stage2", "idle2_stage2");
+            if (stateTime >= 24f) {
+                return firstClip("idle_stage2", "idle2_stage2");
+            }
             return firstClip("idle_stage1", "idle2_stage1");
         }
         if (name.equals("kiwibeast")) {
-            if (stateTime >= 72f) return firstClip("idle_stage3_", "idle_stage3_2");
-            if (stateTime >= 24f) return firstClip("idle_stage2_", "idle_stage2_2");
+            if (stateTime >= 72f) {
+                return firstClip("idle_stage3_", "idle_stage3_2");
+            }
+            if (stateTime >= 24f) {
+                return firstClip("idle_stage2_", "idle_stage2_2");
+            }
             return firstClip("idle_stage1_", "idle_stage1_2");
         }
         if (name.equals("puffshroom")) {
-            if (stateTime >= 50f) return findClip("idle_stage4");
-            if (stateTime >= 35f) return firstClip("idle_stage3", "idle2_stage3");
-            if (stateTime >= 20f) return firstClip("idle_stage2", "idle2_stage2");
+            if (stateTime >= 50f) {
+                return findClip("idle_stage4");
+            }
+            if (stateTime >= 35f) {
+                return firstClip("idle_stage3", "idle2_stage3");
+            }
+            if (stateTime >= 20f) {
+                return firstClip("idle_stage2", "idle2_stage2");
+            }
             return firstClip("idle_stage1", "idle2_stage1");
         }
         if (name.equals("potatomine") || name.equals("primalpotatomine")) {

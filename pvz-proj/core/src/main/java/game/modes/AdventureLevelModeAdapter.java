@@ -70,9 +70,9 @@ public final class AdventureLevelModeAdapter implements LevelModeAdapter {
             setupTimedWarHud();
         } else {
             hud.setFillParent(true);
-            hud.top().center().padTop(92f);
+            hud.top().padTop(50f);
             modeLabel = createHudLabel();
-            hud.add(modeLabel).center();
+            hud.add(modeLabel);
             if (type == SpecialLevelType.PLANT_WHAT_YOU_GET) {
                 startButton = new MenuButton("START", skin, "green", this::startZombieWaves);
                 hud.add(startButton).width(150f).height(44f).padLeft(14f);

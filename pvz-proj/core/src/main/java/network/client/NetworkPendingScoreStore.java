@@ -20,7 +20,9 @@ import java.util.Properties;
 final class NetworkPendingScoreStore {
     private static Path file() {
         String explicit = System.getProperty("pvz.network.pendingScores");
-        if (explicit == null || explicit.isBlank()) explicit = System.getenv("PVZ_NETWORK_PENDING_SCORES");
+        if (explicit == null || explicit.isBlank()) {
+            explicit = System.getenv("PVZ_NETWORK_PENDING_SCORES");
+        }
         return explicit == null || explicit.isBlank()
                 ? Paths.get("data", "network-pending-scores.properties")
                 : Paths.get(explicit.trim());
@@ -30,12 +32,16 @@ final class NetworkPendingScoreStore {
 
     static synchronized void saveMax(String username, int score) {
         String key = key(username);
-        if (key == null) return;
+        if (key == null) {
+            return;
+        }
         Properties properties = loadProperties();
         String scoreKey = "score." + key;
         int previous = parse(properties.getProperty(scoreKey), -1);
         int safeScore = Math.max(0, score);
-        if (safeScore <= previous) return;
+        if (safeScore <= previous) {
+            return;
+        }
         properties.setProperty(scoreKey, String.valueOf(safeScore));
         properties.setProperty("name." + key, username.trim());
         persist(properties);
@@ -43,13 +49,17 @@ final class NetworkPendingScoreStore {
 
     static synchronized int load(String username) {
         String key = key(username);
-        if (key == null) return -1;
+        if (key == null) {
+            return -1;
+        }
         return parse(loadProperties().getProperty("score." + key), -1);
     }
 
     static synchronized void clear(String username) {
         String key = key(username);
-        if (key == null || !Files.exists(file())) return;
+        if (key == null || !Files.exists(file())) {
+            return;
+        }
         Properties properties = loadProperties();
         properties.remove("score." + key);
         properties.remove("name." + key);
@@ -64,7 +74,9 @@ final class NetworkPendingScoreStore {
 
     private static Properties loadProperties() {
         Properties properties = new Properties();
-        if (!Files.exists(file())) return properties;
+        if (!Files.exists(file())) {
+            return properties;
+        }
         try (InputStream input = Files.newInputStream(file())) {
             properties.load(input);
         } catch (IOException ignored) { }
@@ -75,7 +87,9 @@ final class NetworkPendingScoreStore {
         try {
             Path target = file();
             Path parent = target.toAbsolutePath().getParent();
-            if (parent != null) Files.createDirectories(parent);
+            if (parent != null) {
+                Files.createDirectories(parent);
+            }
             try (OutputStream output = Files.newOutputStream(target)) {
                 properties.store(output, "PVZ pending network scored-game personal bests");
             }
@@ -91,7 +105,9 @@ final class NetworkPendingScoreStore {
     }
 
     private static String key(String username) {
-        if (username == null || username.isBlank()) return null;
+        if (username == null || username.isBlank()) {
+            return null;
+        }
         return username.trim().toLowerCase(Locale.ROOT);
     }
 }

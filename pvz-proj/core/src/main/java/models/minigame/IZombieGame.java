@@ -306,9 +306,13 @@ public class IZombieGame extends MiniGameSession {
 
     private void initializePlantDefense() {
         String[][] layouts = plantLayoutForStage(getStage());
-        for (int lane = 1; lane <= board.getHeight(); lane++) {
-            for (int column = 1; column <= RED_LINE_COLUMN; column++) {
-                placePlant(layouts[lane - 1][column - 1], column, lane);
+        for (int lane = 1; lane <= board.getHeight() && lane <= layouts.length; lane++) {
+            String[] row = layouts[lane - 1];
+            for (int column = 1; column <= row.length; column++) {
+                String plantName = row[column - 1];
+                if (plantName != null && !plantName.isBlank()) {
+                    placePlant(plantName, column, lane);
+                }
             }
         }
     }
@@ -343,31 +347,12 @@ public class IZombieGame extends MiniGameSession {
 
     public static String[][] plantLayoutForStage(int requestedStage) {
         int stage = Math.max(1, Math.min(3, requestedStage));
-        if (stage == 1) {
-            return new String[][]{
-                    {"Sunflower", "Peashooter", "Wall-nut", "Peashooter", "Wall-nut", "Peashooter"},
-                    {"Sunflower", "Peashooter", "Peashooter", "Wall-nut", "Peashooter", "Wall-nut"},
-                    {"Sunflower", "Peashooter", "Wall-nut", "Peashooter", "Wall-nut", "Peashooter"},
-                    {"Sunflower", "Peashooter", "Peashooter", "Wall-nut", "Peashooter", "Wall-nut"},
-                    {"Sunflower", "Peashooter", "Wall-nut", "Peashooter", "Wall-nut", "Peashooter"}
-            };
+        String shooter = stage == 1 ? "Peashooter" : stage == 2 ? "Repeater" : "Melon-pult";
+        String[][] layout = new String[5][];
+        for (int lane = 0; lane < layout.length; lane++) {
+            layout[lane] = new String[]{"Sunflower", shooter, "Wall-nut"};
         }
-        if (stage == 2) {
-            return new String[][]{
-                    {"Sunflower", "Peashooter", "Repeater", "Snow Pea", "Wall-nut", "Tall-nut"},
-                    {"Sunflower", "Repeater", "Wall-nut", "Snow Pea", "Repeater", "Tall-nut"},
-                    {"Sunflower", "Peashooter", "Repeater", "Snow Pea", "Wall-nut", "Tall-nut"},
-                    {"Sunflower", "Repeater", "Wall-nut", "Snow Pea", "Repeater", "Tall-nut"},
-                    {"Sunflower", "Peashooter", "Repeater", "Snow Pea", "Wall-nut", "Tall-nut"}
-            };
-        }
-        return new String[][]{
-                {"Sunflower", "Repeater", "Threepeater", "Snow Pea", "Wall-nut", "Tall-nut"},
-                {"Sunflower", "Snow Pea", "Repeater", "Threepeater", "Wall-nut", "Tall-nut"},
-                {"Sunflower", "Repeater", "Threepeater", "Snow Pea", "Wall-nut", "Tall-nut"},
-                {"Sunflower", "Snow Pea", "Repeater", "Threepeater", "Wall-nut", "Tall-nut"},
-                {"Sunflower", "Repeater", "Threepeater", "Snow Pea", "Wall-nut", "Tall-nut"}
-        };
+        return layout;
     }
 
     private void initializeSunProducers() {

@@ -467,11 +467,21 @@ public final class PvzAnimationService implements Disposable {
             return -1;
         }
         int score = 10 - Math.min(10, normalized.length() / 8);
-        if (normalized.contains("outerarm") || normalized.contains("armouter")) score += 100;
-        if (normalized.contains("rightarm") || normalized.contains("armright")) score += 90;
-        if (normalized.contains("frontarm") || normalized.contains("armfront")) score += 80;
-        if (normalized.contains("upperarm") || normalized.contains("armupper")) score += 70;
-        if (normalized.endsWith("arm")) score += 35;
+        if (normalized.contains("outerarm") || normalized.contains("armouter")) {
+            score += 100;
+        }
+        if (normalized.contains("rightarm") || normalized.contains("armright")) {
+            score += 90;
+        }
+        if (normalized.contains("frontarm") || normalized.contains("armfront")) {
+            score += 80;
+        }
+        if (normalized.contains("upperarm") || normalized.contains("armupper")) {
+            score += 70;
+        }
+        if (normalized.endsWith("arm")) {
+            score += 35;
+        }
         return score;
     }
 
@@ -481,11 +491,21 @@ public final class PvzAnimationService implements Disposable {
             return -1;
         }
         int score = 20 - Math.min(20, normalized.length() / 4);
-        if (normalized.equals("head") || normalized.endsWith("head")) score += 140;
-        if (normalized.contains("zombiehead") || normalized.contains("headzombie")) score += 120;
-        if (normalized.contains("head1") || normalized.contains("head01")) score += 90;
-        if (normalized.contains("helmet") || normalized.contains("hat") || normalized.contains("hair")) score -= 80;
-        if (normalized.contains("eye") || normalized.contains("jaw") || normalized.contains("mouth")) score -= 100;
+        if (normalized.equals("head") || normalized.endsWith("head")) {
+            score += 140;
+        }
+        if (normalized.contains("zombiehead") || normalized.contains("headzombie")) {
+            score += 120;
+        }
+        if (normalized.contains("head1") || normalized.contains("head01")) {
+            score += 90;
+        }
+        if (normalized.contains("helmet") || normalized.contains("hat") || normalized.contains("hair")) {
+            score -= 80;
+        }
+        if (normalized.contains("eye") || normalized.contains("jaw") || normalized.contains("mouth")) {
+            score -= 100;
+        }
         return score;
     }
 

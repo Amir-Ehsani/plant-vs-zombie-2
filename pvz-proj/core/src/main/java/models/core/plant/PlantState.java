@@ -1,11 +1,9 @@
 package models.core.plant;
 
 import models.core.base.GameEntity;
-import models.core.projectile.Damage;
 import models.core.zombie.Zombie;
 
 import java.util.Locale;
-
 
 abstract class PlantState extends GameEntity {
     protected int level;
@@ -71,7 +69,6 @@ abstract class PlantState extends GameEntity {
     protected String visualAttackClip;
     protected String visualSpecialClip;
     protected String pendingVisualAttackClip;
-
 
     protected PlantState() {
         this(new PlantType(), 0, 0, null);
@@ -158,7 +155,6 @@ abstract class PlantState extends GameEntity {
         visualSpecialClip = "special";
         pendingVisualAttackClip = null;
     }
-
 
     @Override
     public boolean isAlive() {

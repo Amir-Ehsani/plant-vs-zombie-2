@@ -75,11 +75,15 @@ public class LeaderboardController {
     public List<User> getRankedUsers() { return getRankedUsers("best-score", false); }
 
     public List<User> getRankedUsers(String column, boolean ascending) {
-        if (authController != null) authController.saveUsers();
+        if (authController != null) {
+            authController.saveUsers();
+        }
         List<User> users = new ArrayList<>(saveManager.loadAllUsers());
         users.removeIf(user -> user == null);
         Comparator<User> comparator = comparatorFor(column);
-        if (!ascending) comparator = comparator.reversed();
+        if (!ascending) {
+            comparator = comparator.reversed();
+        }
         comparator = comparator.thenComparing(user -> safeText(user.getUsername()), String.CASE_INSENSITIVE_ORDER);
         users.sort(comparator);
         success("Leaderboard sorted by " + normalizedColumn(column) + ".");
@@ -91,9 +95,13 @@ public class LeaderboardController {
     public int getCompletedMiniGameCount(User user) { return user == null ? 0 : user.getCompletedMiniGameStageCount(); }
 
     public String getLastProgress(User user) {
-        if (user == null) return "-";
+        if (user == null) {
+            return "-";
+        }
         String chapter = safeText(user.getCurrentChapterName());
-        if (chapter.isEmpty()) chapter = "chapter -";
+        if (chapter.isEmpty()) {
+            chapter = "chapter -";
+        }
         return chapter + ", level " + user.getPassedLevels();
     }
 
@@ -104,22 +112,38 @@ public class LeaderboardController {
 
     private Comparator<User> comparatorFor(String column) {
         String normalized = normalizedColumn(column);
-        if ("username".equals(normalized)) return Comparator.comparing(user -> safeText(user.getUsername()), String.CASE_INSENSITIVE_ORDER);
-        if ("progress".equals(normalized)) return Comparator.comparingInt(User::getPassedLevels);
-        if ("minigames".equals(normalized)) return Comparator.comparingInt(this::getCompletedMiniGameCount);
-        if ("daily-quests".equals(normalized)) return Comparator.comparingInt(this::getDailyQuestCount);
-        if ("quests".equals(normalized)) return Comparator.comparingInt(this::getNonDailyQuestCount);
+        if ("username".equals(normalized)) {
+            return Comparator.comparing(user -> safeText(user.getUsername()), String.CASE_INSENSITIVE_ORDER);
+        }
+        if ("progress".equals(normalized)) {
+            return Comparator.comparingInt(User::getPassedLevels);
+        }
+        if ("minigames".equals(normalized)) {
+            return Comparator.comparingInt(this::getCompletedMiniGameCount);
+        }
+        if ("daily-quests".equals(normalized)) {
+            return Comparator.comparingInt(this::getDailyQuestCount);
+        }
+        if ("quests".equals(normalized)) {
+            return Comparator.comparingInt(this::getNonDailyQuestCount);
+        }
         return Comparator.comparingInt(User::getBestMioPoint);
     }
 
     private int countCompletedQuests(User user, boolean daily) {
-        if (user == null || user.getQuests() == null) return 0;
+        if (user == null || user.getQuests() == null) {
+            return 0;
+        }
         int count = 0;
         for (Quest quest : user.getQuests()) {
-            if (quest == null || !quest.isCompleted()) continue;
+            if (quest == null || !quest.isCompleted()) {
+                continue;
+            }
             String type = quest.getType().toLowerCase(Locale.ROOT);
             boolean dailyQuest = type.contains("daily") || type.contains("challenge");
-            if (dailyQuest == daily) count++;
+            if (dailyQuest == daily) {
+                count++;
+            }
         }
         return count;
     }
@@ -136,9 +160,13 @@ public class LeaderboardController {
     }
 
     private String normalizedColumn(String column) {
-        if (column == null || column.isBlank()) return "best-score";
+        if (column == null || column.isBlank()) {
+            return "best-score";
+        }
         String normalized = column.trim().toLowerCase(Locale.ROOT).replace('_', '-');
-        if ("score".equals(normalized) || "miopoint".equals(normalized)) return "best-score";
+        if ("score".equals(normalized) || "miopoint".equals(normalized)) {
+            return "best-score";
+        }
         return normalized;
     }
 

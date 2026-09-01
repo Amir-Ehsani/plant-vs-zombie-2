@@ -21,16 +21,22 @@ public final class RequestDispatcher {
     }
 
     public synchronized void register(MessageType type, RequestHandler handler) {
-        if (type == null || handler == null) throw new IllegalArgumentException("type and handler are required");
+        if (type == null || handler == null) {
+            throw new IllegalArgumentException("type and handler are required");
+        }
         handlers.put(type, handler);
     }
 
     public synchronized void unregister(MessageType type) {
-        if (type != null && type != MessageType.PING) handlers.remove(type);
+        if (type != null && type != MessageType.PING) {
+            handlers.remove(type);
+        }
     }
 
     public NetworkMessage dispatch(ClientConnection client, NetworkMessage request) {
-        if (request == null) return error(null, "empty request");
+        if (request == null) {
+            return error(null, "empty request");
+        }
         if (request.getProtocolVersion() != NetworkMessage.PROTOCOL_VERSION) {
             return error(request, "protocol version mismatch: server=" + NetworkMessage.PROTOCOL_VERSION
                     + ", client=" + request.getProtocolVersion());
@@ -49,9 +55,15 @@ public final class RequestDispatcher {
 
         try {
             NetworkMessage response = handler.handle(client, request);
-            if (response == null) return success(request, "operation completed");
-            if (response.getReplyTo() == null) response.replyTo(request.getRequestId());
-            if (response.getMatchId() == null && request.getMatchId() != null) response.matchId(request.getMatchId());
+            if (response == null) {
+                return success(request, "operation completed");
+            }
+            if (response.getReplyTo() == null) {
+                response.replyTo(request.getRequestId());
+            }
+            if (response.getMatchId() == null && request.getMatchId() != null) {
+                response.matchId(request.getMatchId());
+            }
             return response;
         } catch (IllegalArgumentException exception) {
             return error(request, exception.getMessage() == null ? "invalid request" : exception.getMessage());

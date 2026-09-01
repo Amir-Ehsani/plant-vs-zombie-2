@@ -218,10 +218,11 @@ public final class BossRenderSystem {
 
     private double visualBossLane(Boss boss) {
         double lane = boss.getCenterLane();
-        if (!isDarkBoss(boss) || boss.getState() != BossState.ACTION) {
+        if (boss.getState() != BossState.ACTION) {
             return lane;
         }
-        if (boss.getAction() == BossAction.MOVE_LANES && runtime.getPendingFirstLane() > 0) {
+        if (boss.getAction() == BossAction.MOVE_LANES && runtime.getPendingFirstLane() > 0
+                && (isDarkBoss(boss) || isEgyptBoss(boss))) {
             float duration = Math.max(0.1f,
                     (runtime.getStateUntilTick() - runtime.getActionStartTick()) / 10f);
             float alpha = MathUtils.clamp(actionTime / duration, 0f, 1f);
@@ -230,7 +231,8 @@ public final class BossRenderSystem {
             double to = runtime.getPendingFirstLane() + 0.5;
             return from + (to - from) * alpha;
         }
-        if (boss.getAction() == BossAction.SPAWN_ZOMBIES && !runtime.getSummonTargets().isEmpty()) {
+        if (isDarkBoss(boss) && boss.getAction() == BossAction.SPAWN_ZOMBIES
+                && !runtime.getSummonTargets().isEmpty()) {
             float duration = Math.max(0.1f,
                     (runtime.getStateUntilTick() - runtime.getActionStartTick()) / 10f);
             float phase = MathUtils.clamp(actionTime / duration, 0f, 1f);
@@ -338,7 +340,9 @@ public final class BossRenderSystem {
             return clip.endsWith("loop");
         }
         return boss.getState() == BossState.ACTION
-                && (visualClip(boss).endsWith("loop") || visualClip(boss).equals("fire_attack_idle"));
+                && (visualClip(boss).endsWith("loop")
+                || visualClip(boss).equals("fire_attack_idle")
+                || visualClip(boss).startsWith("walk_"));
     }
 
     private String stunClip(Boss boss) {
@@ -568,17 +572,19 @@ public final class BossRenderSystem {
 
     private void renderTurbine(Batch batch, Boss boss) {
         for (int lane : new int[]{boss.getFirstLane(), boss.getSecondLane()}) {
-            Vector2 p = geometry.entityToScreen(6.3, lane);
-            animations.draw(batch, TURBINE_PATH, "animation", stageTime,
-                    p.x, p.y, TURBINE_SCALE, true);
+            for (float column = 2.2f; column <= 7.4f; column += 1.6f) {
+                Vector2 p = geometry.entityToScreen(column, lane);
+                animations.draw(batch, TURBINE_PATH, "animation", stageTime + column * 0.08f,
+                        p.x, p.y, TURBINE_SCALE, true);
+            }
         }
         if (runtime.getActionStage() < 1) {
             return;
         }
         for (Position target : runtime.getTurbineVictimPositions()) {
-            Vector2 p = geometry.boardToScreen(target.getY(), target.getX());
+            Vector2 p = geometry.entityToScreen(target.getX(), target.getY());
             animations.draw(batch, PULLED_PATH, "animation2", stageTime,
-                    p.x, p.y, 0.58f, true);
+                    p.x, p.y, 0.62f, true);
         }
     }
 

@@ -2,44 +2,21 @@ package controllers.core;
 
 import boss.core.BossCatalog;
 import boss.core.BossRuntime;
-import controllers.features.TravelLogController;
 import models.account.Collection;
 import models.account.News;
 import models.account.PlantData;
-import models.account.Quest;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
 import controllers.auth.AuthController;
 import models.account.User;
-import models.core.plant.DefaultPlantRegistry;
-import models.core.plant.Plant;
-import models.core.plant.PlantRegistry;
 import models.core.plant.PlantType;
-import models.core.zombie.Armor;
 import models.core.zombie.DefaultZombieRegistry;
-import models.core.zombie.Zombie;
-import models.core.zombie.ZombieFactory;
 import models.core.zombie.ZombieRegistry;
 import models.core.zombie.ZombieType;
-import models.engine.board.Board;
-import models.engine.board.Lane;
-import models.engine.board.Position;
-import models.engine.board.Tile;
-import models.engine.board.TileType;
-import models.engine.events.GameEvent;
-import models.engine.session.GameSession;
-import models.engine.session.GameState;
-import models.engine.session.PlantRechargeStatus;
-import models.engine.sun.Sun;
 import models.level.core.AdventureContentCatalog;
 import models.level.core.AdventureLevelCatalog;
 import models.level.core.AdventureChapterConfigurator;
 import models.level.core.Level;
 import models.level.core.LevelType;
-import models.level.core.SeasonType;
 import models.level.rules.LevelRule;
-import models.level.rules.LevelRuntimeContext;
 import models.level.rules.NoSpecialRule;
 import models.level.rules.SpecialLevelType;
 import models.level.rules.impl.ConveyorBeltRule;
@@ -56,12 +33,8 @@ import models.level.wave.WaveManager;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Locale;
-import java.util.Set;
-
 
 abstract class GameControllerLevelSupport extends GameControllerStatusSupport {
     protected GameControllerLevelSupport(AuthController authController) {
@@ -72,13 +45,17 @@ abstract class GameControllerLevelSupport extends GameControllerStatusSupport {
             User user, String chapterName, int levelNumber
     ) {
         AdventureUnlockSummary summary = new AdventureUnlockSummary();
-        if (user == null) return summary;
+        if (user == null) {
+            return summary;
+        }
         Collection collection = user.getCollection();
         ZombieRegistry zombieRegistry = DefaultZombieRegistry.getInstance();
         boolean changed = registerAdventureEntries(collection, zombieRegistry);
         changed |= unlockPlants(user, collection, summary, chapterName, levelNumber);
         changed |= unlockZombies(user, collection, summary, chapterName, levelNumber, zombieRegistry);
-        if (changed) saveUsers();
+        if (changed) {
+            saveUsers();
+        }
         return summary;
     }
 
@@ -116,7 +93,9 @@ abstract class GameControllerLevelSupport extends GameControllerStatusSupport {
                 chapterName, levelNumber, plantRegistry
         ));
         for (String name : names) {
-            if (collection.hasOwnedPlant(name) || !collection.unlockPlant(name)) continue;
+            if (collection.hasOwnedPlant(name) || !collection.unlockPlant(name)) {
+                continue;
+            }
             summary.plantNames.add(name);
             user.addNews(News.plantUnlocked(name));
             changed = true;
@@ -135,14 +114,15 @@ abstract class GameControllerLevelSupport extends GameControllerStatusSupport {
         boolean changed = false;
         for (String name : AdventureContentCatalog.zombieNamesUnlockedThrough(
                 chapterName, levelNumber, registry)) {
-            if (collection.hasOwnedZombie(name) || !collection.unlockZombie(name)) continue;
+            if (collection.hasOwnedZombie(name) || !collection.unlockZombie(name)) {
+                continue;
+            }
             summary.zombieNames.add(name);
             user.addNews(News.zombieDiscovered(name));
             changed = true;
         }
         return changed;
     }
-
 
     protected static final class AdventureUnlockSummary {
         protected final List<String> plantNames = new ArrayList<>();
@@ -313,7 +293,6 @@ abstract class GameControllerLevelSupport extends GameControllerStatusSupport {
         }
         return ownedPlants;
     }
-
 
     private boolean isDebugModeEnabled(User user) {
         return user != null

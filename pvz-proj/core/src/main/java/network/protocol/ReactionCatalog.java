@@ -47,9 +47,13 @@ public final class ReactionCatalog {
 
     /** Returns the canonical wire value or null when the value is not allowed. */
     public static String canonicalValue(ReactionCategory category, String value) {
-        if (category == null || value == null) return null;
+        if (category == null || value == null) {
+            return null;
+        }
         String trimmed = value.trim();
-        if (trimmed.isEmpty() || trimmed.length() > 64) return null;
+        if (trimmed.isEmpty() || trimmed.length() > 64) {
+            return null;
+        }
         return switch (category) {
             case TEXT -> canonicalText(trimmed);
             case EMOJI -> canonicalToken(EMOJIS, trimmed);
@@ -63,7 +67,9 @@ public final class ReactionCatalog {
 
     private static String canonicalText(String value) {
         for (String candidate : TEXTS) {
-            if (candidate.equalsIgnoreCase(value)) return candidate;
+            if (candidate.equalsIgnoreCase(value)) {
+                return candidate;
+            }
         }
         return null;
     }
@@ -71,7 +77,9 @@ public final class ReactionCatalog {
     private static String canonicalToken(List<String> allowed, String value) {
         String normalized = value.toUpperCase(Locale.ROOT).replace(' ', '_');
         for (String candidate : allowed) {
-            if (candidate.equals(normalized)) return candidate;
+            if (candidate.equals(normalized)) {
+                return candidate;
+            }
         }
         return null;
     }

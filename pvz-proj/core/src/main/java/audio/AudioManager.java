@@ -69,6 +69,14 @@ public final class AudioManager implements Disposable {
         playMusic(AudioCue.MENU_MUSIC);
     }
 
+    public void stopMusic() {
+        if (currentMusic != null) {
+            currentMusic.stop();
+        }
+        currentMusic = null;
+        currentMusicCue = null;
+    }
+
     public void playMiniGameMusic() {
         playMusic(AudioCue.MENU_MUSIC);
     }
@@ -215,6 +223,7 @@ public final class AudioManager implements Disposable {
         refreshSettings();
         Music nextMusic = musicTracks.get(cue);
         if (nextMusic == null) {
+            stopMusic();
             return;
         }
 

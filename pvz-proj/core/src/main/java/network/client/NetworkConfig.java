@@ -17,9 +17,13 @@ public final class NetworkConfig {
 
     public static NetworkConfig fromEnvironment() {
         String host = System.getProperty("pvz.server.host");
-        if (host == null || host.isBlank()) host = System.getenv("PVZ_SERVER_HOST");
+        if (host == null || host.isBlank()) {
+            host = System.getenv("PVZ_SERVER_HOST");
+        }
         String portText = System.getProperty("pvz.server.port");
-        if (portText == null || portText.isBlank()) portText = System.getenv("PVZ_SERVER_PORT");
+        if (portText == null || portText.isBlank()) {
+            portText = System.getenv("PVZ_SERVER_PORT");
+        }
         int port = DEFAULT_PORT;
         try { if (portText != null) port = Integer.parseInt(portText.trim()); }
         catch (NumberFormatException ignored) { }

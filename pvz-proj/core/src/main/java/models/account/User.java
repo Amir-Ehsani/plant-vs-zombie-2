@@ -2,8 +2,6 @@ package models.account;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
-
 
 public class User extends UserProgress {
     public User(String username, String password, String nickname, String email, String gender) {

@@ -1,24 +1,14 @@
 package controllers.features;
 
 import controllers.auth.AuthController;
-import models.account.PlantData;
 import models.account.Quest;
 import models.account.User;
-import models.core.plant.DefaultPlantRegistry;
-import models.core.plant.PlantRegistry;
-import models.core.plant.PlantType;
-import models.engine.board.Position;
-import models.minigame.IZombieGame;
 import models.minigame.MiniGameSession;
-import models.minigame.MiniGameType;
-import models.minigame.VasebreakerGame;
-import models.minigame.WallNutBowlingGame;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
-
 
 abstract class TravelLogControllerQuestSupport extends TravelLogControllerCatalog {
     protected TravelLogControllerQuestSupport(AuthController authController) {
@@ -78,12 +68,24 @@ abstract class TravelLogControllerQuestSupport extends TravelLogControllerCatalo
     }
 
     protected int pagePriority(Quest quest) {
-        if (quest.matchesType("adventure")) return 1;
-        if (quest.matchesType("special")) return 2;
-        if (quest.matchesType("challenges")) return 3;
-        if (quest.matchesType("minigames")) return 4;
-        if (quest.matchesType("community")) return 5;
-        if (quest.matchesType("mystery")) return 6;
+        if (quest.matchesType("adventure")) {
+            return 1;
+        }
+        if (quest.matchesType("special")) {
+            return 2;
+        }
+        if (quest.matchesType("challenges")) {
+            return 3;
+        }
+        if (quest.matchesType("minigames")) {
+            return 4;
+        }
+        if (quest.matchesType("community")) {
+            return 5;
+        }
+        if (quest.matchesType("mystery")) {
+            return 6;
+        }
 
         return 100;
     }
@@ -97,10 +99,18 @@ abstract class TravelLogControllerQuestSupport extends TravelLogControllerCatalo
 
         String normalizedPriority = priority.trim().toLowerCase(Locale.ROOT);
 
-        if ("critical".equals(normalizedPriority) || "بحرانی".equals(normalizedPriority)) return 1;
-        if ("high".equals(normalizedPriority) || "بالا".equals(normalizedPriority)) return 2;
-        if ("medium".equals(normalizedPriority) || "متوسط".equals(normalizedPriority)) return 3;
-        if ("low".equals(normalizedPriority) || "کم".equals(normalizedPriority)) return 4;
+        if ("critical".equals(normalizedPriority) || "بحرانی".equals(normalizedPriority)) {
+            return 1;
+        }
+        if ("high".equals(normalizedPriority) || "بالا".equals(normalizedPriority)) {
+            return 2;
+        }
+        if ("medium".equals(normalizedPriority) || "متوسط".equals(normalizedPriority)) {
+            return 3;
+        }
+        if ("low".equals(normalizedPriority) || "کم".equals(normalizedPriority)) {
+            return 4;
+        }
 
         return 50;
     }

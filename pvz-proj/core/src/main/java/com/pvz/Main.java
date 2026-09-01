@@ -1,7 +1,10 @@
 package com.pvz;
 
-import com.badlogic.gdx.Game;
 import audio.AudioManager;
+import com.badlogic.gdx.Game;
+import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.Graphics;
+import com.badlogic.gdx.Input;
 import com.badlogic.gdx.Screen;
 import com.badlogic.gdx.scenes.scene2d.ui.Skin;
 import controllers.auth.AuthController;
@@ -39,6 +42,8 @@ public class Main extends Game {
     private ScreenManager screenManager;
     private NetworkManager networkManager;
     private NetworkCoordinator networkCoordinator;
+    private int windowedWidth;
+    private int windowedHeight;
 
     @Override
     public void create() {
@@ -58,6 +63,8 @@ public class Main extends Game {
         travelLogController = new TravelLogController(authController);
         screenManager = new ScreenManager(this);
         networkCoordinator = new NetworkCoordinator(this, networkManager);
+        windowedWidth = 1280;
+        windowedHeight = 720;
         screenManager.showInitialScreen();
         if (audioManager != null) {
             audioManager.playMenuMusic();
@@ -66,10 +73,28 @@ public class Main extends Game {
 
     @Override
     public void render() {
+        handleFullscreenToggle();
         if (animationService != null) {
             animationService.update();
         }
         super.render();
+    }
+
+    private void handleFullscreenToggle() {
+        if (Gdx.graphics == null || Gdx.input == null
+                || !Gdx.input.isKeyJustPressed(Input.Keys.F11)) {
+            return;
+        }
+        if (Gdx.graphics.isFullscreen()) {
+            Gdx.graphics.setWindowedMode(windowedWidth, windowedHeight);
+            return;
+        }
+        windowedWidth = Math.max(640, Gdx.graphics.getWidth());
+        windowedHeight = Math.max(360, Gdx.graphics.getHeight());
+        Graphics.DisplayMode displayMode = Gdx.graphics.getDisplayMode();
+        if (displayMode != null) {
+            Gdx.graphics.setFullscreenMode(displayMode);
+        }
     }
 
     @Override

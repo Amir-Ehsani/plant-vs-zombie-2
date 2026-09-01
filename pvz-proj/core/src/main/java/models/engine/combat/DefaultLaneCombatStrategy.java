@@ -2,29 +2,20 @@ package models.engine.combat;
 
 import models.core.plant.Plant;
 import models.core.projectile.Damage;
-import models.core.zombie.Armor;
 import models.core.zombie.Zombie;
-import models.core.zombie.ZombieFactory;
-import models.core.zombie.ZombieType;
 import models.engine.board.Board;
 import models.engine.board.Lane;
 import models.engine.board.Position;
 import models.engine.board.Tile;
-import models.engine.board.TileType;
 import models.engine.events.GameEvent;
-import models.entities.LawnMower;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.IdentityHashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Random;
 import java.util.Set;
-
 
 public class DefaultLaneCombatStrategy extends LaneCombatPlantSupport implements LaneCombatStrategy {
     private static final int OCTOPUS_BREAK_STEP_TICKS = 3 * TICKS_PER_SECOND;
@@ -42,7 +33,9 @@ public class DefaultLaneCombatStrategy extends LaneCombatPlantSupport implements
 
     @Override
     public LaneTickResult updateLane(Lane lane) {
-        if (lane == null) throw new IllegalArgumentException("Lane cannot be null.");
+        if (lane == null) {
+            throw new IllegalArgumentException("Lane cannot be null.");
+        }
         List<Zombie> zombiesAtStart = collectZombiesAtTickStart(lane);
         List<Zombie> livingAtStart = new ArrayList<>();
         for (Zombie zombie : zombiesAtStart) {
@@ -60,7 +53,9 @@ public class DefaultLaneCombatStrategy extends LaneCombatPlantSupport implements
         boolean mowerTriggered = mowerWasReady && lane.getLawnMower().isTriggered();
         int plantsDestroyed = removeDeadPlants(lane, consumedPlants, plantPositions, events);
         int zombiesKilled = appendZombieDeathEvents(zombiesAtStart, mowerKilled, events);
-        if (mowerTriggered) appendMowerEvent(lane, mowerKilled, events);
+        if (mowerTriggered) {
+            appendMowerEvent(lane, mowerKilled, events);
+        }
         redistributeLivingZombies(lane, livingAtStart);
         return new LaneTickResult(
                 zombiesKilled, plantsDestroyed, mowerTriggered,
@@ -88,7 +83,9 @@ public class DefaultLaneCombatStrategy extends LaneCombatPlantSupport implements
         mowerKilledSet.addAll(mowerKilled);
         int killed = 0;
         for (Zombie zombie : zombiesAtStart) {
-            if (zombie.isAlive()) continue;
+            if (zombie.isAlive()) {
+                continue;
+            }
             killed++;
             events.add(GameEvent.zombieKilled(zombie, mowerKilledSet.contains(zombie)));
         }
@@ -97,10 +94,11 @@ public class DefaultLaneCombatStrategy extends LaneCombatPlantSupport implements
 
     private void appendMowerEvent(Lane lane, List<Zombie> mowerKilled, List<GameEvent> events) {
         List<String> killedNames = new ArrayList<>();
-        for (Zombie zombie : mowerKilled) killedNames.add(zombie.getName());
+        for (Zombie zombie : mowerKilled) {
+            killedNames.add(zombie.getName());
+        }
         events.add(GameEvent.lawnMowerTriggered(lane.getLaneId(), killedNames));
     }
-
 
     public void handleExternalZombieDeath(Zombie zombie) {
         if (zombie != null && !zombie.isAlive()) {

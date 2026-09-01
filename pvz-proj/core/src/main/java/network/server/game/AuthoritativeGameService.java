@@ -63,25 +63,33 @@ public final class AuthoritativeGameService implements AutoCloseable {
     }
 
     public void start() {
-        if (!started.compareAndSet(false, true)) return;
+        if (!started.compareAndSet(false, true)) {
+            return;
+        }
         ticker.scheduleAtFixedRate(this::tickAll, TICK_MILLIS, TICK_MILLIS, TimeUnit.MILLISECONDS);
     }
 
     /** Called by matchmaking only after both clients have received MATCH_STARTED. */
     public void startMatch(MatchTicket ticket) {
-        if (ticket == null) return;
+        if (ticket == null) {
+            return;
+        }
         AuthoritativeIZombieGame game = new AuthoritativeIZombieGame(
                 ticket.getPlantsUsername(), ticket.getZombiesUsername(), ticket.getStage());
         RunningMatch running = new RunningMatch(ticket, game);
         RunningMatch previous = runningMatches.putIfAbsent(ticket.getMatchId(), running);
-        if (previous != null) return;
+        if (previous != null) {
+            return;
+        }
         broadcastSnapshot(running, game.snapshot());
         server.log("authoritative game attached to match " + ticket.getMatchId());
     }
 
     /** Removes simulation state when matchmaking terminates a match because a socket/session vanished. */
     public void abandonMatch(String matchId) {
-        if (matchId == null) return;
+        if (matchId == null) {
+            return;
+        }
         runningMatches.remove(matchId);
         server.getReactionService().clearMatch(matchId);
     }
@@ -106,18 +114,24 @@ public final class AuthoritativeGameService implements AutoCloseable {
         ActionResult result;
         switch (action) {
             case "LOCK_PLANTS" -> {
-                if (role != GameRole.PLANTS) throw new IllegalArgumentException("only the plant player can choose plants");
+                if (role != GameRole.PLANTS) {
+                    throw new IllegalArgumentException("only the plant player can choose plants");
+                }
                 result = running.game.lockPlants(username, splitCsv(request.get("plants")));
             }
             case "PLACE_PLANT" -> {
-                if (role != GameRole.PLANTS) throw new IllegalArgumentException("only the plant player can place plants");
+                if (role != GameRole.PLANTS) {
+                    throw new IllegalArgumentException("only the plant player can place plants");
+                }
                 result = running.game.placePlant(username,
                         required(request, "type", "plant type is required"),
                         request.getInt("row", Integer.MIN_VALUE),
                         request.getInt("column", Integer.MIN_VALUE));
             }
             case "SPAWN_ZOMBIE" -> {
-                if (role != GameRole.ZOMBIES) throw new IllegalArgumentException("only the zombie player can release zombies");
+                if (role != GameRole.ZOMBIES) {
+                    throw new IllegalArgumentException("only the zombie player can release zombies");
+                }
                 result = running.game.spawnZombie(username,
                         required(request, "type", "zombie type is required"),
                         request.getInt("row", Integer.MIN_VALUE));
@@ -126,7 +140,9 @@ public final class AuthoritativeGameService implements AutoCloseable {
             default -> throw new IllegalArgumentException("unsupported match action: " + action);
         }
 
-        if (!result.wasSuccessful()) throw new IllegalArgumentException(result.getMessage());
+        if (!result.wasSuccessful()) {
+            throw new IllegalArgumentException(result.getMessage());
+        }
         GameSnapshot snapshot = result.getSnapshot() == null ? running.game.snapshot() : result.getSnapshot();
         broadcastSnapshot(running, snapshot);
         running.lastSnapshotBroadcastAt = System.currentTimeMillis();
@@ -177,9 +193,13 @@ public final class AuthoritativeGameService implements AutoCloseable {
     }
 
     private void finishRunningMatch(RunningMatch running, GameRole winner, String reason) {
-        if (running == null || winner == null) return;
+        if (running == null || winner == null) {
+            return;
+        }
         String matchId = running.ticket.getMatchId();
-        if (!runningMatches.remove(matchId, running)) return;
+        if (!runningMatches.remove(matchId, running)) {
+            return;
+        }
         server.getReactionService().clearMatch(matchId);
         running.game.forceFinish(winner, reason);
         GameSnapshot snapshot = running.game.snapshot();
@@ -215,20 +235,28 @@ public final class AuthoritativeGameService implements AutoCloseable {
 
     private String requireAuthenticated(ClientConnection client, NetworkMessage request) {
         String username = sessions.authenticate(client, request.getSessionToken());
-        if (username == null) throw new IllegalArgumentException("authentication required or session expired");
+        if (username == null) {
+            throw new IllegalArgumentException("authentication required or session expired");
+        }
         return username;
     }
 
     private RunningMatch requireRunningMatch(String matchId) {
-        if (matchId == null || matchId.isBlank()) throw new IllegalArgumentException("match id is required");
+        if (matchId == null || matchId.isBlank()) {
+            throw new IllegalArgumentException("match id is required");
+        }
         RunningMatch running = runningMatches.get(matchId);
-        if (running == null) throw new IllegalArgumentException("match is not active");
+        if (running == null) {
+            throw new IllegalArgumentException("match is not active");
+        }
         return running;
     }
 
     private static String required(NetworkMessage request, String key, String message) {
         String value = request == null ? null : request.get(key);
-        if (value == null || value.isBlank()) throw new IllegalArgumentException(message);
+        if (value == null || value.isBlank()) {
+            throw new IllegalArgumentException(message);
+        }
         return value;
     }
 

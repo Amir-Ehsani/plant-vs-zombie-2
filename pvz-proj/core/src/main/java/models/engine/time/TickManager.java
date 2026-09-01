@@ -13,18 +13,19 @@ public class TickManager {
         this.paused = false;
     }
 
-    public int getCurrentTick(){
+    public int getCurrentTick() {
         return currentTick;
     }
 
-    public int getSpeedMultiplier(){
+    public int getSpeedMultiplier() {
         return speedMultiplier;
     }
 
-    public boolean isRunning(){
+    public boolean isRunning() {
         return running;
     }
-    public boolean isPaused(){
+
+    public boolean isPaused() {
         return paused;
     }
 

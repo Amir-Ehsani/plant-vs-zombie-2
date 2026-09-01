@@ -8,17 +8,8 @@ import models.account.Quest;
 import models.account.Settings;
 import models.account.User;
 
-import java.io.IOException;
-import java.lang.reflect.Field;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-
 
 abstract class SaveManagerWriter extends SaveManagerReader {
     protected String usersToJson(List<User> users) {
@@ -149,7 +140,6 @@ abstract class SaveManagerWriter extends SaveManagerReader {
 
         return builder.toString();
     }
-
 
     protected String intMapToJson(Map<String, Integer> values) {
         StringBuilder builder = new StringBuilder();

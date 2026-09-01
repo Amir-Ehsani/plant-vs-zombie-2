@@ -1,9 +1,7 @@
 package models.level.core;
 
-
 import boss.core.BossRuntime;
 import models.core.zombie.Zombie;
-import models.core.zombie.ZombieFactory;
 import models.engine.board.Board;
 import models.engine.board.GraveSpawnRules;
 import models.engine.board.Position;
@@ -14,7 +12,6 @@ import models.core.plant.PlantFactory;
 import models.engine.events.GameEvent;
 import models.level.rules.LevelRule;
 import models.level.rules.LevelRuntimeContext;
-import models.level.rules.NoSpecialRule;
 import models.level.rules.SpecialLevelType;
 import models.level.wave.Wave;
 import models.level.wave.WaveManager;
@@ -22,12 +19,10 @@ import models.level.wave.WaveManager;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Set;
-
 
 public class Level extends LevelState {
     private static final int NECROMANCY_EMERGE_TICKS = 10;
@@ -298,6 +293,9 @@ public class Level extends LevelState {
         return levelRule.startZombieWaves();
     }
 
+    public boolean allowsPlanting() {
+        return levelRule.allowsPlanting();
+    }
 
     public void setTerrainTile(Position position, TileType tileType) {
         if (status != LevelStatus.NOT_STARTED) {
@@ -532,7 +530,6 @@ public class Level extends LevelState {
     public Board getBoard() {
         return board;
     }
-
 
     private void ensureConfigurable() {
         if (status != LevelStatus.NOT_STARTED) {

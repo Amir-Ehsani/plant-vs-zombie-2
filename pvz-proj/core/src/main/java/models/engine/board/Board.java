@@ -12,11 +12,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.List;
-import java.util.Locale;
-import java.util.Map;
 import java.util.Set;
-import java.util.Random;
-
 
 public class Board extends BoardSupport {
     public Board() {
@@ -167,7 +163,9 @@ public class Board extends BoardSupport {
         for (Lane lane : lanes) {
             for (Tile tile : lane.getTiles()) {
                 for (Plant plant : new ArrayList<>(tile.getPlants())) {
-                    if (plant == null || plant.isAlive()) continue;
+                    if (plant == null || plant.isAlive()) {
+                        continue;
+                    }
                     combatStrategy.handleExternalPlantDeath(plant, tile.getPosition(), events);
                     if (tile.removePlant(plant)) {
                         removed++;
@@ -185,7 +183,9 @@ public class Board extends BoardSupport {
         for (Lane lane : lanes) {
             for (Tile tile : lane.getTiles()) {
                 for (Zombie zombie : new ArrayList<>(tile.getZombies())) {
-                    if (zombie == null || zombie.isAlive()) continue;
+                    if (zombie == null || zombie.isAlive()) {
+                        continue;
+                    }
                     combatStrategy.handleExternalZombieDeath(zombie);
                     tile.removeZombie(zombie);
                     lastSlipperyTileByZombie.remove(zombie);
@@ -198,7 +198,6 @@ public class Board extends BoardSupport {
         }
         return removed;
     }
-
 
     public BoardTickResult damageZombiesInArea(
             Position center,

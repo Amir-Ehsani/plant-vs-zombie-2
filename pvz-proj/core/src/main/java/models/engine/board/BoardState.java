@@ -1,22 +1,14 @@
 package models.engine.board;
 
 import models.core.plant.Plant;
-import models.core.projectile.Damage;
 import models.core.zombie.Zombie;
 import models.engine.events.GameEvent;
 import models.engine.combat.BoardTickResult;
 import models.engine.combat.DefaultLaneCombatStrategy;
-import models.engine.combat.LaneTickResult;
 
-import java.util.ArrayList;
 import java.util.Collections;
-import java.util.IdentityHashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
-import java.util.Set;
-import java.util.Random;
-
 
 abstract class BoardState {
     protected static final int DEFAULT_WIDTH = 9;
@@ -39,7 +31,6 @@ abstract class BoardState {
     protected boolean frostbiteMechanicsAllowed;
     protected BoardResourceHandler resourceHandler;
     protected List<GameEvent> terrainEvents;
-
 
     public int getWidth() {
         return width;

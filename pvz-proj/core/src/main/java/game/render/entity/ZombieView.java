@@ -638,7 +638,8 @@ public final class ZombieView extends EntityView<Zombie> {
         if (entity.getType().hasTag("stationary") || isMovementBlocked(effects)) {
             return profile.firstClip("idle", "walk", "eat", "play");
         }
-        if (stationaryTime >= EATING_DELAY && isChewingLivingPlant(board)) {
+        if (hasEffect(effects, "eating")
+                || (stationaryTime >= EATING_DELAY && isChewingLivingPlant(board))) {
             return profile.firstClip("eat", "idle", "walk", "play");
         }
         if (stationaryTime >= EATING_DELAY) {

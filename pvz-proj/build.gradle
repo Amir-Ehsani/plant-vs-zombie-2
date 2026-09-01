@@ -28,8 +28,29 @@ allprojects {
 
 configure(subprojects) {
   apply plugin: 'java-library'
+  apply plugin: 'checkstyle'
   java.sourceCompatibility = 17
   java.targetCompatibility = 17
+
+  checkstyle {
+    toolVersion = '10.17.0'
+    configFile = rootProject.file('config/checkstyle/checkstyle.xml')
+    configDirectory = rootProject.file('config/checkstyle')
+    ignoreFailures = false
+    maxErrors = 0
+    maxWarnings = 0
+    showViolations = true
+  }
+
+  tasks.named('checkstyleMain').configure {
+    source = files('src/main/java')
+  }
+  tasks.withType(Checkstyle).configureEach {
+    reports {
+      xml.required = true
+      html.required = true
+    }
+  }
 
   // From https://lyze.dev/2021/04/29/libGDX-Internal-Assets-List/
   // The article can be helpful when using assets.txt in your project.
@@ -69,3 +90,25 @@ subprojects {
 }
 
 eclipse.project.name = 'plants-vs-zombies-failure' + '-parent'
+
+tasks.register('linter') {
+  group = 'verification'
+  description = 'Run Checkstyle on all modules. A perfect score is zero violations.'
+  dependsOn subprojects.collect { it.path + ':checkstyleMain' }
+  doLast {
+    int violations = 0
+    subprojects.each { project ->
+      def report = project.file('build/reports/checkstyle/main.xml')
+      if (!report.exists()) {
+        return
+      }
+      def matches = (report.getText('UTF-8') =~ /<error /)
+      violations += matches.size()
+    }
+    if (violations == 0) {
+      logger.lifecycle('Linter score: 100/100')
+    } else {
+      throw new GradleException("Linter score: 0/100 (" + violations + " Checkstyle violation(s))")
+    }
+  }
+}

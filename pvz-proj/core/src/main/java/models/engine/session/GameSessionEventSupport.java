@@ -1,44 +1,16 @@
 package models.engine.session;
 
-import models.core.plant.DefaultPlantRegistry;
-import models.core.plant.Plant;
-import models.core.plant.PlantFactory;
-import models.core.plant.PlantFood;
-import models.core.plant.PlantFoodContext;
-import models.core.plant.PlantRegistry;
 import models.core.plant.PlantType;
 import models.core.zombie.Zombie;
-import models.core.zombie.ZombieFactory;
-import models.engine.board.Board;
-import models.engine.board.BoardResourceHandler;
 import models.engine.board.Position;
-import models.engine.board.Tile;
-import models.engine.board.TileType;
 import models.engine.combat.BoardTickResult;
 import models.engine.events.GameEvent;
 import models.engine.events.GameEventType;
-import models.engine.sun.Sun;
-import models.engine.sun.SunManager;
 import models.engine.sun.SunType;
-import models.engine.time.TickManager;
-import models.level.core.Level;
-import models.level.core.Season;
-import models.level.rules.LevelRuntimeContext;
-import models.level.rules.impl.LockedPlantsRule;
 import models.level.wave.Wave;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.IdentityHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Locale;
-import java.util.Map;
 import java.util.Random;
-import java.util.Set;
-
 
 abstract class GameSessionEventSupport extends GameSessionState {
     protected GameSessionEventSupport() {
@@ -160,7 +132,6 @@ abstract class GameSessionEventSupport extends GameSessionState {
         }
     }
 
-
     private void applyTerrainReward(GameEvent event) {
         String reward = normalizeName(event.getEntityName());
         int amount = Math.max(1, event.getAmount());
@@ -262,7 +233,6 @@ abstract class GameSessionEventSupport extends GameSessionState {
             tickManager.getCurrentTick() + rechargeTicks
         );
     }
-
 
     public abstract boolean spawnPlantSun(Position position, int amount);
 

@@ -37,7 +37,9 @@ final class ZombiePartVisual {
     }
 
     void update(float delta) {
-        if (delta > 0f) elapsed += delta;
+        if (delta > 0f) {
+            elapsed += delta;
+        }
     }
 
     boolean isFinished() {

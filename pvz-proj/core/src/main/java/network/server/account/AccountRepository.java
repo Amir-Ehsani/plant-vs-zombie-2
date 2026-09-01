@@ -32,15 +32,23 @@ public final class AccountRepository {
 
     public static Path defaultFile() {
         String explicit = System.getProperty("pvz.server.accounts");
-        if (explicit == null || explicit.isBlank()) explicit = System.getenv("PVZ_SERVER_ACCOUNTS");
-        if (explicit != null && !explicit.isBlank()) return Paths.get(explicit.trim());
+        if (explicit == null || explicit.isBlank()) {
+            explicit = System.getenv("PVZ_SERVER_ACCOUNTS");
+        }
+        if (explicit != null && !explicit.isBlank()) {
+            return Paths.get(explicit.trim());
+        }
         return Paths.get("data", "server", "accounts.ser");
     }
 
     public synchronized boolean create(ServerAccount account) {
-        if (account == null) throw new IllegalArgumentException("account is required");
+        if (account == null) {
+            throw new IllegalArgumentException("account is required");
+        }
         String key = key(account.getUsername());
-        if (key == null || accounts.containsKey(key)) return false;
+        if (key == null || accounts.containsKey(key)) {
+            return false;
+        }
         accounts.put(key, account.copy());
         persist();
         return true;
@@ -58,9 +66,13 @@ public final class AccountRepository {
     }
 
     public synchronized void save(ServerAccount account) {
-        if (account == null || key(account.getUsername()) == null) throw new IllegalArgumentException("account is required");
+        if (account == null || key(account.getUsername()) == null) {
+            throw new IllegalArgumentException("account is required");
+        }
         String key = key(account.getUsername());
-        if (!accounts.containsKey(key)) throw new IllegalArgumentException("account no longer exists");
+        if (!accounts.containsKey(key)) {
+            throw new IllegalArgumentException("account no longer exists");
+        }
         accounts.put(key, account.copy());
         persist();
     }
@@ -68,8 +80,12 @@ public final class AccountRepository {
     public synchronized boolean rename(String oldUsername, ServerAccount renamed) {
         String oldKey = key(oldUsername);
         String newKey = renamed == null ? null : key(renamed.getUsername());
-        if (oldKey == null || newKey == null || !accounts.containsKey(oldKey)) return false;
-        if (!oldKey.equals(newKey) && accounts.containsKey(newKey)) return false;
+        if (oldKey == null || newKey == null || !accounts.containsKey(oldKey)) {
+            return false;
+        }
+        if (!oldKey.equals(newKey) && accounts.containsKey(newKey)) {
+            return false;
+        }
         accounts.remove(oldKey);
         accounts.put(newKey, renamed.copy());
         persist();
@@ -78,7 +94,9 @@ public final class AccountRepository {
 
     public synchronized List<ServerAccount> all() {
         List<ServerAccount> copy = new ArrayList<>(accounts.size());
-        for (ServerAccount account : accounts.values()) copy.add(account.copy());
+        for (ServerAccount account : accounts.values()) {
+            copy.add(account.copy());
+        }
         return copy;
     }
 
@@ -89,7 +107,9 @@ public final class AccountRepository {
     public synchronized ScoreUpdate updateMyPointIfHigher(String username, int score) {
         String accountKey = key(username);
         ServerAccount account = accountKey == null ? null : accounts.get(accountKey);
-        if (account == null) return null;
+        if (account == null) {
+            return null;
+        }
 
         int safeScore = Math.max(0, score);
         Integer previous = account.getMyPoint();
@@ -108,18 +128,28 @@ public final class AccountRepository {
     public record ScoreUpdate(Integer previousBest, Integer personalBest, boolean improved) { }
 
     private void load() {
-        if (!Files.exists(file)) return;
+        if (!Files.exists(file)) {
+            return;
+        }
         try {
-            if (Files.size(file) > MAX_STORE_BYTES) throw new IOException("account store is too large");
+            if (Files.size(file) > MAX_STORE_BYTES) {
+                throw new IOException("account store is too large");
+            }
             try (ObjectInputStream input = new ObjectInputStream(new BufferedInputStream(Files.newInputStream(file)))) {
                 input.setObjectInputFilter(info -> {
                     if (info.depth() > 24 || info.references() > 500_000 || info.streamBytes() > MAX_STORE_BYTES) {
                         return ObjectInputFilter.Status.REJECTED;
                     }
                     Class<?> type = info.serialClass();
-                    if (type == null) return ObjectInputFilter.Status.UNDECIDED;
-                    while (type.isArray()) type = type.getComponentType();
-                    if (type.isPrimitive()) return ObjectInputFilter.Status.ALLOWED;
+                    if (type == null) {
+                        return ObjectInputFilter.Status.UNDECIDED;
+                    }
+                    while (type.isArray()) {
+                        type = type.getComponentType();
+                    }
+                    if (type.isPrimitive()) {
+                        return ObjectInputFilter.Status.ALLOWED;
+                    }
                     String name = type.getName();
                     if (name.equals(ServerAccount.class.getName()) || name.equals(AccountStore.class.getName())
                             || name.startsWith("java.lang.") || name.startsWith("java.util.")) {
@@ -146,10 +176,14 @@ public final class AccountRepository {
     private void persist() {
         try {
             Path parent = file.toAbsolutePath().getParent();
-            if (parent != null) Files.createDirectories(parent);
+            if (parent != null) {
+                Files.createDirectories(parent);
+            }
             Path temp = file.resolveSibling(file.getFileName() + ".tmp");
             AccountStore store = new AccountStore();
-            for (ServerAccount account : accounts.values()) store.accounts.add(account.copy());
+            for (ServerAccount account : accounts.values()) {
+                store.accounts.add(account.copy());
+            }
             try (ObjectOutputStream output = new ObjectOutputStream(new BufferedOutputStream(Files.newOutputStream(temp)))) {
                 output.writeObject(store);
                 output.flush();
@@ -165,7 +199,9 @@ public final class AccountRepository {
     }
 
     private static String key(String username) {
-        if (username == null) return null;
+        if (username == null) {
+            return null;
+        }
         String trimmed = username.trim();
         return trimmed.isEmpty() ? null : trimmed.toLowerCase(Locale.ROOT);
     }

@@ -1,11 +1,8 @@
 package models.engine.session;
 
-import models.core.plant.DefaultPlantRegistry;
 import models.core.plant.Plant;
 import models.core.plant.PlantFactory;
 import models.core.plant.PlantFood;
-import models.core.plant.PlantFoodContext;
-import models.core.plant.PlantRegistry;
 import models.core.plant.PlantType;
 import models.core.zombie.Zombie;
 import models.core.zombie.ZombieFactory;
@@ -13,32 +10,15 @@ import models.engine.board.Board;
 import models.engine.board.BoardResourceHandler;
 import models.engine.board.Position;
 import models.engine.board.Tile;
-import models.engine.board.TileType;
 import models.engine.combat.BoardTickResult;
 import models.engine.events.GameEvent;
-import models.engine.events.GameEventType;
 import models.engine.sun.Sun;
 import models.engine.sun.SunManager;
 import models.engine.sun.SunType;
 import models.engine.time.TickManager;
-import models.level.core.Level;
-import models.level.core.Season;
 import models.level.rules.LevelRuntimeContext;
-import models.level.rules.impl.LockedPlantsRule;
-import models.level.wave.Wave;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.IdentityHashMap;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
 import java.util.Random;
-import java.util.Set;
-
 
 public class GameSession extends GameSessionPlantSupport {
     public GameSession() {
@@ -50,7 +30,9 @@ public class GameSession extends GameSessionPlantSupport {
     }
 
     public void initSession() {
-        if (isRunning()) throw new IllegalStateException("Game session is already running.");
+        if (isRunning()) {
+            throw new IllegalStateException("Game session is already running.");
+        }
         initializeRuntimeComponents();
         resetRuntimeCollections();
         totalSunAmount = currentLevel == null
@@ -89,7 +71,9 @@ public class GameSession extends GameSessionPlantSupport {
                 return sunManager.stealLooseSuns();
             }
             public void restoreSun(int amount) {
-                if (amount > 0) totalSunAmount += amount;
+                if (amount > 0) {
+                    totalSunAmount += amount;
+                }
             }
         };
     }
@@ -114,9 +98,13 @@ public class GameSession extends GameSessionPlantSupport {
         synchronizeLockedPlantSelection();
         tickManager.start();
         scheduleNextSkySun();
-        if (currentLevel != null) startCurrentLevel();
+        if (currentLevel != null) {
+            startCurrentLevel();
+        }
         state.setStatus(GameState.Status.RUNNING);
-        if (currentLevel != null) updateStateFromLevel();
+        if (currentLevel != null) {
+            updateStateFromLevel();
+        }
     }
 
     private void startCurrentLevel() {
@@ -127,7 +115,6 @@ public class GameSession extends GameSessionPlantSupport {
         recordTerrainSpawnEvents(currentLevel.drainTerrainSpawnedZombies());
         recordBoardEvents(board.stabilizeTerrain());
     }
-
 
     public void updateSession() {
         if (!isRunning() || tickManager.isPaused()) {
@@ -198,6 +185,9 @@ public class GameSession extends GameSessionPlantSupport {
             return false;
         }
 
+        if (currentLevel != null && !currentLevel.allowsPlanting()) {
+            return false;
+        }
         PlantType type = getPlantType(plantName);
         if (type == null || !isPlantSelected(plantName)) {
             return false;
@@ -226,6 +216,9 @@ public class GameSession extends GameSessionPlantSupport {
 
     public boolean plantImitater(String copiedPlantName, Position position) {
         if (!isRunning() || copiedPlantName == null || position == null) {
+            return false;
+        }
+        if (currentLevel != null && !currentLevel.allowsPlanting()) {
             return false;
         }
 

@@ -387,12 +387,24 @@ public final class ProjectileRenderSystem {
             double dx = zombie.x - plant.getX();
             int dy = (int) Math.round(zombie.y - plant.getY());
             int direction = -1;
-            if (dy == 0 && dx >= 0) direction = 0;
-            else if (dy < 0 && dx >= 0) direction = 1;
-            else if (dy > 0 && dx >= 0) direction = 2;
-            else if (dy < 0 && dx < 0) direction = 3;
-            else if (dy > 0 && dx < 0) direction = 4;
-            if (direction < 0) continue;
+            if (dy == 0 && dx >= 0) {
+                direction = 0;
+            }
+            else if (dy < 0 && dx >= 0) {
+                direction = 1;
+            }
+            else if (dy > 0 && dx >= 0) {
+                direction = 2;
+            }
+            else if (dy < 0 && dx < 0) {
+                direction = 3;
+            }
+            else if (dy > 0 && dx < 0) {
+                direction = 4;
+            }
+            if (direction < 0) {
+                continue;
+            }
             double distance = Math.hypot(dx, dy);
             if (distance < distances[direction]) {
                 distances[direction] = distance;
@@ -401,7 +413,9 @@ public final class ProjectileRenderSystem {
         }
         List<ZombieSnapshot> result = new ArrayList<>();
         for (ZombieSnapshot target : selected) {
-            if (target != null && !result.contains(target)) result.add(target);
+            if (target != null && !result.contains(target)) {
+                result.add(target);
+            }
         }
         return result;
     }
@@ -412,26 +426,38 @@ public final class ProjectileRenderSystem {
         int lane = (int) Math.round(plant.getY());
         List<ZombieSnapshot> result = new ArrayList<>();
         ZombieSnapshot first = nearestTarget(zombies, plant, lane, false);
-        if (first == null) return result;
+        if (first == null) {
+            return result;
+        }
         result.add(first);
         int nextLane = lane - 1 >= 1 ? lane - 1 : lane + 1;
         ZombieSnapshot second = nearestToPoint(zombies, nextLane, first.x);
-        if (second != null) result.add(second);
+        if (second != null) {
+            result.add(second);
+        }
         int thirdLane = nextLane < lane ? nextLane + 1 : nextLane - 1;
-        if (thirdLane == lane) thirdLane = lane + (nextLane < lane ? 1 : -1);
+        if (thirdLane == lane) {
+            thirdLane = lane + (nextLane < lane ? 1 : -1);
+        }
         ZombieSnapshot third = nearestToPoint(zombies, thirdLane, second == null ? first.x : second.x);
-        if (third != null && !result.contains(third)) result.add(third);
+        if (third != null && !result.contains(third)) {
+            result.add(third);
+        }
         return result;
     }
 
     private ZombieSnapshot nearestToPoint(
         List<ZombieSnapshot> zombies, int lane, double x
     ) {
-        if (lane < 1 || lane > BoardGeometry.ROWS) return null;
+        if (lane < 1 || lane > BoardGeometry.ROWS) {
+            return null;
+        }
         ZombieSnapshot selected = null;
         double best = Double.MAX_VALUE;
         for (ZombieSnapshot zombie : zombies) {
-            if (zombie.lane != lane) continue;
+            if (zombie.lane != lane) {
+                continue;
+            }
             double distance = Math.abs(zombie.x - x);
             if (distance < best) {
                 best = distance;
@@ -494,8 +520,12 @@ public final class ProjectileRenderSystem {
         }
         if (normalize(plant.getName()).equals("bowling bulb")) {
             String clip = normalize(plant.getVisualAttackClip());
-            if (clip.equals("special2")) return ProjectileVisualType.BOWLING_MEDIUM;
-            if (clip.equals("special3")) return ProjectileVisualType.BOWLING_LARGE;
+            if (clip.equals("special2")) {
+                return ProjectileVisualType.BOWLING_MEDIUM;
+            }
+            if (clip.equals("special3")) {
+                return ProjectileVisualType.BOWLING_LARGE;
+            }
             return ProjectileVisualType.BOWLING_SMALL;
         }
         return resolveTorchwoodType(board, plant, target, baseType);
@@ -609,20 +639,38 @@ public final class ProjectileRenderSystem {
 
     private int resolveShotCount(Board board, Plant plant) {
         String name = normalize(plant.getName());
-        if (name.equals("repeater")) return 2;
-        if (name.equals("mega gatling pea")) return 4;
-        if (name.equals("rotobaga")) return 4;
-        if (name.equals("starfruit")) return 5;
-        if (name.equals("split pea")) return 3;
-        if (name.equals("bowling bulb")) return 1;
-        if (!name.equals("pea pod")) return 1;
+        if (name.equals("repeater")) {
+            return 2;
+        }
+        if (name.equals("mega gatling pea")) {
+            return 4;
+        }
+        if (name.equals("rotobaga")) {
+            return 4;
+        }
+        if (name.equals("starfruit")) {
+            return 5;
+        }
+        if (name.equals("split pea")) {
+            return 3;
+        }
+        if (name.equals("bowling bulb")) {
+            return 1;
+        }
+        if (!name.equals("pea pod")) {
+            return 1;
+        }
 
         Position position = new Position((int) Math.round(plant.getX()), (int) Math.round(plant.getY()));
         Tile tile = board.getTileAt(position);
-        if (tile == null) return 1;
+        if (tile == null) {
+            return 1;
+        }
         int count = 0;
         for (Plant layer : tile.getPlants()) {
-            if (normalize(layer.getName()).equals("pea pod")) count++;
+            if (normalize(layer.getName()).equals("pea pod")) {
+                count++;
+            }
         }
         return Math.max(1, count);
     }

@@ -17,7 +17,9 @@ final class NetworkSessionStore {
 
     private static Path file() {
         String explicit = System.getProperty("pvz.network.sessionFile");
-        if (explicit == null || explicit.isBlank()) explicit = System.getenv("PVZ_NETWORK_SESSION_FILE");
+        if (explicit == null || explicit.isBlank()) {
+            explicit = System.getenv("PVZ_NETWORK_SESSION_FILE");
+        }
         return explicit == null || explicit.isBlank()
                 ? Paths.get("data", "network-session.properties")
                 : Paths.get(explicit.trim());
@@ -25,7 +27,9 @@ final class NetworkSessionStore {
 
     static SavedSession load() {
         Path file = file();
-        if (!Files.exists(file)) return null;
+        if (!Files.exists(file)) {
+            return null;
+        }
         Properties properties = new Properties();
         try (InputStream input = Files.newInputStream(file)) {
             properties.load(input);
@@ -44,7 +48,9 @@ final class NetworkSessionStore {
         }
         Path file = file();
         Path parent = file.toAbsolutePath().getParent();
-        if (parent != null) Files.createDirectories(parent);
+        if (parent != null) {
+            Files.createDirectories(parent);
+        }
         Properties properties = new Properties();
         properties.setProperty("username", username);
         properties.setProperty("persistentToken", persistentToken);

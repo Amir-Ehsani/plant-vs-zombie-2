@@ -1,18 +1,13 @@
 package controllers.features;
 
 import controllers.auth.AuthController;
-import models.account.Collection;
-import models.account.Greenhouse;
 import models.account.IPurchasable;
 import models.account.PlantData;
 import models.account.User;
 
-import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
-import java.util.Random;
-
 
 public class ShopController extends ShopControllerBase {
     public ShopController() {
@@ -113,7 +108,6 @@ public class ShopController extends ShopControllerBase {
         return false;
     }
 
-
     public boolean canBuy(String itemId, int count, String plantType) {
         User user = getLoggedInUserOrFail();
         if (user == null) {
@@ -204,11 +198,17 @@ public class ShopController extends ShopControllerBase {
         }
         saveUsers();
         int remainingAmount = getRemainingAmount(user, item);
-        success("Purchased " + count + "x " + item.getName()
-                + ". Remaining amount: " + remainingAmount + ".");
+        if ("random_seed_packet".equals(item.getType()) && lastGrantedSeedPlantName != null
+                && !lastGrantedSeedPlantName.isBlank()) {
+            success("Purchased Random Seed Packet. You received "
+                    + (item.getUnitAmount() * count) + " seeds for "
+                    + lastGrantedSeedPlantName + ".");
+        } else {
+            success("Purchased " + count + "x " + item.getName()
+                    + ". Remaining amount: " + remainingAmount + ".");
+        }
         return true;
     }
-
 
     public static class ShopItem implements IPurchasable {
         protected final String id;

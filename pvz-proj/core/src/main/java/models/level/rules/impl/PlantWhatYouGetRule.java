@@ -80,6 +80,11 @@ public class PlantWhatYouGetRule extends AbstractLevelRule {
     }
 
     @Override
+    public boolean allowsPlanting() {
+        return !zombieWavesStarted;
+    }
+
+    @Override
     public boolean ignoresPlantRecharge() {
         return !zombieWavesStarted;
     }

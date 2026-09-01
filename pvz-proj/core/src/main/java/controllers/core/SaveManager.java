@@ -1,23 +1,12 @@
 package controllers.core;
 
-import models.account.Collection;
-import models.account.Greenhouse;
-import models.account.News;
-import models.account.PlantData;
-import models.account.Quest;
 import models.account.User;
 
 import java.io.IOException;
-import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import java.nio.file.Path;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
-
 
 public class SaveManager extends SaveManagerWriter {
     public void saveAllUsers(List<User> users) {

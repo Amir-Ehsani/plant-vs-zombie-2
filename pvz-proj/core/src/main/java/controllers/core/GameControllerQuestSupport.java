@@ -1,64 +1,14 @@
 package controllers.core;
 
-import controllers.features.TravelLogController;
-import models.account.Collection;
-import models.account.News;
-import models.account.PlantData;
-import models.account.Quest;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
 import controllers.auth.AuthController;
 import models.account.User;
-import models.core.plant.DefaultPlantRegistry;
-import models.core.plant.Plant;
-import models.core.plant.PlantRegistry;
 import models.core.plant.PlantType;
-import models.core.zombie.Armor;
-import models.core.zombie.DefaultZombieRegistry;
-import models.core.zombie.Zombie;
-import models.core.zombie.ZombieFactory;
-import models.core.zombie.ZombieRegistry;
-import models.core.zombie.ZombieType;
-import models.engine.board.Board;
-import models.engine.board.Lane;
 import models.engine.board.Position;
-import models.engine.board.Tile;
-import models.engine.board.TileType;
 import models.engine.events.GameEvent;
-import models.engine.session.GameSession;
 import models.engine.session.GameState;
-import models.engine.session.PlantRechargeStatus;
-import models.engine.sun.Sun;
-import models.level.core.AdventureContentCatalog;
 import models.level.core.AdventureLevelCatalog;
-import models.level.core.Level;
-import models.level.core.LevelType;
-import models.level.rules.LevelRule;
-import models.level.rules.LevelRuntimeContext;
-import models.level.rules.NoSpecialRule;
-import models.level.rules.SpecialLevelType;
-import models.level.rules.TimedWarObjective;
-import models.level.rules.impl.ConveyorBeltRule;
-import models.level.rules.impl.DeadLineRule;
-import models.level.rules.impl.LockedPlantsRule;
-import models.level.rules.impl.LoveYourPlantsRule;
-import models.level.rules.impl.NightOpsRule;
-import models.level.rules.impl.PlantWhatYouGetRule;
-import models.level.rules.impl.SaveOurSeedsRule;
-import models.level.rules.impl.TimedWarRule;
-import models.level.wave.AttackPattern;
-import models.level.wave.Wave;
-import models.level.wave.WaveManager;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Locale;
-import java.util.Set;
-
 
 abstract class GameControllerQuestSupport extends GameControllerQuestRules {
     protected GameControllerQuestSupport(AuthController authController) {
@@ -211,33 +161,47 @@ abstract class GameControllerQuestSupport extends GameControllerQuestRules {
 
     protected void updateFinishedStatsAndQuestsIfNeeded(StringBuilder builder) {
         appendFinishedState(builder);
-        if (!shouldRecordFinalStats()) return;
+        if (!shouldRecordFinalStats()) {
+            return;
+        }
         finalStatsRecorded = true;
         User user = getLoggedInUserOrFail();
-        if (user == null) return;
+        if (user == null) {
+            return;
+        }
         boolean won = gameSession.getState().getStatus() == GameState.Status.WON;
         CompletionUpdate update = updateAdventureCompletion(user, won);
         recordLeaderboardStats(user, won, update.newlyCompleted);
-        if (won) recordWinQuests(user);
-        else resetQuestProgress(user, "win_streak");
+        if (won) {
+            recordWinQuests(user);
+        }
+        else {
+            resetQuestProgress(user, "win_streak");
+        }
         saveUsers();
         appendSavedProgress(builder, won, update);
     }
 
     private boolean shouldRecordFinalStats() {
-        if (gameSession == null || gameSession.getState() == null || finalStatsRecorded) return false;
+        if (gameSession == null || gameSession.getState() == null || finalStatsRecorded) {
+            return false;
+        }
         GameState.Status status = gameSession.getState().getStatus();
         return status == GameState.Status.WON || status == GameState.Status.LOST;
     }
 
     private CompletionUpdate updateAdventureCompletion(User user, boolean won) {
         CompletionUpdate update = new CompletionUpdate();
-        if (!won) return update;
+        if (!won) {
+            return update;
+        }
         update.newlyCompleted = user.completeChapterLevel(currentChapterName, currentLevelNumber);
         int chapterLastLevel = AdventureLevelCatalog.lastRequiredLevel(currentChapterName);
         if (currentLevelNumber == chapterLastLevel) {
             update.unlockedChapter = AdventureLevelCatalog.nextChapter(currentChapterName);
-            if (update.unlockedChapter != null) user.unlockChapter(update.unlockedChapter);
+            if (update.unlockedChapter != null) {
+                user.unlockChapter(update.unlockedChapter);
+            }
         }
         return update;
     }
@@ -268,7 +232,6 @@ abstract class GameControllerQuestSupport extends GameControllerQuestRules {
         private boolean newlyCompleted;
         private String unlockedChapter;
     }
-
 
     protected void recordLeaderboardStats(User user, boolean won, boolean newlyCompleted) {
         user.increaseGamesPlayed();
@@ -312,22 +275,36 @@ abstract class GameControllerQuestSupport extends GameControllerQuestRules {
         if (cactusKillsThisLevel >= 10 && !anyNonCactusKillThisLevel) {
             travelLogController.completeQuest(user, "only_cactus");
         }
-        if (hasSingleKillingFamily()) travelLogController.completeQuest(user, "family_massacre");
+        if (hasSingleKillingFamily()) {
+            travelLogController.completeQuest(user, "family_massacre");
+        }
     }
 
     private void recordLayoutWinQuests(User user) {
-        if (isFinalLawnSymmetric()) travelLogController.completeQuest(user, "symmetry");
+        if (isFinalLawnSymmetric()) {
+            travelLogController.completeQuest(user, "symmetry");
+        }
         if (isFinalLawnNonSymmetricExceptMiddleRow()) {
             travelLogController.completeQuest(user, "anti_ocd");
         }
-        if (hasEmptyColumnByPlantHistory()) travelLogController.completeQuest(user, "one_less_column");
-        if (hasEmptyRowByPlantHistory()) travelLogController.completeQuest(user, "defenseless_row");
-        if (hasEmptyCrossByPlantHistory()) travelLogController.completeQuest(user, "defenseless_cross");
+        if (hasEmptyColumnByPlantHistory()) {
+            travelLogController.completeQuest(user, "one_less_column");
+        }
+        if (hasEmptyRowByPlantHistory()) {
+            travelLogController.completeQuest(user, "defenseless_row");
+        }
+        if (hasEmptyCrossByPlantHistory()) {
+            travelLogController.completeQuest(user, "defenseless_cross");
+        }
     }
 
     private void recordRestrictionWinQuests(User user) {
-        if (hasUnusedPlantFamily()) travelLogController.completeQuest(user, "bloom_under_limits");
-        if (usedOnlyMushroomPlants()) travelLogController.completeQuest(user, "night_or_morning");
+        if (hasUnusedPlantFamily()) {
+            travelLogController.completeQuest(user, "bloom_under_limits");
+        }
+        if (usedOnlyMushroomPlants()) {
+            travelLogController.completeQuest(user, "night_or_morning");
+        }
         if (sunProducerPlantsPlantedThisLevel == 3) {
             travelLogController.completeQuest(user, "cloudy_day");
         }
@@ -337,8 +314,6 @@ abstract class GameControllerQuestSupport extends GameControllerQuestRules {
             resetQuestProgress(user, "win_streak");
         }
     }
-
-
 
     protected abstract void appendFinishedState(StringBuilder builder);
 }

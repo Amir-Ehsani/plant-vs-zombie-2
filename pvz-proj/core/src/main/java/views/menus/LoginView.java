@@ -57,13 +57,21 @@ public class LoginView extends BaseView {
     }
 
     private boolean handleForgetPassword(String command) {
-        if (waitingForNewPassword) return handleNewPassword(command);
-        if (waitingForSecurityAnswer) return handleSecurityAnswer(command);
+        if (waitingForNewPassword) {
+            return handleNewPassword(command);
+        }
+        if (waitingForSecurityAnswer) {
+            return handleSecurityAnswer(command);
+        }
         Matcher matcher = FORGET_PASSWORD_PATTERN.matcher(command);
-        if (!matcher.matches()) return false;
+        if (!matcher.matches()) {
+            return false;
+        }
         authController.forgetPassword(matcher.group(1), matcher.group(2));
         printControllerMessage(authController.getLastMessage());
-        if (authController.wasSuccessful()) waitingForSecurityAnswer = true;
+        if (authController.wasSuccessful()) {
+            waitingForSecurityAnswer = true;
+        }
         return true;
     }
 

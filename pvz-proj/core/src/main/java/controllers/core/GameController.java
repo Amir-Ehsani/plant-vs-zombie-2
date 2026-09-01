@@ -1,64 +1,16 @@
 package controllers.core;
 
-import controllers.features.TravelLogController;
-import models.account.Collection;
-import models.account.News;
 import models.account.PlantData;
-import models.account.Quest;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
 import controllers.auth.AuthController;
 import models.account.User;
-import models.core.plant.DefaultPlantRegistry;
-import models.core.plant.Plant;
-import models.core.plant.PlantRegistry;
 import models.core.plant.PlantType;
-import models.core.zombie.Armor;
-import models.core.zombie.DefaultZombieRegistry;
-import models.core.zombie.Zombie;
-import models.core.zombie.ZombieFactory;
-import models.core.zombie.ZombieRegistry;
-import models.core.zombie.ZombieType;
-import models.engine.board.Board;
-import models.engine.board.Lane;
 import models.engine.board.Position;
-import models.engine.board.Tile;
-import models.engine.board.TileType;
 import models.engine.events.GameEvent;
 import models.engine.session.GameSession;
 import models.engine.session.GameState;
-import models.engine.session.PlantRechargeStatus;
-import models.engine.sun.Sun;
-import models.level.core.AdventureContentCatalog;
 import models.level.core.AdventureLevelCatalog;
-import models.level.core.Level;
-import models.level.core.LevelType;
-import models.level.rules.LevelRule;
-import models.level.rules.LevelRuntimeContext;
-import models.level.rules.NoSpecialRule;
-import models.level.rules.SpecialLevelType;
-import models.level.rules.TimedWarObjective;
-import models.level.rules.impl.ConveyorBeltRule;
-import models.level.rules.impl.DeadLineRule;
-import models.level.rules.impl.LockedPlantsRule;
-import models.level.rules.impl.LoveYourPlantsRule;
-import models.level.rules.impl.NightOpsRule;
-import models.level.rules.impl.PlantWhatYouGetRule;
-import models.level.rules.impl.SaveOurSeedsRule;
-import models.level.rules.impl.TimedWarRule;
-import models.level.wave.AttackPattern;
-import models.level.wave.Wave;
-import models.level.wave.WaveManager;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Locale;
-import java.util.Set;
-
 
 public class GameController extends GameControllerPlaySupport {
     public GameController(AuthController authController) {
@@ -98,9 +50,13 @@ public class GameController extends GameControllerPlaySupport {
 
     public void prepareChapterLevel(String chapterName, int levelNumber) {
         User user = getLoggedInUserOrFail();
-        if (user == null) return;
+        if (user == null) {
+            return;
+        }
         String chapter = validateChapterRequest(chapterName, levelNumber, user);
-        if (chapter == null) return;
+        if (chapter == null) {
+            return;
+        }
         AdventureUnlockSummary unlockSummary = synchronizeAdventureContent(user, chapter, levelNumber);
         GameSession session = new GameSession();
         session.setCurrentLevel(createAdventureLevel(chapter, levelNumber));
@@ -152,7 +108,6 @@ public class GameController extends GameControllerPlaySupport {
         success(prefix + ". Select up to " + currentPlantSelectionLimit()
                 + " unlocked plants before starting the game." + unlockSummary.asMessage());
     }
-
 
     public boolean shouldAutoStartCurrentLevel() {
         return hasPreparedSession() && gameSession.getCurrentLevel().usesConveyorBelt();
@@ -290,11 +245,17 @@ public class GameController extends GameControllerPlaySupport {
     }
 
     public void boostPlant(String plantName) {
-        if (!canChangePlantSelection("boost selected plants")) return;
+        if (!canChangePlantSelection("boost selected plants")) {
+            return;
+        }
         User user = getLoggedInUserOrFail();
-        if (user == null) return;
+        if (user == null) {
+            return;
+        }
         PlantType type = plantRegistry.getByName(plantName);
-        if (!validateBoostPlant(type)) return;
+        if (!validateBoostPlant(type)) {
+            return;
+        }
         String normalizedName = normalizeName(type.getName());
         if (boostedPlantNames.contains(normalizedName)) {
             fail("Plant is already boosted.");
@@ -333,7 +294,6 @@ public class GameController extends GameControllerPlaySupport {
         }
         return true;
     }
-
 
     public void startGame() {
         if (gameSession == null) {

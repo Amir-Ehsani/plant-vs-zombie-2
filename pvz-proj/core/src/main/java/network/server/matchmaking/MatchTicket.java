@@ -47,28 +47,46 @@ public final class MatchTicket {
     public long getCreatedAtEpochMillis() { return createdAtEpochMillis; }
 
     public GameRole roleOf(String username) {
-        if (username == null) return null;
-        if (plantsUsername.equalsIgnoreCase(username)) return GameRole.PLANTS;
-        if (zombiesUsername.equalsIgnoreCase(username)) return GameRole.ZOMBIES;
+        if (username == null) {
+            return null;
+        }
+        if (plantsUsername.equalsIgnoreCase(username)) {
+            return GameRole.PLANTS;
+        }
+        if (zombiesUsername.equalsIgnoreCase(username)) {
+            return GameRole.ZOMBIES;
+        }
         return null;
     }
 
     public GameRole roleOf(ClientConnection connection) {
-        if (connection == plantsConnection) return GameRole.PLANTS;
-        if (connection == zombiesConnection) return GameRole.ZOMBIES;
+        if (connection == plantsConnection) {
+            return GameRole.PLANTS;
+        }
+        if (connection == zombiesConnection) {
+            return GameRole.ZOMBIES;
+        }
         return null;
     }
 
     public String opponentOf(String username) {
         GameRole role = roleOf(username);
-        if (role == GameRole.PLANTS) return zombiesUsername;
-        if (role == GameRole.ZOMBIES) return plantsUsername;
+        if (role == GameRole.PLANTS) {
+            return zombiesUsername;
+        }
+        if (role == GameRole.ZOMBIES) {
+            return plantsUsername;
+        }
         return null;
     }
 
     public ClientConnection opponentConnection(ClientConnection connection) {
-        if (connection == plantsConnection) return zombiesConnection;
-        if (connection == zombiesConnection) return plantsConnection;
+        if (connection == plantsConnection) {
+            return zombiesConnection;
+        }
+        if (connection == zombiesConnection) {
+            return plantsConnection;
+        }
         return null;
     }
 
@@ -81,8 +99,14 @@ public final class MatchTicket {
     }
 
     void renameUsername(String oldUsername, String newUsername) {
-        if (oldUsername == null || newUsername == null) return;
-        if (plantsUsername.equalsIgnoreCase(oldUsername)) plantsUsername = newUsername;
-        if (zombiesUsername.equalsIgnoreCase(oldUsername)) zombiesUsername = newUsername;
+        if (oldUsername == null || newUsername == null) {
+            return;
+        }
+        if (plantsUsername.equalsIgnoreCase(oldUsername)) {
+            plantsUsername = newUsername;
+        }
+        if (zombiesUsername.equalsIgnoreCase(oldUsername)) {
+            zombiesUsername = newUsername;
+        }
     }
 }

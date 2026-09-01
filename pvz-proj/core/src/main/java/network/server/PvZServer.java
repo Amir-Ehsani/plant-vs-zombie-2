@@ -88,8 +88,12 @@ public final class PvZServer implements AutoCloseable {
 
     /** Starts accepting clients in a dedicated daemon thread. Safe to call once. */
     public synchronized void start() throws IOException {
-        if (running.get()) return;
-        if (stopped.getCount() == 0) throw new IOException("server instance cannot be restarted after shutdown");
+        if (running.get()) {
+            return;
+        }
+        if (stopped.getCount() == 0) {
+            throw new IOException("server instance cannot be restarted after shutdown");
+        }
 
         ServerSocket socket = new ServerSocket();
         socket.setReuseAddress(true);
@@ -124,22 +128,32 @@ public final class PvZServer implements AutoCloseable {
                 } catch (RuntimeException exception) {
                     connections.remove(connection);
                     connection.close();
-                    if (running.get()) log("could not start client handler: " + exception.getMessage());
+                    if (running.get()) {
+                        log("could not start client handler: " + exception.getMessage());
+                    }
                 }
             }
         } catch (SocketException exception) {
-            if (running.get()) log("server socket error: " + exception.getMessage());
+            if (running.get()) {
+                log("server socket error: " + exception.getMessage());
+            }
         } catch (IOException exception) {
-            if (running.get()) log("accept loop failed: " + exception.getMessage());
+            if (running.get()) {
+                log("accept loop failed: " + exception.getMessage());
+            }
         } finally {
-            if (running.get()) close();
+            if (running.get()) {
+                close();
+            }
         }
     }
 
     void connectionClosed(ClientConnection connection) {
         if (connection != null) {
             String username = sessionManager.usernameForConnection(connection);
-            if (username != null) matchmakingService.sessionEnded(username, connection, "disconnected");
+            if (username != null) {
+                matchmakingService.sessionEnded(username, connection, "disconnected");
+            }
             sessionManager.connectionClosed(connection);
         }
         if (connection != null && connections.remove(connection)) {
@@ -171,7 +185,11 @@ public final class PvZServer implements AutoCloseable {
 
     public int getConnectedClientCount() {
         int count = 0;
-        for (ClientConnection connection : connections) if (connection.isOpen()) count++;
+        for (ClientConnection connection : connections) {
+            if (connection.isOpen()) {
+                count++;
+            }
+        }
         return count;
     }
 
@@ -185,7 +203,9 @@ public final class PvZServer implements AutoCloseable {
 
     @Override
     public synchronized void close() {
-        if (!running.compareAndSet(true, false)) return;
+        if (!running.compareAndSet(true, false)) {
+            return;
+        }
 
         ServerSocket socket = serverSocket;
         serverSocket = null;
@@ -213,7 +233,9 @@ public final class PvZServer implements AutoCloseable {
         if (args != null && args.length > 0) {
             try {
                 int candidate = Integer.parseInt(args[0]);
-                if (candidate >= 1 && candidate <= 65_535) port = candidate;
+                if (candidate >= 1 && candidate <= 65_535) {
+                    port = candidate;
+                }
             } catch (NumberFormatException ignored) { }
         }
 

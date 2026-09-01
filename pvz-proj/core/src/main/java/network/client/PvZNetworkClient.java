@@ -51,8 +51,12 @@ public final class PvZNetworkClient implements AutoCloseable {
     private volatile long lastSentAtEpochMillis;
 
     public synchronized void connect(NetworkConfig config) throws IOException {
-        if (config == null) throw new IOException("network configuration is missing");
-        if (connected.get() && socket != null && socket.isConnected() && !socket.isClosed()) return;
+        if (config == null) {
+            throw new IOException("network configuration is missing");
+        }
+        if (connected.get() && socket != null && socket.isConnected() && !socket.isClosed()) {
+            return;
+        }
 
         closeTransport();
         clearEvents();
@@ -86,12 +90,20 @@ public final class PvZNetworkClient implements AutoCloseable {
     }
 
     public NetworkMessage request(NetworkMessage request, long timeoutMillis) throws Exception {
-        if (request == null) throw new IOException("network request is missing");
-        if (!connected.get()) throw new IOException("not connected to server");
-        if (sessionToken != null && request.getSessionToken() == null) request.sessionToken(sessionToken);
+        if (request == null) {
+            throw new IOException("network request is missing");
+        }
+        if (!connected.get()) {
+            throw new IOException("not connected to server");
+        }
+        if (sessionToken != null && request.getSessionToken() == null) {
+            request.sessionToken(sessionToken);
+        }
         CompletableFuture<NetworkMessage> future = new CompletableFuture<>();
         CompletableFuture<NetworkMessage> previous = pending.putIfAbsent(request.getRequestId(), future);
-        if (previous != null) throw new IOException("duplicate request id");
+        if (previous != null) {
+            throw new IOException("duplicate request id");
+        }
         try {
             send(request);
             return future.get(Math.max(250L, timeoutMillis), TimeUnit.MILLISECONDS);
@@ -105,9 +117,15 @@ public final class PvZNetworkClient implements AutoCloseable {
     }
 
     public synchronized void send(NetworkMessage message) throws IOException {
-        if (message == null) return;
-        if (!connected.get() || output == null) throw new IOException("not connected to server");
-        if (sessionToken != null && message.getSessionToken() == null) message.sessionToken(sessionToken);
+        if (message == null) {
+            return;
+        }
+        if (!connected.get() || output == null) {
+            throw new IOException("not connected to server");
+        }
+        if (sessionToken != null && message.getSessionToken() == null) {
+            message.sessionToken(sessionToken);
+        }
         try {
             output.writeObject(message);
             output.reset();
@@ -124,11 +142,17 @@ public final class PvZNetworkClient implements AutoCloseable {
             while (connected.get()) {
                 Object item = input.readObject();
                 lastReceivedAtEpochMillis = System.currentTimeMillis();
-                if (!(item instanceof NetworkMessage message)) continue;
+                if (!(item instanceof NetworkMessage message)) {
+                    continue;
+                }
                 String replyTo = message.getReplyTo();
                 CompletableFuture<NetworkMessage> future = replyTo == null ? null : pending.remove(replyTo);
-                if (future != null) future.complete(message);
-                else enqueueEvent(message);
+                if (future != null) {
+                    future.complete(message);
+                }
+                else {
+                    enqueueEvent(message);
+                }
             }
         } catch (EOFException exception) {
             disconnected("server closed the connection");
@@ -138,7 +162,9 @@ public final class PvZNetworkClient implements AutoCloseable {
     }
 
     private void enqueueEvent(NetworkMessage message) {
-        if (message == null) return;
+        if (message == null) {
+            return;
+        }
         events.add(message);
         int size = queuedEventCount.incrementAndGet();
         while (size > MAX_QUEUED_EVENTS) {
@@ -153,27 +179,35 @@ public final class PvZNetworkClient implements AutoCloseable {
 
     private void disconnected(String reason) {
         disconnectReason = reason == null || reason.isBlank() ? "connection lost" : reason;
-        if (!connected.compareAndSet(true, false)) return;
+        if (!connected.compareAndSet(true, false)) {
+            return;
+        }
         sessionToken = null;
         failPending(new IOException(disconnectReason));
         closeTransport();
     }
 
     private void failPending(IOException failure) {
-        for (CompletableFuture<NetworkMessage> future : pending.values()) future.completeExceptionally(failure);
+        for (CompletableFuture<NetworkMessage> future : pending.values()) {
+            future.completeExceptionally(failure);
+        }
         pending.clear();
     }
 
     public NetworkMessage pollEvent() {
         NetworkMessage message = events.poll();
-        if (message != null) queuedEventCount.updateAndGet(value -> Math.max(0, value - 1));
+        if (message != null) {
+            queuedEventCount.updateAndGet(value -> Math.max(0, value - 1));
+        }
         return message;
     }
 
     public List<NetworkMessage> drainEvents() {
         List<NetworkMessage> drained = new ArrayList<>();
         NetworkMessage message;
-        while ((message = pollEvent()) != null) drained.add(message);
+        while ((message = pollEvent()) != null) {
+            drained.add(message);
+        }
         return drained;
     }
 
@@ -211,13 +245,17 @@ public final class PvZNetworkClient implements AutoCloseable {
     }
 
     private static String blankToNull(String value) {
-        if (value == null) return null;
+        if (value == null) {
+            return null;
+        }
         String trimmed = value.trim();
         return trimmed.isEmpty() ? null : trimmed;
     }
 
     private static String readable(Throwable throwable) {
-        if (throwable == null) return "unknown error";
+        if (throwable == null) {
+            return "unknown error";
+        }
         String message = throwable.getMessage();
         return message == null || message.isBlank() ? throwable.getClass().getSimpleName() : message;
     }

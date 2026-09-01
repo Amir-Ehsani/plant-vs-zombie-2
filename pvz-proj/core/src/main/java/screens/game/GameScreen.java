@@ -74,7 +74,15 @@ import models.engine.sun.Sun;
 import models.level.core.AdventureLevelCatalog;
 import models.level.wave.WaveManager;
 import screens.BaseScreen;
-import ui.*;
+import ui.BossGameOverDialog;
+import ui.BossPresentationOverlay;
+import ui.GameOverDialog;
+import ui.MenuButton;
+import ui.ModalWindow;
+import ui.PauseDialog;
+import ui.PlantCard;
+import ui.ResourceBar;
+import ui.UiHoverAnimator;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -841,9 +849,16 @@ public final class GameScreen extends BaseScreen {
         if (interactionOverlay == null || !interactions.isActive()) {
             return;
         }
+        enableAlphaBlending();
         batch.begin();
-        // Plant placement is click-select/click-place only. Do not render a dragged
-        // plant sprite or idle animation attached to the mouse cursor.
+        interactionOverlay.drawPlantGhost(
+            batch,
+            stage.getCamera(),
+            interactions,
+            cursorWorld.x,
+            cursorWorld.y,
+            visualStateTime
+        );
         interactionOverlay.drawSpriteToolCursor(
             batch,
             interactions,

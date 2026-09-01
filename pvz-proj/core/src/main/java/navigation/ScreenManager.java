@@ -211,6 +211,8 @@ public class ScreenManager {
         }
         if (nextScreen instanceof MiniGameScreen) {
             game.getAudioManager().playMiniGameMusic();
+            return;
         }
+        game.getAudioManager().playMenuMusic();
     }
 }

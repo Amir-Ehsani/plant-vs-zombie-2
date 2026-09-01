@@ -86,8 +86,12 @@ public final class IZombieBoardActor extends Group {
             @Override
             public boolean touchDown(InputEvent event, float x, float y, int pointer, int button) {
                 updateHover(x, y);
-                if (!interactionEnabled || IZombieBoardActor.this.listener == null) return false;
-                if (hoverRow < 0 || hoverColumn < 0) return false;
+                if (!interactionEnabled || IZombieBoardActor.this.listener == null) {
+                    return false;
+                }
+                if (hoverRow < 0 || hoverColumn < 0) {
+                    return false;
+                }
                 if (interactionRole == GameRole.PLANTS
                         && hoverColumn > AuthoritativeIZombieGame.LAST_PLANT_COLUMN) return false;
                 IZombieBoardActor.this.listener.selected(hoverRow, hoverColumn);
@@ -114,7 +118,9 @@ public final class IZombieBoardActor extends Group {
         Set<String> visiblePositions = new HashSet<>();
         if (snapshot != null) {
             for (EntityState entity : snapshot.getEntities()) {
-                if (entity.getId() == null || entity.getId().isBlank()) continue;
+                if (entity.getId() == null || entity.getId().isBlank()) {
+                    continue;
+                }
                 entitiesById.put(entity.getId(), entity);
                 float x = (float) entity.getX();
                 targetX.put(entity.getId(), x);
@@ -129,9 +135,13 @@ public final class IZombieBoardActor extends Group {
         renderedX.keySet().removeIf(id -> !visiblePositions.contains(id));
         targetX.keySet().removeIf(id -> !visiblePositions.contains(id));
         for (String id : new HashSet<>(entityActors.keySet())) {
-            if (visibleActors.contains(id)) continue;
+            if (visibleActors.contains(id)) {
+                continue;
+            }
             PamAnimationActor actor = entityActors.remove(id);
-            if (actor != null) actor.remove();
+            if (actor != null) {
+                actor.remove();
+            }
         }
         layoutEntityActors();
     }
@@ -175,11 +185,15 @@ public final class IZombieBoardActor extends Group {
     }
 
     private void drawBrainz(Batch batch, float parentAlpha) {
-        if (snapshot == null) return;
+        if (snapshot == null) {
+            return;
+        }
         float cellHeight = getHeight() / AuthoritativeIZombieGame.ROWS;
         boolean[] brains = snapshot.getBrains();
         for (int row = 0; row < Math.min(brains.length, AuthoritativeIZombieGame.ROWS); row++) {
-            if (!brains[row]) continue;
+            if (!brains[row]) {
+                continue;
+            }
             float centerY = getY() + getHeight() - (row + 0.5f) * cellHeight;
             if (brainImage != null) {
                 float height = Math.min(58f, cellHeight * 0.62f);
@@ -194,11 +208,15 @@ public final class IZombieBoardActor extends Group {
     }
 
     private void drawProjectiles(Batch batch, float parentAlpha) {
-        if (snapshot == null) return;
+        if (snapshot == null) {
+            return;
+        }
         float cellWidth = getWidth() / AuthoritativeIZombieGame.COLUMNS;
         float cellHeight = getHeight() / AuthoritativeIZombieGame.ROWS;
         for (EntityState entity : snapshot.getEntities()) {
-            if (!"PROJECTILE".equals(entity.getCategory())) continue;
+            if (!"PROJECTILE".equals(entity.getCategory())) {
+                continue;
+            }
             float xCells = renderedX.getOrDefault(entity.getId(), (float) entity.getX());
             float centerX = getX() + xCells * cellWidth;
             float centerY = getY() + getHeight() - (entity.getRow() + 0.5f) * cellHeight;
@@ -223,7 +241,9 @@ public final class IZombieBoardActor extends Group {
     }
 
     private void drawKeyboardLane(Batch batch, float parentAlpha) {
-        if (keyboardLaneRow < 0) return;
+        if (keyboardLaneRow < 0) {
+            return;
+        }
         float cellHeight = getHeight() / AuthoritativeIZombieGame.ROWS;
         float y = getY() + getHeight() - (keyboardLaneRow + 1) * cellHeight;
         batch.setColor(1f, 0.86f, 0.30f, 0.14f * parentAlpha);
@@ -231,7 +251,9 @@ public final class IZombieBoardActor extends Group {
     }
 
     private void drawHover(Batch batch, float parentAlpha) {
-        if (!interactionEnabled || hoverRow < 0 || hoverColumn < 0) return;
+        if (!interactionEnabled || hoverRow < 0 || hoverColumn < 0) {
+            return;
+        }
         float cellWidth = getWidth() / AuthoritativeIZombieGame.COLUMNS;
         float cellHeight = getHeight() / AuthoritativeIZombieGame.ROWS;
         float y = getY() + getHeight() - (hoverRow + 1) * cellHeight;
@@ -247,7 +269,9 @@ public final class IZombieBoardActor extends Group {
     }
 
     private void ensureEntityActor(EntityState entity) {
-        if (animations == null || entityActors.containsKey(entity.getId())) return;
+        if (animations == null || entityActors.containsKey(entity.getId())) {
+            return;
+        }
         PamAnimationActor actor;
         if ("PLANT".equals(entity.getCategory())) {
             actor = animations.createPlantActor(plantDisplayName(entity.getType()));
@@ -262,19 +286,27 @@ public final class IZombieBoardActor extends Group {
     }
 
     private void layoutEntityActors() {
-        if (getWidth() <= 0f || getHeight() <= 0f) return;
+        if (getWidth() <= 0f || getHeight() <= 0f) {
+            return;
+        }
         float cellWidth = getWidth() / AuthoritativeIZombieGame.COLUMNS;
         float cellHeight = getHeight() / AuthoritativeIZombieGame.ROWS;
         for (Map.Entry<String, PamAnimationActor> entry : entityActors.entrySet()) {
             EntityState entity = entitiesById.get(entry.getKey());
-            if (entity == null) continue;
+            if (entity == null) {
+                continue;
+            }
             float xCells = renderedX.getOrDefault(entry.getKey(), (float) entity.getX());
             float centerX = xCells * cellWidth;
             float centerY = getHeight() - (entity.getRow() + 0.5f) * cellHeight;
             boolean zombie = "ZOMBIE".equals(entity.getCategory());
             float height = zombie ? cellHeight * 1.18f : cellHeight * 0.92f;
-            if ("IMP".equals(entity.getType())) height *= 0.78f;
-            if ("ALLSTAR".equals(entity.getType()) || "GARGANTUAR".equals(entity.getType())) height *= 1.10f;
+            if ("IMP".equals(entity.getType())) {
+                height *= 0.78f;
+            }
+            if ("ALLSTAR".equals(entity.getType()) || "GARGANTUAR".equals(entity.getType())) {
+                height *= 1.10f;
+            }
             float width = zombie ? cellWidth * 0.92f : cellWidth * 0.78f;
             PamAnimationActor actor = entry.getValue();
             actor.setSize(width, height);
@@ -287,7 +319,9 @@ public final class IZombieBoardActor extends Group {
     }
 
     private void updateHover(float x, float y) {
-        if (getWidth() <= 0f || getHeight() <= 0f) return;
+        if (getWidth() <= 0f || getHeight() <= 0f) {
+            return;
+        }
         hoverColumn = Math.max(0, Math.min(AuthoritativeIZombieGame.COLUMNS - 1,
                 (int) (x / (getWidth() / AuthoritativeIZombieGame.COLUMNS))));
         hoverRow = Math.max(0, Math.min(AuthoritativeIZombieGame.ROWS - 1,
@@ -295,7 +329,9 @@ public final class IZombieBoardActor extends Group {
     }
 
     public static String plantDisplayName(String type) {
-        if (type == null) return "Peashooter";
+        if (type == null) {
+            return "Peashooter";
+        }
         return switch (type) {
             case "SUNFLOWER" -> "Sunflower";
             case "WALL_NUT" -> "Wall-nut";
@@ -308,7 +344,9 @@ public final class IZombieBoardActor extends Group {
     }
 
     public static String zombieDisplayName(String type) {
-        if (type == null) return "Default";
+        if (type == null) {
+            return "Default";
+        }
         return switch (type) {
             case "CONE_HEAD" -> "cone head";
             case "BUCKET_HEAD" -> "bucket head";
@@ -324,7 +362,9 @@ public final class IZombieBoardActor extends Group {
     }
 
     public void dispose() {
-        for (PamAnimationActor actor : entityActors.values()) actor.remove();
+        for (PamAnimationActor actor : entityActors.values()) {
+            actor.remove();
+        }
         entityActors.clear();
         pixel.dispose();
     }

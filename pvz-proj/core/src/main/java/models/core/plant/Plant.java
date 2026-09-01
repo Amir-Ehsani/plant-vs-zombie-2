@@ -4,9 +4,6 @@ import models.core.base.GameEntity;
 import models.core.projectile.Damage;
 import models.core.zombie.Zombie;
 
-import java.util.Locale;
-
-
 public class Plant extends PlantState {
     public Plant() {
         super();
@@ -19,7 +16,6 @@ public class Plant extends PlantState {
     public Plant(PlantType type, double x, double y, AttackBehavior attackBehavior) {
         super(type, x, y, attackBehavior);
     }
-
 
     public void attack() {
         if (!isAlive() || cooldownRemaining > 0) {
@@ -137,7 +133,6 @@ public class Plant extends PlantState {
             hp = Math.max(0, hp - remainingDamage);
         }
     }
-
 
     public void setBoosted(boolean boosted) {
         this.boosted = boosted;

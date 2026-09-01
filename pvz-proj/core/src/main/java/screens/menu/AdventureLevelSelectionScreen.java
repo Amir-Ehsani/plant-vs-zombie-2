@@ -18,8 +18,6 @@ import com.badlogic.gdx.utils.Scaling;
 import com.pvz.Main;
 import models.account.User;
 import models.level.core.AdventureLevelCatalog;
-import ui.BackButton;
-import ui.MenuButton;
 import ui.ResourceBar;
 
 public class AdventureLevelSelectionScreen extends BaseMenuScreen {
@@ -218,7 +216,7 @@ public class AdventureLevelSelectionScreen extends BaseMenuScreen {
     private ImageButton createNavSkinButton(String styleName, Runnable action) {
         ImageButton button = new ImageButton(skin, styleName);
         button.addListener(new ClickListener() {
-            
+
             public void clicked(InputEvent event, float x, float y) {
                 if (!button.isDisabled()) {
                     action.run();
@@ -250,7 +248,7 @@ public class AdventureLevelSelectionScreen extends BaseMenuScreen {
         }
         ImageButton button = new ImageButton(style);
         button.addListener(new ClickListener() {
-            
+
             public void clicked(InputEvent event, float x, float y) {
                 if (!button.isDisabled()) {
                     action.run();

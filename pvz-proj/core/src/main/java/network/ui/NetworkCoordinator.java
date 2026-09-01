@@ -24,7 +24,9 @@ public final class NetworkCoordinator {
     }
 
     public void pump(Stage stage) {
-        if (network == null) return;
+        if (network == null) {
+            return;
+        }
         network.pumpEvents();
         routeSystemEvents();
         routeChallenges(stage);
@@ -39,21 +41,33 @@ public final class NetworkCoordinator {
                 Gdx.app.postRunnable(() -> game.getScreenManager().showLogin(message));
             } else if (event.getType() == MessageType.CHALLENGE_RESPONSE) {
                 String message = eventMessage(event, "Challenge response received.");
-                if (event.getBoolean("accepted", false)) NotificationManager.showSuccess(message);
-                else NotificationManager.showWarning(message);
+                if (event.getBoolean("accepted", false)) {
+                    NotificationManager.showSuccess(message);
+                }
+                else {
+                    NotificationManager.showWarning(message);
+                }
             } else {
                 String message = event.get("message");
-                if (message != null && !message.isBlank()) NotificationManager.showInfo(message);
+                if (message != null && !message.isBlank()) {
+                    NotificationManager.showInfo(message);
+                }
             }
         }
     }
 
     private void routeChallenges(Stage stage) {
-        if (stage == null || game.getTravelLogController().getActiveMiniGameSession() instanceof NetworkIZombieGame) return;
+        if (stage == null || game.getTravelLogController().getActiveMiniGameSession() instanceof NetworkIZombieGame) {
+            return;
+        }
         NetworkMessage event = network.pollChallengeEvent();
-        if (event == null) return;
+        if (event == null) {
+            return;
+        }
         String challengeId = event.getOrDefault("challengeId", "");
-        if (challengeId.isBlank() || challengeId.equals(visibleChallengeId)) return;
+        if (challengeId.isBlank() || challengeId.equals(visibleChallengeId)) {
+            return;
+        }
         visibleChallengeId = challengeId;
         String challenger = event.getOrDefault("challenger", "Another player");
         ConfirmDialog dialog = new ConfirmDialog(
@@ -75,11 +89,15 @@ public final class NetworkCoordinator {
         NetworkMessage event;
         while ((event = network.pollMatchStartedEvent()) != null) {
             NetworkMatchContext context = NetworkMatchContext.from(event);
-            if (context == null || context.matchId().equals(openedMatchId)) continue;
+            if (context == null || context.matchId().equals(openedMatchId)) {
+                continue;
+            }
             openedMatchId = context.matchId();
             Gdx.app.postRunnable(() -> game.getScreenManager().showNetworkIZombie(context));
         }
-        if (network.getActiveMatch() == null) openedMatchId = null;
+        if (network.getActiveMatch() == null) {
+            openedMatchId = null;
+        }
     }
 
     private static String eventMessage(NetworkMessage event, String fallback) {

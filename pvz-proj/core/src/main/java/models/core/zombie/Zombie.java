@@ -4,11 +4,13 @@ import models.core.base.GameEntity;
 import models.core.projectile.Damage;
 
 import java.util.Locale;
+import java.util.concurrent.atomic.AtomicLong;
 
 public class Zombie extends GameEntity {
     private static final String NO_DROP = "none";
     private static final String PLANT_FOOD_DROP = "plant_food";
     private static final double MOVEMENT_SPEED_SCALE = 0.5;
+    private static final AtomicLong NEXT_ID = new AtomicLong(1);
 
     private double currentSpeed;
     private boolean glowing;
@@ -81,7 +83,7 @@ public class Zombie extends GameEntity {
     }
 
     private String buildId() {
-        return type.getName() + "@" + x + "," + y;
+        return type.getName() + "#" + NEXT_ID.getAndIncrement();
     }
 
     public void move() {
@@ -412,7 +414,6 @@ public class Zombie extends GameEntity {
         hp = Math.max(1, Math.min(maxHp, (int) Math.ceil(maxHp * ratio)));
         currentSpeed = newType.getSpeed();
         armor = newArmor;
-        id = buildId();
     }
 
     private String safeText(String value) {

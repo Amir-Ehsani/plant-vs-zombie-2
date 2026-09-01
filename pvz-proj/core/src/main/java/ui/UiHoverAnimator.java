@@ -10,7 +10,9 @@ import com.badlogic.gdx.scenes.scene2d.Touchable;
 import com.badlogic.gdx.scenes.scene2d.actions.Actions;
 import com.badlogic.gdx.scenes.scene2d.actions.ScaleToAction;
 import com.badlogic.gdx.scenes.scene2d.ui.Button;
+import com.badlogic.gdx.scenes.scene2d.ui.List;
 import com.badlogic.gdx.scenes.scene2d.ui.ScrollPane;
+import com.badlogic.gdx.scenes.scene2d.ui.SelectBox;
 import com.badlogic.gdx.scenes.scene2d.ui.TextField;
 import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
 import com.badlogic.gdx.utils.Align;
@@ -50,7 +52,8 @@ public final class UiHoverAnimator {
             return false;
         }
         if (actor instanceof MenuButton || actor instanceof ModalWindow
-                || actor instanceof ScrollPane || actor instanceof TextField) {
+                || actor instanceof ScrollPane || actor instanceof TextField
+                || actor instanceof SelectBox || actor instanceof List) {
             return false;
         }
         if (actor instanceof Button) {

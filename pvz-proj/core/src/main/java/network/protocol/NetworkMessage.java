@@ -57,9 +57,15 @@ public final class NetworkMessage implements Serializable {
     }
 
     public NetworkMessage put(String key, Object value) {
-        if (key == null || key.isBlank()) return this;
-        if (value == null) data.remove(key);
-        else data.put(key, String.valueOf(value));
+        if (key == null || key.isBlank()) {
+            return this;
+        }
+        if (value == null) {
+            data.remove(key);
+        }
+        else {
+            data.put(key, String.valueOf(value));
+        }
         return this;
     }
 
@@ -132,7 +138,9 @@ public final class NetworkMessage implements Serializable {
     public boolean isReply() { return replyTo != null; }
 
     private static String blankToNull(String value) {
-        if (value == null) return null;
+        if (value == null) {
+            return null;
+        }
         String trimmed = value.trim();
         return trimmed.isEmpty() ? null : trimmed;
     }

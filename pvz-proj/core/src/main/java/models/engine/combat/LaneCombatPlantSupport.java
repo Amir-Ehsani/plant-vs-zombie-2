@@ -2,30 +2,17 @@ package models.engine.combat;
 
 import models.core.plant.Plant;
 import models.core.plant.PlantActionTiming;
-import models.core.projectile.Damage;
-import models.core.zombie.Armor;
 import models.core.zombie.Zombie;
-import models.core.zombie.ZombieFactory;
-import models.core.zombie.ZombieType;
 import models.engine.board.Board;
 import models.engine.board.Lane;
 import models.engine.board.Position;
 import models.engine.board.Tile;
-import models.engine.board.TileType;
-import models.engine.events.GameEvent;
-import models.entities.LawnMower;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Comparator;
-import java.util.IdentityHashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
-import java.util.Map;
 import java.util.Random;
 import java.util.Set;
-
 
 abstract class LaneCombatPlantSupport extends LaneCombatAttackSupport {
     protected LaneCombatPlantSupport(Board board) {
@@ -45,9 +32,15 @@ abstract class LaneCombatPlantSupport extends LaneCombatAttackSupport {
     ) {
         String name = normalizeText(plant.getName());
         Boolean handled = handleMinePlant(name, lane, tile, plant, state, consumedPlants);
-        if (handled == null) handled = handleInstantPlant(name, lane, tile, plant, state, consumedPlants);
-        if (handled == null) handled = handleCooldownSpecialPlant(name, lane, tile, plant, state);
-        if (handled != null) return handled;
+        if (handled == null) {
+            handled = handleInstantPlant(name, lane, tile, plant, state, consumedPlants);
+        }
+        if (handled == null) {
+            handled = handleCooldownSpecialPlant(name, lane, tile, plant, state);
+        }
+        if (handled != null) {
+            return handled;
+        }
         String category = normalizeCategory(plant);
         return category.equals("sun producer") || category.equals("wall nut")
                 || category.equals("modifier") || name.equals("lily pad") || name.equals("torchwood");
@@ -57,12 +50,16 @@ abstract class LaneCombatPlantSupport extends LaneCombatAttackSupport {
             String name, Lane lane, Tile tile, Plant plant,
             PlantRuntimeState state, Set<Plant> consumedPlants
     ) {
-        if (!name.equals("potato mine") && !name.equals("primal potato mine")) return null;
+        if (!name.equals("potato mine") && !name.equals("primal potato mine")) {
+            return null;
+        }
         int armTicks = plant.isArmingFinished() ? 0
                 : plant.getArmTimeTicks() > 0 ? plant.getArmTimeTicks()
                 : name.equals("primal potato mine")
                 ? DEFAULT_PRIMAL_POTATO_ARM_TICKS : DEFAULT_POTATO_ARM_TICKS;
-        if (state.ageTicks < armTicks || state.actionPending) return true;
+        if (state.ageTicks < armTicks || state.actionPending) {
+            return true;
+        }
         Zombie target = nearestZombie(collectCandidateZombies(plant, lane), plant, true);
         if (target == null || Math.abs(target.getX() - plant.getX()) > 0.75) {
             return true;
@@ -107,9 +104,13 @@ abstract class LaneCombatPlantSupport extends LaneCombatAttackSupport {
     private void handleSquash(
             Lane lane, Tile tile, Plant plant, PlantRuntimeState state, Set<Plant> consumedPlants
     ) {
-        if (state.actionPending) return;
+        if (state.actionPending) {
+            return;
+        }
         Zombie target = nearestZombie(collectCandidateZombies(plant, lane), plant, true);
-        if (target == null || Math.abs(target.getX() - plant.getX()) > 1.25) return;
+        if (target == null || Math.abs(target.getX() - plant.getX()) > 1.25) {
+            return;
+        }
         state.actionPending = true;
         boolean jumpRight = target.getX() >= plant.getX();
         String clip = jumpRight ? "jump_up_right" : "jump_up_left";
@@ -153,11 +154,15 @@ abstract class LaneCombatPlantSupport extends LaneCombatAttackSupport {
             Lane lane, Tile tile, Plant plant, Set<Plant> consumedPlants
     ) {
         PlantRuntimeState state = plantStateOf(plant);
-        if (state.actionPending) return;
+        if (state.actionPending) {
+            return;
+        }
         List<Zombie> targets = closestTargets(plant, collectCandidateZombies(plant, lane),
                 Math.max(1, plant.getTargetCount()), true);
         Zombie target = targets.isEmpty() ? null : targets.get(0);
-        if (target == null || Math.abs(target.getX() - plant.getX()) > 0.75) return;
+        if (target == null || Math.abs(target.getX() - plant.getX()) > 0.75) {
+            return;
+        }
         state.actionPending = true;
         plant.triggerSpecialAnimation("attack_submerge");
         int delay = PlantActionTiming.meleeImpactTicks("tangle kelp", "attack_submerge");
@@ -166,7 +171,9 @@ abstract class LaneCombatPlantSupport extends LaneCombatAttackSupport {
             for (Zombie current : closestTargets(
                     plant, collectCandidateZombies(plant, lane),
                     Math.max(1, plant.getTargetCount()), true)) {
-                if (Math.abs(current.getX() - plant.getX()) > 0.85) continue;
+                if (Math.abs(current.getX() - plant.getX()) > 0.85) {
+                    continue;
+                }
                 current.recordDamageSource(plant.getName(), plantCategory(plant), "drag");
                 current.kill();
                 killed++;
@@ -184,9 +191,13 @@ abstract class LaneCombatPlantSupport extends LaneCombatAttackSupport {
             Lane lane, Tile tile, Plant plant, Set<Plant> consumedPlants
     ) {
         PlantRuntimeState state = plantStateOf(plant);
-        if (state.actionPending) return;
+        if (state.actionPending) {
+            return;
+        }
         Zombie target = nearestZombie(collectCandidateZombies(plant, lane), plant, true);
-        if (target == null || Math.abs(target.getX() - plant.getX()) > 0.9) return;
+        if (target == null || Math.abs(target.getX() - plant.getX()) > 0.9) {
+            return;
+        }
         state.actionPending = true;
         plant.triggerSpecialAnimation("attack");
         int delay = PlantActionTiming.meleeImpactTicks("iceberg lettuce", "attack");
@@ -218,9 +229,13 @@ abstract class LaneCombatPlantSupport extends LaneCombatAttackSupport {
     }
 
     private boolean runMagnetShroom(Plant plant, Lane lane) {
-        if (plant.getCooldownRemaining() != 0) return true;
+        if (plant.getCooldownRemaining() != 0) {
+            return true;
+        }
         Zombie target = findArmoredTarget(plant, lane);
-        if (target == null || target.getArmor() == null) return true;
+        if (target == null || target.getArmor() == null) {
+            return true;
+        }
         plant.prepareAttackAnimation("special");
         plant.attack();
         scheduleCombatAction(PlantActionTiming.specialImpactTicks("magnet shroom"), () -> {
@@ -233,21 +248,31 @@ abstract class LaneCombatPlantSupport extends LaneCombatAttackSupport {
     }
 
     private boolean runCaulipower(Plant plant, Lane lane) {
-        if (plant.getCooldownRemaining() != 0) return true;
+        if (plant.getCooldownRemaining() != 0) {
+            return true;
+        }
         Zombie target = randomLivingTarget();
-        if (target == null) return true;
+        if (target == null) {
+            return true;
+        }
         plant.prepareAttackAnimation("attack");
         plant.attack();
         scheduleCombatAction(PlantActionTiming.specialImpactTicks("caulipower"), () -> {
-            if (isPlantTargetableZombie(target)) hypnotize(target);
+            if (isPlantTargetableZombie(target)) {
+                hypnotize(target);
+            }
         });
         return true;
     }
 
     private boolean runElectricBlueberry(Plant plant, Lane lane) {
-        if (plant.getCooldownRemaining() != 0) return true;
+        if (plant.getCooldownRemaining() != 0) {
+            return true;
+        }
         Zombie target = randomLivingTarget();
-        if (target == null) return true;
+        if (target == null) {
+            return true;
+        }
         plant.prepareAttackAnimation("attack");
         plant.attack();
         int impactDelay = PlantActionTiming.specialImpactTicks("electric blueberry");
@@ -262,9 +287,13 @@ abstract class LaneCombatPlantSupport extends LaneCombatAttackSupport {
     }
 
     private boolean runChomper(Plant plant, Lane lane, PlantRuntimeState state) {
-        if (plant.getCooldownRemaining() != 0 || state.actionPending) return true;
+        if (plant.getCooldownRemaining() != 0 || state.actionPending) {
+            return true;
+        }
         Zombie target = nearestZombie(collectCandidateZombies(plant, lane), plant, true);
-        if (target == null || Math.abs(target.getX() - plant.getX()) > MELEE_RANGE) return true;
+        if (target == null || Math.abs(target.getX() - plant.getX()) > MELEE_RANGE) {
+            return true;
+        }
         state.actionPending = true;
         plant.prepareAttackAnimation("bite");
         plant.attack();
@@ -283,7 +312,9 @@ abstract class LaneCombatPlantSupport extends LaneCombatAttackSupport {
     }
 
     private boolean runPhatBeet(Plant plant, Lane lane) {
-        if (plant.getCooldownRemaining() != 0) return true;
+        if (plant.getCooldownRemaining() != 0) {
+            return true;
+        }
         boolean hasTarget = false;
         for (Zombie zombie : board == null ? List.<Zombie>of() : board.getAllZombies()) {
             if (isPlantTargetableZombie(zombie)
@@ -293,7 +324,9 @@ abstract class LaneCombatPlantSupport extends LaneCombatAttackSupport {
                 break;
             }
         }
-        if (!hasTarget) return true;
+        if (!hasTarget) {
+            return true;
+        }
         int damage = effectiveDamage(plant, 15);
         plant.prepareAttackAnimation("attack");
         plant.attack();
@@ -304,7 +337,9 @@ abstract class LaneCombatPlantSupport extends LaneCombatAttackSupport {
     }
 
     private boolean runKiwibeast(Plant plant, Lane lane, PlantRuntimeState state) {
-        if (plant.getCooldownRemaining() != 0) return true;
+        if (plant.getCooldownRemaining() != 0) {
+            return true;
+        }
         int stage = state.ageTicks >= 72 * TICKS_PER_SECOND ? 3
                 : state.ageTicks >= 24 * TICKS_PER_SECOND ? 2 : 1;
         int radius = stage >= 3 ? 2 : 1;
@@ -319,7 +354,9 @@ abstract class LaneCombatPlantSupport extends LaneCombatAttackSupport {
                 }
             }
         }
-        if (!hasTarget) return true;
+        if (!hasTarget) {
+            return true;
+        }
         String clip = "attack_stage" + stage;
         int damage = effectiveDamage(plant, 15 * stage);
         plant.prepareAttackAnimation(clip);
