@@ -27,11 +27,11 @@ A fan-made tower-defense built with **libGDX** and **LWJGL3**. Plant a lawn, sur
 The runnable desktop build is a **fat JAR**: game code, natives, and every asset the game loads are packed inside a single file.
 
 1. Install **Java 17 or newer** ([Adoptium Temurin](https://adoptium.net/) is a good choice).
-2. Download `plants-vs-zombies-failure-1.0.0.jar` from [Releases](https://github.com/Amir-Ehsani/plant-vs-zombie-2/releases).
+2. Download `client.jar` from [Releases](https://github.com/Amir-Ehsani/plant-vs-zombie-2/releases).
 3. Double-click the JAR, or run:
 
 ```bash
-java -jar plants-vs-zombies-failure-1.0.0.jar
+java -jar client.jar
 ```
 
 The window opens at 1280×720. Press **F11** for fullscreen.
