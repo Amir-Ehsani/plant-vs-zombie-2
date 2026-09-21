@@ -1,72 +1,151 @@
-# Plants vs. Zombies 2
+<h1 align="center">Plants vs. Zombies 2</h1>
 
-A LibGDX desktop remake of *Plants vs. Zombies 2* with adventure chapters, collection and shop systems, minigames, and optional online **I, Zombie**.
+<p align="center">
+  <strong>A desktop Plants vs. Zombies 2 remake in Java</strong>
+  <br/>
+  Defend four worlds, grow your collection, and duel friends in I, Zombie.
+</p>
 
-The playable game lives in [`pvz-proj/`](pvz-proj/).
+<p align="center">
+  <a href="#play-the-game">Play</a> ·
+  <a href="#features">Features</a> ·
+  <a href="#controls">Controls</a> ·
+  <a href="#build-from-source">Build</a> ·
+  <a href="#project-structure">Structure</a>
+</p>
+
+---
+
+A fan-made tower-defense built with **libGDX** and **LWJGL3**. Plant a lawn, survive chapter bosses, unlock the collection and shop, then take I, Zombie offline on the couch or online against another player.
+
+> **Fan project.** This is an unofficial recreation. Plants vs. Zombies, its characters, art, music, and names belong to [PopCap Games](https://www.ea.com/games/plantsvszombies) and Electronic Arts. This repository is not affiliated with or endorsed by PopCap or EA.
+
+---
+
+## Play the game
+
+The runnable desktop build is a **fat JAR**: game code, natives, and every asset the game loads are packed inside a single file.
+
+1. Install **Java 17 or newer** ([Adoptium Temurin](https://adoptium.net/) is a good choice).
+2. Download `plants-vs-zombies-failure-1.0.0.jar` from [Releases](https://github.com/Amir-Ehsani/plant-vs-zombie-2/releases).
+3. Double-click the JAR, or run:
+
+```bash
+java -jar plants-vs-zombies-failure-1.0.0.jar
+```
+
+The window opens at 1280×720. Press **F11** for fullscreen.
+
+The first launch unpacks animation data to `%USERPROFILE%\.plants-vs-zombies-2\` (Windows) or `~/.plants-vs-zombies-2/` (macOS / Linux). That can take a minute. Later launches reuse the cache.
+
+A local copy of the same build is produced at `pvz-proj/lwjgl3/build/libs/plants-vs-zombies-failure-1.0.0.jar` after `gradlew lwjgl3:jar`.
+
+On the login screen, check **Play offline (no server)** to register a local account and skip the multiplayer server. Adventure, collection, shop, quests, and couch minigames all work that way. Online I, Zombie and the live leaderboard need a server login.
+
+---
 
 ## Features
 
-- **Adventure** across Ancient Egypt, Frostbite Caves, Big Wave Beach, and Dark Ages, with plant selection, lawn combat, bosses, and plant food
-- **Account progress** for coins, gems, collection, greenhouse, shop, quests, and MioPoint
-- **Minigames** including I, Zombie (couch and online), Vasebreaker, Match Three, and Zombotany
-- **Optional multiplayer**: authoritative TCP server for accounts, matchmaking, leaderboard, and online I, Zombie
-- **Offline play** from the login screen when you do not want to start a server
+| | |
+| :--- | :--- |
+| **Adventure** | Four chapters, plant selection, lawn combat, Plant Food, and a boss fight at the end of each world. |
+| **Worlds** | Ancient Egypt graves, Ice Cave slip and freeze, Wave Beach tides, and Dark Ages night rules. |
+| **Progression** | Coins, gems, collection, greenhouse, shop, quests, and **MioPoint** high scores. |
+| **Minigames** | I, Zombie (couch and online), Vasebreaker, Wall-nut Bowling, Beghouled, and Zombotany. |
+| **Offline play** | Local accounts from the login checkbox. No server process required. |
+| **Online I, Zombie** | Authoritative TCP matchmaking. Clients send actions; both players render the same snapshot stream. |
 
-## Requirements
+<p align="center">
+  <em>Ancient Egypt · Ice Cave · Wave Beach · Dark Ages</em>
+</p>
 
-- **Java 17** or newer
-- Windows, macOS, or Linux
+---
 
-## Run from source
+## Worlds
 
-```bash
-cd pvz-proj
-./gradlew lwjgl3:run
-```
+Each chapter has its own terrain, zombies, and a level-4 boss.
 
-On Windows:
+| World | What changes on the lawn |
+| :--- | :--- |
+| **Ancient Egypt** | Graves, tomb-raising waves, and a Sphinx boss. |
+| **Ice Cave** | Slippery tiles, frozen zombies, and a yeti boss. |
+| **Wave Beach** | Tide columns, water tiles, and a suction boss. |
+| **Dark Ages** | Graves, night planting rules, and a castle boss. |
 
-```powershell
-cd pvz-proj
-.\gradlew.bat lwjgl3:run
-```
+---
 
-## Offline play
+## Controls
 
-On the login screen, check **Play offline (no server)**.
+| Action | Keys |
+| :--- | :--- |
+| Fullscreen | `F11` |
+| Place / pick up / interact | Mouse |
+| Shovel | `S` |
+| Plant Food | `F` |
+| Pause | `P` / `Space` |
+| Game speed | `1` `2` `3` |
+| Cancel / leave lawn | `Esc` |
 
-1. Register a local account, or log in with one you already created offline.
-2. Adventure, collection, shop, quests, and couch minigames work without a server.
-3. Online I, Zombie and the server leaderboard stay unavailable until you log in without that checkbox.
+**Couch I, Zombie** (one keyboard, two players)
 
-Local accounts are stored on the machine. They are not the same as server accounts.
+| Action | Keys |
+| :--- | :--- |
+| Plants | Mouse |
+| Zombie lane | `W` `S` or `↑` `↓` |
+| Choose a zombie | `1` `2` `3` `4` `5` |
+| Spawn | `Space` / `Enter` |
+
+---
 
 ## Multiplayer
+
+Most of the game is local. Only accounts, matchmaking, the live leaderboard, and online I, Zombie go through the server.
 
 Start the authoritative server from `pvz-proj`:
 
 ```bash
+# Windows
+gradlew.bat :core:runServer
+
+# macOS / Linux
 ./gradlew :core:runServer
 ```
 
 Default endpoint: `0.0.0.0:54555`. Override with `PVZ_SERVER_BIND` and `PVZ_SERVER_PORT`.
 
-On the login screen, leave **Play offline** unchecked and set **Server host** / **Server port**. Then:
+On the login screen, leave **Play offline** unchecked, set **Server host** / **Server port**, then register or log in. Open **Quests → Minigames → I, Zombie** (or the main-menu online banner) to challenge a player or join the random queue.
 
-- register or log in against the server
-- open **Quests → Minigames → I, Zombie** (or the main-menu online banner)
-- challenge a player or join the random queue
+The server owns the match. Clients send commands; both players render the same snapshot stream.
 
-The server owns the match. Clients send actions; both players render the same snapshot stream.
+Local offline accounts are stored on the machine. They are not the same as server accounts.
 
-Couch I, Zombie is local: plants use the mouse, zombies use **W/S** or arrow keys for the lane, **1–5** to pick a zombie, and **Space/Enter** to spawn.
+---
 
-## Release JAR
+## Build from source
 
-Build a runnable fat JAR:
+**Requirements**
+
+- JDK 17 or newer on `PATH`
+- Git
 
 ```bash
-cd pvz-proj
+git clone https://github.com/Amir-Ehsani/plant-vs-zombie-2.git
+cd plant-vs-zombie-2/pvz-proj
+
+# Windows
+gradlew.bat lwjgl3:run
+
+# macOS / Linux
+./gradlew lwjgl3:run
+```
+
+Create the release JAR (includes art, audio, UI, and PAM animations):
+
+```bash
+# Windows
+gradlew.bat lwjgl3:jar
+
+# macOS / Linux
 ./gradlew lwjgl3:jar
 ```
 
@@ -76,53 +155,50 @@ Output:
 pvz-proj/lwjgl3/build/libs/plants-vs-zombies-failure-1.0.0.jar
 ```
 
-Run it with Java 17+:
+Useful tasks (run from `pvz-proj`):
 
-```bash
-java -jar plants-vs-zombies-failure-1.0.0.jar
-```
+| Task | What it does |
+| :--- | :--- |
+| `lwjgl3:run` | Launch the desktop game |
+| `lwjgl3:jar` | Fat JAR with code, natives, and in-game assets |
+| `:core:runServer` | Start the multiplayer server |
+| `linter` | Run Checkstyle |
+| `clean` | Delete build outputs |
 
-The first launch unpacks animation data to `%USERPROFILE%\.plants-vs-zombies-2\` (or `~/.plants-vs-zombies-2/`). That can take a minute. Later launches reuse the cache. Keep the working directory writable so local profiles can be saved.
+---
 
-## Controls
-
-| Action | Input |
-| --- | --- |
-| Fullscreen | **F11** |
-| Plant / interact | Mouse |
-| Pause (in game) | In-game pause control |
-
-## Project layout
+## Project structure
 
 ```
 pvz-proj/
-  core/      Shared game logic, UI, and the TCP server
-  lwjgl3/    Desktop launcher
-  assets/    Art, audio, and animation data
-  config/    Checkstyle rules
+├── assets/          Game art, audio, UI, and PAM animations
+├── core/            Shared game logic, screens, and the TCP server
+├── lwjgl3/          Desktop launcher (LWJGL3) and fat JAR
+├── config/          Checkstyle rules
+└── README.md
 ```
 
-Useful Gradle tasks from `pvz-proj`:
+The `core` module holds adventure, plants, zombies, bosses, minigames, accounts, and networking.
+The `lwjgl3` module starts the window and packages a cross-platform JAR.
 
-| Task | Purpose |
-| --- | --- |
-| `lwjgl3:run` | Run the desktop game |
-| `lwjgl3:jar` | Build the release JAR |
-| `:core:runServer` | Start the multiplayer server |
-| `linter` | Run Checkstyle |
+---
 
-```bash
-./gradlew linter
-```
+## Tech stack
 
-## Scoring
+- **Java 17** language level
+- **[libGDX](https://libgdx.com/) 1.14.2** for rendering, input, and audio
+- **LWJGL3 3.4.1** desktop backend
+- **Checkstyle** for the course linter
+- **Gradle Wrapper** so no global Gradle install is required
 
-MioPoint is awarded when a level ends:
+---
 
-`100 + (difficulty × 50) + (zombie kills × 10) + leftover sun + 500 if you win`
+## Credits
 
-**Best MioPoint** is the highest single-level score, not a lifetime total.
+- **Amir Ehsani** — design and programming · [Portfolio](https://amir-ehsani.xyz/)
+- **Mohammad Khosravi** — design and programming
+- **Mohsen Feyzipoor** — design and programming
+- **PopCap Games / Electronic Arts** — Plants vs. Zombies, the original worlds, characters, and audio-visual identity
+- **libGDX** and **LWJGL** — the desktop framework this project is built on
 
-## Networking in brief
-
-Most of the game is local. Only online I, Zombie, server accounts, matchmaking, and the live leaderboard go through the server. Clients send commands; the server simulates the match and broadcasts snapshots.
+This project is a student / fan recreation for learning and demonstration. Please support the original game: [ea.com/games/plantsvszombies](https://www.ea.com/games/plantsvszombies)
