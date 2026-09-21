@@ -38,7 +38,7 @@ public class LeaderboardController {
     }
 
     public List<LeaderboardEntry> getEntries(String column, boolean ascending) {
-        if (networkManager != null) {
+        if (shouldUseServerLeaderboard()) {
             if (!networkManager.isAuthenticated()) {
                 fail("Server leaderboard requires an active server session.");
                 return List.of();
@@ -70,6 +70,13 @@ public class LeaderboardController {
                     getNonDailyQuestCount(user), user.getBestMioPoint()));
         }
         return entries;
+    }
+
+    private boolean shouldUseServerLeaderboard() {
+        if (networkManager == null) {
+            return false;
+        }
+        return authController == null || authController.isNetworkBacked();
     }
 
     public List<User> getRankedUsers() { return getRankedUsers("best-score", false); }

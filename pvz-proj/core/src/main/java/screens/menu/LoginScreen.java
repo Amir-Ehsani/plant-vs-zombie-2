@@ -1,9 +1,11 @@
 package screens.menu;
 
+import com.badlogic.gdx.scenes.scene2d.Actor;
 import com.badlogic.gdx.scenes.scene2d.ui.CheckBox;
 import com.badlogic.gdx.scenes.scene2d.ui.Table;
 import com.badlogic.gdx.scenes.scene2d.ui.TextButton;
 import com.badlogic.gdx.scenes.scene2d.ui.TextField;
+import com.badlogic.gdx.scenes.scene2d.utils.ChangeListener;
 import com.pvz.Main;
 import controllers.auth.AuthController;
 import network.client.NetworkConfig;
@@ -14,6 +16,7 @@ public class LoginScreen extends BaseMenuScreen {
     private TextField usernameField;
     private TextField passwordField;
     private CheckBox stayLoggedInBox;
+    private CheckBox playOfflineBox;
     private TextField serverHostField;
     private TextField serverPortField;
 
@@ -44,6 +47,15 @@ public class LoginScreen extends BaseMenuScreen {
         serverPortField = createField("Server port");
         serverPortField.setText(String.valueOf(config.getPort()));
         stayLoggedInBox = new CheckBox(" Stay logged in", skin, "default");
+        playOfflineBox = new CheckBox(" Play offline (no server)", skin, "default");
+        playOfflineBox.setChecked(controller.isOfflinePlay() && !controller.isLoggedIn());
+        playOfflineBox.addListener(new ChangeListener() {
+            @Override
+            public void changed(ChangeEvent event, Actor actor) {
+                refreshOfflineFields();
+            }
+        });
+        refreshOfflineFields();
         addForm(panel);
         root.add(panel).width(560f);
     }
@@ -65,6 +77,7 @@ public class LoginScreen extends BaseMenuScreen {
         endpoint.add(serverPortField).width(114f).height(44f);
         panel.add(endpoint).width(420f).row();
         panel.add(stayLoggedInBox).left().width(420f).row();
+        panel.add(playOfflineBox).left().width(420f).row();
         panel.add(createLoginButton()).width(260f).height(54f).row();
         panel.add(createRegisterButton()).width(260f).height(50f).row();
         panel.add(createForgotButton()).width(260f).height(50f);
@@ -75,30 +88,66 @@ public class LoginScreen extends BaseMenuScreen {
     }
 
     private TextButton createRegisterButton() {
-        return new ui.MenuButton("Register", skin, () -> { if (applyEndpoint()) game.getScreenManager().showRegister(); });
+        return new ui.MenuButton("Register", skin, this::goRegister);
     }
 
     private TextButton createForgotButton() {
-        return new ui.MenuButton("Forgot Password", skin, () -> { if (applyEndpoint()) game.getScreenManager().showForgotPassword(); });
+        return new ui.MenuButton("Forgot Password", skin, this::goForgotPassword);
+    }
+
+    private void refreshOfflineFields() {
+        boolean offline = playOfflineBox.isChecked();
+        serverHostField.setDisabled(offline);
+        serverPortField.setDisabled(offline);
+    }
+
+    private void applyOfflineChoice() {
+        controller.setOfflinePlay(playOfflineBox.isChecked());
+    }
+
+    private boolean applyEndpointIfNeeded() {
+        applyOfflineChoice();
+        if (playOfflineBox.isChecked()) {
+            return true;
+        }
+        return applyEndpoint();
     }
 
     private boolean applyEndpoint() {
         int port;
-        try { port = Integer.parseInt(serverPortField.getText().trim()); }
-        catch (RuntimeException exception) { showControllerMessage("ERROR: Server port must be a number."); return false; }
+        try {
+            port = Integer.parseInt(serverPortField.getText().trim());
+        } catch (RuntimeException exception) {
+            showControllerMessage("ERROR: Server port must be a number.");
+            return false;
+        }
         if (port < 1 || port > 65535) {
-            showControllerMessage("ERROR: Server port must be between 1 and 65535."); return false;
+            showControllerMessage("ERROR: Server port must be between 1 and 65535.");
+            return false;
         }
         String host = serverHostField.getText() == null ? "" : serverHostField.getText().trim();
         if (host.isBlank()) {
-            showControllerMessage("ERROR: Server host is required."); return false;
+            showControllerMessage("ERROR: Server host is required.");
+            return false;
         }
         game.getNetworkManager().configure(host, port);
         return true;
     }
 
+    private void goRegister() {
+        if (applyEndpointIfNeeded()) {
+            game.getScreenManager().showRegister();
+        }
+    }
+
+    private void goForgotPassword() {
+        if (applyEndpointIfNeeded()) {
+            game.getScreenManager().showForgotPassword();
+        }
+    }
+
     private void login() {
-        if (!applyEndpoint()) {
+        if (!applyEndpointIfNeeded()) {
             return;
         }
         controller.login(usernameField.getText().trim(), passwordField.getText(), stayLoggedInBox.isChecked());

@@ -31,6 +31,7 @@ public class AuthController {
     private String networkResetId;
     private String lastMessage;
     private int lastSubmittedMioPoint;
+    private boolean offlinePlay;
 
     /** Local-only constructor kept for model/controller tests and offline tooling. */
     public AuthController() {
@@ -49,11 +50,16 @@ public class AuthController {
         this.networkResetId = null;
         this.lastMessage = "";
         this.lastSubmittedMioPoint = 0;
+        this.offlinePlay = false;
 
         if (networkManager == null) {
             this.loggedInUser = findStayLoggedInUser();
         } else {
             this.loggedInUser = restoreServerSessionIfAvailable();
+            if (this.loggedInUser == null) {
+                this.loggedInUser = findStayLoggedInUser();
+                this.offlinePlay = this.loggedInUser != null;
+            }
         }
         if (loggedInUser != null) {
             lastSubmittedMioPoint = Math.max(0, loggedInUser.getBestMioPoint());
@@ -76,7 +82,7 @@ public class AuthController {
             fail("Invalid username.");
             return;
         }
-        if (networkManager == null && findUser(username) != null) {
+        if (!usesNetwork() && findUser(username) != null) {
             fail("Username already exists.");
             return;
         }
@@ -114,7 +120,7 @@ public class AuthController {
         pendingUser.setSecurityQuestionNumber(questionNumber);
         pendingUser.setSecurityAnswer(answer);
 
-        if (networkManager != null) {
+        if (usesNetwork()) {
             NetworkAuthResult result = networkManager.register(
                     pendingUser,
                     SECURITY_QUESTIONS[questionNumber - 1],
@@ -134,7 +140,7 @@ public class AuthController {
     }
 
     public void login(String username, String password, boolean stayLoggedIn) {
-        if (networkManager != null) {
+        if (usesNetwork()) {
             NetworkAuthResult result = networkManager.login(username, password, stayLoggedIn);
             if (!result.successful() || result.user() == null) {
                 fail(result.message());
@@ -152,7 +158,9 @@ public class AuthController {
 
         User user = findUser(username);
         if (user == null) {
-            fail("Username not found.");
+            fail(offlinePlay
+                    ? "Username not found. Register an offline account first."
+                    : "Username not found.");
             return;
         }
         if (!passwordMatches(user, password)) {
@@ -168,7 +176,7 @@ public class AuthController {
 
     public void logout() {
         NetworkOperationResult networkResult = null;
-        if (networkManager != null) {
+        if (usesNetwork()) {
             networkResult = networkManager.logout();
         }
         if (loggedInUser != null) {
@@ -176,6 +184,7 @@ public class AuthController {
         }
         loggedInUser = null;
         lastSubmittedMioPoint = 0;
+        offlinePlay = false;
         saveLocalUsers();
         if (networkResult != null && !networkResult.successful()) {
             fail(networkResult.message());
@@ -185,7 +194,7 @@ public class AuthController {
     }
 
     public void forgetPassword(String username, String email) {
-        if (networkManager != null) {
+        if (usesNetwork()) {
             NetworkResponse response = networkManager.beginPasswordReset(username, email);
             if (!response.wasSuccessful()) {
                 networkResetId = null;
@@ -216,7 +225,7 @@ public class AuthController {
     }
 
     public void answerSecurityQuestion(String answer) {
-        if (networkManager != null) {
+        if (usesNetwork()) {
             if (networkResetId == null || networkResetId.isBlank()) {
                 fail("No password recovery request exists.");
                 return;
@@ -252,7 +261,7 @@ public class AuthController {
             return;
         }
 
-        if (networkManager != null) {
+        if (usesNetwork()) {
             if (networkResetId == null || networkResetId.isBlank()) {
                 fail("No verified password recovery request exists.");
                 return;
@@ -302,7 +311,7 @@ public class AuthController {
         }
         String oldUsername = user.getUsername();
         user.setUsername(newUsername);
-        if (networkManager != null) {
+        if (usesNetwork()) {
             NetworkOperationResult result = networkManager.rename(user, newUsername);
             if (!result.successful()) {
                 user.setUsername(oldUsername);
@@ -325,7 +334,7 @@ public class AuthController {
         }
         String oldHash = user.getPasswordHash();
         setUserPassword(user, newPassword);
-        if (networkManager != null) {
+        if (usesNetwork()) {
             NetworkOperationResult result = networkManager.changePassword(user, oldPassword, newPassword);
             if (!result.successful()) {
                 user.setPasswordHash(oldHash);
@@ -343,7 +352,18 @@ public class AuthController {
     public boolean usernameExists(String username) { return findUser(username) != null; }
     public String getLastMessage() { return lastMessage; }
     public boolean isLoggedIn() { return loggedInUser != null; }
-    public boolean isNetworkBacked() { return networkManager != null; }
+    public boolean isNetworkBacked() {
+        return usesNetwork();
+    }
+
+    public boolean isOfflinePlay() {
+        return offlinePlay || networkManager == null;
+    }
+
+    public void setOfflinePlay(boolean offlinePlay) {
+        this.offlinePlay = offlinePlay;
+    }
+
     public boolean wasSuccessful() { return lastMessage != null && lastMessage.startsWith("OK:"); }
 
     /**
@@ -352,7 +372,7 @@ public class AuthController {
      */
     public void saveUsers() {
         saveLocalUsers();
-        if (networkManager != null && loggedInUser != null && networkManager.isAuthenticated()) {
+        if (usesNetwork() && loggedInUser != null && networkManager.isAuthenticated()) {
             networkManager.synchronizeAsync(loggedInUser);
             int score = Math.max(0, loggedInUser.getBestMioPoint());
             if (score > lastSubmittedMioPoint) {
@@ -360,6 +380,10 @@ public class AuthController {
                 networkManager.submitScoredGameAsync(loggedInUser, score);
             }
         }
+    }
+
+    private boolean usesNetwork() {
+        return networkManager != null && !offlinePlay;
     }
 
     private User restoreServerSessionIfAvailable() {

@@ -27,10 +27,11 @@ import screens.game.GameScreen;
 import screens.game.MiniGameScreen;
 import screens.menu.NetworkLobbyScreen;
 import screens.menu.NetworkPlantSelectionScreen;
-import network.client.NetworkMatchContext;
-import network.protocol.GameRole;
 import models.minigame.CouchIZombieGame;
 import models.minigame.NetworkIZombieGame;
+import network.client.NetworkMatchContext;
+import network.protocol.GameRole;
+import ui.NotificationManager;
 
 public class ScreenManager {
     private final Main game;
@@ -120,6 +121,12 @@ public class ScreenManager {
     }
 
     public void showNetworkLobby() {
+        if (game.getAuthController() != null && !game.getAuthController().isNetworkBacked()) {
+            NotificationManager.showWarning(
+                    "Online play needs the server. Uncheck Play offline on the login screen."
+            );
+            return;
+        }
         show(new NetworkLobbyScreen(game));
     }
 

@@ -394,6 +394,10 @@ public final class PvzAnimationService implements Disposable {
     }
 
     private FileHandle resolvePvzAssetsRoot() {
+        FileHandle located = PvzAssetLocator.locate();
+        if (located != null && isValidPvzAssetsRoot(located)) {
+            return located;
+        }
         File currentDirectory = new File(System.getProperty("user.dir"));
         File[] candidates = {
             new File(currentDirectory, ASSET_ROOT),

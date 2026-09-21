@@ -1,33 +1,32 @@
-# plants-vs-zombies-failure
+# Plants vs. Zombies 2 (desktop)
 
-A [libGDX](https://libgdx.com/) project generated with [gdx-liftoff](https://github.com/libgdx/gdx-liftoff).
+LibGDX desktop client and optional TCP server. See the repository root [README](../README.md) for features, offline play, multiplayer, and release instructions.
 
-This project was generated with a template including simple application launchers and an `ApplicationAdapter` extension that draws libGDX logo.
+## Quick start
 
-## Platforms
+```bash
+./gradlew lwjgl3:run
+```
 
-- `core`: Main module with the application logic shared by all platforms.
-- `lwjgl3`: Primary desktop platform using LWJGL3; was called 'desktop' in older docs.
+Windows:
 
-## Gradle
+```powershell
+.\gradlew.bat lwjgl3:run
+```
 
-This project uses [Gradle](https://gradle.org/) to manage dependencies.
-The Gradle wrapper was included, so you can run Gradle tasks using `gradlew.bat` or `./gradlew` commands.
-Useful Gradle tasks and flags:
+## Common tasks
 
-- `--continue`: when using this flag, errors will not stop the tasks from running.
-- `--daemon`: thanks to this flag, Gradle daemon will be used to run chosen tasks.
-- `--offline`: when using this flag, cached dependency archives will be used.
-- `--refresh-dependencies`: this flag forces validation of all dependencies. Useful for snapshot versions.
-- `build`: builds sources and archives of every project.
-- `cleanEclipse`: removes Eclipse project data.
-- `cleanIdea`: removes IntelliJ project data.
-- `clean`: removes `build` folders, which store compiled classes and built archives.
-- `eclipse`: generates Eclipse project data.
-- `idea`: generates IntelliJ project data.
-- `lwjgl3:jar`: builds application's runnable jar, which can be found at `lwjgl3/build/libs`.
-- `lwjgl3:run`: starts the application.
-- `test`: runs unit tests (if any).
+| Task | Command |
+| --- | --- |
+| Run game | `./gradlew lwjgl3:run` |
+| Run server | `./gradlew :core:runServer` |
+| Build JAR | `./gradlew lwjgl3:jar` |
+| Lint | `./gradlew linter` |
 
-Note that most tasks that are not specific to a single project can be run with `name:` prefix, where the `name` should be replaced with the ID of a specific project.
-For example, `core:clean` removes `build` folder only from the `core` project.
+The runnable JAR is written to `lwjgl3/build/libs/plants-vs-zombies-failure-1.0.0.jar`.
+
+## Modules
+
+- `core` — game logic, UI, and `PvZServer`
+- `lwjgl3` — desktop launcher and fat JAR
+- `assets` — packed art, audio, and PAM animations

@@ -1,8 +1,8 @@
 package ui;
 
-import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.files.FileHandle;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
+import game.animation.core.PvzAssetLocator;
 import models.core.zombie.ZombieType;
 import pvz.libpvz.pam.PamPlayer;
 import pvz.libpvz.textures.TextureBank;
@@ -27,7 +27,7 @@ public class PvzAnimationService {
         PamPlayer createdPamPlayer = null;
         boolean createdAvailable = false;
         try {
-            FileHandle assetsFolder = Gdx.files.internal("pvz-assets");
+            FileHandle assetsFolder = PvzAssetLocator.locate();
             if (hasRequiredAssets(assetsFolder)) {
                 createdTextureBank = new TextureBank(RESOLUTION, assetsFolder);
                 createdPamPlayer = new PamPlayer(createdTextureBank, assetsFolder);

@@ -5,6 +5,7 @@ import com.badlogic.gdx.backends.lwjgl3.Lwjgl3ApplicationConfiguration;
 import com.badlogic.gdx.backends.lwjgl3.Lwjgl3Window;
 import com.badlogic.gdx.backends.lwjgl3.Lwjgl3WindowAdapter;
 import com.pvz.Main;
+import game.animation.core.PvzAssetLocator;
 import org.lwjgl.glfw.GLFW;
 
 public class Lwjgl3Launcher {
@@ -15,6 +16,7 @@ public class Lwjgl3Launcher {
         if (StartupHelper.startNewJvmIfRequired()) {
             return;
         }
+        PvzAssetLocator.prepare();
         createApplication();
     }
 
